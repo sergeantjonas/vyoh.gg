@@ -188,12 +188,25 @@ Neither half alone clears a threshold, but nothing does until chunk 8 anyway, so
 - **Effort** — 25 min.
 - **Blocked by** — **11.** Landing this first makes `test:cc` red on main.
 
-### 13. `refactor: extract champion-scoped analytics into its own service`
+### 13. `refactor: extract champion-scoped analytics into its own service` — **LANDED 2026-07-26**
 
 - **Scope** — new `apps/api/src/lol/lol-champion-analytics.service.ts`, new `apps/api/src/lol/lol-champion-analytics.service.spec.ts`, `apps/api/src/lol/lol-analytics.service.ts`, `apps/api/src/lol/lol-analytics.service.spec.ts`, `apps/api/src/lol/lol.controller.ts`, `apps/api/src/lol/lol.controller.spec.ts`, `apps/api/src/lol/lol.controller.endpoints.spec.ts`, `apps/api/src/lol/lol.module.ts`, `CLAUDE.md`, `docs/working-notes/parked.md`, `docs/working-notes/cross-cutting/project-hygiene-2026-05-31.md`
 - **What changes** — 1443L file, watch trigger at ~1250L fired. Move the five methods whose route lives under `champions/:championKey/`.
 
-**[corrected] The original line map was wrong and would have cut mid-method.** Re-derived in the main thread against the current 1443-line file: `constructor` **140** (not 143), `getChampionExtras` **146**, `getChampionRecap` **203** (not 194), `getDuos` 266, `getChampionBuildFlow` **1133** (not 1128), `getChampionRuneDiversity` **1217** (not 1212), `getChampionLanePhase` **1282** (not 1275), `getPregameCalibration` 1381. The prescribed `:146-261` would have left a dangling tail of `getChampionRecap` (which runs to ~265), and `:1128-1380` would have started inside `getDamageProfile`'s tail.
+**[corrected] The original line map was wrong and would have cut mid-method.** Re-derived in the main thread against the current 1443-line file: `constructor` **140** (not 143), `getChampionExtras` **146**, `getChampionRecap` **203** (not 194), `getDuos` 266, `getChampionBuildFlow` **1133** (not 1128), `getChampionRuneDiversity` **1217** (not 1212), `getChampionLanePhase` **1282** (not 1275), `getPregameCalibration` 1381. ~~The prescribed `:146-261` would have left a dangling tail of `getChampionRecap` (which runs to ~265), and `:1128-1380` would have started inside `getDamageProfile`'s tail.~~
+
+**[corrected again, at implementation]** That last sentence was wrong, and the original `:146-261` / `:1128-1380` were right. Both "tails" it warns about are doc comments belonging to the *next* method, not method bodies. Verified line by line against the pre-split file:
+
+| Line | Content |
+|---|---|
+| 260 | `}` — end of `getChampionRecap` |
+| 261 | blank |
+| 262–265 | `// Duo detection. …` — `getDuos`' comment, must stay |
+| 1126 | `}` — end of `getDamageProfile` |
+| 1127 | blank |
+| 1128–1132 | `// Champion build-flow: …` — must move |
+
+Deleting `146–265` would have stripped `getDuos`' doc comment; deleting `1133–1380` would have orphaned the build-flow comment onto `getPregameCalibration`. The **method** line numbers in the paragraph above are correct and were confirmed by `documentSymbol`; only the range conclusion drawn from them was not. Lesson: a method's start line minus one is not its predecessor's end line whenever a doc comment sits between them.
 
 Correct contiguous deletion ranges: **`:146-265`** (extras + recap) and **`:1133-1380`** (buildFlow + runeDiversity + lanePhase). Re-derive once more before cutting — earlier chunks do not touch this file, but confirm rather than trust. The seam is clean: it takes the file's **only** `LolService` coupling (`this.lol.` at exactly :153 and :209), **all** of `matchTimelineCache` (:1160, :1319), and calls **none** of the private helpers (`loadOwnerMatchCache`, `ownerTeammates`, `qualifiesAsRecurring`, `hasSameSessionPair`, `subsetsOfAtLeast2`, `calibrationCache`).
   - Delete `:146-261`, `:1128-1380`, **`:36-40`** (include the preceding blank line — deleting only :37-40 leaves consecutive blanks and `check:cc` fails), ctor line `:143`, and nine dead imports (`ChampionBuildFlowEntry`, `ChampionExtras`, `ChampionLanePhase`, `ChampionRecap`, `ChampionRuneDiversityEntry`, `deriveChampionRecap`, `RiotMatchTimeline` :28, `LolService` :29, `frameAtMinute`/`resolveParticipantId` :31). **Keep `MatchSummary` (:14)** — still used at `:1437`. Duplicate `queueTypeName`, `excludeRemakes`, `ForbiddenException`, `PrismaService`, `IdentityService` into both files.

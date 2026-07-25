@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { RiotModule } from "../riot/riot.module";
 import { LiveGamePollerService } from "./live-game-poller.service";
 import { LolAnalyticsService } from "./lol-analytics.service";
+import { LolChampionAnalyticsService } from "./lol-champion-analytics.service";
 import { LolStaticSyncService } from "./lol-static-sync.service";
 import { LolStaticController } from "./lol-static.controller";
 import { LolController } from "./lol.controller";
@@ -20,6 +21,7 @@ import { PatchService } from "./patch.service";
   providers: [
     LolService,
     LolAnalyticsService,
+    LolChampionAnalyticsService,
     MatchBaselineService,
     MatchNarrativeService,
     MatchSyncService,
@@ -31,6 +33,7 @@ import { PatchService } from "./patch.service";
   exports: [
     LolService,
     LolAnalyticsService,
+    LolChampionAnalyticsService,
     MatchBaselineService,
     MatchNarrativeService,
     MatchSyncService,

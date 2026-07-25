@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { LolAnalyticsService } from "./lol-analytics.service";
+import type { LolChampionAnalyticsService } from "./lol-champion-analytics.service";
 import { LolController } from "./lol.controller";
 import type { LolService } from "./lol.service";
 import type { MatchBaselineService } from "./match-baseline.service";
@@ -21,17 +22,22 @@ function makeController() {
     getSquads: vi.fn(),
     getChronotype: vi.fn(),
     getChampionPairs: vi.fn(),
-    getChampionBuildFlow: vi.fn(),
-    getChampionExtras: vi.fn(),
-    getChampionRecap: vi.fn(),
-    getChampionRuneDiversity: vi.fn(),
-    getChampionLanePhase: vi.fn(),
     getCarryProfile: vi.fn(),
     getObjectiveFirsts: vi.fn(),
     getObjectiveParticipation: vi.fn(),
     getAramProfile: vi.fn(),
     getDamageProfile: vi.fn(),
     getPregameCalibration: vi.fn(),
+  };
+  // Champion-scoped routes resolve against the second analytics service. Note
+  // that `getChampionDamageProfile` is NOT one of them — it is the account-level
+  // getDamageProfile with a championKey filled in, so it still hits `analytics`.
+  const championAnalytics = {
+    getChampionBuildFlow: vi.fn(),
+    getChampionExtras: vi.fn(),
+    getChampionRecap: vi.fn(),
+    getChampionRuneDiversity: vi.fn(),
+    getChampionLanePhase: vi.fn(),
   };
   const baseline = { getBaseline: vi.fn() };
   const narrative = { getNarrativeWindow: vi.fn(), getLifetimeNarrative: vi.fn() };
@@ -40,10 +46,12 @@ function makeController() {
       lol as unknown as LolService,
       analytics as unknown as LolAnalyticsService,
       baseline as unknown as MatchBaselineService,
-      narrative as unknown as MatchNarrativeService
+      narrative as unknown as MatchNarrativeService,
+      championAnalytics as unknown as LolChampionAnalyticsService
     ),
     lol,
     analytics,
+    championAnalytics,
     baseline,
     narrative,
   };
@@ -89,10 +97,10 @@ describe("LolController endpoint delegations", () => {
     expect(analytics.getChampionPairs).toHaveBeenCalledWith("euw1", "Vyoh", "EUW", 100);
   });
 
-  it("getChampionBuildFlow delegates to analytics.getChampionBuildFlow", async () => {
-    const { controller, analytics } = makeController();
+  it("getChampionBuildFlow delegates to championAnalytics.getChampionBuildFlow", async () => {
+    const { controller, championAnalytics } = makeController();
     await controller.getChampionBuildFlow(championParams, 100);
-    expect(analytics.getChampionBuildFlow).toHaveBeenCalledWith(
+    expect(championAnalytics.getChampionBuildFlow).toHaveBeenCalledWith(
       "euw1",
       "Vyoh",
       "EUW",
@@ -107,10 +115,10 @@ describe("LolController endpoint delegations", () => {
     expect(lol.getRankHistory).toHaveBeenCalledWith("euw1", "Vyoh", "EUW", 30);
   });
 
-  it("getChampionExtras delegates to analytics.getChampionExtras", async () => {
-    const { controller, analytics } = makeController();
+  it("getChampionExtras delegates to championAnalytics.getChampionExtras", async () => {
+    const { controller, championAnalytics } = makeController();
     await controller.getChampionExtras(championParams, undefined);
-    expect(analytics.getChampionExtras).toHaveBeenCalledWith(
+    expect(championAnalytics.getChampionExtras).toHaveBeenCalledWith(
       "euw1",
       "Vyoh",
       "EUW",
@@ -222,10 +230,10 @@ describe("LolController endpoint delegations", () => {
     );
   });
 
-  it("getChampionRuneDiversity delegates to analytics.getChampionRuneDiversity", async () => {
-    const { controller, analytics } = makeController();
+  it("getChampionRuneDiversity delegates to championAnalytics.getChampionRuneDiversity", async () => {
+    const { controller, championAnalytics } = makeController();
     await controller.getChampionRuneDiversity(championParams, 100);
-    expect(analytics.getChampionRuneDiversity).toHaveBeenCalledWith(
+    expect(championAnalytics.getChampionRuneDiversity).toHaveBeenCalledWith(
       "euw1",
       "Vyoh",
       "EUW",
@@ -234,10 +242,10 @@ describe("LolController endpoint delegations", () => {
     );
   });
 
-  it("getChampionLanePhase delegates to analytics.getChampionLanePhase", async () => {
-    const { controller, analytics } = makeController();
+  it("getChampionLanePhase delegates to championAnalytics.getChampionLanePhase", async () => {
+    const { controller, championAnalytics } = makeController();
     await controller.getChampionLanePhase(championParams, 100);
-    expect(analytics.getChampionLanePhase).toHaveBeenCalledWith(
+    expect(championAnalytics.getChampionLanePhase).toHaveBeenCalledWith(
       "euw1",
       "Vyoh",
       "EUW",
@@ -247,10 +255,10 @@ describe("LolController endpoint delegations", () => {
   });
 
   // No count query on this route — the DTO declares params only.
-  it("getChampionRecap delegates to analytics.getChampionRecap without a count", async () => {
-    const { controller, analytics } = makeController();
+  it("getChampionRecap delegates to championAnalytics.getChampionRecap without a count", async () => {
+    const { controller, championAnalytics } = makeController();
     await controller.getChampionRecap(championParams);
-    expect(analytics.getChampionRecap).toHaveBeenCalledWith(
+    expect(championAnalytics.getChampionRecap).toHaveBeenCalledWith(
       "euw1",
       "Vyoh",
       "EUW",
@@ -259,9 +267,9 @@ describe("LolController endpoint delegations", () => {
   });
 
   it("getChampionExtras parses CSV queues and drops non-numeric entries", async () => {
-    const { controller, analytics } = makeController();
+    const { controller, championAnalytics } = makeController();
     await controller.getChampionExtras(championParams, "420,nope,440");
-    expect(analytics.getChampionExtras).toHaveBeenCalledWith(
+    expect(championAnalytics.getChampionExtras).toHaveBeenCalledWith(
       "euw1",
       "Vyoh",
       "EUW",

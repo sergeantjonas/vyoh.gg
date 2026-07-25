@@ -43,6 +43,7 @@ import {
   ChampionAccountParamsDto,
 } from "./account-params.dto";
 import { LolAnalyticsService } from "./lol-analytics.service";
+import { LolChampionAnalyticsService } from "./lol-champion-analytics.service";
 import { LolService } from "./lol.service";
 import { MatchBaselineService } from "./match-baseline.service";
 import { NarrativeWindowDto } from "./match-narrative.dto";
@@ -54,7 +55,8 @@ export class LolController {
     private readonly lol: LolService,
     private readonly analytics: LolAnalyticsService,
     private readonly baseline: MatchBaselineService,
-    private readonly narrative: MatchNarrativeService
+    private readonly narrative: MatchNarrativeService,
+    private readonly championAnalytics: LolChampionAnalyticsService
   ) {}
 
   @Get("matches")
@@ -183,7 +185,7 @@ export class LolController {
     @Param() { region, gameName, tagLine, championKey }: ChampionAccountParamsDto,
     @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
   ): Promise<ChampionBuildFlowEntry[]> {
-    return this.analytics.getChampionBuildFlow(
+    return this.championAnalytics.getChampionBuildFlow(
       region,
       gameName,
       tagLine,
@@ -197,7 +199,7 @@ export class LolController {
     @Param() { region, gameName, tagLine, championKey }: ChampionAccountParamsDto,
     @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
   ): Promise<ChampionRuneDiversityEntry[]> {
-    return this.analytics.getChampionRuneDiversity(
+    return this.championAnalytics.getChampionRuneDiversity(
       region,
       gameName,
       tagLine,
@@ -211,7 +213,7 @@ export class LolController {
     @Param() { region, gameName, tagLine, championKey }: ChampionAccountParamsDto,
     @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
   ): Promise<ChampionLanePhase> {
-    return this.analytics.getChampionLanePhase(
+    return this.championAnalytics.getChampionLanePhase(
       region,
       gameName,
       tagLine,
@@ -247,7 +249,7 @@ export class LolController {
           .map((s) => Number.parseInt(s, 10))
           .filter((n) => Number.isFinite(n))
       : undefined;
-    return this.analytics.getChampionExtras(
+    return this.championAnalytics.getChampionExtras(
       region,
       gameName,
       tagLine,
@@ -260,7 +262,12 @@ export class LolController {
   async getChampionRecap(
     @Param() { region, gameName, tagLine, championKey }: ChampionAccountParamsDto
   ): Promise<ChampionRecap> {
-    return this.analytics.getChampionRecap(region, gameName, tagLine, championKey);
+    return this.championAnalytics.getChampionRecap(
+      region,
+      gameName,
+      tagLine,
+      championKey
+    );
   }
 
   @Sse("matches/events")

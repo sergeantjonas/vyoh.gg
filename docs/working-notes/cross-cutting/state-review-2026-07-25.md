@@ -188,7 +188,7 @@ This is almost certainly fallout from the Vite 8 / rolldown chunking change, whi
 
 ---
 
-**F-4 · `lol-analytics.service.ts` has crossed the documented god-class watch threshold. CONFIRMED.**
+**F-4 · `lol-analytics.service.ts` has crossed the documented god-class watch threshold. CONFIRMED. — FIXED 2026-07-26.**
 
 **Evidence** — `wc -l apps/api/src/lol/lol-analytics.service.ts` → **1,443 lines**. [parked.md](../parked.md) records a standing watch: *"LoL service trio god-class watch — trigger if any service extends past ~1250L"*. The trigger has fired and no note records it.
 
@@ -199,6 +199,20 @@ Other services remain under: `lol-moments.service.ts` 1,195L, `lol-static-sync.s
 **Fix** — the cohesive seam is the champion-analytics subdomain: `getChampionExtras`, `getChampionRecap`, `getChampionPairs`, `getChampionBuildFlow`, `getChampionRuneDiversity`, `getChampionLanePhase` (roughly lines 146–262 plus their helpers) extract to a `LolChampionAnalyticsService`. `loadOwnerMatchCache` (line 382) is shared and should stay. Not a rewrite — a move plus a constructor injection.
 
 **Effort** — one focused session.
+
+**Resolution (2026-07-26)** — split along the `championKey` seam. 1443L → **1059L** (`lol-analytics.service.ts`) + **423L** (`lol-champion-analytics.service.ts`); the 2121-line spec split 1390 / 773. Both moved blocks were extracted with `sed` and diffed against their originals to prove the move is byte-identical, so review can focus on the wiring.
+
+Two corrections to the fix sketch above, both found while doing it:
+
+- **`getChampionPairs` does not belong in the new service.** The name reads champion-scoped, but it takes no `championKey` and aggregates `(yourChamp, teammateChamp)` pairings across all of the owner's matches. Moving it would have split account-level duo analysis across two services. It stayed.
+- **The line map was wrong.** "Roughly 146–262" would have cut mid-`getChampionRecap` and swallowed the `getDuos` doc comment. The real ranges are `146–261` and `1128–1380`, the second of which the sketch missed entirely (`getChampionBuildFlow` / `RuneDiversity` / `LanePhase` all live past line 1100, not near 146).
+
+`LolService` fell out of `LolAnalyticsService` as a side effect: only the two moved methods ever called `this.lol.resolveSummoner`, so the remaining service now takes `(prisma, identity)`.
+
+**Two pre-existing defects came across unchanged** rather than being fixed inside the move, and are now tracked in [open-work.md](../open-work.md):
+
+1. `getChampionExtras` and `getChampionRecap` never call `identity.isLolAccountAllowed`. Every one of the other twelve analytics methods does. This is an authorization gap on two live routes, not a style inconsistency.
+2. `getChampionExtras` aggregates items and matchups over raw `matches` with no `excludeRemakes()`, against the [documented domain invariant](../../repo-conventions.md#centralise-domain-invariants-that-must-apply-to-every-aggregation-in-a-feature). It does not even `select` the `remake` column. Because it never spells the token, it is invisible to the hardened structural lint from F-5 — the same "helper that never spells `remake`" class as the post-game streak bug.
 
 ---
 

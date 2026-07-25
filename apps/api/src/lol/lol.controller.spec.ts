@@ -3,6 +3,7 @@ import { validate } from "class-validator";
 import { describe, expect, it, vi } from "vitest";
 import { AccountParamsDto } from "./account-params.dto";
 import { LolAnalyticsService } from "./lol-analytics.service";
+import { LolChampionAnalyticsService } from "./lol-champion-analytics.service";
 import { LolController } from "./lol.controller";
 import { LolService } from "./lol.service";
 import { MatchBaselineService } from "./match-baseline.service";
@@ -18,6 +19,7 @@ describe("LolController", () => {
       providers: [
         { provide: LolService, useValue: { getMatchesForSummoner: stub } },
         { provide: LolAnalyticsService, useValue: {} },
+        { provide: LolChampionAnalyticsService, useValue: {} },
         { provide: MatchBaselineService, useValue: {} },
         { provide: MatchNarrativeService, useValue: {} },
       ],
@@ -45,6 +47,7 @@ describe("LolController", () => {
       providers: [
         { provide: LolService, useValue: {} },
         { provide: LolAnalyticsService, useValue: {} },
+        { provide: LolChampionAnalyticsService, useValue: {} },
         { provide: MatchBaselineService, useValue: {} },
         { provide: MatchNarrativeService, useValue: { getNarrativeWindow: stub } },
       ],

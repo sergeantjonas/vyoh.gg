@@ -70,7 +70,7 @@ Five identical shells crosses the "three similar lines beat a premature abstract
 
 ## Considered, not actionable
 
-- **`lol.service.ts` (1026L) / `lol-static-sync.service.ts` (1031L) / `lol-analytics.service.ts` (833L)** — domain-justified per audit. Surface in D1 below as a *watch*, not a chunk.
+- **`lol.service.ts` (1026L) / `lol-static-sync.service.ts` (1076L) / `lol-analytics.service.ts` (1059L)** — domain-justified per audit. Surface in D1 below as a *watch*, not a chunk. (Counts refreshed 2026-07-26; `lol-analytics.service.ts` is post-split, see D1.)
 - **API response DTOs as shared types** — real future-proofing value but separate arc; not a hygiene fix. Surfaces in D4 below.
 - **Steam `_shared/` flat layout** — see verification corrections above. Not actionable.
 - **`match-detail-view.tsx` (1009L)** — spot-check called it acceptable. Listed in D3 below as a *standby* split, only if it grows.
@@ -197,14 +197,16 @@ Each item below needs its own session because the scope or risk doesn't fit the 
 
 ### D1 — LoL service trio: god-class watch
 
-**Scope:** [apps/api/src/lol/lol.service.ts](../../../apps/api/src/lol/lol.service.ts) (1026L), [apps/api/src/lol/lol-static-sync.service.ts](../../../apps/api/src/lol/lol-static-sync.service.ts) (1031L), [apps/api/src/lol/lol-analytics.service.ts](../../../apps/api/src/lol/lol-analytics.service.ts) (833L). Each is at the threshold where the *next* +200 lines should land as a sub-service rather than a continuation.
+**Scope:** [apps/api/src/lol/lol.service.ts](../../../apps/api/src/lol/lol.service.ts) (1026L), [apps/api/src/lol/lol-static-sync.service.ts](../../../apps/api/src/lol/lol-static-sync.service.ts) (1076L), [apps/api/src/lol/lol-analytics.service.ts](../../../apps/api/src/lol/lol-analytics.service.ts) (1059L). Each is at the threshold where the *next* +200 lines should land as a sub-service rather than a continuation.
+
+**Fired once, 2026-07-26.** `lol-analytics.service.ts` grew to 1443L and was split; see the resolved sketch below. The other two remain on watch.
 
 **Trigger:** any new arc that would extend one of these files past ~1250L. Examples that would qualify: a new analytics dimension (matchup-by-patch, role-vs-role), a new static sync source (Communitydragon fallback added at the service rather than at the image-resolver), a new orchestration responsibility on the core service.
 
 **Likely splits (sketch — not committed):**
 - `lol.service.ts` — extract `MatchCacheService` (cache reads/writes), `RankHistoryService` (rank delta + reset), keep orchestration only.
 - `lol-static-sync.service.ts` — split per-source (champions+items, abilities+runes, queues+maps) into focused sync subservices, keep an orchestrator that invokes them.
-- `lol-analytics.service.ts` — `CalibrationService` extracts the calibration math; `MatchupService` separates from generic champion analytics.
+- ~~`lol-analytics.service.ts` — `CalibrationService` extracts the calibration math; `MatchupService` separates from generic champion analytics.~~ **Resolved 2026-07-26**, but not along the first seam. `CalibrationService` was the wrong cut to reach for: `getPregameCalibration` plus its cache field and consts is only ~75 lines, so extracting it would have left ~1368L, still over the trigger. The seam that worked was the *query shape* — the five methods filtering `Match.champion` (`getChampionExtras`, `getChampionRecap`, `getChampionBuildFlow`, `getChampionRuneDiversity`, `getChampionLanePhase`) moved to `LolChampionAnalyticsService`, leaving account-scoped aggregation behind. 1443L → 1059L + 423L. Note that `getChampionPairs` reads as champion-scoped but is not: it takes no `championKey` and aggregates pairings across all matches, so it stayed.
 
 **Risk:** Nest's DI graph is forgiving of service splits but a partial extraction (helper class with no Nest module) can split cleanly without ceremony. Don't pre-emptively `@Injectable` everything — extract pure functions first, classes only when state or DI is needed.
 
