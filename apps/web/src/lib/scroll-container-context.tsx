@@ -51,7 +51,17 @@ function notify() {
 export function registerOpenDetailPanel(): () => void {
   openPanelCount += 1;
   notify();
+  let released = false;
   return () => {
+    // Idempotent by contract. An unguarded decrement drives openPanelCount
+    // negative on a double-invoked dispose, and since `notify` reads
+    // `> 0` the counter never recovers within the page session: every
+    // consumer latches to "no panel open" and ScrollToTop stops appearing.
+    // Not reachable from app code today (SlidePanel is the only producer and
+    // React does not double-invoke a cleanup), so this is a cheap guard on an
+    // expensive failure rather than a fix for an observed bug.
+    if (released) return;
+    released = true;
     openPanelCount -= 1;
     notify();
   };
