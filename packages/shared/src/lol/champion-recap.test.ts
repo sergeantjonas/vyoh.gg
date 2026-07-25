@@ -256,6 +256,36 @@ describe("verdictParagraph", () => {
     expect(preview).toContain("this season");
   });
 
+  // The aggression context-line fires between the context floor (0.35) and the
+  // primary bar (>0.45) — notable, but not enough to win the verdict itself.
+  // Above 0.45 the adjective already says it, so the clause is suppressed.
+  it("adds the aggression context-line when aggression misses the verdict bar", () => {
+    const matches: MatchSummary[] = [
+      fixture({ matchId: "1", kills: 6, win: true, playedAt: "2026-05-30T20:00:00Z" }),
+      fixture({ matchId: "2", kills: 7, win: false, playedAt: "2026-05-30T19:00:00Z" }),
+      fixture({ matchId: "3", kills: 3, win: false, playedAt: "2026-05-30T18:00:00Z" }),
+      fixture({ matchId: "4", kills: 2, win: true, playedAt: "2026-05-30T17:00:00Z" }),
+      fixture({ matchId: "5", kills: 1, win: true, playedAt: "2026-05-30T16:00:00Z" }),
+    ];
+    const recap = deriveChampionRecap("Ahri", matches, NOW);
+    expect(recap.peaks.aboveFiveKillsRate).toBeCloseTo(0.4);
+    expect(verdictPreview(verdictParagraph(recap))).toContain(
+      "Over five kills in 40% of games."
+    );
+  });
+
+  it("suppresses the aggression context-line once the verdict is aggressive", () => {
+    const matches: MatchSummary[] = [
+      fixture({ matchId: "1", kills: 9, win: true, playedAt: "2026-05-30T20:00:00Z" }),
+      fixture({ matchId: "2", kills: 8, win: false, playedAt: "2026-05-30T19:00:00Z" }),
+      fixture({ matchId: "3", kills: 7, win: false, playedAt: "2026-05-30T18:00:00Z" }),
+      fixture({ matchId: "4", kills: 1, win: true, playedAt: "2026-05-30T17:00:00Z" }),
+    ];
+    const recap = deriveChampionRecap("Ahri", matches, NOW);
+    expect(recap.peaks.aboveFiveKillsRate).toBeCloseTo(0.75);
+    expect(verdictPreview(verdictParagraph(recap))).not.toContain("Over five kills in");
+  });
+
   it("uses the new 'Best night so far: …' receipt copy with opponent name", () => {
     const matches: MatchSummary[] = [
       fixture({

@@ -92,7 +92,7 @@ All commands run 2026-07-25 on `main` @ `eb5ac211`.
 
 | Package | Statements | Branches | Functions | Lines | Verdict |
 |---|---|---|---|---|---|
-| `packages/shared` | 96.82% (min 95) | 90.56% (min 89) | 99.40% (min 97) | 99.48% (min 99) | **PASS** — cleared 2026-07-25 |
+| `packages/shared` | 97.07% (min 95) | 90.91% (min 89) | 99.40% (min 97) | 99.79% (min 99) | **PASS** — cleared 2026-07-25 |
 | `apps/api` | 92.40% (min 92) | 83.02% (min 82) | **94.58%** (min 94) | 94.60% (min 94) | **PASS** — cleared 2026-07-25 (`fae31693`) |
 | `apps/web` | 78.49% | 62.89% | 83.57% | 88.73% (min **90**) | **FAIL** — lines under |
 

@@ -456,7 +456,16 @@ function contextClause(
   // Avoid restating the signal the adjective already covered: skip the
   // aggression context-line when the primary verdict is already "aggressive"
   // (same for surgical / lane-dominant).
-  if (primary !== "aggressive" && peaks.aboveFiveKillsRate >= 0.5) {
+  //
+  // Each context threshold sits BELOW its pickPrimaryVerdict counterpart, so
+  // the clause fires for signals that are notable but didn't win the verdict:
+  //   surgical      primary >= 3    context >= 2
+  //   lane-dominant primary > 500   context >= 400
+  //   aggressive    primary > 0.45  context >= 0.35
+  // This one read `>= 0.5` until 2026-07-25 — above its own primary bar, which
+  // made the branch unreachable: any rate clearing 0.5 also clears 0.45, so
+  // `primary` was always "aggressive" and the guard never passed.
+  if (primary !== "aggressive" && peaks.aboveFiveKillsRate >= 0.35) {
     const pct = Math.round(peaks.aboveFiveKillsRate * 100);
     return [
       { kind: "text", value: "Over five kills in " },
