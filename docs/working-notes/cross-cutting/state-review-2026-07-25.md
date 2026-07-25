@@ -202,7 +202,7 @@ Other services remain under: `lol-moments.service.ts` 1,195L, `lol-static-sync.s
 
 ---
 
-**F-5 · The remake structural lint has a multi-line blind spot, and one site is already through it. CONFIRMED.**
+**F-5 · The remake structural lint has a multi-line blind spot, and one site is already through it. CONFIRMED — FIXED 2026-07-25.** Both sites routed through `excludeRemakes()`; the lint now scans whole file text across 10 array methods, with a guard-the-guard test. A third, worse instance surfaced while fixing it: `buildOutcomeSignal` walked an unfiltered history, so a remake could pad a streak or supply the "broke a run" match — invisible to any regex lint, since it never spells the token.
 
 **Evidence** — `apps/api/src/conventions.spec.ts:69` matches on a single line:
 ```js

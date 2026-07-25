@@ -65,16 +65,80 @@ describe("project conventions (structural lints)", () => {
   // repo-conventions.md: "Centralise domain invariants" — every LoL aggregation
   // must go through excludeRemakes() so the must-hold precondition can't be
   // silently dropped from a future call site.
-  it("no inline `.filter(m => !m.remake)` outside the helper", () => {
-    const regex = /\.filter\(\s*\(?[a-zA-Z_]\w*\)?\s*=>\s*!\s*[a-zA-Z_]\w*\.remake/;
+  // Scans whole file text, not line by line. The previous version tested each
+  // line in isolation, so any call Biome wrapped across lines was invisible —
+  // which is exactly how `pregame-signals.ts` kept an inline filter through
+  // several sweeps. It also covered only `.filter`.
+  //
+  // This is a BACKSTOP, not a proof. It cannot see `if (m.remake) continue`
+  // loop guards, block-bodied arrows, `m.remake === false`, destructured
+  // params, or a helper that never spells the token. The post-game streak bug
+  // fixed on 2026-07-25 was that last kind.
+  it("no inline remake filter outside the helper", () => {
+    const METHODS =
+      "filter|find|findLast|findIndex|findLastIndex|some|every|reduce|reduceRight|flatMap";
     const hits = collect(
       REMAKE_SCAN_ROOTS,
-      (text) => matchLines(text, (line) => (regex.test(line) ? "" : null)),
+      (text) => {
+        // Built per file so the `g` flag's lastIndex cannot leak between files.
+        const regex = new RegExp(
+          String.raw`\.(?:${METHODS})\(\s*(?:\([^()]{0,80}\)|[A-Za-z_$][\w$]*)\s*=>[^;{}]{0,200}?!\s*[A-Za-z_$][\w$]*\.remake\b`,
+          "g"
+        );
+        const out: string[] = [];
+        let m: RegExpExecArray | null;
+        // biome-ignore lint/suspicious/noAssignInExpressions: standard exec loop
+        while ((m = regex.exec(text)) !== null) {
+          const line = text.slice(0, m.index).split("\n").length;
+          out.push(`L${line}: ${m[0].split("\n")[0]?.trim()}`);
+        }
+        return out;
+      },
       REMAKE_ALLOWLIST
     );
     expect(hits, "Use excludeRemakes(matches) instead of inline remake filter").toEqual(
       []
     );
+  });
+
+  // Guards the guard. The `[^;{}]` gap is load-bearing: it spans newlines so a
+  // wrapped call is still caught, but stops at a statement boundary so an
+  // unrelated `.map()` earlier in a file cannot pair with a JSX display
+  // conditional further down. Do not "simplify" it to `[\s\S]`.
+  it("the remake lint flags wrapped aggregations without flagging display guards", () => {
+    const METHODS =
+      "filter|find|findLast|findIndex|findLastIndex|some|every|reduce|reduceRight|flatMap";
+    const build = () =>
+      new RegExp(
+        String.raw`\.(?:${METHODS})\(\s*(?:\([^()]{0,80}\)|[A-Za-z_$][\w$]*)\s*=>[^;{}]{0,200}?!\s*[A-Za-z_$][\w$]*\.remake\b`,
+        "g"
+      );
+
+    // Real shapes that regressed in the past — all must be caught.
+    const mustFlag = [
+      "const a = matches.filter((m) => !m.remake);",
+      // The wrapped form that evaded the line-based lint.
+      "const recent = matches.filter(\n  (m) => !m.remake && new Date(m.playedAt).getTime() >= cutoff\n);",
+      "const last = ordered.find((m) => !m.remake);",
+      "const any = matches.some((m) => !m.remake);",
+    ];
+    for (const src of mustFlag) {
+      expect(build().test(src), `should flag: ${src}`).toBe(true);
+    }
+
+    // JSX display conditionals gate one row's badge; they are not aggregations.
+    const mustNotFlag = [
+      "{!match.remake && lpDelta !== undefined && <LpBadge delta={lpDelta} />}",
+      "{accountSlug && summary.win && !summary.remake ? <A /> : <B />}",
+      "{!summary.remake && lpDelta !== undefined && <LpBadge delta={lpDelta} />}",
+      "if (m.remake) continue;",
+      "const played = excludeRemakes(matches);",
+      // A map early in a file must not pair with a display guard far below.
+      "const names = matches.map((m) => m.champion);\nreturn <span>{!match.remake && 1}</span>;",
+    ];
+    for (const src of mustNotFlag) {
+      expect(build().test(src), `should NOT flag: ${src}`).toBe(false);
+    }
   });
 
   // repo-conventions.md: "Use TooltipPrimitive for all tooltip surfaces;
