@@ -19,7 +19,7 @@ Sibling doc: [self-portrait-surfaces.md](../cross-cutting/self-portrait-surfaces
 ## Account model & routing (decided 2026-05-14)
 
 - **Single hardcoded SteamID64.** Not multi-account like LoL. Eliminates the account-switch UI on Steam panels and simplifies polling.
-- **Game detail route at `/steam/game/:appid`**, mirroring `/champion/:name`. Steam panels on Profile link into this route.
+- **Game detail route at `/steam/library/$appid`**, mirroring `/lol/$accountSlug/champions/$championKey`. Steam panels on Profile link into this route.
 
 ---
 
@@ -91,7 +91,7 @@ Already confirmed: wishlist panel. The rest is plausible — none committed yet.
 
 Surfaced from probing `IStoreBrowseService/GetItems` with all `include_*` flags. Each maps to a chunk in [library-card-enrichment.md](./library-card-enrichment.md); the small ones live here in the candidate board until they get picked up. The bigger ones (Steam Deck chip, microtrailer hover preview, full-description body, screenshot gallery, palette grammar for devs/publishers/franchises) are filed in their own destinations — see the roadmap note for the full chunk table.
 
-- **Supported-languages chip.** `supported_languages` per game → `/steam/game/$appid` line "English, French, Japanese full audio + 22 subtitles." Free metadata, niche but characterful. If it ever becomes filterable, palette grammar `audio:french` / `subs:french`.
+- **Supported-languages chip.** `supported_languages` per game → `/steam/library/$appid` line "English, French, Japanese full audio + 22 subtitles." Free metadata, niche but characterful. If it ever becomes filterable, palette grammar `audio:french` / `subs:french`.
 - **Demo discoverability.** `related_items.demos` / `demo_appid` / `standalone_demo_appid` → "Try the demo" link on game-detail header when present. Bonus surface: "wishlisted games with untried demos" — pairs with the existing wishlist drill-in.
 - **Bundle expansion.** `included_items.included_apps` → for bundle entries (Resident Evil collection etc.) expand to the list of included games. Defer until a real bundle-heavy use surfaces.
 
@@ -129,7 +129,7 @@ Owner-flagged 2026-05-14 as a wanted feature. Deep brainstorm in same session.
 
 ### Core surfaces (MVP)
 
-- **Per-game achievement panel.** Spine of `/steam/game/:appid`. Scrollable list per achievement: icon, name, description (or `???` if locked & hidden), unlock timestamp if unlocked, inline global-rarity badge. Locked/unlocked visual distinction mirrors the LoL not-played-champion treatment.
+- **Per-game achievement panel.** Spine of `/steam/library/$appid`. Scrollable list per achievement: icon, name, description (or `???` if locked & hidden), unlock timestamp if unlocked, inline global-rarity badge. Locked/unlocked visual distinction mirrors the LoL not-played-champion treatment.
 - **Recent unlocks strip.** Cross-game feed of last N unlocks in timestamp order. Calm Profile chip. Works cold-start from day 1.
 
 ### Verdict family (per-game `ConclusionCard`s)
@@ -330,7 +330,7 @@ Numbered S4.5 (half-step) rather than renumbering S5–S8 to keep the existing c
 
 ### Phase S5 — Achievement surfaces MVP
 
-`/steam/game/:appid` achievement panel, recent-unlocks strip on Profile, completion verdict `ConclusionCard` per game. First user-facing achievement work — lands the spine.
+`/steam/library/$appid` achievement panel, recent-unlocks strip on Profile, completion verdict `ConclusionCard` per game. First user-facing achievement work — lands the spine.
 
 **Chunk 6 (S5.A) shipped 2026-05-15** — per-game `AchievementPanel` wired into `routes/steam/game.$appid.tsx` below the playtime block. New `useGameAchievements` TanStack hook mirroring the owned-games pattern (30min stale-time matches the daily poller cadence; same shape as `useSteamOwnedGames`/`useSteamTags`). Panel renders nothing when `data.achievements === null` (game has no schema — CS2, demos), an "in flight" hint when the schema exists but rows haven't ingested yet (first-deploy edge case), and otherwise a 2-column grid of unlocked-newest-first / locked-alpha rows (server already sorts). Default preview is 12 rows with a "Show N more" expand affordance — large libraries (Stardew ~50, Hades 49, occasional 100+) don't need virtualization at this scale and the preview keeps the playtime block from being dwarfed. **Spoiler masking lives on the frontend** per the S4 decision: server returns truth, and the row renders `???` + "Hidden achievement" only when `hidden && !unlockedAt`. Once unlocked, hidden achievements reveal fully — matches Steam client behavior. Locked icons use `iconGrayUrl` at 60% opacity; unlocked use the full `iconUrl`. Global rarity (when available) renders right-aligned alongside the display name. The "achievements...land in a later phase" copy in the page subtitle was replaced with the active framing.
 

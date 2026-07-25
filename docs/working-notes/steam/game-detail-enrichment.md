@@ -1,8 +1,8 @@
 # Game-detail enrichment — directions index
 
-**Status:** Index — backlog of enrichment leads for `/steam/game/$appid`. Not a tracked execution arc on its own; consolidates per-game-detail items previously scattered across sister notes and adds the personal-time + trailers directions surfaced post-2026-05-26 description-image-rendering ship.
+**Status:** Index — backlog of enrichment leads for `/steam/library/$appid`. Not a tracked execution arc on its own; consolidates per-game-detail items previously scattered across sister notes and adds the personal-time + trailers directions surfaced post-2026-05-26 description-image-rendering ship.
 
-The `/steam/game/$appid` surface elevated meaningfully once [description-image-rendering.md](./description-image-rendering.md) (A1–A5) shipped inline `<video>` clips in the about-block. That richness exposed a structural question — **does the editorial half (about, screenshots, trailers) deserve to be the landing, with the playthrough half (achievements, unlock timeline, sessions) split into its own tab?** — and surfaced a backlog of directions worth tracking together rather than scattered across three sister notes.
+The `/steam/library/$appid` surface elevated meaningfully once [description-image-rendering.md](./description-image-rendering.md) (A1–A5) shipped inline `<video>` clips in the about-block. That richness exposed a structural question — **does the editorial half (about, screenshots, trailers) deserve to be the landing, with the playthrough half (achievements, unlock timeline, sessions) split into its own tab?** — and surfaced a backlog of directions worth tracking together rather than scattered across three sister notes.
 
 This note owns the directions backlog only. When a chunk picks up, file its execution plan in the natural destination note (api-surface-survey for new endpoints, motion-backlog for animation polish, etc.) and flip the row here to a pointer.
 
@@ -31,7 +31,7 @@ Pointers only — execution plans live in the linked notes.
 
 ### Editorial / publisher signal
 
-- **Trailers (`trailers.highlights[].trailer_480p` / `trailer_max`)** — same content-hashed `<mp4>/<webm>/<poster>` shape as the `extras` we just wired. The proxy ([img.controller.ts:steamDescriptionAsset](../../../apps/api/src/img/img.controller.ts)), sanitiser opt-in ([sanitize-rich-html.ts § allowVideo](../../../packages/shared/src/lol/sanitize-rich-html.ts)), and reduce-motion swap all already work. The remaining work is a URL rewriter for the trailer path shape + a `<TrailerReel>` consumer on `/steam/game/$appid`. Near-free win post-A1–A5; **single highest-leverage editorial item.** Lives separately from [microtrailer-hover-preview.md](../cross-cutting/microtrailer-hover-preview.md) — that one is library-tile hover; this is in-page editorial.
+- **Trailers (`trailers.highlights[].trailer_480p` / `trailer_max`)** — same content-hashed `<mp4>/<webm>/<poster>` shape as the `extras` we just wired. The proxy ([img.controller.ts:steamDescriptionAsset](../../../apps/api/src/img/img.controller.ts)), sanitiser opt-in ([sanitize-rich-html.ts § allowVideo](../../../packages/shared/src/lol/sanitize-rich-html.ts)), and reduce-motion swap all already work. The remaining work is a URL rewriter for the trailer path shape + a `<TrailerReel>` consumer on `/steam/library/$appid`. Near-free win post-A1–A5; **single highest-leverage editorial item.** Lives separately from [microtrailer-hover-preview.md](../cross-cutting/microtrailer-hover-preview.md) — that one is library-tile hover; this is in-page editorial.
 - **Demo discoverability** — `related_items.demos` / `demo_appid` / `standalone_demo_appid`. → [library-card-enrichment.md Chunk 11](./library-card-enrichment.md).
 - **Supported languages chip** — niche; only worth surfacing once. → [library-card-enrichment.md Chunk 10](./library-card-enrichment.md).
 - **Bundle expansion** — `included_items.included_apps`. Defer until owner has bundle entries. → [library-card-enrichment.md Chunk 12](./library-card-enrichment.md).
@@ -65,7 +65,7 @@ Differentiates the page from Steam's own storefront, which only ever shows *publ
 
 ### Cross-stream synthesis (intentionally bounded)
 
-Per [repo-conventions.md § Per-stream routes; / is synthesis-only](../../repo-conventions.md), cross-stream content lives on `/`, not on `/steam/game/$appid`. Examples that look tempting but don't belong here:
+Per [repo-conventions.md § Per-stream routes; / is synthesis-only](../../repo-conventions.md), cross-stream content lives on `/`, not on `/steam/library/$appid`. Examples that look tempting but don't belong here:
 
 - "I played this for 30 hours while LoL was on a hiatus" — synthesis surface, belongs on `/`.
 - "I listened to Y while playing this" — Spotify cross-stream, belongs on `/` if/when that integration lands.

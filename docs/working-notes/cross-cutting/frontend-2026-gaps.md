@@ -357,7 +357,7 @@ Fan-out half **shipped 2026-06-07** as part of [og-image-pipeline.md](og-image-p
 
 **Current state:** [apps/web/src/routes/__root.tsx:49](../../../apps/web/src/routes/__root.tsx#L49) renders `<HeadContent />`, so per-route `head()` exports are already wired into the render pipeline — but only **one** route uses it: [apps/web/src/routes/lol/$accountSlug/matches/$matchId.tsx:35-55](../../../apps/web/src/routes/lol/$accountSlug/matches/$matchId.tsx#L35-L55). And that one site has a production bug — line 31 hardcodes `const API_URL = "http://localhost:2010"`, so the `og:image` and `twitter:image` URLs shipped to social-preview crawlers in production are unreachable `localhost` URLs.
 
-Every other route (`/lol/$accountSlug`, `/lol/$accountSlug/champions/$championKey`, `/steam/game/$appid`, `/lol/patches/$version`, etc.) inherits only the static `<title>vyoh.gg</title>` and the generic site description from [apps/web/src/index.html](../../../apps/web/src/index.html). A link to a specific champion or game shared in Discord/Slack/Twitter shows the homepage preview, not the page's content.
+Every other route (`/lol/$accountSlug`, `/lol/$accountSlug/champions/$championKey`, `/steam/library/$appid`, `/lol/patches/$version`, etc.) inherits only the static `<title>vyoh.gg</title>` and the generic site description from [apps/web/src/index.html](../../../apps/web/src/index.html). A link to a specific champion or game shared in Discord/Slack/Twitter shows the homepage preview, not the page's content.
 
 **KB floor:** `05-frameworks.md` §13 ("Per-route SEO floor") — every shareable route should override title, description, and (when an OG image pipeline exists) og:image. The static `index.html` head is the fallback for routes that genuinely don't have unique content; deep routes that **do** must override.
 
@@ -380,7 +380,7 @@ Order the work after Gap 15's pilot so the loader-primed cache is available to `
 
 These are strong-adoption signals confirming the framework pick is correctly used today:
 
-- **Typed search params are strongly adopted.** Six routes use `validateSearch` (`$accountSlug.tsx`, `champions/index.tsx`, `patches/index.tsx`, `patches/$version.tsx`, `steam/wishlist.tsx`, `steam/game.$appid.tsx`); nine files call `useSearch`. This is the single biggest reason to pick TanStack Router per KB §1.2, and the project genuinely uses it — not a gap.
+- **Typed search params are strongly adopted.** Six routes use `validateSearch` (`$accountSlug.tsx`, `champions.tsx`, `patches/index.tsx`, `patches/$version.tsx`, `steam/wishlist.tsx`, `steam/library/$appid.tsx`); nine files call `useSearch`. This is the single biggest reason to pick TanStack Router per KB §1.2, and the project genuinely uses it — not a gap.
 - **React Compiler 1.0 is wired.** [apps/web/vite.config.ts](../../../apps/web/vite.config.ts) loads `babel-plugin-react-compiler` via `reactCompilerPreset()`, satisfying KB §05 → §03 reference for React 19 + Compiler adoption.
 - **Route-chunk prefetch on intent is on.** [main.tsx:30-34](../../../apps/web/src/main.tsx#L30-L34) sets `defaultPreload: "intent"`. This is necessary but not sufficient (Gap 15 covers the data half).
 - **`<HeadContent />` is already mounted.** [__root.tsx:49](../../../apps/web/src/routes/__root.tsx#L49) renders it, so Gap 16's fan-out has zero infra cost — just add `head:` exports.
@@ -580,7 +580,7 @@ A 5-test Playwright surface (one per top-level route + one cross-route navigatio
 **How to apply:** Three commits.
 
 1. **Land minimal Playwright config.** `pnpm add -DEw @playwright/test`, create `playwright.config.ts` at workspace root (or apps/web), pin chromium-only initially, set `webServer: { command: 'pnpm --filter @vyoh/web preview', url: 'http://localhost:4173', reuseExistingServer: !process.env.CI }`. Add `e2e:cc` script that runs `playwright test --reporter=line` with output capped.
-2. **Write ~5-7 axe-clean smoke tests.** One per surface (`/`, `/status`, `/lol/$accountSlug`, `/lol/$accountSlug/matches`, `/lol/$accountSlug/matches/$matchId`, `/steam`, `/steam/game/$appid`). Each test: navigate, wait for content, axe scan, screenshot. Reference: `10-testing.md` §8 "@axe-core/playwright per-route" pattern.
+2. **Write ~5-7 axe-clean smoke tests.** One per surface (`/`, `/status`, `/lol/$accountSlug`, `/lol/$accountSlug/matches`, `/lol/$accountSlug/matches/$matchId`, `/steam`, `/steam/library/$appid`). Each test: navigate, wait for content, axe scan, screenshot. Reference: `10-testing.md` §8 "@axe-core/playwright per-route" pattern.
 3. **Add E2E job to CI** as a separate `e2e` job parallel to `check`. Use Playwright's `actions/cache` for browser binaries. Trace on first retry. Upload trace.zip as workflow artifact on failure.
 
 The auth/storage-state fixture pattern from `10-testing.md` §4 is **deferred** until owner-auth lands ([owner-auth.md](owner-auth.md)) — pre-launch all routes are public, so storage state isn't needed yet.
@@ -826,7 +826,7 @@ The practical impact:
 
 1. `/lol/$accountSlug` — title `{accountSlug} · LoL · vyoh.gg`, description from real data (rank + main role if available, static fallback if not), canonical = absolute URL.
 2. `/lol/$accountSlug/champions/$championAlias` — title `{championName} · {accountSlug} · vyoh.gg`, canonical, og:image (champion splash, already available via image proxy).
-3. `/steam/game/$appid` — title `{gameName} · Steam · vyoh.gg`, canonical, og:image (game header from Steam API).
+3. `/steam/library/$appid` — title `{gameName} · Steam · vyoh.gg`, canonical, og:image (game header from Steam API).
 4. `/` — explicit `head()` even though it duplicates index.html, so the canonical pattern is uniform across all routes.
 5. `/status` — title `Status · vyoh.gg`, `<meta name="robots" content="noindex">` (operational dashboard, not portfolio content).
 

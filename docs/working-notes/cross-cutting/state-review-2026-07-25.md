@@ -244,7 +244,7 @@ Each of these is cited in an auto-loaded doc as *the* reference to follow, so a 
 
 ---
 
-**F-7 · A route move shipped with zero doc updates, leaving 67 stale references. CONFIRMED.**
+**F-7 · A route move shipped with zero doc updates, leaving 67 stale references. CONFIRMED — FIXED 2026-07-25.** Live surfaces corrected (README, `repo-conventions.md`, and the Active/Index notes `api-surface-survey`, `game-detail-enrichment`, `frontend-2026-gaps`, plus four live claims in `steam-integration`). Historical and archive notes deliberately left as records of past state. The live API path `/steam/game/:appid/...` is untouched — it is still served by `steam.controller.ts`.
 
 **Evidence** — commit `1a2a3d87` *"feat: convert steam game-detail to slide panel"* changed 30 files and touched **no** file under `docs/`. It deleted `apps/web/src/routes/steam/game.$appid.tsx` and added `apps/web/src/routes/steam/library/$appid.tsx`. `ugrep -rc` for the old path across `docs/`, `README.md`, `CLAUDE.md` returns **67 hits across 19 files**.
 

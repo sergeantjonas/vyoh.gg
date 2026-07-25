@@ -18,7 +18,7 @@ Already wired ([steam-client.service.ts](../../../apps/api/src/steam/steam-clien
 
 Everything below is **not yet wired**. Triaged into chunks the same way as [library-card-enrichment.md](./library-card-enrichment.md) — each lands in the matching destination note rather than this one.
 
-Chunks A2 / A3 / A4 / A7 land their consumer on `/steam/game/$appid`; the consolidated directions index for that surface lives in [game-detail-enrichment.md](./game-detail-enrichment.md) — read that note when scoping any of those chunks, so adjacent (non-API-derived) enrichment ideas land alongside.
+Chunks A2 / A3 / A4 / A7 land their consumer on `/steam/library/$appid`; the consolidated directions index for that surface lives in [game-detail-enrichment.md](./game-detail-enrichment.md) — read that note when scoping any of those chunks, so adjacent (non-API-derived) enrichment ideas land alongside.
 
 ---
 
@@ -32,7 +32,7 @@ Chunks A2 / A3 / A4 / A7 land their consumer on `/steam/game/$appid`; the consol
 | A4 | `IGameNotesService/GetGameNotes` (+ `GetAllGameNotes`) | Owner's personal in-Steam notes per game — perfect editorial content for portfolio game-detail pages if any exist | this note (Chunk A4 below) | Planned — probe first |
 | A5 | `IUserCustomization/GetCustomizationsForUser` | Profile showcases (featured games, achievement showcase, screenshot showcase, workshop showcase, group showcase) — owner-curated lists Steam already exposes publicly | this note (Chunk A5 below) | Planned |
 | A6 | `IPlayerService/GetAnimatedAvatar` + `GetMiniProfileBackground` + `GetProfileBackground` | Animated avatar + profile background frames for the planned live-presence chip in nav | [elevation-arcs.md](../cross-cutting/elevation-arcs.md) → live-presence-chip | Backlogged |
-| A7 | `ISteamNews/GetNewsForApp` | Latest news / patch notes per owned game — context on `/steam/game/$appid` ("Patch notes from 3 days ago") | this note (Chunk A7 below) | Backlogged |
+| A7 | `ISteamNews/GetNewsForApp` | Latest news / patch notes per owned game — context on `/steam/library/$appid` ("Patch notes from 3 days ago") | this note (Chunk A7 below) | Backlogged |
 | A8 | `IStoreTopSellersService/GetWeeklyTopSellers` | "X of your library appears on this week's top sellers" cross-stream synthesis | [steam-integration.md candidate board](./steam-integration.md) | Backlogged |
 | A9 | `IInventoryService/GetInventory` (per-appid: CS2 730, TF2 440, Dota 2 570) | Public inventory — only interesting if owner has notable items | parked — see § "Inventory parked" | Parked |
 | A10 | `IPlayerService/IsPlayingSharedGame` | Detects when current-session game is family-shared | parked — orthogonal | Parked |
@@ -77,7 +77,7 @@ The schema for each stat is the per-game `GetSchemaForGame.stats[]` block ([type
 
 **Render targets:**
 
-- `/steam/game/$appid` gets a "Career stats" panel for games that expose them. Compact key-value list with `displayName` from schema, value formatted by heuristic (numbers > 1000 get k/M abbrev, sub-1.0 floats get `%` formatting, etc.).
+- `/steam/library/$appid` gets a "Career stats" panel for games that expose them. Compact key-value list with `displayName` from schema, value formatted by heuristic (numbers > 1000 get k/M abbrev, sub-1.0 floats get `%` formatting, etc.).
 - The most striking single stat per game (highest absolute count, or one matching a heuristic like `kills` / `headshots` / `wins`) becomes a chip on the library card. "CS2 · 21,403 kills" reads much harder than "127 h played".
 
 **Why this is a hidden gem:** turns the game-detail page from a generic "name + playtime + achievements" stub into a real career-stats surface for the games where it matters. Achievement panels are binary (got it / didn't); stats panels are quantitative.
@@ -86,7 +86,7 @@ The schema for each stat is the per-game `GetSchemaForGame.stats[]` block ([type
 
 **Data shape:** `SteamGameUserStats` row keyed `(steamId, appid)` with `stats Json` (array of `{name, value, displayName}`). Refresh weekly — these change slowly per-game.
 
-**Atomic:** one commit, but bigger than A1 — schema migration + endpoint wiring + new `/steam/game/$appid` panel + tests. Filed here.
+**Atomic:** one commit, but bigger than A1 — schema migration + endpoint wiring + new `/steam/library/$appid` panel + tests. Filed here.
 
 ---
 
@@ -96,7 +96,7 @@ The schema for each stat is the per-game `GetSchemaForGame.stats[]` block ([type
 
 **Why it's a gem:** today, surfacing "rarest achievement I have on this game" requires three joins (`GetPlayerAchievements` ∩ `GetGlobalAchievementPercentagesForApp`, then sort by percent asc, then attach schema name + icon). This endpoint does it server-side and is paginated by `appids[]` so we can fetch dozens per call.
 
-**Render target:** `/steam/game/$appid` achievement panel gets a "Rarest you have" pill (e.g. `Beat the game on Hardcore · 1.2% of players`). On the library card, an optional flair when `min(global_percent) < 5%`: a small trophy chip with the percent.
+**Render target:** `/steam/library/$appid` achievement panel gets a "Rarest you have" pill (e.g. `Beat the game on Hardcore · 1.2% of players`). On the library card, an optional flair when `min(global_percent) < 5%`: a small trophy chip with the percent.
 
 **Data shape:** `SteamGameTopAchievements` row `(steamId, appid)` with `topAchievements Json` (array of `{name, displayName, description, iconUrl, globalPercent, unlockedAt}`).
 
@@ -114,7 +114,7 @@ The schema for each stat is the per-game `GetSchemaForGame.stats[]` block ([type
 
 **What it returns:** the user's personal notes attached to a game inside the Steam client (the "Notes" tab on each library entry). Body is markdown-ish with Steam's BBCode dialect. If the owner has been taking notes on builds, strategies, save-file annotations, or playthrough thoughts, this is *gold* for portfolio framing — it's editorial content the owner has already written.
 
-**Why probe first:** the value is entirely conditional on whether the owner has any notes. If `GetAllGameNotes` returns an empty list, this chunk is moot — file a follow-up to revisit when notes accumulate. If it returns content, this becomes a major chunk: render notes inline on `/steam/game/$appid`, link "games I've taken notes on" as a palette query.
+**Why probe first:** the value is entirely conditional on whether the owner has any notes. If `GetAllGameNotes` returns an empty list, this chunk is moot — file a follow-up to revisit when notes accumulate. If it returns content, this becomes a major chunk: render notes inline on `/steam/library/$appid`, link "games I've taken notes on" as a palette query.
 
 **Trust boundary:** owner-authored content, sanitise the same way as [Chunk 8 — full description BBCode](./library-card-enrichment.md#chunk-8--full-description-on-game-detail-page) (the BBCode → HTML pipeline that chunk introduces is the natural reuse target).
 
@@ -162,11 +162,11 @@ The schema for each stat is the per-game `GetSchemaForGame.stats[]` block ([type
 
 **Endpoint:** `ISteamNews/GetNewsForApp/v2/?appid={id}&count=5&maxlength=300` → recent news items per game (patch notes, dev blogs, event announcements).
 
-**Render target:** `/steam/game/$appid` gets a "Recent news" rail — last 3 items, title + date + abbreviated body, link out to the full announcement. Cheap discoverability for games the owner hasn't played in a while ("Stardew Valley posted a patch yesterday").
+**Render target:** `/steam/library/$appid` gets a "Recent news" rail — last 3 items, title + date + abbreviated body, link out to the full announcement. Cheap discoverability for games the owner hasn't played in a while ("Stardew Valley posted a patch yesterday").
 
 **Cost:** one request per appid per refresh. Cache aggressively — daily is plenty for a game-detail surface.
 
-**Decision pending:** is this portfolio-grade or storefront-grade? Leaning storefront — it's useful but doesn't tell the owner's story. Backlogged in the table above; revisit if `/steam/game/$appid` feels sparse after the higher-priority chunks land.
+**Decision pending:** is this portfolio-grade or storefront-grade? Leaning storefront — it's useful but doesn't tell the owner's story. Backlogged in the table above; revisit if `/steam/library/$appid` feels sparse after the higher-priority chunks land.
 
 **Atomic:** one commit. Filed here when picked up.
 
