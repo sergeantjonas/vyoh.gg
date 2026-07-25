@@ -184,11 +184,10 @@ function RootLayout() {
               // mouse wheel, produced mid-snap dead zones, and forced every
               // beat to be its own 100dvh pin scope; the persistent-frame
               // pattern uses one sticky scope per chapter with normal-flow
-              // beat zones and a view-timeline-driven fade instead. Stale
-              // [scroll-snap-align] / [scroll-snap-stop] classes still live
-              // on a few chapters that have not been rewritten yet — they
-              // are inert without a snap-type on the container and get
-              // cleaned up alongside each chapter's own migration.
+              // beat zones and a view-timeline-driven fade instead. The last
+              // stale [scroll-snap-align] was removed on 2026-07-26; the only
+              // snap left in the app is the horizontal thumbnail rail in
+              // screenshot-lightbox.tsx, which owns its own container.
               className="relative flex-1 overflow-y-auto [overflow-anchor:none] [overflow-x:clip] [scrollbar-gutter:stable_both-edges]"
             >
               <div className="mx-auto max-w-4xl p-6">

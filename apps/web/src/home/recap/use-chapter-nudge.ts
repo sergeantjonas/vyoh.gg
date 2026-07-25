@@ -46,14 +46,12 @@ type Options = {
  * area crosses `triggerRatio` (after a settle window). Chapter bands
  * gate their `ChapterReveal` `active` prop on it.
  *
- * The physical chapter snap (pulling chapter top to viewport top) is
- * delegated to CSS `scroll-snap-type: y proximity` on <main> plus
- * `scroll-snap-align: start` on each chapter wrapper. Native CSS snap
- * fires in both directions on every traversal — the JS-based one-shot
- * `main.scrollTo` that used to live in this hook only fired the first
- * time a chapter was crossed, which left backward and re-forward
- * traversals feeling worse than the initial scroll-through. CSS owns
- * positioning now; this hook owns the cascade trigger.
+ * This hook owns the cascade trigger and nothing else. There is no
+ * chapter snap to coordinate with: the JS-based one-shot `main.scrollTo`
+ * that used to live here was replaced by CSS snap, and the recap then
+ * migrated off snap entirely to the persistent-frame model (one sticky
+ * scope per chapter, normal-flow beat zones, view-timeline-driven fade).
+ * No `scroll-snap-type` exists on <main> or anywhere else in the app.
  *
  * Crystallized out of duplicated implementations in `ahri-chapter.tsx`
  * and `steam-chapter.tsx` (R-3 feedback round). Single tuning point now.

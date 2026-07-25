@@ -300,7 +300,7 @@ Also stale in the same neighbourhood: "pnpm 10" at `README.md:33`, `README.md:54
 
 **F-11 · Case-study inventory is missing an entry, violating its own rule. CONFIRMED.** `docs/case-studies/README.md:38` states *"Add new write-ups to the inventory table above in the same commit that lands the file."* `nav-hover-dropdown-primitive-choice.md` (added by `df3484de`) is the only one of 21 missing from the table. **Effort:** 5 min.
 
-**F-12 · Inert scroll-snap class left behind by the recap migration. CONFIRMED.** `apps/web/src/routes/index.tsx:61` still carries `[scroll-snap-align:start]`; `__root.tsx:182-191` documents that no `scroll-snap-type` remains on the container, so it is inert. This is explicitly acknowledged in the comment as pending per-chapter cleanup, so it is known-and-tracked rather than forgotten — listed for completeness. **Effort:** 5 min.
+**F-12 · Inert scroll-snap class left behind by the recap migration. CONFIRMED. — FIXED 2026-07-26.** `apps/web/src/routes/index.tsx:61` still carries `[scroll-snap-align:start]`; `__root.tsx:182-191` documents that no `scroll-snap-type` remains on the container, so it is inert. This is explicitly acknowledged in the comment as pending per-chapter cleanup, so it is known-and-tracked rather than forgotten — listed for completeness. **Effort:** 5 min.
 
 **F-13 · One `as any` in production code. CONFIRMED.** `apps/web/src/components/command-palette-dialog.tsx:285`: `navigate({ to: item.path as any })`. This is the standard TanStack Router typed-path escape hatch for a dynamically-built path. Worth a one-line comment explaining why, or a narrowed cast, rather than removal. **Effort:** 10 min.
 

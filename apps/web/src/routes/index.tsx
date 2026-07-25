@@ -54,11 +54,11 @@ function HomePage() {
             over-cover rather than a precise approximation. */}
         <section
           ref={heroRef}
-          // Hero is a snap target so the page has a clean home state under
-          // `scroll-snap-type: y mandatory`. Without it, the first chapter's
-          // snap-align would pull the viewport away from the hero on every
-          // scroll-end, making the landing un-restable.
-          className="relative flex min-h-[calc(var(--main-h,100dvh)-3rem)] items-start justify-center pt-[8dvh] [scroll-snap-align:start]"
+          // The hero's rest position is owned by LandingHeading's cascade and
+          // its whileInView, not by scroll snap. There is no `scroll-snap-type`
+          // on <main> any more (see __root.tsx), so nothing here needs to be a
+          // snap target.
+          className="relative flex min-h-[calc(var(--main-h,100dvh)-3rem)] items-start justify-center pt-[8dvh]"
         >
           <AmbientHero bandRef={heroRef} intensity={activity?.intensity} />
           <LandingHeading />
