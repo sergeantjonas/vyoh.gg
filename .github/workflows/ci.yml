@@ -29,18 +29,30 @@ jobs:
 
       - run: pnpm typecheck
 
+      # `shell: bash` is load-bearing: the default shell is `bash -e {0}` with
+      # no pipefail, so `tee` exited 0 and masked vitest's failure. This step
+      # could not fail between 2026-05-19 and 2026-07-25. Naming the shell opts
+      # into `bash --noprofile --norc -eo pipefail {0}`.
+      # `--no-bail` so a failure in the first package doesn't stop the others —
+      # otherwise only one of the three lcov files reaches Codecov below.
       - name: Test with coverage
-        run: pnpm -r test --coverage 2>&1 | tee coverage-output.log
+        shell: bash
+        run: pnpm -r --no-bail test --coverage 2>&1 | tee coverage-output.log
 
       - name: Append coverage summary to step summary
         if: always()
+        shell: bash
         run: |
           {
             echo "## Coverage summary"
             echo
-            echo '```'
-            grep -E "Coverage summary|Statements|Branches|Functions|Lines|test:  %" coverage-output.log || tail -30 coverage-output.log
-            echo '```'
+            if [ -s coverage-output.log ]; then
+              echo '```'
+              grep -E "Coverage summary|Statements|Branches|Functions|Lines|ERROR: Coverage|test:  %" coverage-output.log || tail -30 coverage-output.log
+              echo '```'
+            else
+              echo "_No coverage output — the test step did not run._"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload coverage to Codecov

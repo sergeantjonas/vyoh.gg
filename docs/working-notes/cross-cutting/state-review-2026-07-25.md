@@ -121,7 +121,7 @@ Against [perf-baseline.md](perf-baseline.md), which records a 181.94 kB gzip mai
 
 ---
 
-**F-1 · The CI coverage step cannot fail. CONFIRMED.**
+**F-1 · The CI coverage step cannot fail. CONFIRMED — FIXED 2026-07-25.**
 
 **Evidence** — `.github/workflows/ci.yml:32-33`:
 ```yaml
@@ -407,3 +407,35 @@ Consequences, all CONFIRMED:
 F-3's figure was first recorded as **224.43 kB**, computed as `bytes / 1024`. `size-limit` reports and parses **decimal** kB (`bytes / 1000`) — confirmed by measuring the entry chunk at 133,482 B, which is 133.48 decimal kB (matching its printed 133.78 kB, the residual being `__BUILD_TIME__`/`__BUILD_COMMIT__` drift between builds) versus 130.35 binary kB, which does not match. `@size-limit/file` compresses per file at gzip level 9 (`apps/web/node_modules/@size-limit/file/index.js:32`).
 
 Restated in size-limit's own units: true initial JS is **229.35 kB** (229,347 B, per-file gzip -9 across all 21 chunks) against a **210 kB** limit — an overshoot of **19.35 kB**, not 14.43 kB. The finding stands and is slightly worse than first reported; only the arithmetic changed.
+
+---
+
+## 9. F-15 — the local `:cc` scripts had F-1's defect too (found 2026-07-25 while fixing F-1)
+
+**CONFIRMED, and fixed in the same commit as F-1.**
+
+`pnpm run <script>` where the script pipes to `head` exits **0 regardless of the underlying command**, because a pipeline's status is the last command's. Proven in an isolated package:
+
+```
+piped to head, producer exits 1  -> pnpm run exits 0
+bare, producer exits 1          -> pnpm run exits 1
+```
+
+Three of the repo's Claude-facing validation scripts were built that way:
+
+| Script | Before | Could it fail? |
+|---|---|---|
+| `check:cc` | `biome ci .` — no pipe | yes |
+| `typecheck:cc` | `pnpm -r typecheck 2>&1 \| head -300` | **no** |
+| `test:cc` | `pnpm -r test 2>&1 \| head -400` | **no** |
+| `coverage:cc` | `pnpm -r test --coverage 2>&1 \| head -400` | **no** |
+
+Because `verify:cc` chains them with `&&`, **`verify:cc` only ever gated on lint** — typecheck and test failures passed silently. Verified end-to-end: with a deliberately failing test in `packages/shared`, `test:cc` and `verify:cc` both returned 0 before the fix and both return 1 after.
+
+This is why the F-1 bug survived: the local command a session would reach for to check its work had the same blind spot as CI.
+
+**Fixed:** `typecheck:cc` and `test:cc` now run under `bash -o pipefail -c '…'`, keeping their output caps. `coverage:cc` drops its pipe entirely — its `head -400` was truncating before `apps/web`'s summary, which lands at output line **960 of 966**, so it never showed web's numbers *or* its threshold errors. It also gains `--no-bail` so all three packages report.
+
+**Not changed:** `check:cc` and `check:fix:cc` (no pipe, already correct).
+
+**Residual:** `pipefail` + `head` could in principle surface a producer SIGPIPE as a false failure. Tested against a producer emitting 5,000 lines into `head -10`: exits 0 when the producer succeeds, 1 when it fails. Not a practical risk here.
