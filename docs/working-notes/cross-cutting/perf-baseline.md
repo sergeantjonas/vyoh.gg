@@ -7,15 +7,17 @@ Investigation started after the main roadmaps (views, match-depth, trends) shipp
 ## Tooling in place
 
 - **Bundle visualizer:** `rollup-plugin-visualizer` added as devDep. Run `ANALYZE=1 pnpm run build` from `apps/web/` to emit `dist/stats.html` (treemap) + `dist/stats.json` (parseable). Gated by `process.env.ANALYZE === "1"` in [apps/web/vite.config.ts](../../../apps/web/vite.config.ts) so normal builds are unaffected.
-- **Bundle budget:** `size-limit` configured in [apps/web/package.json](../../../apps/web/package.json). Run `pnpm run size` (full report) or `pnpm run size:cc` (silent, exit-code only — CI-friendly) after a build. Current budgets: main bundle 200 kB gzip (~10% headroom over 179 kB), Recharts lazy chunk 85 kB gzip (~10% over 76 kB). The check reads `dist/`, so the pattern is `pnpm run build && pnpm run size:cc`.
+- **Bundle budget:** `size-limit` configured in [apps/web/.size-limit.cjs](../../../apps/web/.size-limit.cjs) (not `package.json`). Run `pnpm run size` (full report) or `pnpm run size:cc` (silent, exit-code only — CI-friendly) after a build. Current budgets: **initial JS 240 kB gzip** (~4.4% headroom over 229.53 kB), Recharts lazy chunk 85 kB gzip (~20% over 68.25 kB). The check reads `dist/`, so the pattern is `pnpm run build && pnpm run size:cc`. The initial-JS entry derives its file list from `dist/index.html` at config load and **throws** if the parse looks partial — see the 2026-07-25 section below for why.
 - **Web Vitals:** wired via [apps/web/src/lib/web-vitals.ts](../../../apps/web/src/lib/web-vitals.ts) + dev-only [PerfOverlay](../../../apps/web/src/components/perf-overlay.tsx) gated by `usePerfFlag()`. Live updates enabled (`reportAllChanges: true` for CLS/INP/LCP). Activation: append `?perf` (or `?perf=1`) once — persists to `localStorage` for the session, survives TanStack Router validateSearch stripping. Clear `vyoh:perf` from localStorage to disable.
 - **Lighthouse:** **not** available inside the devcontainer (no Chrome). Use the PerfOverlay against `vite preview` on a forwarded port for live measurements. Firefox lacks the live CPU-throttling Chrome offers, so deeper throttled measurement requires Chrome/Edge.
 
-## Main bundle baseline
+## Initial JS baseline
 
-Initial measurement 2026-05-12: **205.69 kB gzip / 629 kB raw** (Vite output for `dist/assets/index-*.js`).
+> **Heading renamed 2026-07-25.** It read "Main bundle baseline", and that conflation is what caused the budget to be wrong for months: "main bundle" was taken to mean the entry chunk, while the browser loads the entry *plus* its modulepreloads. Every figure in this section dated 2026-05-12 describes the **entry chunk only**, not initial JS.
 
-After lazy-loading sonner + cmdk (2026-05-12): **181.94 kB gzip / 550.70 kB raw** (-23.75 kB gzip / -11.5%). New lazy chunks:
+Initial measurement 2026-05-12 (**entry chunk only**): **205.69 kB gzip / 629 kB raw** (Vite output for `dist/assets/index-*.js`).
+
+After lazy-loading sonner + cmdk (2026-05-12, **entry chunk only**): **181.94 kB gzip / 550.70 kB raw** (-23.75 kB gzip / -11.5%). New lazy chunks:
 - `dist-*.js` (sonner): 11.45 kB gzip — loads on first toast or after first paint
 - `command-palette-dialog-*.js` (cmdk + dialog body): 7.75 kB gzip — loads on first ⌘K
 
@@ -36,7 +38,7 @@ The numbers below describe the original baseline (before lazy-loading), retained
 
 Per-route chunks split cleanly (Trends 12 kB, MatchDetail 12 kB, Profile 29 kB) — TanStack auto code-splitting is doing its job.
 
-Notable lazy chunk: **`CategoricalChart-*.js` (Recharts) at 77 kB gzip / 245 kB raw**, loaded only on chart pages. **Both Recharts and visx are present by design** — a prior session deliberately kept Recharts for workhorse charts and reached for visx only on showpieces where the extra API cost paid for bespoke visuals. The chunk is therefore not a leftover migration; consolidating onto visx everywhere is an option, but only worth pursuing if there's no visual regression on the existing Recharts surfaces.
+Notable lazy chunk: **`CategoricalChart-*.js` (Recharts) at 68.25 kB gzip / 230.08 kB raw**, loaded only on chart pages. **Both Recharts and visx are present by design** — a prior session deliberately kept Recharts for workhorse charts and reached for visx only on showpieces where the extra API cost paid for bespoke visuals. The chunk is therefore not a leftover migration; consolidating onto visx everywhere is an option, but only worth pursuing if there's no visual regression on the existing Recharts surfaces.
 
 ## Motion cost — accepted, do not re-litigate
 
@@ -147,3 +149,31 @@ INP 8 ms on the morph-heavy interaction (each tab click fires the VT snapshot + 
 - `/lol/$accountSlug/matches/$matchId`
 - `/lol/$accountSlug/champions`
 - `/lol/$accountSlug/champions/$championKey`
+
+---
+
+## Initial-JS re-baseline — 2026-07-25
+
+The budget had been measuring one chunk of twenty-one.
+
+`.size-limit.cjs` globbed `dist/assets/index-*.js` and called it "main bundle (initial JS)". That was true when written, but the Vite 8 / rolldown chunking split the entry, and `dist/index.html` now loads the entry script **plus 20 `modulepreload` links** before first paint. The budget reported ~133 kB against a 210 kB limit and passed, while the real initial payload was **229.53 kB** — over the stated ceiling. Nothing caught it because the number still looked plausible, and CI's `bundle-size` job gated on it.
+
+| Measure | Value |
+|---|---|
+| Entry chunk alone (what the old glob measured) | 133.78 kB gzip |
+| **Initial JS — entry + 20 modulepreloads** | **229.53 kB gzip** |
+| Limit (set 2026-07-25) | 240 kB gzip (~4.4% headroom) |
+| Recharts lazy chunk | 68.25 kB gzip / 230.08 kB raw (limit 85 kB) |
+| `index-*.css` — render-blocking, **not** in the JS budget | ~31 kB gzip |
+
+Largest preloaded chunks the old budget ignored: `react-*.js` 38.17 kB, `Match-*.js` 15.81 kB, `useQuery-*.js` 7.96 kB.
+
+**Units matter here.** `size-limit` reports and parses *decimal* kB (bytes ÷ 1000), not binary. The first pass at this finding computed 224.43 kB using ÷1024 and understated the overshoot. Confirmed by measuring the entry chunk at 133,482 B = 133.48 decimal kB, which matches size-limit's printed 133.78 (residual is `__BUILD_TIME__` drift) — 130.35 binary kB does not. `@size-limit/file` compresses per file at gzip level 9.
+
+**Why the config parses HTML instead of listing globs.** Chunk names are content-hashed and change every build, and prefix globs over-count — `dist/assets/dist-*.js` matches five emitted chunks, only three of which are preloaded. Parsing `dist/index.html` is the only source that stays correct as chunking changes.
+
+**The guard is the load-bearing part.** `size-limit` silently ignores a path that matches nothing, so a tag-shape change upstream would quietly shrink the measured payload and turn the budget green — the exact failure being fixed. The config counts `rel="modulepreload"` occurrences and throws unless it resolved every one plus exactly one entry script. Verified by mangling `index.html` two ways: repointing one preload outside `/assets/`, and renaming `href` to `data-href`. Both throw with `matched 1 entry script(s) and 19 of 20 modulepreload(s)`.
+
+Attribute patterns require preceding whitespace rather than `\b`, because `\bhref` also matches `data-href` (the hyphen is a non-word character) — the first draft of the guard missed the rename case for exactly that reason.
+
+**Not done:** no attempt was made to *reduce* initial JS. 240 kB records where the app actually is; trimming toward the old 210 kB figure is separate, optional work.

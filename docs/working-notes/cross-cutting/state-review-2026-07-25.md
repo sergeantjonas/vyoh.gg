@@ -167,7 +167,7 @@ Thresholds set in `packages/shared/vitest.config.ts:14`, `apps/api/vitest.config
 
 ---
 
-**F-3 · The bundle budget measures 1 of 21 initial chunks, and the true number is over the limit. CONFIRMED.**
+**F-3 · The bundle budget measures 1 of 21 initial chunks, and the true number is over the limit. CONFIRMED — FIXED 2026-07-25.** The config now derives its file list from `dist/index.html` and throws on a partial parse; limit set to 240 kB against a measured 229.5 kB. See [perf-baseline.md](perf-baseline.md) § "Initial-JS re-baseline".
 
 **Evidence** — `apps/web/.size-limit.cjs:9-15` defines the budget as a single glob:
 ```js
