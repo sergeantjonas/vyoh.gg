@@ -152,9 +152,8 @@ function buildTiltForecastSignal({ last, history }: PostGameInput): RitualSignal
       tone: "neutral",
     };
   }
-  const overallWr =
-    excludeRemakes(history).filter((m) => m.win).length /
-    Math.max(1, excludeRemakes(history).length);
+  // `history` arrives already free of remakes (filtered once at the call site).
+  const overallWr = history.filter((m) => m.win).length / Math.max(1, history.length);
   const wr = bucket.wins / bucket.games;
   const pct = formatPercent(wr);
   const delta = wr - overallWr;
@@ -184,7 +183,7 @@ function buildChampionReadSignal({
   accountSlug,
   nameFor,
 }: PostGameInput): RitualSignal {
-  const same = excludeRemakes(history).filter((m) => m.champion === last.champion);
+  const same = history.filter((m) => m.champion === last.champion);
   const others = same.filter((m) => m.matchId !== last.matchId);
   const displayName = nameFor(last.champion);
   const iconLink = (
@@ -318,10 +317,18 @@ export function ProfilePostGame({ accountSlug }: { accountSlug: string }) {
 
   const computed = useMemo(() => {
     if (!matches || matches.length === 0) return null;
-    const ordered = [...matches].sort((a, b) => b.playedAt.localeCompare(a.playedAt));
-    const last = ordered.find((m) => !m.remake);
+    // Filter once, here, and hand the signal builders a history that already
+    // holds the invariant. Previously `history` was the raw list: every
+    // builder had to remember to exclude remakes, and buildOutcomeSignal
+    // didn't — a remake at the head of the list either padded the streak
+    // count or supplied the "broke a run" match.
+    // excludeRemakes returns a fresh array, so sorting in place is safe.
+    const ordered = excludeRemakes(matches).sort((a, b) =>
+      b.playedAt.localeCompare(a.playedAt)
+    );
+    const last = ordered[0];
     if (!last) return null;
-    const input: PostGameInput = { last, history: matches, accountSlug, nameFor };
+    const input: PostGameInput = { last, history: ordered, accountSlug, nameFor };
     // Game-shape replaces the champion read when timeline data is present:
     // the lane-phase narrative is a stronger headline than KDA-vs-average,
     // and the grid stays at 4 tiles. Historical rows without a projected

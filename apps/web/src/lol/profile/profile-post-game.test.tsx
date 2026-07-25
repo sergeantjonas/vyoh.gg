@@ -139,6 +139,45 @@ describe("ProfilePostGame", () => {
     expect(screen.getByText(/broke a 3-game loss run\./)).toBeTruthy();
   });
 
+  // Remakes carry a `win` boolean, so an unfiltered history let them count
+  // toward the streak. Before the 2026-07-25 fix this rendered
+  // "3-game loss streak now."
+  it("does not let a remake pad the streak count", () => {
+    const now = Date.now();
+    setMatches([
+      fakeMatch({ win: false, playedAt: new Date(now - 1 * DAY_MS).toISOString() }),
+      fakeMatch({
+        win: false,
+        remake: true,
+        playedAt: new Date(now - 2 * DAY_MS).toISOString(),
+      }),
+      fakeMatch({ win: false, playedAt: new Date(now - 3 * DAY_MS).toISOString() }),
+    ]);
+    renderShell();
+    expect(screen.getByText(/back-to-back losses\./)).toBeTruthy();
+    expect(screen.queryByText(/3-game loss streak now\./)).toBeNull();
+  });
+
+  // A remake at the head with the opposite outcome broke the streak scan on
+  // its first iteration and then supplied `beforeStreak`, so the verdict was
+  // derived from a game that never really happened. Before the fix this
+  // rendered "Loss — first one back."
+  it("ignores a leading remake when scanning the streak", () => {
+    const now = Date.now();
+    setMatches([
+      fakeMatch({
+        win: true,
+        remake: true,
+        playedAt: new Date(now - 1 * DAY_MS).toISOString(),
+      }),
+      fakeMatch({ win: false, playedAt: new Date(now - 2 * DAY_MS).toISOString() }),
+      fakeMatch({ win: false, playedAt: new Date(now - 3 * DAY_MS).toISOString() }),
+      fakeMatch({ win: false, playedAt: new Date(now - 4 * DAY_MS).toISOString() }),
+    ]);
+    renderShell();
+    expect(screen.getByText(/3-game loss streak now\./)).toBeTruthy();
+  });
+
   it("renders a Game shape tile (replacing Champion read) when timeline data is present", () => {
     setMatches([
       fakeMatch({ goldAt15: 6000, csAt15: 110, teamGoldDiffAt15: 0, win: true }),
