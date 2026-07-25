@@ -368,6 +368,32 @@ Encoded the four-scenario baseline (lol-overview / lol-champion-panel / steam-li
 
 The budget table is now the live regression gate. `pnpm --filter @vyoh/tools-perf-probe probe` is the verification tool; any new surface that pushes a baseline scenario over its layer budget by more than ~50 layers, or any non-zero dropped-frame count, triggers a perf review before merge. Bracketing rule (3-run median for raster / long-task numbers, single-run for dropped frames) captured in the convention itself.
 
+### The cold-run trap (2026-07-25)
+
+**The first probe run after a dev-server restart measures a skeleton, not the page.** It fails silently and in the flattering direction, which is what makes it worth writing down.
+
+| Scenario | Cold (first run after restart) | Warm |
+|---|---|---|
+| `lol-overview` | 3 layers / 31 ms raster / 0 long tasks | 21–26 layers / 49–60 ms |
+| `recap` | 3 layers / 33 ms | 14 layers / 122–126 ms |
+
+Nothing in the run's own output flags it. The probe exits clean, and `web-vitals` reports FCP 220 ms, because FCP fires on the skeleton. The reliable tell is that the `01-load` and `03-scroll-bottom` screenshots are **byte-identical** (307,958 B in the observed case): the scroll phase captured the same empty frame as the load phase, because content never arrived within the capture window.
+
+Three cold runs bracketed together pull the median down about 40% and read as a large, plausible improvement. Same failure class as F-1 and F-3 in the [state review](state-review-2026-07-25.md): a measurement that reports green while measuring the wrong thing.
+
+Encoded in [repo-conventions.md](../../repo-conventions.md#layer-count--paint-budget-per-route-scenario) as "discard the first run after any dev-server restart, or warm the route once before bracketing".
+
+### 2026-07-25 warm observation — NOT a re-baseline
+
+Recorded for context only. **Do not copy these into the budget table.**
+
+| Scenario | Layers | RasterTask | Budget |
+|---|---|---|---|
+| `lol-overview` | 23 | 53 ms | ≤ 30 / ≤ 150 ms |
+| `recap` | 14 | 122–126 ms | ≤ 20 / ≤ 220 ms |
+
+Both sit comfortably inside budget, and both read well below the June figures (−47 ms on `lol-overview`, −70 ms on `recap`). That delta is **not** attributable to the app: these runs were taken on a different chromium build and a different architecture (chromium 151 / arm64) than the June baselines. Re-baselining on this evidence would bake an environmental difference into the gate and make the next real regression harder to see. A genuine re-baseline needs a matched environment.
+
 ### Post-foundation baseline run directories
 
 Latest probe runs covering each scenario (gitignored — local-only):
