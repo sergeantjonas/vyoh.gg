@@ -93,7 +93,7 @@ All commands run 2026-07-25 on `main` @ `eb5ac211`.
 | Package | Statements | Branches | Functions | Lines | Verdict |
 |---|---|---|---|---|---|
 | `packages/shared` | 94.82% (min 95) | 88.00% (min 89) | 96.40% (min 97) | 97.63% (min **99**) | **FAIL** — 4 of 4 metrics under |
-| `apps/api` | 92.14% (min 92) | 82.99% (min 82) | 93.15% (min **94**) | 94.31% (min 94) | **FAIL** — functions under |
+| `apps/api` | 92.40% (min 92) | 83.02% (min 82) | **94.58%** (min 94) | 94.60% (min 94) | **PASS** — cleared 2026-07-25 (`fae31693`) |
 | `apps/web` | 78.49% | 62.89% | 83.57% | 88.73% (min **90**) | **FAIL** — lines under |
 
 `apps/web` branch coverage at **62.89%** is the weakest surface by a wide margin. Uncovered surfaces are concentrated in the four route-level files with no sibling test (`__root.tsx`, `routes/steam.tsx`, `routes/lol/$accountSlug.tsx`, and the two detail routes) and the large editorial chapters (`steam-chapter.tsx` 1,015L, `ahri-chapter.tsx` 945L), which are render-heavy and lightly asserted.
@@ -145,7 +145,7 @@ Introduced by `aa134f02` (2026-05-19), whose subject line is *"ci: report test c
 
 ---
 
-**F-2 · All three packages fail their own coverage thresholds. CONFIRMED.**
+**F-2 · All three packages fail their own coverage thresholds. CONFIRMED.** — `apps/api` **cleared 2026-07-25** (`fae31693`); `packages/shared` and `apps/web` remain.
 
 **Evidence** — actual `pnpm test --coverage` output per package:
 ```

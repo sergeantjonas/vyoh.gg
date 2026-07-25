@@ -18,14 +18,23 @@ function makeController() {
   };
   const analytics = {
     getDuos: vi.fn(),
+    getSquads: vi.fn(),
     getChronotype: vi.fn(),
     getChampionPairs: vi.fn(),
     getChampionBuildFlow: vi.fn(),
     getChampionExtras: vi.fn(),
+    getChampionRecap: vi.fn(),
+    getChampionRuneDiversity: vi.fn(),
+    getChampionLanePhase: vi.fn(),
+    getCarryProfile: vi.fn(),
+    getObjectiveFirsts: vi.fn(),
+    getObjectiveParticipation: vi.fn(),
+    getAramProfile: vi.fn(),
+    getDamageProfile: vi.fn(),
     getPregameCalibration: vi.fn(),
   };
   const baseline = { getBaseline: vi.fn() };
-  const narrative = { getNarrativeWindow: vi.fn() };
+  const narrative = { getNarrativeWindow: vi.fn(), getLifetimeNarrative: vi.fn() };
   return {
     controller: new LolController(
       lol as unknown as LolService,
@@ -35,6 +44,8 @@ function makeController() {
     ),
     lol,
     analytics,
+    baseline,
+    narrative,
   };
 }
 
@@ -146,5 +157,138 @@ describe("LolController endpoint delegations", () => {
       "EUW",
       undefined
     );
+  });
+
+  // region/gameName/tagLine are all `string`, so any reordering among them is
+  // invisible to the compiler — the argument assertions below are what catch it.
+  it("getSquads delegates to analytics.getSquads", async () => {
+    const { controller, analytics } = makeController();
+    await controller.getSquads(params, 100);
+    expect(analytics.getSquads).toHaveBeenCalledWith("euw1", "Vyoh", "EUW", 100);
+  });
+
+  it("getCarryProfile delegates to analytics.getCarryProfile", async () => {
+    const { controller, analytics } = makeController();
+    await controller.getCarryProfile(params, 100);
+    expect(analytics.getCarryProfile).toHaveBeenCalledWith("euw1", "Vyoh", "EUW", 100);
+  });
+
+  it("getObjectiveFirsts delegates to analytics.getObjectiveFirsts", async () => {
+    const { controller, analytics } = makeController();
+    await controller.getObjectiveFirsts(params, 100);
+    expect(analytics.getObjectiveFirsts).toHaveBeenCalledWith("euw1", "Vyoh", "EUW", 100);
+  });
+
+  it("getObjectiveParticipation delegates to analytics.getObjectiveParticipation", async () => {
+    const { controller, analytics } = makeController();
+    await controller.getObjectiveParticipation(params, 100);
+    expect(analytics.getObjectiveParticipation).toHaveBeenCalledWith(
+      "euw1",
+      "Vyoh",
+      "EUW",
+      100
+    );
+  });
+
+  it("getAramProfile delegates to analytics.getAramProfile", async () => {
+    const { controller, analytics } = makeController();
+    await controller.getAramProfile(params, 100);
+    expect(analytics.getAramProfile).toHaveBeenCalledWith("euw1", "Vyoh", "EUW", 100);
+  });
+
+  // The account-scoped route passes no championKey, so the 4th positional
+  // argument is undefined — the champion-scoped route below fills it in.
+  it("getDamageProfile delegates with an undefined championKey", async () => {
+    const { controller, analytics } = makeController();
+    await controller.getDamageProfile(params, 100);
+    expect(analytics.getDamageProfile).toHaveBeenCalledWith(
+      "euw1",
+      "Vyoh",
+      "EUW",
+      undefined,
+      100
+    );
+  });
+
+  it("getChampionDamageProfile delegates to the same service method with the championKey", async () => {
+    const { controller, analytics } = makeController();
+    await controller.getChampionDamageProfile(championParams, 100);
+    expect(analytics.getDamageProfile).toHaveBeenCalledWith(
+      "euw1",
+      "Vyoh",
+      "EUW",
+      "ahri",
+      100
+    );
+  });
+
+  it("getChampionRuneDiversity delegates to analytics.getChampionRuneDiversity", async () => {
+    const { controller, analytics } = makeController();
+    await controller.getChampionRuneDiversity(championParams, 100);
+    expect(analytics.getChampionRuneDiversity).toHaveBeenCalledWith(
+      "euw1",
+      "Vyoh",
+      "EUW",
+      "ahri",
+      100
+    );
+  });
+
+  it("getChampionLanePhase delegates to analytics.getChampionLanePhase", async () => {
+    const { controller, analytics } = makeController();
+    await controller.getChampionLanePhase(championParams, 100);
+    expect(analytics.getChampionLanePhase).toHaveBeenCalledWith(
+      "euw1",
+      "Vyoh",
+      "EUW",
+      "ahri",
+      100
+    );
+  });
+
+  // No count query on this route — the DTO declares params only.
+  it("getChampionRecap delegates to analytics.getChampionRecap without a count", async () => {
+    const { controller, analytics } = makeController();
+    await controller.getChampionRecap(championParams);
+    expect(analytics.getChampionRecap).toHaveBeenCalledWith(
+      "euw1",
+      "Vyoh",
+      "EUW",
+      "ahri"
+    );
+  });
+
+  it("getChampionExtras parses CSV queues and drops non-numeric entries", async () => {
+    const { controller, analytics } = makeController();
+    await controller.getChampionExtras(championParams, "420,nope,440");
+    expect(analytics.getChampionExtras).toHaveBeenCalledWith(
+      "euw1",
+      "Vyoh",
+      "EUW",
+      "ahri",
+      [420, 440]
+    );
+  });
+
+  it("getBaseline delegates to baseline.getBaseline with the champion and role", async () => {
+    const { controller, baseline } = makeController();
+    await controller.getBaseline({
+      ...params,
+      championAlias: "Ahri",
+      role: "MIDDLE",
+    });
+    expect(baseline.getBaseline).toHaveBeenCalledWith(
+      "euw1",
+      "Vyoh",
+      "EUW",
+      "Ahri",
+      "MIDDLE"
+    );
+  });
+
+  it("getNarrativeLifetime delegates to narrative.getLifetimeNarrative", async () => {
+    const { controller, narrative } = makeController();
+    await controller.getNarrativeLifetime(params);
+    expect(narrative.getLifetimeNarrative).toHaveBeenCalledWith("euw1", "Vyoh", "EUW");
   });
 });
