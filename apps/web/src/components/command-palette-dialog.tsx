@@ -281,8 +281,11 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
     recordRecent(recentsScope, item);
     audio.play("palette.select");
     onOpenChange(false);
-    // biome-ignore lint/suspicious/noExplicitAny: palette navigates by raw path
-    navigate({ to: item.path as any });
+    // No cast needed: `to` widens to string for a non-literal argument, and
+    // no route-union type could apply here anyway. Palette paths arrive
+    // already resolved, some carry query strings, and some come back out of
+    // localStorage via loadRecents().
+    navigate({ to: item.path });
   }
 
   // ⌘↵ / Ctrl↵ on a highlighted Account row → jump into that account's

@@ -302,7 +302,7 @@ Also stale in the same neighbourhood: "pnpm 10" at `README.md:33`, `README.md:54
 
 **F-12 · Inert scroll-snap class left behind by the recap migration. CONFIRMED. — FIXED 2026-07-26.** `apps/web/src/routes/index.tsx:61` still carries `[scroll-snap-align:start]`; `__root.tsx:182-191` documents that no `scroll-snap-type` remains on the container, so it is inert. This is explicitly acknowledged in the comment as pending per-chapter cleanup, so it is known-and-tracked rather than forgotten — listed for completeness. **Effort:** 5 min.
 
-**F-13 · One `as any` in production code. CONFIRMED.** `apps/web/src/components/command-palette-dialog.tsx:285`: `navigate({ to: item.path as any })`. This is the standard TanStack Router typed-path escape hatch for a dynamically-built path. Worth a one-line comment explaining why, or a narrowed cast, rather than removal. **Effort:** 10 min.
+**F-13 · One `as any` in production code. CONFIRMED. — FIXED 2026-07-26.** `apps/web/src/components/command-palette-dialog.tsx:285`: `navigate({ to: item.path as any })`. This is the standard TanStack Router typed-path escape hatch for a dynamically-built path. Worth a one-line comment explaining why, or a narrowed cast, rather than removal. **Effort:** 10 min.
 
 **F-14 · Dev-dependency majors available. CONFIRMED via `pnpm outdated -r`.** `@biomejs/biome` 1.9.4 → 2.5.5, `typescript` 6.0.3 → 7.0.2, `size-limit` + `@size-limit/file` 12.1.0 → 13.0.1, `concurrently` 9.2.4 → 10.0.3, `@types/node` 24 → 26. All dev-only; the Biome 2 and TS 7 jumps each deserve their own commit. Note `eb5ac211` already reverted a `concurrently` major deliberately. **Effort:** one commit each.
 
