@@ -8,6 +8,7 @@ import {
   formatLpDelta,
   formatPercent,
   formatPlaytime,
+  formatPlaytimeFromSeconds,
   formatPlaytimeVerbose,
   formatTimeAgo,
   relativeTimeAgo,
@@ -88,6 +89,25 @@ describe("formatPlaytime", () => {
 
   it("applies en-US thousands separators on large hour counts", () => {
     expect(formatPlaytime(60_000)).toBe("1,000h");
+  });
+});
+
+// LoL surfaces feed seconds and want one-decimal hours, because a champion's
+// accumulated playtime moves in meaningful sub-hour steps.
+describe("formatPlaytimeFromSeconds", () => {
+  it("uses whole minutes below one hour", () => {
+    expect(formatPlaytimeFromSeconds(0)).toBe("0m");
+    expect(formatPlaytimeFromSeconds(1800)).toBe("30m");
+  });
+
+  // Just under an hour still rounds to 60m rather than tipping into "1.0h".
+  it("rounds the sub-hour case to the nearest minute", () => {
+    expect(formatPlaytimeFromSeconds(3599)).toBe("60m");
+  });
+
+  it("switches to one-decimal hours at and above one hour", () => {
+    expect(formatPlaytimeFromSeconds(3600)).toBe("1.0h");
+    expect(formatPlaytimeFromSeconds(261_360)).toBe("72.6h");
   });
 });
 

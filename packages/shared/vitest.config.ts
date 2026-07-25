@@ -9,8 +9,12 @@ export default defineConfig({
       reporter: ["text-summary", "lcov"],
       include: ["src/**/*.ts"],
       exclude: ["src/**/*.{test,spec}.ts", "src/**/*.d.ts", "src/index.ts"],
-      // Floor is well below current (100% lines) to give a buffer; CI reports
-      // the actual numbers so a slow erosion is still visible on the PR.
+      // These are tight, not a buffer: the 2026-07-25 state review found all
+      // four failing (the earlier "well below current (100% lines)" note was
+      // stale by ~2pp). Lines sit a handful of lines above the floor, so a new
+      // uncovered branch can break the build.
+      // A package-local `pnpm test` does NOT enforce this — only `--coverage`
+      // does, which is what CI runs.
       thresholds: { statements: 95, branches: 89, functions: 97, lines: 99 },
     },
   },

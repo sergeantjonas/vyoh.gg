@@ -1,3 +1,4 @@
+import { excludeRemakes } from "./exclude-remakes.ts";
 import type { MatchSummary } from "./match.ts";
 
 // Per-champion aggregate used by the "signature champion" selector. Total
@@ -19,8 +20,7 @@ export interface ChampionAggregate {
 // the standing LoL domain invariant.
 export function selectChampionOfYear(matches: MatchSummary[]): ChampionAggregate | null {
   const map = new Map<string, ChampionAggregate>();
-  for (const m of matches) {
-    if (m.remake) continue;
+  for (const m of excludeRemakes(matches)) {
     const prev = map.get(m.champion) ?? {
       champion: m.champion,
       games: 0,

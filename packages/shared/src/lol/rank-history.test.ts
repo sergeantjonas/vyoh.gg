@@ -3,6 +3,7 @@ import {
   type RankHistoryPoint,
   detectSeasons,
   formatRank,
+  formatRankTitle,
   normalizeLp,
   pickHigherRank,
 } from "./rank-history.ts";
@@ -61,6 +62,29 @@ describe("formatRank", () => {
 
   it("passes the tier through verbatim when display lookup misses", () => {
     expect(formatRank("UNKNOWN", "I", 0)).toBe("UNKNOWN I 0LP");
+  });
+});
+
+describe("formatRankTitle", () => {
+  it("renders tier and division without the LP suffix", () => {
+    expect(formatRankTitle("DIAMOND", "II")).toBe("Diamond II");
+    expect(formatRankTitle("IRON", "IV")).toBe("Iron IV");
+  });
+
+  // Riot's `rank` is meaningless above Diamond, so apex tiers drop it.
+  it("omits the division for apex tiers", () => {
+    expect(formatRankTitle("MASTER", "I")).toBe("Master");
+    expect(formatRankTitle("GRANDMASTER", "I")).toBe("Grandmaster");
+    expect(formatRankTitle("CHALLENGER", "I")).toBe("Challenger");
+  });
+
+  // Only the tier is case-normalised — the division is echoed verbatim.
+  it("normalises the tier but passes the division through as given", () => {
+    expect(formatRankTitle("platinum", "iv")).toBe("Platinum iv");
+  });
+
+  it("falls back to the raw tier when both lookups miss", () => {
+    expect(formatRankTitle("UNRANKED", "I")).toBe("UNRANKED I");
   });
 });
 
