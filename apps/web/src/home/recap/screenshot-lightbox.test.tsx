@@ -166,4 +166,40 @@ describe("ScreenshotLightboxStrip", () => {
       expect(screen.getAllByText("S03").length).toBeGreaterThan(0);
     });
   });
+
+  // The filmstrip pauses its marquee drift while the user is interacting with
+  // it, so click targets stay still. Pointer and keyboard-focus paths are
+  // separate handler pairs and both need exercising.
+  it("pauses and resumes drift across the pointer handler pair", () => {
+    render(<ScreenshotLightboxStrip appid={367520} screenshots={SCREENSHOTS} />);
+    const strip = screen
+      .getAllByRole("button", { name: /Open screenshot/ })[0]
+      ?.closest("div.relative") as HTMLElement;
+    expect(strip).toBeTruthy();
+    fireEvent.pointerDown(strip);
+    fireEvent.pointerUp(strip);
+    fireEvent.pointerEnter(strip);
+    fireEvent.pointerLeave(strip);
+    expect(screen.getAllByRole("button", { name: /Open screenshot/ })).toHaveLength(3);
+  });
+
+  it("pauses and resumes drift across the focus handler pair", () => {
+    render(<ScreenshotLightboxStrip appid={367520} screenshots={SCREENSHOTS} />);
+    const strip = screen
+      .getAllByRole("button", { name: /Open screenshot/ })[0]
+      ?.closest("div.relative") as HTMLElement;
+    fireEvent.focus(strip);
+    fireEvent.blur(strip);
+    expect(screen.getAllByRole("button", { name: /Open screenshot/ })).toHaveLength(3);
+  });
+
+  // Escape routes through Radix's onOpenChange rather than the explicit
+  // Close button, so it exercises a different path back to close().
+  it("closes the dialog through onOpenChange on Escape", () => {
+    render(<ScreenshotLightboxStrip appid={367520} screenshots={SCREENSHOTS} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open screenshot 2 of 3" }));
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
 });
