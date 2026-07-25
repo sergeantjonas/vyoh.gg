@@ -16,9 +16,11 @@ import { findPatchBoundaries } from "@/lol/_shared/patch/patch-version";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { type RangeKey, useRankHistory } from "@/lol/profile/use-rank-history";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+// visx 4 added an `exports` map with only a "." entry, so the old
+// `@visx/brush/lib/*` deep imports no longer resolve. Both types are
+// re-exported from the package root.
 import { Brush } from "@visx/brush";
-import type { BrushHandleRenderProps } from "@visx/brush/lib/BrushHandle";
-import type { Bounds } from "@visx/brush/lib/types";
+import type { Bounds, BrushHandleRenderProps } from "@visx/brush";
 import { Group } from "@visx/group";
 import { ParentSize } from "@visx/responsive";
 import { scaleLinear } from "@visx/scale";
