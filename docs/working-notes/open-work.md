@@ -56,6 +56,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 ### Ops
 
 - CodeQL SAST evaluation — deferred from the 2026-05-14 security baseline; freelance-signal layer, not threat-model-justified. Revisit when bandwidth allows or auth surface lands. → [security.md](ops/security.md)
+- Dependency refresh cadence — the 2026-07-25 sweep (41 advisories → 1, CI audit gate un-broken) showed overrides pinned to fixed floors stop covering advisories as those widen. Overrides now mirror the advisory ranges and carry a re-derivation date; re-derive on each sweep rather than only adding new entries. One accepted moderate remains (`file-type@16` via `@jimp/core`), clearing only when `node-vibrant` moves. → [security.md](ops/security.md)
 - Folder-structure cleanup — Chunks 1 + 2 shipped 2026-05-14 (`lol-analytics.service.ts` extracted; `lol/_shared/` split into 6 non-asset buckets). Asset buckets deferred to the runtime-proxy pivot; Chunks 3 + 4 remain conditional (Steam subfoldering on S4.5 re-look, cross-domain `_assets/` only if TFT lands). → [folder-structure-cleanup.md](ops/folder-structure-cleanup.md)
 
 ## Unpromoted vNext top-tier candidates

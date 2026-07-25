@@ -2,14 +2,31 @@ packages:
   - "apps/*"
   - "packages/*"
   - "tools/*"
+# Re-derived 2026-07-25 against the advisory set current at that date. Ranges
+# track the advisory's own vulnerable range, so a widened advisory shows up as a
+# fresh `pnpm audit` finding rather than being silently masked by a stale floor.
 overrides:
-  protobufjs@<7.5.6: ^7.5.6
-  brace-expansion@>=5.0.0 <5.0.6: ^5.0.6
-  ws@>=8.0.0 <8.20.1: ^8.20.1
-  # file-type@16 (CJS) is pinned by @jimp/core in tools/champion-assets; v21 is
-  # ESM-only and breaks require(). Build-time script on controlled inputs — risk accepted.
+  protobufjs@<=7.6.4: ^7.6.5
+  # The advisory range is `<=5.0.7`, which by semver also covers the legacy 1.x
+  # and 2.x lines that minimatch pulls under @nestjs/cli. 5.0.8 ships a dual
+  # ESM+CJS build, so the CJS `require()` in minimatch 3.x/9.x still resolves;
+  # verified with a nest build + start.
+  brace-expansion@<=5.0.7: ^5.0.8
+  ws@<8.21.0: ^8.21.0
+  # file-type@16 (CJS) is pinned by @jimp/core, reached via node-vibrant in
+  # apps/api and tools/champion-assets; v21 is ESM-only and breaks require().
+  # The advisory range starts at >=13.0.0 and so covers that pinned copy, but
+  # forcing it forward breaks the import. Build-time/enrichment paths on
+  # controlled inputs — risk accepted. The override still lifts every copy that
+  # can move.
   file-type@>=17.0.0 <21.3.2: ^21.3.2
-  "@hono/node-server@<1.19.13": ^1.19.13
+  "@hono/node-server@<2.0.5": ^2.0.5
+  # adm-zip is the only one of these on a runtime path (steam-user, and
+  # onnxruntime-node's prebuilt unpack). Crafted-ZIP OOM, so worth forcing.
+  adm-zip@<0.6.0: ^0.6.0
+  # Both reached only through @prisma/dev, i.e. the local Prisma dev server.
+  find-my-way@<=9.6.0: ^9.6.1
+  valibot@<=1.4.1: ^1.4.2
 allowBuilds:
   '@biomejs/biome': true
   '@nestjs/core': true
