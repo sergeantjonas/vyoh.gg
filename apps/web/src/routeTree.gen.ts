@@ -9,38 +9,38 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SteamRouteImport } from './routes/steam'
-import { Route as StatusRouteImport } from './routes/status'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as SteamIndexRouteImport } from './routes/steam/index'
+import { Route as StatusRouteImport } from './routes/status'
+import { Route as SteamRouteImport } from './routes/steam'
 import { Route as LolIndexRouteImport } from './routes/lol/index'
-import { Route as SteamWishlistRouteImport } from './routes/steam/wishlist'
-import { Route as SteamLibraryRouteImport } from './routes/steam/library'
-import { Route as SteamAchievementsRouteImport } from './routes/steam/achievements'
 import { Route as LolAccountSlugRouteImport } from './routes/lol/$accountSlug'
-import { Route as LolPatchesIndexRouteImport } from './routes/lol/patches/index'
+import { Route as SteamIndexRouteImport } from './routes/steam/index'
+import { Route as SteamAchievementsRouteImport } from './routes/steam/achievements'
+import { Route as SteamLibraryRouteImport } from './routes/steam/library'
+import { Route as SteamWishlistRouteImport } from './routes/steam/wishlist'
 import { Route as LolAccountSlugIndexRouteImport } from './routes/lol/$accountSlug/index'
-import { Route as SteamLibraryAppidRouteImport } from './routes/steam/library/$appid'
-import { Route as SteamAchievementsSignatureRouteImport } from './routes/steam/achievements_.signature'
-import { Route as LolPatchesVersionRouteImport } from './routes/lol/patches/$version'
-import { Route as LolAccountSlugTrendsRouteImport } from './routes/lol/$accountSlug/trends'
-import { Route as LolAccountSlugRecapRouteImport } from './routes/lol/$accountSlug/recap'
-import { Route as LolAccountSlugMatchesRouteImport } from './routes/lol/$accountSlug/matches'
-import { Route as LolAccountSlugLiveRouteImport } from './routes/lol/$accountSlug/live'
 import { Route as LolAccountSlugChampionsRouteImport } from './routes/lol/$accountSlug/champions'
-import { Route as LolAccountSlugMatchesIndexRouteImport } from './routes/lol/$accountSlug/matches/index'
+import { Route as LolAccountSlugLiveRouteImport } from './routes/lol/$accountSlug/live'
+import { Route as LolAccountSlugMatchesRouteImport } from './routes/lol/$accountSlug/matches'
+import { Route as LolAccountSlugRecapRouteImport } from './routes/lol/$accountSlug/recap'
+import { Route as LolAccountSlugTrendsRouteImport } from './routes/lol/$accountSlug/trends'
+import { Route as LolPatchesIndexRouteImport } from './routes/lol/patches/index'
+import { Route as LolPatchesVersionRouteImport } from './routes/lol/patches/$version'
+import { Route as SteamAchievementsSignatureRouteImport } from './routes/steam/achievements_.signature'
+import { Route as SteamLibraryAppidRouteImport } from './routes/steam/library/$appid'
 import { Route as LolAccountSlugChampionsIndexRouteImport } from './routes/lol/$accountSlug/champions/index'
-import { Route as LolAccountSlugMatchesMatchIdRouteImport } from './routes/lol/$accountSlug/matches/$matchId'
 import { Route as LolAccountSlugChampionsChampionKeyRouteImport } from './routes/lol/$accountSlug/champions/$championKey'
+import { Route as LolAccountSlugMatchesIndexRouteImport } from './routes/lol/$accountSlug/matches/index'
+import { Route as LolAccountSlugMatchesMatchIdRouteImport } from './routes/lol/$accountSlug/matches/$matchId'
 import { Route as LolAccountSlugMatchesMatchIdIndexRouteImport } from './routes/lol/$accountSlug/matches/$matchId/index'
-import { Route as LolAccountSlugMatchesMatchIdYourGameRouteImport } from './routes/lol/$accountSlug/matches/$matchId/your-game'
-import { Route as LolAccountSlugMatchesMatchIdTimelineRouteImport } from './routes/lol/$accountSlug/matches/$matchId/timeline'
-import { Route as LolAccountSlugMatchesMatchIdReviewRouteImport } from './routes/lol/$accountSlug/matches/$matchId/review'
 import { Route as LolAccountSlugMatchesMatchIdRecapRouteImport } from './routes/lol/$accountSlug/matches/$matchId/recap'
+import { Route as LolAccountSlugMatchesMatchIdReviewRouteImport } from './routes/lol/$accountSlug/matches/$matchId/review'
+import { Route as LolAccountSlugMatchesMatchIdTimelineRouteImport } from './routes/lol/$accountSlug/matches/$matchId/timeline'
+import { Route as LolAccountSlugMatchesMatchIdYourGameRouteImport } from './routes/lol/$accountSlug/matches/$matchId/your-game'
 
-const SteamRoute = SteamRouteImport.update({
-  id: '/steam',
-  path: '/steam',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StatusRoute = StatusRouteImport.update({
@@ -48,9 +48,19 @@ const StatusRoute = StatusRouteImport.update({
   path: '/status',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const SteamRoute = SteamRouteImport.update({
+  id: '/steam',
+  path: '/steam',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LolIndexRoute = LolIndexRouteImport.update({
+  id: '/lol/',
+  path: '/lol/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LolAccountSlugRoute = LolAccountSlugRouteImport.update({
+  id: '/lol/$accountSlug',
+  path: '/lol/$accountSlug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SteamIndexRoute = SteamIndexRouteImport.update({
@@ -58,14 +68,9 @@ const SteamIndexRoute = SteamIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SteamRoute,
 } as any)
-const LolIndexRoute = LolIndexRouteImport.update({
-  id: '/lol/',
-  path: '/lol/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SteamWishlistRoute = SteamWishlistRouteImport.update({
-  id: '/wishlist',
-  path: '/wishlist',
+const SteamAchievementsRoute = SteamAchievementsRouteImport.update({
+  id: '/achievements',
+  path: '/achievements',
   getParentRoute: () => SteamRoute,
 } as any)
 const SteamLibraryRoute = SteamLibraryRouteImport.update({
@@ -73,60 +78,14 @@ const SteamLibraryRoute = SteamLibraryRouteImport.update({
   path: '/library',
   getParentRoute: () => SteamRoute,
 } as any)
-const SteamAchievementsRoute = SteamAchievementsRouteImport.update({
-  id: '/achievements',
-  path: '/achievements',
+const SteamWishlistRoute = SteamWishlistRouteImport.update({
+  id: '/wishlist',
+  path: '/wishlist',
   getParentRoute: () => SteamRoute,
-} as any)
-const LolAccountSlugRoute = LolAccountSlugRouteImport.update({
-  id: '/lol/$accountSlug',
-  path: '/lol/$accountSlug',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LolPatchesIndexRoute = LolPatchesIndexRouteImport.update({
-  id: '/lol/patches/',
-  path: '/lol/patches/',
-  getParentRoute: () => rootRouteImport,
 } as any)
 const LolAccountSlugIndexRoute = LolAccountSlugIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => LolAccountSlugRoute,
-} as any)
-const SteamLibraryAppidRoute = SteamLibraryAppidRouteImport.update({
-  id: '/$appid',
-  path: '/$appid',
-  getParentRoute: () => SteamLibraryRoute,
-} as any)
-const SteamAchievementsSignatureRoute =
-  SteamAchievementsSignatureRouteImport.update({
-    id: '/achievements_/signature',
-    path: '/achievements/signature',
-    getParentRoute: () => SteamRoute,
-  } as any)
-const LolPatchesVersionRoute = LolPatchesVersionRouteImport.update({
-  id: '/lol/patches/$version',
-  path: '/lol/patches/$version',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LolAccountSlugTrendsRoute = LolAccountSlugTrendsRouteImport.update({
-  id: '/trends',
-  path: '/trends',
-  getParentRoute: () => LolAccountSlugRoute,
-} as any)
-const LolAccountSlugRecapRoute = LolAccountSlugRecapRouteImport.update({
-  id: '/recap',
-  path: '/recap',
-  getParentRoute: () => LolAccountSlugRoute,
-} as any)
-const LolAccountSlugMatchesRoute = LolAccountSlugMatchesRouteImport.update({
-  id: '/matches',
-  path: '/matches',
-  getParentRoute: () => LolAccountSlugRoute,
-} as any)
-const LolAccountSlugLiveRoute = LolAccountSlugLiveRouteImport.update({
-  id: '/live',
-  path: '/live',
   getParentRoute: () => LolAccountSlugRoute,
 } as any)
 const LolAccountSlugChampionsRoute = LolAccountSlugChampionsRouteImport.update({
@@ -134,23 +93,52 @@ const LolAccountSlugChampionsRoute = LolAccountSlugChampionsRouteImport.update({
   path: '/champions',
   getParentRoute: () => LolAccountSlugRoute,
 } as any)
-const LolAccountSlugMatchesIndexRoute =
-  LolAccountSlugMatchesIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => LolAccountSlugMatchesRoute,
+const LolAccountSlugLiveRoute = LolAccountSlugLiveRouteImport.update({
+  id: '/live',
+  path: '/live',
+  getParentRoute: () => LolAccountSlugRoute,
+} as any)
+const LolAccountSlugMatchesRoute = LolAccountSlugMatchesRouteImport.update({
+  id: '/matches',
+  path: '/matches',
+  getParentRoute: () => LolAccountSlugRoute,
+} as any)
+const LolAccountSlugRecapRoute = LolAccountSlugRecapRouteImport.update({
+  id: '/recap',
+  path: '/recap',
+  getParentRoute: () => LolAccountSlugRoute,
+} as any)
+const LolAccountSlugTrendsRoute = LolAccountSlugTrendsRouteImport.update({
+  id: '/trends',
+  path: '/trends',
+  getParentRoute: () => LolAccountSlugRoute,
+} as any)
+const LolPatchesIndexRoute = LolPatchesIndexRouteImport.update({
+  id: '/lol/patches/',
+  path: '/lol/patches/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LolPatchesVersionRoute = LolPatchesVersionRouteImport.update({
+  id: '/lol/patches/$version',
+  path: '/lol/patches/$version',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SteamAchievementsSignatureRoute =
+  SteamAchievementsSignatureRouteImport.update({
+    id: '/achievements_/signature',
+    path: '/achievements/signature',
+    getParentRoute: () => SteamRoute,
   } as any)
+const SteamLibraryAppidRoute = SteamLibraryAppidRouteImport.update({
+  id: '/$appid',
+  path: '/$appid',
+  getParentRoute: () => SteamLibraryRoute,
+} as any)
 const LolAccountSlugChampionsIndexRoute =
   LolAccountSlugChampionsIndexRouteImport.update({
     id: '/',
     path: '/',
     getParentRoute: () => LolAccountSlugChampionsRoute,
-  } as any)
-const LolAccountSlugMatchesMatchIdRoute =
-  LolAccountSlugMatchesMatchIdRouteImport.update({
-    id: '/$matchId',
-    path: '/$matchId',
-    getParentRoute: () => LolAccountSlugMatchesRoute,
   } as any)
 const LolAccountSlugChampionsChampionKeyRoute =
   LolAccountSlugChampionsChampionKeyRouteImport.update({
@@ -158,22 +146,28 @@ const LolAccountSlugChampionsChampionKeyRoute =
     path: '/$championKey',
     getParentRoute: () => LolAccountSlugChampionsRoute,
   } as any)
+const LolAccountSlugMatchesIndexRoute =
+  LolAccountSlugMatchesIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => LolAccountSlugMatchesRoute,
+  } as any)
+const LolAccountSlugMatchesMatchIdRoute =
+  LolAccountSlugMatchesMatchIdRouteImport.update({
+    id: '/$matchId',
+    path: '/$matchId',
+    getParentRoute: () => LolAccountSlugMatchesRoute,
+  } as any)
 const LolAccountSlugMatchesMatchIdIndexRoute =
   LolAccountSlugMatchesMatchIdIndexRouteImport.update({
     id: '/',
     path: '/',
     getParentRoute: () => LolAccountSlugMatchesMatchIdRoute,
   } as any)
-const LolAccountSlugMatchesMatchIdYourGameRoute =
-  LolAccountSlugMatchesMatchIdYourGameRouteImport.update({
-    id: '/your-game',
-    path: '/your-game',
-    getParentRoute: () => LolAccountSlugMatchesMatchIdRoute,
-  } as any)
-const LolAccountSlugMatchesMatchIdTimelineRoute =
-  LolAccountSlugMatchesMatchIdTimelineRouteImport.update({
-    id: '/timeline',
-    path: '/timeline',
+const LolAccountSlugMatchesMatchIdRecapRoute =
+  LolAccountSlugMatchesMatchIdRecapRouteImport.update({
+    id: '/recap',
+    path: '/recap',
     getParentRoute: () => LolAccountSlugMatchesMatchIdRoute,
   } as any)
 const LolAccountSlugMatchesMatchIdReviewRoute =
@@ -182,10 +176,16 @@ const LolAccountSlugMatchesMatchIdReviewRoute =
     path: '/review',
     getParentRoute: () => LolAccountSlugMatchesMatchIdRoute,
   } as any)
-const LolAccountSlugMatchesMatchIdRecapRoute =
-  LolAccountSlugMatchesMatchIdRecapRouteImport.update({
-    id: '/recap',
-    path: '/recap',
+const LolAccountSlugMatchesMatchIdTimelineRoute =
+  LolAccountSlugMatchesMatchIdTimelineRouteImport.update({
+    id: '/timeline',
+    path: '/timeline',
+    getParentRoute: () => LolAccountSlugMatchesMatchIdRoute,
+  } as any)
+const LolAccountSlugMatchesMatchIdYourGameRoute =
+  LolAccountSlugMatchesMatchIdYourGameRouteImport.update({
+    id: '/your-game',
+    path: '/your-game',
     getParentRoute: () => LolAccountSlugMatchesMatchIdRoute,
   } as any)
 
@@ -375,11 +375,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/steam': {
-      id: '/steam'
-      path: '/steam'
-      fullPath: '/steam'
-      preLoaderRoute: typeof SteamRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/status': {
@@ -389,11 +389,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StatusRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/steam': {
+      id: '/steam'
+      path: '/steam'
+      fullPath: '/steam'
+      preLoaderRoute: typeof SteamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lol/': {
+      id: '/lol/'
+      path: '/lol'
+      fullPath: '/lol/'
+      preLoaderRoute: typeof LolIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lol/$accountSlug': {
+      id: '/lol/$accountSlug'
+      path: '/lol/$accountSlug'
+      fullPath: '/lol/$accountSlug'
+      preLoaderRoute: typeof LolAccountSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/steam/': {
@@ -403,18 +417,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SteamIndexRouteImport
       parentRoute: typeof SteamRoute
     }
-    '/lol/': {
-      id: '/lol/'
-      path: '/lol'
-      fullPath: '/lol/'
-      preLoaderRoute: typeof LolIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/steam/wishlist': {
-      id: '/steam/wishlist'
-      path: '/wishlist'
-      fullPath: '/steam/wishlist'
-      preLoaderRoute: typeof SteamWishlistRouteImport
+    '/steam/achievements': {
+      id: '/steam/achievements'
+      path: '/achievements'
+      fullPath: '/steam/achievements'
+      preLoaderRoute: typeof SteamAchievementsRouteImport
       parentRoute: typeof SteamRoute
     }
     '/steam/library': {
@@ -424,81 +431,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SteamLibraryRouteImport
       parentRoute: typeof SteamRoute
     }
-    '/steam/achievements': {
-      id: '/steam/achievements'
-      path: '/achievements'
-      fullPath: '/steam/achievements'
-      preLoaderRoute: typeof SteamAchievementsRouteImport
+    '/steam/wishlist': {
+      id: '/steam/wishlist'
+      path: '/wishlist'
+      fullPath: '/steam/wishlist'
+      preLoaderRoute: typeof SteamWishlistRouteImport
       parentRoute: typeof SteamRoute
-    }
-    '/lol/$accountSlug': {
-      id: '/lol/$accountSlug'
-      path: '/lol/$accountSlug'
-      fullPath: '/lol/$accountSlug'
-      preLoaderRoute: typeof LolAccountSlugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/lol/patches/': {
-      id: '/lol/patches/'
-      path: '/lol/patches'
-      fullPath: '/lol/patches/'
-      preLoaderRoute: typeof LolPatchesIndexRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/lol/$accountSlug/': {
       id: '/lol/$accountSlug/'
       path: '/'
       fullPath: '/lol/$accountSlug/'
       preLoaderRoute: typeof LolAccountSlugIndexRouteImport
-      parentRoute: typeof LolAccountSlugRoute
-    }
-    '/steam/library/$appid': {
-      id: '/steam/library/$appid'
-      path: '/$appid'
-      fullPath: '/steam/library/$appid'
-      preLoaderRoute: typeof SteamLibraryAppidRouteImport
-      parentRoute: typeof SteamLibraryRoute
-    }
-    '/steam/achievements_/signature': {
-      id: '/steam/achievements_/signature'
-      path: '/achievements/signature'
-      fullPath: '/steam/achievements/signature'
-      preLoaderRoute: typeof SteamAchievementsSignatureRouteImport
-      parentRoute: typeof SteamRoute
-    }
-    '/lol/patches/$version': {
-      id: '/lol/patches/$version'
-      path: '/lol/patches/$version'
-      fullPath: '/lol/patches/$version'
-      preLoaderRoute: typeof LolPatchesVersionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/lol/$accountSlug/trends': {
-      id: '/lol/$accountSlug/trends'
-      path: '/trends'
-      fullPath: '/lol/$accountSlug/trends'
-      preLoaderRoute: typeof LolAccountSlugTrendsRouteImport
-      parentRoute: typeof LolAccountSlugRoute
-    }
-    '/lol/$accountSlug/recap': {
-      id: '/lol/$accountSlug/recap'
-      path: '/recap'
-      fullPath: '/lol/$accountSlug/recap'
-      preLoaderRoute: typeof LolAccountSlugRecapRouteImport
-      parentRoute: typeof LolAccountSlugRoute
-    }
-    '/lol/$accountSlug/matches': {
-      id: '/lol/$accountSlug/matches'
-      path: '/matches'
-      fullPath: '/lol/$accountSlug/matches'
-      preLoaderRoute: typeof LolAccountSlugMatchesRouteImport
-      parentRoute: typeof LolAccountSlugRoute
-    }
-    '/lol/$accountSlug/live': {
-      id: '/lol/$accountSlug/live'
-      path: '/live'
-      fullPath: '/lol/$accountSlug/live'
-      preLoaderRoute: typeof LolAccountSlugLiveRouteImport
       parentRoute: typeof LolAccountSlugRoute
     }
     '/lol/$accountSlug/champions': {
@@ -508,12 +452,61 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LolAccountSlugChampionsRouteImport
       parentRoute: typeof LolAccountSlugRoute
     }
-    '/lol/$accountSlug/matches/': {
-      id: '/lol/$accountSlug/matches/'
-      path: '/'
-      fullPath: '/lol/$accountSlug/matches/'
-      preLoaderRoute: typeof LolAccountSlugMatchesIndexRouteImport
-      parentRoute: typeof LolAccountSlugMatchesRoute
+    '/lol/$accountSlug/live': {
+      id: '/lol/$accountSlug/live'
+      path: '/live'
+      fullPath: '/lol/$accountSlug/live'
+      preLoaderRoute: typeof LolAccountSlugLiveRouteImport
+      parentRoute: typeof LolAccountSlugRoute
+    }
+    '/lol/$accountSlug/matches': {
+      id: '/lol/$accountSlug/matches'
+      path: '/matches'
+      fullPath: '/lol/$accountSlug/matches'
+      preLoaderRoute: typeof LolAccountSlugMatchesRouteImport
+      parentRoute: typeof LolAccountSlugRoute
+    }
+    '/lol/$accountSlug/recap': {
+      id: '/lol/$accountSlug/recap'
+      path: '/recap'
+      fullPath: '/lol/$accountSlug/recap'
+      preLoaderRoute: typeof LolAccountSlugRecapRouteImport
+      parentRoute: typeof LolAccountSlugRoute
+    }
+    '/lol/$accountSlug/trends': {
+      id: '/lol/$accountSlug/trends'
+      path: '/trends'
+      fullPath: '/lol/$accountSlug/trends'
+      preLoaderRoute: typeof LolAccountSlugTrendsRouteImport
+      parentRoute: typeof LolAccountSlugRoute
+    }
+    '/lol/patches/': {
+      id: '/lol/patches/'
+      path: '/lol/patches'
+      fullPath: '/lol/patches/'
+      preLoaderRoute: typeof LolPatchesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lol/patches/$version': {
+      id: '/lol/patches/$version'
+      path: '/lol/patches/$version'
+      fullPath: '/lol/patches/$version'
+      preLoaderRoute: typeof LolPatchesVersionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/steam/achievements_/signature': {
+      id: '/steam/achievements_/signature'
+      path: '/achievements/signature'
+      fullPath: '/steam/achievements/signature'
+      preLoaderRoute: typeof SteamAchievementsSignatureRouteImport
+      parentRoute: typeof SteamRoute
+    }
+    '/steam/library/$appid': {
+      id: '/steam/library/$appid'
+      path: '/$appid'
+      fullPath: '/steam/library/$appid'
+      preLoaderRoute: typeof SteamLibraryAppidRouteImport
+      parentRoute: typeof SteamLibraryRoute
     }
     '/lol/$accountSlug/champions/': {
       id: '/lol/$accountSlug/champions/'
@@ -522,19 +515,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LolAccountSlugChampionsIndexRouteImport
       parentRoute: typeof LolAccountSlugChampionsRoute
     }
-    '/lol/$accountSlug/matches/$matchId': {
-      id: '/lol/$accountSlug/matches/$matchId'
-      path: '/$matchId'
-      fullPath: '/lol/$accountSlug/matches/$matchId'
-      preLoaderRoute: typeof LolAccountSlugMatchesMatchIdRouteImport
-      parentRoute: typeof LolAccountSlugMatchesRoute
-    }
     '/lol/$accountSlug/champions/$championKey': {
       id: '/lol/$accountSlug/champions/$championKey'
       path: '/$championKey'
       fullPath: '/lol/$accountSlug/champions/$championKey'
       preLoaderRoute: typeof LolAccountSlugChampionsChampionKeyRouteImport
       parentRoute: typeof LolAccountSlugChampionsRoute
+    }
+    '/lol/$accountSlug/matches/': {
+      id: '/lol/$accountSlug/matches/'
+      path: '/'
+      fullPath: '/lol/$accountSlug/matches/'
+      preLoaderRoute: typeof LolAccountSlugMatchesIndexRouteImport
+      parentRoute: typeof LolAccountSlugMatchesRoute
+    }
+    '/lol/$accountSlug/matches/$matchId': {
+      id: '/lol/$accountSlug/matches/$matchId'
+      path: '/$matchId'
+      fullPath: '/lol/$accountSlug/matches/$matchId'
+      preLoaderRoute: typeof LolAccountSlugMatchesMatchIdRouteImport
+      parentRoute: typeof LolAccountSlugMatchesRoute
     }
     '/lol/$accountSlug/matches/$matchId/': {
       id: '/lol/$accountSlug/matches/$matchId/'
@@ -543,18 +543,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LolAccountSlugMatchesMatchIdIndexRouteImport
       parentRoute: typeof LolAccountSlugMatchesMatchIdRoute
     }
-    '/lol/$accountSlug/matches/$matchId/your-game': {
-      id: '/lol/$accountSlug/matches/$matchId/your-game'
-      path: '/your-game'
-      fullPath: '/lol/$accountSlug/matches/$matchId/your-game'
-      preLoaderRoute: typeof LolAccountSlugMatchesMatchIdYourGameRouteImport
-      parentRoute: typeof LolAccountSlugMatchesMatchIdRoute
-    }
-    '/lol/$accountSlug/matches/$matchId/timeline': {
-      id: '/lol/$accountSlug/matches/$matchId/timeline'
-      path: '/timeline'
-      fullPath: '/lol/$accountSlug/matches/$matchId/timeline'
-      preLoaderRoute: typeof LolAccountSlugMatchesMatchIdTimelineRouteImport
+    '/lol/$accountSlug/matches/$matchId/recap': {
+      id: '/lol/$accountSlug/matches/$matchId/recap'
+      path: '/recap'
+      fullPath: '/lol/$accountSlug/matches/$matchId/recap'
+      preLoaderRoute: typeof LolAccountSlugMatchesMatchIdRecapRouteImport
       parentRoute: typeof LolAccountSlugMatchesMatchIdRoute
     }
     '/lol/$accountSlug/matches/$matchId/review': {
@@ -564,11 +557,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LolAccountSlugMatchesMatchIdReviewRouteImport
       parentRoute: typeof LolAccountSlugMatchesMatchIdRoute
     }
-    '/lol/$accountSlug/matches/$matchId/recap': {
-      id: '/lol/$accountSlug/matches/$matchId/recap'
-      path: '/recap'
-      fullPath: '/lol/$accountSlug/matches/$matchId/recap'
-      preLoaderRoute: typeof LolAccountSlugMatchesMatchIdRecapRouteImport
+    '/lol/$accountSlug/matches/$matchId/timeline': {
+      id: '/lol/$accountSlug/matches/$matchId/timeline'
+      path: '/timeline'
+      fullPath: '/lol/$accountSlug/matches/$matchId/timeline'
+      preLoaderRoute: typeof LolAccountSlugMatchesMatchIdTimelineRouteImport
+      parentRoute: typeof LolAccountSlugMatchesMatchIdRoute
+    }
+    '/lol/$accountSlug/matches/$matchId/your-game': {
+      id: '/lol/$accountSlug/matches/$matchId/your-game'
+      path: '/your-game'
+      fullPath: '/lol/$accountSlug/matches/$matchId/your-game'
+      preLoaderRoute: typeof LolAccountSlugMatchesMatchIdYourGameRouteImport
       parentRoute: typeof LolAccountSlugMatchesMatchIdRoute
     }
   }
