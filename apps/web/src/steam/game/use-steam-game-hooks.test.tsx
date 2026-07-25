@@ -3,6 +3,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useGameAchievements } from "./use-game-achievements";
+import { useGameDescription } from "./use-game-description";
 import { useGameScreenshots } from "./use-game-screenshots";
 import { useGameUnlockTimeline } from "./use-game-unlock-timeline";
 
@@ -48,6 +49,11 @@ const cases: SteamHookCase[] = [
     name: "useGameScreenshots",
     call: () => useGameScreenshots(42),
     url: "http://localhost:2010/steam/game/42/screenshots",
+  },
+  {
+    name: "useGameDescription",
+    call: () => useGameDescription(42),
+    url: "http://localhost:2010/steam/game/42/description",
   },
 ];
 

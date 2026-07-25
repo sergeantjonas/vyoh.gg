@@ -3,11 +3,17 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { LolAccount } from "@vyoh/shared";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useAramProfile } from "./use-aram-profile";
+import { useCarryProfile } from "./use-carry-profile";
 import { useChampionPairs } from "./use-champion-pairs";
 import { useChronotype } from "./use-chronotype";
 import { useDuos } from "./use-duos";
+import { useNarrativeLifetime } from "./use-narrative-lifetime";
+import { useObjectiveFirsts } from "./use-objective-firsts";
+import { useObjectiveParticipation } from "./use-objective-participation";
 import { useProfileRank } from "./use-profile-rank";
 import { useRankHistory } from "./use-rank-history";
+import { useSquads } from "./use-squads";
 
 function makeWrapper() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -67,6 +73,37 @@ const cases: AccountHookCase[] = [
     name: "useRankHistory (30d range)",
     call: (a) => useRankHistory(a, "30d"),
     url: "http://localhost:2010/lol/summoners/euw1/Vyoh/Ahri/rank/history?days=30",
+  },
+  {
+    name: "useAramProfile (default count=200)",
+    call: (a) => useAramProfile(a),
+    url: "http://localhost:2010/lol/summoners/euw1/Vyoh/Ahri/aram-profile?count=200",
+  },
+  {
+    name: "useCarryProfile (default count=200)",
+    call: (a) => useCarryProfile(a),
+    url: "http://localhost:2010/lol/summoners/euw1/Vyoh/Ahri/carry-profile?count=200",
+  },
+  {
+    name: "useObjectiveFirsts (default count=200)",
+    call: (a) => useObjectiveFirsts(a),
+    url: "http://localhost:2010/lol/summoners/euw1/Vyoh/Ahri/objective-firsts?count=200",
+  },
+  {
+    name: "useObjectiveParticipation (default count=200)",
+    call: (a) => useObjectiveParticipation(a),
+    url: "http://localhost:2010/lol/summoners/euw1/Vyoh/Ahri/objective-participation?count=200",
+  },
+  {
+    name: "useSquads (default count=100)",
+    call: (a) => useSquads(a),
+    url: "http://localhost:2010/lol/summoners/euw1/Vyoh/Ahri/squads?count=100",
+  },
+  // The only account-scoped hook with no count parameter, so no query string.
+  {
+    name: "useNarrativeLifetime (no count param)",
+    call: (a) => useNarrativeLifetime(a),
+    url: "http://localhost:2010/lol/summoners/euw1/Vyoh/Ahri/narrative/lifetime",
   },
 ];
 
