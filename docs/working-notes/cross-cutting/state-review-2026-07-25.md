@@ -306,6 +306,12 @@ Also stale in the same neighbourhood: "pnpm 10" at `README.md:33`, `README.md:54
 
 **F-14 · Dev-dependency majors available. CONFIRMED via `pnpm outdated -r`.** `@biomejs/biome` 1.9.4 → 2.5.5, `typescript` 6.0.3 → 7.0.2, `size-limit` + `@size-limit/file` 12.1.0 → 13.0.1, `concurrently` 9.2.4 → 10.0.3, `@types/node` 24 → 26. All dev-only; the Biome 2 and TS 7 jumps each deserve their own commit. Note `eb5ac211` already reverted a `concurrently` major deliberately. **Effort:** one commit each.
 
+**Progress 2026-07-26:**
+
+- `size-limit` + `@size-limit/file` → 13.0.1 — **DONE.** Reports byte-identical numbers to v12 (229.55 kB / 68.25 kB), still exits 1 when over budget, `--silent` still parses.
+- `typescript` → 7.0.2 — **ATTEMPTED AND REVERTED.** TypeScript 7.0 ships the `tsc` executable only and does not expose the programmatic compiler API, which `@nestjs/cli` requires: `nest build` fails outright with *"the compiler API is expected to return in 7.1"*. Everything else was clean under 7 (all five packages `tsc --noEmit` rc=0, full test suite green, web build green), which is exactly what makes it dangerous. **Retry when TypeScript 7.1 ships.** See F-16 for the CI gap this exposed.
+- `@biomejs/biome` → 2.5.5, `@types/node` → 26 — not attempted.
+
 ---
 
 ## 5. Checked and healthy
@@ -453,3 +459,27 @@ This is why the F-1 bug survived: the local command a session would reach for to
 **Not changed:** `check:cc` and `check:fix:cc` (no pipe, already correct).
 
 **Residual:** `pipefail` + `head` could in principle surface a producer SIGPIPE as a false failure. Tested against a producer emitting 5,000 lines into `head -10`: exits 0 when the producer succeeds, 1 when it fails. Not a practical risk here.
+
+---
+
+## 10. F-16 — CI never builds `apps/api` (found 2026-07-26 while attempting the TypeScript 7 bump)
+
+**CONFIRMED. Not fixed — decision needed.**
+
+**Evidence** — the only build step anywhere in [`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml) is `pnpm --filter @vyoh/web build` at `:97`, inside the `bundle-size` job. The `check` job runs `ci:check`, `typecheck`, and the test suite; nothing runs `nest build`.
+
+**How it surfaced** — the TypeScript 7 bump (chunk 20) passed *everything* CI runs: all five packages `tsc --noEmit` rc=0, `pnpm -r --no-bail test --coverage` exit 0, `pnpm --filter @vyoh/web build` exit 0, `size` within budget. It fails only at `pnpm --filter @vyoh/api build`, because TypeScript 7.0 ships the `tsc` executable without the programmatic compiler API that `@nestjs/cli` loads:
+
+```
+Error  The installed TypeScript version (7.0.2) does not expose the programmatic
+compiler API that the Nest CLI requires. TypeScript 7.0 ships the "tsc"
+executable only; the compiler API is expected to return in 7.1.
+```
+
+**Why it matters** — typecheck and tests both bypass `nest build` entirely (vitest transforms via esbuild, `tsc --noEmit` never emits). So the api's *production build path* is currently unexercised by any automated gate. A change that breaks only that path ships green and fails at deploy. This bump is a concrete instance, not a hypothetical: it would have merged.
+
+Note this is the same shape as F-1, one layer out. F-1 was a gate that could not fail; this is a gate that does not exist.
+
+**Fix** — add `pnpm --filter @vyoh/api build` to the `check` job. It is cheap (SWC) and needs no database or secrets. The open question is whether to also build `packages/shared` and the two `tools/` packages, or just the two deployables.
+
+**Effort** — 15 min, one commit.
