@@ -39,7 +39,10 @@ import {
   useState,
 } from "react";
 
-const isMac = /Mac/i.test(navigator.platform);
+// Guarded because this evaluates at module load, and the module is imported by
+// __root.tsx — so under SSR it runs in Node, where `navigator.platform` is
+// absent. Mirrors the form already used in command-palette-dialog.tsx.
+const isMac = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform);
 const shortcutLabel = isMac ? "⌘K" : "Ctrl K";
 
 function isItemActive(pathname: string, to: string) {

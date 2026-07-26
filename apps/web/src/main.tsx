@@ -1,5 +1,3 @@
-import { HttpError } from "@/lib/http-error";
-
 // Recharts ResponsiveContainer initialises with { width: -1, height: -1 } as a
 // sentinel before ResizeObserver fires, producing a noisy but harmless warning.
 if (import.meta.env.DEV) {
@@ -10,113 +8,26 @@ if (import.meta.env.DEV) {
   };
 }
 import { AppErrorFallback, ErrorBoundary } from "@/components/error-boundary";
-import { toastError } from "@/lib/toast";
 import { reportWebVitals } from "@/lib/web-vitals";
-import {
-  MutationCache,
-  QueryCache,
-  QueryClient,
-  QueryClientProvider,
-} from "@tanstack/react-query";
-import { RouterProvider, createRouter } from "@tanstack/react-router";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { RouterProvider } from "@tanstack/react-router";
 import { LazyMotion, MotionConfig, domMax } from "motion/react";
 import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
-import { getNavigationType } from "./lib/navigation-type";
-import { emitRouteTransitionStart } from "./lib/route-transition-bus";
-import { mainScrollRef } from "./lib/scroll-container";
-import { routeTree } from "./routeTree.gen";
+import { getRouter } from "./router";
 import "./index.css";
 import "./styles/view-transitions.css";
 import "./styles/motion.css";
 
 const Toaster = lazy(() => import("sonner").then((m) => ({ default: m.Toaster })));
 
-const errorMessage = (error: unknown, fallback: string) => {
-  if (error instanceof HttpError) return error.message;
-  if (error instanceof Error && error.message) return error.message;
-  return fallback;
-};
-
-// Declared above `createRouter` on purpose: the router options object is an
-// argument expression, so it is evaluated before the call. A `queryClient`
-// declared further down the module would still be in its temporal dead zone
-// here and throw `ReferenceError` at import time.
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 60_000,
-      refetchOnWindowFocus: false,
-      retry: (failureCount, error) => {
-        if (error instanceof HttpError && error.status >= 400 && error.status < 500) {
-          return false;
-        }
-        return failureCount < 3;
-      },
-    },
-  },
-  queryCache: new QueryCache({
-    onError: (error, query) => {
-      if (query.state.data === undefined) return;
-      void toastError(errorMessage(error, "Background refresh failed"));
-    },
-  }),
-  mutationCache: new MutationCache({
-    onError: (error) => {
-      void toastError(errorMessage(error, "Something went wrong"));
-    },
-  }),
-});
-
-const router = createRouter({
-  routeTree,
-  // Route loaders read the Query cache through this context. Its shape is
-  // declared by `createRootRouteWithContext` in routes/__root.tsx, which is
-  // what makes this property required rather than silently widened to `{}`.
-  context: { queryClient },
-  defaultPreload: "intent",
-  defaultPreloadStaleTime: 0,
-  defaultViewTransition: {
-    types: ({ fromLocation, toLocation }) => {
-      const types = getNavigationType(fromLocation, toLocation);
-      // Gate `view-transition-name: section-content` on whether the shell
-      // itself needs to animate. The body attribute is read by a CSS rule in
-      // styles/view-transitions.css; mutating it here happens before the
-      // browser captures the OLD snapshot, so naming is in effect for both
-      // halves of the morph pair (slide / fade) or absent entirely for
-      // intra-section (per-element morphs run alone — no parent group
-      // size-morph competing for the eye).
-      const isSlide =
-        Array.isArray(types) &&
-        (types.includes("slide-left") || types.includes("slide-right"));
-      const needsShellAnim =
-        isSlide ||
-        (Array.isArray(types) &&
-          (types.includes("cross-section") || types.includes("account-swap")));
-      document.body.dataset.vtShell = needsShellAnim ? "on" : "off";
-      // For slide types, reset `<main>` scrollTop BEFORE the OLD snapshot is
-      // captured. If we don't, the new route's useScrollResetOnNav effect
-      // fires AFTER OLD but BEFORE NEW snapshot — flipping the
-      // section-shell's compact header off in between — and the section-
-      // content's viewport-top differs across the two snapshots. The
-      // default group rect-morph then interpolates that delta, sliding the
-      // content diagonally instead of purely horizontally.
-      if (isSlide && mainScrollRef.current) mainScrollRef.current.scrollTop = 0;
-      // Tell subscribers (e.g. the Steam profile-background video) that a
-      // VT is about to start — fires only when this nav will actually
-      // animate, so listeners can pause expensive continuous work during
-      // the snapshot+slide window without churning on skipped navs.
-      if (Array.isArray(types)) emitRouteTransitionStart();
-      return types;
-    },
-  },
-});
-
-declare module "@tanstack/react-router" {
-  interface Register {
-    router: typeof router;
-  }
-}
+// Called exactly once in the browser. The factory exists so the server render
+// can build a per-request pair instead; see the note in router.tsx.
+const router = getRouter();
+// Same instance the route loaders read through router context — taking it off
+// the router rather than constructing a second one is what keeps the provider
+// and the loaders on one cache.
+const { queryClient } = router.options.context;
 
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Root element #root not found in index.html");

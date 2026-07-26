@@ -1,6 +1,6 @@
 # TanStack Start migration — Vite SPA → SSR on Hetzner
 
-**Status:** Active — committed direction (2026-05-26). Migration will happen as part of the pre-launch sweep alongside [owner-auth.md](../ops/owner-auth.md) and [hosting.md](../ops/hosting.md). Materially changes the web tier shape that hosting.md currently assumes (static rsync → long-running Node SSR), so the two notes need to land together when the sweep starts. **Every trigger condition is now clear, as of 2026-07-26** — MR1–MR4 shipped 2026-05-22, PN1–PN4 shipped 2026-05-22, owner-auth is not started, and TFT was cut from the trigger (see the Priority slot section). The sweep is unblocked and waiting on a start, not on a dependency. Round 5 N (route-loader pilot on match-detail) is the migration-safe Start prep that lands first.
+**Status:** Active — committed direction (2026-05-26). Migration will happen as part of the pre-launch sweep alongside [owner-auth.md](../ops/owner-auth.md) and [hosting.md](../ops/hosting.md). Materially changes the web tier shape that hosting.md currently assumes (static rsync → long-running Node SSR), so the two notes need to land together when the sweep starts. **Every trigger condition is now clear, as of 2026-07-26** — MR1–MR4 shipped 2026-05-22, PN1–PN4 shipped 2026-05-22, owner-auth is not started, and TFT was cut from the trigger (see the Priority slot section). The sweep is unblocked and waiting on a start, not on a dependency. Round 5 N (route-loader pilot on match-detail) is the migration-safe Start prep that lands first. **Chunk 1 of 6 shipped 2026-07-26**; the chunk list below was rewritten in that commit after a live probe (see "Settled by probe") overturned this note's package names, entry contract, and scope estimate.
 
 ## Motivation
 
@@ -32,9 +32,9 @@ Also considered and rejected as a non-SSR mitigation: **`persistQueryClient`** (
 
 | Today | After |
 |---|---|
-| `apps/web/index.html` (static, Vite-owned) | `__root.tsx` owns `<html>`/`<head>`/`<body>` via `RootDocument` |
-| `main.tsx` calls `createRoot().render(<App/>)` | `server.ts` (renders to stream) + `client.ts` (hydrates); `app.tsx` shared |
-| `vite.config.ts` uses `@tanstack/router-plugin` | Swap to `@tanstack/start-vite-plugin` |
+| `apps/web/index.html` (static, Vite-owned) | `__root.tsx` owns `<html>`/`<head>`/`<body>` via `shellComponent` |
+| `main.tsx` calls `createRoot().render(<App/>)` | `src/router.tsx` exports `getRouter()`; Start generates the server + client entries |
+| `vite.config.ts` uses `@tanstack/router-plugin` | Swap to `tanstackStart()` from `@tanstack/react-start/plugin/vite`, placed **before** `@vitejs/plugin-react` |
 | Every `useQuery` runs in browser after hydration | Route-level `loader()` runs on server, primes Query cache, `useQuery` returns primed data on first render |
 | `pnpm build` → static `dist/` | `pnpm build` → server bundle + client bundle; deploy target is a Node process |
 | Per-route `<head>` impossible (one static index.html) | Per-route `head()` function returns `{ meta, links, scripts }` for SSR |
@@ -63,15 +63,25 @@ Coolify is rejected for the same reason the existing hosting.md rejects Watchtow
 
 ## Migration chunks
 
-Each chunk is independently committable. Chunks 1–3 are net-positive on their own; chunk 4 is the actual perf payoff; chunk 5 is operational.
+Each chunk is independently committable. Chunks 1–2 are net-positive on their own even if Start never lands; chunk 4 is where the SEO payoff is actually won or lost; chunk 6 is operational.
 
-1. **Add Start, dual-mode.** Install `@tanstack/start`, add `app.tsx`/`server.ts`/`client.ts` alongside `main.tsx`, swap the Vite plugin. Both `pnpm dev` and `vinxi dev` work; no routes touched. Verifies the toolchain alone.
-2. **Cut over the entry.** Delete `main.tsx` and `index.html`; `__root.tsx` owns the document via `RootDocument`. Web Vitals plumbing, LazyMotion, QueryClientProvider, RouterProvider all move into `app.tsx`. Closes the dual-mode branch.
-3. **Per-route `head()` for SEO baseline.** `/`, `/lol/$accountSlug/*`, `/steam`, `/status` each get title, description, OG, canonical. Generated sitemap.xml from the route tree at build. Closes the SEO gap from the [state-of-app evaluation](#).
-4. **Loaders on `/lol/$accountSlug/*` and `/steam`.** Server-prime the account + matches queries on first render. Measure LCP delta against [perf-baseline.md](perf-baseline.md). This is the only chunk that needs an SSR-flavoured test pass — happy-dom can't run loaders.
-5. **Deployment cutover.** Dockerfile.web, docker-compose entry on the Hetzner box, Nginx vhost rewrite from static-root to proxy_pass, prerender wiring for static routes. Lands in the same window as hosting.md's pre-launch sweep.
+1. **SSR-safety pass (no Start yet).** ✅ Shipped 2026-07-26. Guard the one unguarded module-scope browser read; reshape `QueryClient` + router into a `getRouter()` factory in `src/router.tsx` and move the `Register` augmentation with it. SPA behaviour unchanged.
+2. **API base consolidation.** 65 source files + `index.html` + 117 test assertions hardcode `http://localhost:2010`. Replace with one helper carrying distinct server-side and client-side bases — under SSR, loaders resolve that literal from inside the Node process. Closes Round 5 item O independently of Start.
+3. **Entry cutover.** Add `@tanstack/react-start`, swap `TanStackRouterVite` → `tanstackStart()`, give `__root.tsx` a `shellComponent` emitting `<html lang="en" class="dark">` + `<HeadContent/>` + `<Scripts/>`, add a root `head()` absorbing `index.html`'s 20 base tags, delete `index.html` + `main.tsx`, retarget `main.test.tsx`, repoint `.size-limit.cjs` (it reads `dist/index.html` at config load and hard-throws if absent).
+4. **Hydration + SSR-content pass.** The module-cached engine probes, the `useState` lazy initializers reading `localStorage`/`matchMedia`, then the real decision per surface: whether virtualized lists, portal section headers, and charts render server-side. **This is the chunk that decides whether the migration pays off** — see the section below.
+5. **Loaders + `head()` completion.** Blocking loaders where VT choreography allows; `pendingComponent`/`errorComponent` (zero routes have either today); `lol/index.tsx`'s client-side `<Navigate>` → `beforeLoad` redirect; generated sitemap replacing the hand-maintained 4-URL `public/sitemap.xml`. Re-baseline against [perf-baseline.md](perf-baseline.md).
+6. **Deploy.** `Dockerfile.api` (**does not exist** — there is no deploy machinery in-repo at all, so chunk 6 has no api Dockerfile to pattern from), `Dockerfile.web`, prod compose, Nginx vhost, `deploy.sh`, `WEB_ORIGIN` into `.env.example` + `requireEnv`. Lands in the same window as hosting.md's pre-launch sweep.
 
-Total estimated scope: ~15 files modified, ~5 new files, all in `apps/web/`. No changes outside that package except adding the web service to the deploy compose file.
+Total estimated scope: **~140 file touches across 6 chunks.** The earlier ~15-modified/~5-new estimate predated the API_URL audit and assumed deploy machinery existed.
+
+### What does not render server-side today
+
+Measured 2026-07-26. Chunk 4 is where these get decided, and SEO is the whole motivation:
+
+- All 4 virtualizers return zero rows — the scroll element is the module singleton `mainScrollRef`, null on the server.
+- All 3 `createPortal` sites render `null`, **including the section-header portal that carries every section's title**.
+- `DeferredMount` emits an empty placeholder; the champion splash is entirely client-only via `BackdropPortal`.
+- 8 Recharts `ResponsiveContainer` sites seed `{width:-1,height:-1}`.
 
 ## Priority slot — when to do this
 
@@ -107,15 +117,23 @@ Hosting deploy (web container + api container, per updated hosting.md)
 Public launch
 ```
 
-The window is "feature ship cadence has slowed, pre-launch sweep is the next coherent unit of work." Per project CLAUDE.md large-task rules: at ~20+ file touches and 5 chunks spanning entry-point + build + deploy, this is a **large task**. It needs a `/compact` before chunk 1 starts and likely another between chunks 3 and 4.
+The window is "feature ship cadence has slowed, pre-launch sweep is the next coherent unit of work." Per project CLAUDE.md large-task rules: at ~140 file touches and 6 chunks spanning entry-point + build + deploy, this is a **large task**. It needs a `/compact` before chunk 4 specifically, which is the widest one.
 
-## Open questions to resolve before chunk 1
+## Settled by probe, 2026-07-26
 
-- **Does `routeTree.gen.ts` regen still work identically under the Start plugin?** Verify by running the dual-mode chunk first — if codegen diverges, the migration cost estimate (1.5/5) needs revisiting.
-- **Does `SplashProvider` + `useSplashChampion` survive SSR?** The provider mounts in `__root.tsx` and uses client-only state; needs an SSR guard or a "client:only" wrapping pattern.
-- **Recharts `ResponsiveContainer` on the server.** The `width(-1)` warning [suppressed in main.tsx](../../../apps/web/src/main.tsx) is a client-only concern; on the server the container needs explicit dimensions or a client-only wrapper.
-- **`localStorage` reads in the perf overlay and any other client-only state.** Must be guarded with `typeof window !== "undefined"` checks or migrated to `useEffect`.
-- **Hosting.md update timing.** The "Static SPAs are served by Nginx directly" line in hosting.md becomes wrong the moment chunk 5 lands. Update hosting.md in the same commit window, not separately.
+Built in an isolated scratchpad workspace pinned to this repo's exact versions (react-start 1.168.32, react-router 1.170.18, react 19.2.8, vite 8.1.5, pnpm 11, Node 22.22) rather than inferred from issue trackers:
+
+- **The package this note originally named is dead.** `@tanstack/start` is frozen at 1.120.20. The live package is `@tanstack/react-start`, Vite-native, **no vinxi**.
+- **No router bump needed.** `@tanstack/react-start@1.168.32` depends on `@tanstack/react-router@1.170.18`, which is exactly what is installed.
+- **The scary open issues do not reproduce.** [#7418](https://github.com/TanStack/router/issues/7418) (`virtual:tanstack-start-client-entry` 404 on vite@8 + pnpm monorepo) returns HTTP 200 — fixed in a patch release, issue is stale-open. [#7614](https://github.com/TanStack/router/issues/7614) ("Cannot GET /", SSR middleware skipped on Vite 8) does not reproduce; dev SSR returns HTTP 200 with the marker in server HTML. [#7589](https://github.com/TanStack/router/issues/7589) is RSC-only and we have no RSC.
+- **Deploy artifact shape confirmed.** `pnpm build` emits `dist/client/` + `dist/server/server.js`. That server bundle exports a **`fetch` handler and does not self-listen**, so chunk 6 needs either a ~25-line `node:http` adapter over it or the nitro plugin. A hand-written adapter was verified end-to-end (HTTP 200, SSR marker present).
+
+## Open questions
+
+- **React Compiler composition.** react-compiler runs through `@rolldown/plugin-babel` in this repo; the probe did not test that composing with `tanstackStart()`. This is chunk 3's main uncleared risk.
+- **Does `routeTree.gen.ts` regen identically under the Start plugin?** The probe used a fresh route tree, not this repo's. Verify on the chunk 3 cutover.
+- **Per-surface SSR decisions.** See "What does not render server-side today" above — each of those is a chunk 4 call, not a blanket policy.
+- **Hosting.md update timing.** The "Static SPAs are served by Nginx directly" line in hosting.md becomes wrong the moment chunk 6 lands. Update hosting.md in the same commit window, not separately.
 
 ## Cross-references
 

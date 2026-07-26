@@ -11,7 +11,9 @@ const createRootMock = vi.fn(() => ({ render: renderMock, unmount: vi.fn() }));
 vi.mock("react-dom/client", () => ({ createRoot: createRootMock }));
 vi.mock("@tanstack/react-router", () => ({
   RouterProvider: () => null,
-  createRouter: () => ({}),
+  // main.tsx takes the QueryClient off the router's context rather than
+  // building a second one, so the stub has to carry that shape.
+  createRouter: (options: unknown) => ({ options }),
 }));
 vi.mock("./routeTree.gen", () => ({ routeTree: {} }));
 vi.mock("./lib/web-vitals", () => ({ reportWebVitals: () => undefined }));
