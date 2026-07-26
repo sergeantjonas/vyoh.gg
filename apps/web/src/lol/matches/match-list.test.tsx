@@ -1,4 +1,5 @@
 import { mainScrollRef } from "@/lib/scroll-container";
+import { mockFetchRoutes } from "@/lol/_shared/static/mock-lol-static";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
@@ -8,6 +9,13 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ActiveMatchProvider, useActiveMatch } from "./active-match-context";
 import { MatchList } from "./match-list";
+
+// This component tree mounts hooks that fetch (useDDragonVersion at minimum).
+// None of them are what these tests assert on, so stub them rather than let
+// them reach the network; test-setup.ts fails any test that does.
+beforeEach(() => {
+  mockFetchRoutes();
+});
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, ...props }: { children: ReactNode }) => <a {...props}>{children}</a>,

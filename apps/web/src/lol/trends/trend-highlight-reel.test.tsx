@@ -1,3 +1,4 @@
+import { mockFetchRoutes } from "@/lol/_shared/static/mock-lol-static";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -6,6 +7,13 @@ import { configureAxe } from "jest-axe";
 import { MotionConfig } from "motion/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TrendHighlightReel } from "./trend-highlight-reel";
+
+// This component tree mounts hooks that fetch (useDDragonVersion at minimum).
+// None of them are what these tests assert on, so stub them rather than let
+// them reach the network; test-setup.ts fails any test that does.
+beforeEach(() => {
+  mockFetchRoutes();
+});
 
 const ACCOUNT: LolAccount = {
   slug: "vyoh-euw",

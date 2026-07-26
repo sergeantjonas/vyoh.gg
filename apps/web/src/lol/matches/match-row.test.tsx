@@ -1,3 +1,4 @@
+import { mockFetchRoutes } from "@/lol/_shared/static/mock-lol-static";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { Duo, MatchSummary } from "@vyoh/shared";
@@ -6,6 +7,13 @@ import { type ReactNode, useLayoutEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ActiveMatchProvider, useActiveMatch } from "./active-match-context";
 import { MatchRow } from "./match-row";
+
+// This component tree mounts hooks that fetch (useDDragonVersion at minimum).
+// None of them are what these tests assert on, so stub them rather than let
+// them reach the network; test-setup.ts fails any test that does.
+beforeEach(() => {
+  mockFetchRoutes();
+});
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, ...props }: { children: ReactNode }) => (

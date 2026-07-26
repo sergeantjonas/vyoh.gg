@@ -1,3 +1,4 @@
+import { mockFetchRoutes } from "@/lol/_shared/static/mock-lol-static";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
@@ -7,6 +8,13 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CommandPaletteProvider, useCommandPalette } from "./command-palette-context";
 import { Nav } from "./nav";
+
+// This component tree mounts hooks that fetch (useDDragonVersion at minimum).
+// None of them are what these tests assert on, so stub them rather than let
+// them reach the network; test-setup.ts fails any test that does.
+beforeEach(() => {
+  mockFetchRoutes();
+});
 
 // Matches the wire shape (LolAccountWithSummary) so the mock satisfies
 // the type at render time. Tests that want the simple-row fallback set

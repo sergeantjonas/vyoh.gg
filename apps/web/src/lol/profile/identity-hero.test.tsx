@@ -1,11 +1,19 @@
 import { SectionShellProvider } from "@/_shared/section-layout/section-shell-context";
+import { mockFetchRoutes } from "@/lol/_shared/static/mock-lol-static";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import type { RankEntry } from "@vyoh/shared";
 import { configureAxe } from "jest-axe";
 import { MotionConfig } from "motion/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LolIdentityHero } from "./identity-hero";
+
+// This component tree mounts hooks that fetch (useDDragonVersion at minimum).
+// None of them are what these tests assert on, so stub them rather than let
+// them reach the network; test-setup.ts fails any test that does.
+beforeEach(() => {
+  mockFetchRoutes();
+});
 
 // Pin the patch so asset URLs are deterministic; useChampionName falls back
 // to the raw alias.

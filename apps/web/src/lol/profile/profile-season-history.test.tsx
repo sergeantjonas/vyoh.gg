@@ -1,4 +1,5 @@
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
+import { mockFetchRoutes } from "@/lol/_shared/static/mock-lol-static";
 import { useRankHistory } from "@/lol/profile/use-rank-history";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -6,8 +7,15 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import type { DetectedSeason, LolAccount } from "@vyoh/shared";
 import { detectSeasons } from "@vyoh/shared/lol/rank-history";
 import { MotionConfig } from "motion/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProfileSeasonHistory } from "./profile-season-history";
+
+// This component tree mounts hooks that fetch (useDDragonVersion at minimum).
+// None of them are what these tests assert on, so stub them rather than let
+// them reach the network; test-setup.ts fails any test that does.
+beforeEach(() => {
+  mockFetchRoutes();
+});
 
 vi.mock("@/lol/_shared/account/use-account-from-slug", () => ({
   useAccountFromSlug: vi.fn(),

@@ -1,6 +1,6 @@
 # State-of-the-app review — 2026-07-25
 
-**Status:** Reference — full-sweep audit (Phases 0–6) run on `main` @ `eb5ac211`, **now executed**. The sweep itself was read-only; the arc it produced landed as 23 commits on 2026-07-25/26 and closed F-1 through F-8 and F-10 through F-13, plus F-15. F-14 is partial (`size-limit` bumped, `typescript` 7 reverted — see below). **Still open: F-9** (drop awaiting sign-off) and **F-17**, plus the follow-ups listed in [open-work.md](../open-work.md). F-18 was found and fixed on 2026-07-26 by the first CI run the F-1 fix made capable of failing. Per-finding resolutions are recorded inline against each finding.
+**Status:** Reference — full-sweep audit (Phases 0–6) run on `main` @ `eb5ac211`, **now executed**. The sweep itself was read-only; the arc it produced landed as 23 commits on 2026-07-25/26 and closed F-1 through F-8 and F-10 through F-13, plus F-15. F-14 is partial (`size-limit` bumped, `typescript` 7 reverted — see below). **Still open: F-9** (drop awaiting sign-off), plus the follow-ups listed in [open-work.md](../open-work.md). F-18 was found and fixed on 2026-07-26 by the first CI run the F-1 fix made capable of failing. Per-finding resolutions are recorded inline against each finding.
 
 ---
 
@@ -501,7 +501,7 @@ Scoped to the two deployables only. `packages/shared` is consumed as TypeScript 
 
 ## 11. F-17 — `apps/web` tests fire real network requests at the api dev port (found 2026-07-26)
 
-**CONFIRMED. Not fixed.**
+**CONFIRMED. FIXED 2026-07-26.**
 
 **Evidence** — run [`30177763693`](https://github.com/sergeantjonas/vyoh.gg/actions/runs/30177763693) logs dozens of these from the `apps/web` suite:
 
@@ -515,9 +515,32 @@ Port 2010 is the **api dev server**. Some web test is issuing an unmocked `fetch
 
 **Why it matters** — the suite still reports 339/339 passing, so this is not what turned CI red. It matters because of where it *succeeds*: on the owner's machine the api dev server is normally running on 2010, so those fetches hit a real backend and return real data. The same test therefore exercises a different code path locally than in CI, and could pass locally for reasons that have nothing to do with the assertion under test. It is the same family as F-1 and F-3, one level down: a test that is green for the wrong reason.
 
-**Fix** — find the unmocked call (the error surfaces during teardown, so the emitting test is not named in the log; bisect by running suites with the dev server stopped) and mock it at the fetch boundary like its neighbours. Then consider failing the web suite on unhandled rejections so this class cannot return silently.
+**It reproduces locally**, which is why it went unnoticed as one problem. The same leak wears two masks: on a dev machine the api answers on 2010, so the request is still in flight when vitest tears down the happy-dom window and you get `DOMException [AbortError]` from `Fetch.onAsyncTaskManagerAbort`; on CI nothing listens, so it fails at connect. 144 noise lines in a local run.
 
-**Effort** — 30-45 min, own commit.
+Two destinations, not one. Besides `localhost:2010`, `useDDragonVersion` calls **`https://ddragon.leagueoflegends.com/api/versions.json`** for real; happy-dom blocks it with a CORS 403 on the OPTIONS, but the request is still attempted.
+
+**Attribution** — ran each directory with `--no-file-parallelism` so stderr pins to a file. Ten files, none of which stubbed `fetch` at all:
+
+| Tests | File |
+|---|---|
+| 23 | `src/lol/matches/match-row.test.tsx` |
+| 16 | `src/lol/profile/identity-hero.test.tsx` |
+| 15 | `src/lol/champions/champion-table.test.tsx` |
+| 9 | `src/lol/profile/profile-season-history.test.tsx` |
+| 9 | `src/lol/matches/match-list.test.tsx` |
+| 9 | `src/components/nav.test.tsx` |
+| 6 | `src/lol/profile/hero-rank-strip.test.tsx` |
+| 4 | `src/lol/trends/trend-death-matchup-heatmap.test.tsx` |
+| 1 | `src/lol/trends/trend-highlight-reel.test.tsx` |
+| 1 | `src/components/accessibility.test.tsx` |
+
+**Fix (applied)** — the systemic half rather than only the instances. [`test-setup.ts`](../../../apps/web/src/test-setup.ts) now installs a `fetch` that refuses the network and records the attempt; `afterEach` fails the test naming the URL. Stubbing your own `fetch` replaces the recorder, so it never fires for a test that mocks properly.
+
+The ten files then take `mockFetchRoutes()` from `lol/_shared/static/mock-lol-static.ts` (new, sibling to the existing `mockLolStaticFetch`, which is left untouched because five files depend on its exact `endsWith("/lol/static")` matching). Passing `{}` answers the ddragon version URL and rejects everything else, which is what these components already experienced: every one of these requests was failing before, so no assertion changes meaning.
+
+Verified the guard bites by deleting one stub: the test fails with `This test made 1 unmocked fetch call(s): http://localhost:2010/lol/summoners/euw1/Vyoh/EUW/narrative`. All 2,701 web tests pass with zero network noise.
+
+**Effort** — as estimated, ~45 min.
 
 ---
 

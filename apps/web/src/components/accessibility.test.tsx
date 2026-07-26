@@ -1,4 +1,5 @@
 import { LandingHeading } from "@/home/landing-heading";
+import { mockFetchRoutes } from "@/lol/_shared/static/mock-lol-static";
 import { ActiveMatchProvider } from "@/lol/matches/active-match-context";
 import { MatchRow } from "@/lol/matches/match-row";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
@@ -8,10 +9,17 @@ import type { MatchSummary } from "@vyoh/shared";
 import { configureAxe } from "jest-axe";
 import { MotionConfig } from "motion/react";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CommandPaletteProvider } from "./command-palette-context";
 import CommandPaletteDialog from "./command-palette-dialog";
 import { Nav } from "./nav";
+
+// This component tree mounts hooks that fetch (useDDragonVersion at minimum).
+// None of them are what these tests assert on, so stub them rather than let
+// them reach the network; test-setup.ts fails any test that does.
+beforeEach(() => {
+  mockFetchRoutes();
+});
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({

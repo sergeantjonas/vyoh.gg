@@ -1,10 +1,18 @@
+import { mockFetchRoutes } from "@/lol/_shared/static/mock-lol-static";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import type { MatchSummary } from "@vyoh/shared";
 import { MotionConfig } from "motion/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TrendDeathMatchupHeatmap } from "./trend-death-matchup-heatmap";
+
+// This component tree mounts hooks that fetch (useDDragonVersion at minimum).
+// None of them are what these tests assert on, so stub them rather than let
+// them reach the network; test-setup.ts fails any test that does.
+beforeEach(() => {
+  mockFetchRoutes();
+});
 
 vi.mock("@/lol/_shared/patch/use-ddragon-version", () => ({
   useDDragonVersion: () => "16.9.1",

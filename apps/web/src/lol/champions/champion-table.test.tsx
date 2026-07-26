@@ -1,5 +1,6 @@
 import { mainScrollRef } from "@/lib/scroll-container";
 import { SeriousQueuesProvider } from "@/lol/_shared/serious-queues/serious-queues";
+import { mockFetchRoutes } from "@/lol/_shared/static/mock-lol-static";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -9,6 +10,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ActiveChampionProvider, useActiveChampion } from "./active-champion-context";
 import type { ChampionStats } from "./champion-stats";
 import { ChampionTable } from "./champion-table";
+
+// This component tree mounts hooks that fetch (useDDragonVersion at minimum).
+// None of them are what these tests assert on, so stub them rather than let
+// them reach the network; test-setup.ts fails any test that does.
+beforeEach(() => {
+  mockFetchRoutes();
+});
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, ...props }: { children: ReactNode } & Record<string, unknown>) => (
