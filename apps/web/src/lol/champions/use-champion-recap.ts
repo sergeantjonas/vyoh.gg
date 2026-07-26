@@ -2,7 +2,7 @@ import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug"
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { ChampionRecap, LolAccount } from "@vyoh/shared";
 
-const API_URL = "http://localhost:2010";
+import { API_URL } from "@/lib/api-url";
 
 /**
  * Tanstack-Query options for the per-champion landing-chapter recap. The

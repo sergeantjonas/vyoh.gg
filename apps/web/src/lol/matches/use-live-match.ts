@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { LiveMatch, LolAccount } from "@vyoh/shared";
 import { useEffect, useRef } from "react";
 
-const API_URL = "http://localhost:2010";
+import { API_URL } from "@/lib/api-url";
 
 type LiveGameEventPayload = {
   type: "game-started" | "game-ended";

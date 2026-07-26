@@ -2,7 +2,7 @@ import { HttpError } from "@/lib/http-error";
 import { useQuery } from "@tanstack/react-query";
 import type { SteamRecentUnlocks } from "@vyoh/shared";
 
-const API_URL = "http://localhost:2010";
+import { API_URL } from "@/lib/api-url";
 
 async function fetchRecentUnlocks(limit: number): Promise<SteamRecentUnlocks> {
   const res = await fetch(`${API_URL}/steam/achievements/recent?limit=${limit}`);

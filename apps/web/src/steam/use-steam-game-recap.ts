@@ -3,7 +3,7 @@ import type { SteamGameRecap } from "@vyoh/shared";
 
 import { HttpError } from "@/lib/http-error";
 
-const API_URL = "http://localhost:2010";
+import { API_URL } from "@/lib/api-url";
 
 async function fetchSteamGameRecap(appid: number): Promise<SteamGameRecap> {
   const res = await fetch(`${API_URL}/steam/game/${appid}/recap`);

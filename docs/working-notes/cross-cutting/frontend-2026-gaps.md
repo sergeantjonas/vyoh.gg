@@ -368,11 +368,13 @@ If the pilot lands cleanly, fan out in follow-up commits — one per route famil
 
 **Effort:** Pilot ~1h including the `queryOptions` refactor. Per-route fan-out ~20–30 min each. Total domain: ~3–4h split across 4–5 commits.
 
-### Gap 16 — Per-route `head()` exists at exactly one site, and it ships `http://localhost:2010` in production — PARTIALLY SHIPPED 2026-06-07
+### Gap 16 — Per-route `head()` exists at exactly one site, and it ships `http://localhost:2010` in production — SHIPPED (fan-out 2026-06-07, localhost half 2026-07-26)
 
-Fan-out half **shipped 2026-06-07** as part of [og-image-pipeline.md](og-image-pipeline.md) C1–C4: `head()` now exists on champion-detail, profile, and Steam game-detail in addition to match-detail. Each route ships per-route `title`, `description`, `og:title/description/image`, `twitter:card: summary_large_image`. The `localhost:2010` bug carries forward into the four new sites — still hosting-gated, see below.
+Fan-out half **shipped 2026-06-07** as part of [og-image-pipeline.md](og-image-pipeline.md) C1–C4: `head()` now exists on champion-detail, profile, and Steam game-detail in addition to match-detail. Each route ships per-route `title`, `description`, `og:title/description/image`, `twitter:card: summary_large_image`.
 
-**Current state:** [apps/web/src/routes/__root.tsx:49](../../../apps/web/src/routes/__root.tsx#L49) renders `<HeadContent />`, so per-route `head()` exports are already wired into the render pipeline — but only **one** route uses it: [apps/web/src/routes/lol/$accountSlug/matches/$matchId.tsx:35-55](../../../apps/web/src/routes/lol/$accountSlug/matches/$matchId.tsx#L35-L55). And that one site has a production bug — line 31 hardcodes `const API_URL = "http://localhost:2010"`, so the `og:image` and `twitter:image` URLs shipped to social-preview crawlers in production are unreachable `localhost` URLs.
+Localhost half **shipped 2026-07-26** as chunk 2 of [tanstack-start-migration.md](tanstack-start-migration.md). Every `head()` site now reads `API_PUBLIC_URL` from [apps/web/src/lib/api-url.ts](../../../apps/web/src/lib/api-url.ts), which resolves from `VITE_API_URL` at build time. `index.html`'s two site-wide OG tags go through the same value via a `transformIndexHtml` plugin.
+
+**State at the time this gap was written:** [apps/web/src/routes/__root.tsx:49](../../../apps/web/src/routes/__root.tsx#L49) renders `<HeadContent />`, so per-route `head()` exports were already wired into the render pipeline — but only **one** route used it, and that site hardcoded `const API_URL = "http://localhost:2010"`, so the `og:image` and `twitter:image` URLs shipped to social-preview crawlers were unreachable `localhost` URLs.
 
 Every other route (`/lol/$accountSlug`, `/lol/$accountSlug/champions/$championKey`, `/steam/library/$appid`, `/lol/patches/$version`, etc.) inherits only the static `<title>vyoh.gg</title>` and the generic site description from [apps/web/src/index.html](../../../apps/web/src/index.html). A link to a specific champion or game shared in Discord/Slack/Twitter shows the homepage preview, not the page's content.
 
@@ -380,18 +382,18 @@ Every other route (`/lol/$accountSlug`, `/lol/$accountSlug/champions/$championKe
 
 **Why it matters:** The OG image pipeline ([docs/working-notes/cross-cutting/og-image-pipeline.md](og-image-pipeline.md)) shipped images for matches but the per-route `head()` adoption stopped at one route. Owner-shaped portfolio framing means social-preview cards are a primary discovery surface — a champion-detail link in a freelance pitch should show that champion's name + role + last-played, not "vyoh.gg / Personal cross-platform gaming dashboard".
 
-The `localhost` bug is the more urgent half: it's a one-line fix and any production share of a match URL right now ships a broken preview.
+The `localhost` bug was the more urgent half. It was never a one-line fix — the audit that finally closed it found 65 re-declared copies, and the real design question turned out not to be "which hosting option" but "which URLs get rendered into markup", since those cannot read a server-only origin under SSR.
 
 **Tension with Start:** None — `head()` exports are identical between Router SPA and Start. In Start, the head also influences the SSR document; in SPA mode it mutates the client `<head>` after hydration (still picked up by crawlers that execute JS, and by some that don't with the right SSR posture later). Shipping `head()` per-route now is the structural prep for the Start migration's chunk 2 ("per-route metadata").
 
-**How to apply:** Two commits, but the first is gated on the hosting decision — not shippable in isolation.
+**How to apply:** Both halves are done; kept for the reasoning trail.
 
-1. **Fix the localhost bug** as part of the hosting pre-deploy sweep (see [hosting.md § Pre-deploy checklist #1](../ops/hosting.md)). The hardcoded `const API_URL = "http://localhost:2010"` is **duplicated across 20+ sites** in `apps/web/src/` (every query hook in `home/`, `steam/`, `lol/matches/`, `lol/champions/`, plus the SSE `EventSource` URL — not unique to the `head()` site), so a one-file replace would leave the broader inconsistency. The fix shape also depends on hosting Option A/B (separate api.vyoh.gg → absolute env var) vs Option C (same-origin reverse-proxy → relative paths + Vite dev proxy). Don't pre-decide.
+1. ~~**Fix the localhost bug**~~ — done 2026-07-26. The "Option C → relative paths + Vite dev proxy" branch anticipated here never applied: Option C still routes `vyoh.gg` and `api.vyoh.gg` as separate vhosts, so the base is absolute under every option. A path prefix could not have worked anyway, because the api serves `/lol/summoners/…` while the web app owns `/lol/$accountSlug/…`.
 2. **Fan out `head()` to the remaining deep routes.** Independent of #1 — does not need the localhost bug fixed first since it only adds new `head()` exports, doesn't touch the existing buggy one. Per route, derive title/description from the loader-primed data (matches Gap 15 nicely — loader primes the query, `head()` reads the cache). Champion-detail uses champion display name; game-detail uses game title from Steam; patch-detail uses patch version + headline change count. Use the existing OG image pipeline for og:image where one exists; fall back to the static favicon for routes without a per-page image.
 
 Order the work after Gap 15's pilot so the loader-primed cache is available to `head()` synchronously. Without a loader, `head()` runs before the query resolves and can't read the data — you'd have to derive titles from URL params only.
 
-**Effort:** Localhost bug fix is part of the hosting sweep (~1–2h once hosting is picked, not a standalone quick-win). Fan-out ~20 min per route family × 4–5 = ~2h. Total: ~2h fan-out + hosting-sweep dependency for the bug.
+**Effort:** Both halves shipped. The localhost fix came in near the ~1–2h estimate despite covering 65 sites rather than 20+, because the sweep was mechanical once the fetch-vs-render split was settled.
 
 ### Round 5 non-gaps (worth knowing, no action)
 
@@ -531,7 +533,7 @@ Reference: [apps/web/src/home/use-home-weekly-totals.test.ts:24-30](../../../app
 **Why it matters:** Three concrete pain points the audit surfaced:
 
 1. **Contract drift is invisible.** Each test hand-writes a `MatchSummary`/`SteamGame`/`PatchHeadline` literal that the test author thought matched the api response. Nothing checks it against the real `@vyoh/shared` schema or the api's NestJS DTO. A future api response-shape change will compile-pass (the response is opaque to the typed client) and unit-test-pass (the literal is what the test wrote), then fail in production. MSW handlers parameterised by Zod schemas (or the existing `@vyoh/shared` types) catch this in the test step.
-2. **Re-stubbing across 20+ files is a refactor tax.** When the api's URL base moves from `http://localhost:2010` to a same-origin reverse-proxy path (planned in [hosting.md](hosting.md)), every test that hand-writes `expect(fetch).toHaveBeenCalledWith("http://localhost:2010/home/weekly-totals")` breaks. With MSW, the handler matches `'/home/weekly-totals'` regardless of base URL.
+2. **Re-stubbing across 20+ files is a refactor tax.** ~~When the api's URL base moves…~~ **This premise did not hold.** The base moved on 2026-07-26 and not one of the 116 assertions changed, because the helper keeps falling back to `http://localhost:2010` when `VITE_API_URL` is unset, which is always the case under vitest. Treat this as a weaker argument for MSW than it reads: the remaining case is contract drift (point 1) and reuse (point 3), not base-URL churn.
 3. **Storybook 9 and Playwright reuse blocked.** When/if Gaps 22 (Playwright) and 23 (Storybook) land, the handler set is the load-bearing reusable artefact. Hand-rolled `vi.stubGlobal` patterns can't be reused; MSW handlers can.
 
 **Tension with Start:** None. MSW is purely a test-time concern; Start migration changes the *server* side, not the test mock surface.

@@ -307,4 +307,60 @@ describe("project conventions (structural lints)", () => {
       "Retired tile opacity rung — see repo-conventions § tile background"
     ).toEqual([]);
   });
+
+  // The api origin belongs to `lib/api-url.ts` and nowhere else. 65 files had
+  // re-declared it before the 2026-07-26 consolidation, which is what made the
+  // hosting fix a chunked task instead of a one-line edit — and under SSR a
+  // stray copy is worse than duplication, because a loader running in Node
+  // needs a different origin than the markup it produces.
+  //
+  // Comment lines are skipped so prose can still name the dev origin (the
+  // fetch-stub rationale in `test-setup.ts` does). This is a BACKSTOP: it
+  // catches a re-declared literal, not the subtler error of reaching for
+  // API_URL where a rendered URL needs API_PUBLIC_URL.
+  const HARDCODED_ORIGIN = /["'`]https?:\/\/localhost:\d+/;
+  const API_URL_ALLOWLIST = new Set([
+    path.join(WORKSPACE_ROOT, "apps/web/src/lib/api-url.ts"),
+  ]);
+
+  const scanForHardcodedOrigin = (text: string): string[] =>
+    matchLines(text, (line) => {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("//") || trimmed.startsWith("*")) return null;
+      return HARDCODED_ORIGIN.test(line) ? " → import from @/lib/api-url" : null;
+    });
+
+  it("no hardcoded api origin outside lib/api-url.ts", () => {
+    const hits = collect(TITLE_SCAN_ROOTS, scanForHardcodedOrigin, API_URL_ALLOWLIST);
+    expect(
+      hits,
+      "Import API_URL (fetch) or API_PUBLIC_URL (rendered) from @/lib/api-url"
+    ).toEqual([]);
+  });
+
+  it("the api-origin lint reads code but not prose", () => {
+    const mustFlag = [
+      'const API_URL = "http://localhost:2010";',
+      'await fetch("http://localhost:2010/steam/tags");',
+      "const url = `http://localhost:2010/og/home.png`;",
+      "new EventSource('http://localhost:2010/status/stream')",
+    ];
+    for (const src of mustFlag) {
+      expect(scanForHardcodedOrigin(src).length, `should flag: ${src}`).toBe(1);
+    }
+
+    const mustNotFlag = [
+      // test-setup.ts names the origin while explaining the fetch stub.
+      "// components were hitting `http://localhost:2010` for real",
+      " * the api dev server at http://localhost:2010",
+      // Paths composed onto the helper are the whole point.
+      "await fetch(`${API_URL}/steam/tags`);",
+      "return `${API_PUBLIC_URL}/img/lol/map/${mapId}.webp`;",
+      // A different host that happens to be absolute is not this invariant.
+      'const DDRAGON = "https://ddragon.leagueoflegends.com";',
+    ];
+    for (const src of mustNotFlag) {
+      expect(scanForHardcodedOrigin(src).length, `should NOT flag: ${src}`).toBe(0);
+    }
+  });
 });

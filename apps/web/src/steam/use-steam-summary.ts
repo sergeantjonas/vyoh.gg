@@ -2,7 +2,7 @@ import { HttpError } from "@/lib/http-error";
 import { useQuery } from "@tanstack/react-query";
 import type { SteamSummary } from "@vyoh/shared";
 
-const API_URL = "http://localhost:2010";
+import { API_URL } from "@/lib/api-url";
 
 async function fetchSteamSummary(): Promise<SteamSummary> {
   const res = await fetch(`${API_URL}/steam/summary`);

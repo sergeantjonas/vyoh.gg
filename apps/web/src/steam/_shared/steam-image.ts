@@ -13,10 +13,10 @@
 //     proxy resolves the per-achievement icon URL from the DB on every call,
 //     so the segment is purely a browser cache key.
 //
-// All routes are same-origin in production (Nginx will reverse-proxy `/img`
-// to the Nest port); the dev build hits localhost:2010 directly.
-
-const API_URL = "http://localhost:2010";
+// Every URL here is rendered into an <img>/<video> src, so it uses the public
+// base rather than the fetch one — the two diverge under SSR, and markup has
+// to carry the origin the visitor's browser can reach.
+import { API_PUBLIC_URL } from "@/lib/api-url";
 
 const ACHIEVEMENT_SCHEMA_VERSION = 1;
 // Bump when the backdrop proxy chain changes preference order.
@@ -43,7 +43,7 @@ export function steamCapsuleUrl(
   appid: number,
   assetTimestamp?: number | bigint | null
 ): string {
-  return `${API_URL}/img/steam/capsule/${appid}/${cacheKey(assetTimestamp)}.webp`;
+  return `${API_PUBLIC_URL}/img/steam/capsule/${appid}/${cacheKey(assetTimestamp)}.webp`;
 }
 
 // Native-resolution capsule (460-wide `header.jpg`) for hero-sized tiles where
@@ -55,14 +55,14 @@ export function steamCapsuleLargeUrl(
   appid: number,
   assetTimestamp?: number | bigint | null
 ): string {
-  return `${API_URL}/img/steam/capsule-large/${appid}/${cacheKey(assetTimestamp)}.webp`;
+  return `${API_PUBLIC_URL}/img/steam/capsule-large/${appid}/${cacheKey(assetTimestamp)}.webp`;
 }
 
 export function steamLibraryCapsuleUrl(
   appid: number,
   assetTimestamp?: number | bigint | null
 ): string {
-  return `${API_URL}/img/steam/library-capsule/${appid}/${cacheKey(assetTimestamp)}.webp`;
+  return `${API_PUBLIC_URL}/img/steam/library-capsule/${appid}/${cacheKey(assetTimestamp)}.webp`;
 }
 
 // `flipHero` bakes a horizontal mirror into the served bytes via Sharp's
@@ -79,7 +79,7 @@ export function steamLibraryHeroUrl(
   flipHero?: boolean
 ): string {
   const flip = flipHero ? "flip" : "noflip";
-  return `${API_URL}/img/steam/hero/${flip}/${appid}/${cacheKey(assetTimestamp)}.webp`;
+  return `${API_PUBLIC_URL}/img/steam/hero/${flip}/${appid}/${cacheKey(assetTimestamp)}.webp`;
 }
 
 // High-resolution variant — backed by Steam's `library_hero_2x.jpg` asset
@@ -94,14 +94,14 @@ export function steamLibraryHeroLargeUrl(
   flipHero?: boolean
 ): string {
   const flip = flipHero ? "flip" : "noflip";
-  return `${API_URL}/img/steam/hero-large/${flip}/${appid}/${cacheKey(assetTimestamp)}.webp`;
+  return `${API_PUBLIC_URL}/img/steam/hero-large/${flip}/${appid}/${cacheKey(assetTimestamp)}.webp`;
 }
 
 export function steamLibraryLogoUrl(
   appid: number,
   assetTimestamp?: number | bigint | null
 ): string {
-  return `${API_URL}/img/steam/logo/${LOGO_SCHEMA_VERSION}/${appid}/${cacheKey(assetTimestamp)}.webp`;
+  return `${API_PUBLIC_URL}/img/steam/logo/${LOGO_SCHEMA_VERSION}/${appid}/${cacheKey(assetTimestamp)}.webp`;
 }
 
 // Profile page backdrop. The proxy tries the high-quality
@@ -118,7 +118,7 @@ export function steamPageBackgroundUrl(
   flipHero?: boolean
 ): string {
   const flip = flipHero ? "flip" : "noflip";
-  return `${API_URL}/img/steam/backdrop/${BACKDROP_SCHEMA_VERSION}/${flip}/${appid}/${cacheKey(assetTimestamp)}.webp`;
+  return `${API_PUBLIC_URL}/img/steam/backdrop/${BACKDROP_SCHEMA_VERSION}/${flip}/${appid}/${cacheKey(assetTimestamp)}.webp`;
 }
 
 // Hero img → page-background fallback chain shared by the destination
@@ -176,7 +176,7 @@ export function steamAchievementIconUrl(
   gray = false
 ): string {
   const route = gray ? "achievement-gray" : "achievement";
-  return `${API_URL}/img/steam/${route}/${appid}/${apiName}/${ACHIEVEMENT_SCHEMA_VERSION}.webp`;
+  return `${API_PUBLIC_URL}/img/steam/${route}/${appid}/${apiName}/${ACHIEVEMENT_SCHEMA_VERSION}.webp`;
 }
 
 // Matches Steam's rendered `about_the_game` asset URLs — content-hashed
@@ -192,7 +192,7 @@ const STEAM_DESCRIPTION_ASSET_URL_RE =
 export function rewriteSteamDescriptionAssetUrl(url: string): string | null {
   const m = STEAM_DESCRIPTION_ASSET_URL_RE.exec(url);
   if (!m) return null;
-  return `${API_URL}/img/steam/desc/${m[1]}/extras/${m[2]}`;
+  return `${API_PUBLIC_URL}/img/steam/desc/${m[1]}/extras/${m[2]}`;
 }
 
 // Microtrailer (6-second silent loop). The enrichment row stores the
@@ -210,7 +210,7 @@ const STEAM_MICROTRAILER_FILENAME_RE =
 export function steamMicrotrailerUrl(filename: string): string | null {
   const m = STEAM_MICROTRAILER_FILENAME_RE.exec(filename);
   if (!m) return null;
-  return `${API_URL}/img/steam/microtrailer/${m[1]}/${m[2]}/${m[3]}/${m[4]}/microtrailer.${m[5]}`;
+  return `${API_PUBLIC_URL}/img/steam/microtrailer/${m[1]}/${m[2]}/${m[3]}/${m[4]}/microtrailer.${m[5]}`;
 }
 
 // Microtrailer poster — `screenshot_medium` from the same
@@ -225,5 +225,5 @@ const STEAM_MICROTRAILER_POSTER_FILENAME_RE =
 export function steamMicrotrailerPosterUrl(filename: string): string | null {
   const m = STEAM_MICROTRAILER_POSTER_FILENAME_RE.exec(filename);
   if (!m) return null;
-  return `${API_URL}/img/steam/microtrailer-poster/${m[1]}/${m[2]}`;
+  return `${API_PUBLIC_URL}/img/steam/microtrailer-poster/${m[1]}/${m[2]}`;
 }

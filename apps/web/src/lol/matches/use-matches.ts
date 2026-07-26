@@ -9,7 +9,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import type { CachedMatchesResult, LolAccount, MatchSummary } from "@vyoh/shared";
 import { useEffect, useSyncExternalStore } from "react";
 
-const API_URL = "http://localhost:2010";
+import { API_URL } from "@/lib/api-url";
 export const MATCHES_PAGE_SIZE = 20;
 
 async function fetchMatchesPage(

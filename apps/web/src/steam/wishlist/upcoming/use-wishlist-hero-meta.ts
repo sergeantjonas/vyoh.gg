@@ -3,7 +3,7 @@ import type { SteamWishlistHeroMeta } from "@vyoh/shared";
 
 import { HttpError } from "@/lib/http-error";
 
-const API_URL = "http://localhost:2010";
+import { API_URL } from "@/lib/api-url";
 
 async function fetchWishlistHeroMeta(appid: number): Promise<SteamWishlistHeroMeta> {
   const res = await fetch(`${API_URL}/steam/wishlist/${appid}/hero-meta`);

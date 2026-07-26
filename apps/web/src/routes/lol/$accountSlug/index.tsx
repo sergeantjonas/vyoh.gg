@@ -65,9 +65,11 @@ const ProfileActivityCalendar = lazy(() =>
   }))
 );
 
-// API origin for the per-route OG image endpoint. Local rather than imported
-// so head() stays a leaf with no transitive deps on the initial-route graph.
-const API_URL = "http://localhost:2010";
+// API origin for the per-route OG image endpoint. Now imported rather than
+// re-declared: `lib/api-url` has no imports of its own, so head() keeps the
+// leaf dependency graph the local copy was protecting. The public base is the
+// right one here — a crawler resolves og:image from outside the box.
+import { API_PUBLIC_URL } from "@/lib/api-url";
 
 export const Route = createFileRoute("/lol/$accountSlug/")({
   component: ProfilePage,
@@ -80,7 +82,7 @@ export const Route = createFileRoute("/lol/$accountSlug/")({
     routeMeta({
       title: "Profile · vyoh.gg",
       description: "LoL profile on vyoh.gg",
-      ogImage: `${API_URL}/og/profile/${params.accountSlug}.png`,
+      ogImage: `${API_PUBLIC_URL}/og/profile/${params.accountSlug}.png`,
       ogType: "profile",
     }),
 });

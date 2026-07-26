@@ -2,7 +2,7 @@ import { HttpError } from "@/lib/http-error";
 import { useQuery } from "@tanstack/react-query";
 import type { SteamWishlist } from "@vyoh/shared";
 
-const API_URL = "http://localhost:2010";
+import { API_URL } from "@/lib/api-url";
 
 async function fetchWishlist(): Promise<SteamWishlist> {
   const res = await fetch(`${API_URL}/steam/wishlist`);

@@ -73,11 +73,11 @@ import {
   XAxis,
 } from "recharts";
 
-// API origin for the per-route OG image endpoint. Matches the constant in
-// the match-detail route — kept local rather than imported so the head()
-// function stays a leaf with no transitive deps that would balloon the
-// initial-route-load graph.
-const API_URL = "http://localhost:2010";
+// API origin for the per-route OG image endpoint. Now imported rather than
+// re-declared: `lib/api-url` has no imports of its own, so head() keeps the
+// leaf dependency graph the local copy was protecting. The public base is the
+// right one here — a crawler resolves og:image from outside the box.
+import { API_PUBLIC_URL } from "@/lib/api-url";
 
 export const Route = createFileRoute("/lol/$accountSlug/champions/$championKey")({
   component: ChampionDetailPage,
@@ -88,7 +88,7 @@ export const Route = createFileRoute("/lol/$accountSlug/champions/$championKey")
     routeMeta({
       title: `${params.championKey} · ${params.accountSlug} · vyoh.gg`,
       description: `Champion detail for ${params.championKey} on vyoh.gg`,
-      ogImage: `${API_URL}/og/champion/${params.championKey}.png`,
+      ogImage: `${API_PUBLIC_URL}/og/champion/${params.championKey}.png`,
       ogType: "article",
     }),
 });

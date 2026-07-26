@@ -8,7 +8,7 @@ import type {
 } from "@vyoh/shared";
 import { useEffect } from "react";
 
-const API_URL = "http://localhost:2010";
+import { API_URL } from "@/lib/api-url";
 
 async function fetchStatus(): Promise<StatusSnapshot> {
   const res = await fetch(`${API_URL}/status`);

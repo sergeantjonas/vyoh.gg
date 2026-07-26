@@ -2,7 +2,7 @@ import { HttpError } from "@/lib/http-error";
 import { useQuery } from "@tanstack/react-query";
 import type { LolAccount, MatchNarrativeWindow } from "@vyoh/shared";
 
-const API_URL = "http://localhost:2010";
+import { API_URL } from "@/lib/api-url";
 
 // Cap the request body — the server enforces the same limit; the client cap
 // avoids round-tripping IDs that would be rejected anyway.

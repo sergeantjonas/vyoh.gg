@@ -2,7 +2,7 @@ import { HttpError } from "@/lib/http-error";
 import { useQuery } from "@tanstack/react-query";
 import type { HomeToday } from "@vyoh/shared";
 
-const API_URL = "http://localhost:2010";
+import { API_URL } from "@/lib/api-url";
 
 async function fetchHomeToday(): Promise<HomeToday> {
   const res = await fetch(`${API_URL}/home/today`);

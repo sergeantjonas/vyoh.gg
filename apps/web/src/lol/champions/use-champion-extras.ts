@@ -4,7 +4,7 @@ import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { ChampionExtras, LolAccount } from "@vyoh/shared";
 import { useMemo } from "react";
 
-const API_URL = "http://localhost:2010";
+import { API_URL } from "@/lib/api-url";
 
 export function championExtrasQueryOptions(
   account: LolAccount | undefined,

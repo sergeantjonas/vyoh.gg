@@ -2,7 +2,7 @@ import { HttpError } from "@/lib/http-error";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { PatchListEntry } from "@vyoh/shared";
 
-const API_URL = "http://localhost:2010";
+import { API_URL } from "@/lib/api-url";
 
 async function fetchPatchList(): Promise<PatchListEntry[]> {
   const res = await fetch(`${API_URL}/lol/patches`);

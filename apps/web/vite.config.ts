@@ -49,6 +49,29 @@ function devFlattenCssNesting(): Plugin {
   };
 }
 
+// index.html cannot import from `src/`, so the one thing it needs from
+// `src/lib/api-url.ts` — the public api origin behind the site-wide og:image —
+// is substituted here instead.
+//
+// `order: "pre"` puts this ahead of Vite's own `%VITE_*%` pass, which warns and
+// leaves the token in the markup when the var is unset; a literal `%…%` in a
+// crawler-facing meta tag is worse than a dev-only origin. The fallback below
+// duplicates `DEV_ORIGIN` for that reason and no other — both this plugin and
+// index.html are deleted when the Start shell takes over the document head.
+function htmlApiBase(): Plugin {
+  return {
+    name: "vyoh:html-api-base",
+    transformIndexHtml: {
+      order: "pre",
+      handler: (html) =>
+        html.replaceAll(
+          "%API_PUBLIC_URL%",
+          process.env.VITE_API_URL ?? "http://localhost:2010"
+        ),
+    },
+  };
+}
+
 const buildCommit = (() => {
   try {
     return execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] })
@@ -66,6 +89,7 @@ export default defineConfig({
     __BUILD_COMMIT__: JSON.stringify(buildCommit),
   },
   plugins: [
+    htmlApiBase(),
     TanStackRouterVite({ target: "react", autoCodeSplitting: true }),
     react(),
     babel({ presets: [reactCompilerPreset()] }),

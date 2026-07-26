@@ -2,7 +2,7 @@ import { HttpError } from "@/lib/http-error";
 import { useQuery } from "@tanstack/react-query";
 import type { DamageProfile, LolAccount } from "@vyoh/shared";
 
-const API_URL = "http://localhost:2010";
+import { API_URL } from "@/lib/api-url";
 
 // One endpoint, two scopes: with a `championKey` it hits the champion-scoped
 // route, without it the profile-wide one. The radar component is the same in

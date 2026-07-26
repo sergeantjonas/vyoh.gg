@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-const API_URL = "http://localhost:2010";
+import { API_URL } from "@/lib/api-url";
 
 // Riot hasn't redesigned ranked emblems since 2023, so this matches the
 // current canonical art if the API request hasn't resolved yet (or fails).

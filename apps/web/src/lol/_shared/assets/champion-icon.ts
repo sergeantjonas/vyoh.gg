@@ -11,10 +11,10 @@
 //     bumping `:patch` is how we get fresh bytes through the browser cache
 //     after a patch ships.
 //
-// All routes are same-origin in production (Nginx will reverse-proxy `/img`
-// to the Nest port); the dev build hits localhost:2010 directly.
-
-const API_URL = "http://localhost:2010";
+// Every URL here is rendered into an <img> src, so it uses the public base
+// rather than the fetch one — the two diverge under SSR, and markup has to
+// carry the origin the visitor's browser can reach.
+import { API_PUBLIC_URL } from "@/lib/api-url";
 
 const SWARM_PREFIX = "Strawberry_";
 export function normalizeChampionAlias(alias: string): string {
@@ -29,7 +29,7 @@ export function championIconUrl(
   patch: string
 ): string {
   const slug = normalizeChampionAlias(alias).toLowerCase();
-  return `${API_URL}/img/lol/champion/${slug}/${variant}/${patch}.webp`;
+  return `${API_PUBLIC_URL}/img/lol/champion/${slug}/${variant}/${patch}.webp`;
 }
 
 export function championSquareIconUrl(alias: string, patch: string): string {
@@ -65,15 +65,15 @@ export function championHdSplashUrl(alias: string, patch: string): string {
 }
 
 export function itemIconUrl(itemId: number, patch: string): string {
-  return `${API_URL}/img/lol/item/${itemId}/${patch}.webp`;
+  return `${API_PUBLIC_URL}/img/lol/item/${itemId}/${patch}.webp`;
 }
 
 export function runeIconUrl(keystoneId: number, patch: string): string {
-  return `${API_URL}/img/lol/rune/${keystoneId}/${patch}.webp`;
+  return `${API_PUBLIC_URL}/img/lol/rune/${keystoneId}/${patch}.webp`;
 }
 
 export function summonerSpellIconUrl(spellKey: number, patch: string): string {
-  return `${API_URL}/img/lol/spell/${spellKey}/${patch}.webp`;
+  return `${API_PUBLIC_URL}/img/lol/spell/${spellKey}/${patch}.webp`;
 }
 
 // Ability icon proxy. Identity is `(championId, slot, abilityIndex)` —
@@ -86,38 +86,38 @@ export function abilityIconUrl(
   abilityIndex: number,
   patch: string
 ): string {
-  return `${API_URL}/img/lol/ability/${championId}/${slot}/${abilityIndex}/${patch}.webp`;
+  return `${API_PUBLIC_URL}/img/lol/ability/${championId}/${slot}/${abilityIndex}/${patch}.webp`;
 }
 
 // Minimap art. Versionless cache key — only the mapId matters.
 export function mapIconUrl(mapId: number): string {
-  return `${API_URL}/img/lol/map/${mapId}.webp`;
+  return `${API_PUBLIC_URL}/img/lol/map/${mapId}.webp`;
 }
 
 // Ranked tier emblem. `year` is the cache key — bumping it forces a refetch
 // when a future emblem redesign lands on the wiki.
 export function rankEmblemUrl(tier: string, year: number): string {
-  return `${API_URL}/img/lol/rank/${tier}/${year}.webp`;
+  return `${API_PUBLIC_URL}/img/lol/rank/${tier}/${year}.webp`;
 }
 
 // UI singleton icons. Closed set: "gold" | "minion" | "ward" | "attack".
 export type UiIconName = "gold" | "minion" | "ward" | "attack";
 export function uiIconUrl(name: UiIconName): string {
-  return `${API_URL}/img/lol/ui/${name}.webp`;
+  return `${API_PUBLIC_URL}/img/lol/ui/${name}.webp`;
 }
 
 // Role-position icon is versionless — the upstream art changes too rarely to
 // warrant a cache-key segment. Served as WebP from the proxy (wiki PNG primary
 // with CDragon SVG fallback; both transcoded to WebP server-side).
 export function roleIconUrl(positionSlug: string): string {
-  return `${API_URL}/img/lol/role/${positionSlug}.webp`;
+  return `${API_PUBLIC_URL}/img/lol/role/${positionSlug}.webp`;
 }
 
 // Champion-class archetype icon (Fighter/Mage/Tank/etc.). Slug is the
 // lowercase DDragon `tag` we already store on `LolChampion.roles`; the API
 // translates Assassin→Slayer and Support→Controller when fetching from wiki.
 export function championClassIconUrl(classSlug: string): string {
-  return `${API_URL}/img/lol/class/${classSlug}.webp`;
+  return `${API_PUBLIC_URL}/img/lol/class/${classSlug}.webp`;
 }
 
 // Generic wiki-file icon — the inline-icon path for rich tooltip descriptions
@@ -125,7 +125,7 @@ export function championClassIconUrl(classSlug: string): string {
 // bucket dirs, so callers pass the bare filename (`Magic_damage.png`) and
 // stay decoupled from wiki's storage layout.
 export function wikiFileIconUrl(filename: string): string {
-  return `${API_URL}/img/lol/wiki-file/${encodeURIComponent(filename)}.webp`;
+  return `${API_PUBLIC_URL}/img/lol/wiki-file/${encodeURIComponent(filename)}.webp`;
 }
 
 // Wiki-served skin splash for full-bleed recap chapter backdrops. Same
@@ -134,7 +134,7 @@ export function wikiFileIconUrl(filename: string): string {
 // 32px width for tooltip use. Caller passes the HD filename
 // (`Ahri_SpiritBlossomSkin_HD.jpg`).
 export function wikiSplashUrl(filename: string): string {
-  return `${API_URL}/img/lol/wiki-splash/${encodeURIComponent(filename)}.webp`;
+  return `${API_PUBLIC_URL}/img/lol/wiki-splash/${encodeURIComponent(filename)}.webp`;
 }
 
 // Extract the original filename from a wiki `action=parse` <img src>.

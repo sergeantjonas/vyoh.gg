@@ -2,7 +2,7 @@ import { HttpError } from "@/lib/http-error";
 import { useQuery } from "@tanstack/react-query";
 import type { SteamChronotype } from "@vyoh/shared";
 
-const API_URL = "http://localhost:2010";
+import { API_URL } from "@/lib/api-url";
 
 async function fetchSteamChronotype(count: number): Promise<SteamChronotype> {
   const res = await fetch(`${API_URL}/steam/chronotype?count=${count}`);

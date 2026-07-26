@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { MatchDetail, ParticipantDetail } from "@vyoh/shared";
 import { type ReactNode, useState } from "react";
 
-const API_URL = "http://localhost:2010";
+import { API_URL } from "@/lib/api-url";
 
 async function fetchDetail(matchId: string): Promise<MatchDetail> {
   const res = await fetch(`${API_URL}/lol/matches/${encodeURIComponent(matchId)}`);

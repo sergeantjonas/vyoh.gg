@@ -1,6 +1,6 @@
 # Hosting plan and pre-deploy checklist
 
-**Status:** Active — pre-deploy work, not started. Owner lean is Hetzner VPS (single-VM, same-origin behind Nginx) but not committed. Landing is gated to a deliberate pre-launch sweep, not to any single content arc finishing. See [open-work.md](../open-work.md) for sibling pre-deploy items (owner auth, status admin surface).
+**Status:** Active — **Option C (Hetzner VPS + Docker Compose) chosen 2026-07-26**, and checklist item 1 (API base consolidation) shipped the same day. Nginx routes `vyoh.gg` and `api.vyoh.gg` as separate vhosts on the one VM; "same-origin" in the earlier drafts meant one machine, not one origin. The rest of the checklist lands with the [Start migration](../cross-cutting/tanstack-start-migration.md)'s chunk 6, which is where the Dockerfiles, prod compose, and vhost config get written. See [open-work.md](../open-work.md) for sibling pre-deploy items (owner auth, status admin surface).
 
 ## Options under consideration
 
@@ -74,22 +74,23 @@ never proxies the stream.
 
 ## Pre-deploy checklist (applies to all options)
 
-### 1. Replace hardcoded API_URL with an env var
+### 1. Replace hardcoded API_URL with an env var — SHIPPED 2026-07-26
 
-`const API_URL = "http://localhost:2010"` is **duplicated across 20+ sites** in `apps/web/src/` — every query hook in `home/`, `steam/`, `lol/matches/`, `lol/champions/`, plus the SSE `EventSource` URL and the `head()` `og:image` URL in [`apps/web/src/routes/lol/$accountSlug/matches/$matchId.tsx`](../../../apps/web/src/routes/lol/$accountSlug/matches/$matchId.tsx#L31). All tests assert the literal `"http://localhost:2010"` too, so they need parallel updates.
+Landed as chunk 2 of the [Start migration](../cross-cutting/tanstack-start-migration.md). The literal now lives in exactly one place, [`apps/web/src/lib/api-url.ts`](../../../apps/web/src/lib/api-url.ts), and a structural lint in `apps/api/src/conventions.spec.ts` fails the build if a second copy appears.
 
-The change is therefore not a one-line replace but a small chunked task to land alongside the hosting choice:
+The audit found **65** re-declared sites, not the 20+ estimated here. They split two ways, and the split is the part worth remembering:
 
-1. Introduce a single `apps/web/src/lib/api-url.ts` helper (or equivalent) that reads `import.meta.env.VITE_API_URL` once.
-2. Add `apps/web/.env.development` with `VITE_API_URL=http://localhost:2010` so dev keeps working.
-3. Sweep the 20+ duplicate `const API_URL = "http://localhost:2010"` sites to import the helper.
-4. Update the parallel test assertions that compare the literal string.
-5. Add a Vite dev proxy if the production shape is same-origin (Option C), so dev mirrors prod and the helper can return a relative base.
-6. Set `VITE_API_URL=https://api.vyoh.gg` (or whatever the chosen host's URL is) in the deploy environment.
+- **58 fetch-side** (`fetch`, the SSE `EventSource`) import `API_URL`, which resolves to `API_INTERNAL_URL` when the module runs on a server and to the public origin in a browser.
+- **7 render-side** (`champion-icon`, `summoner-icon`, `steam-image`, `match-og`, 3 route `head()`s) import `API_PUBLIC_URL`, a build-time constant. Anything that lands in markup has to be identical on both sides of a server render, so it cannot read the server origin.
 
-This affects all fetch calls **and** the `EventSource` URL for SSE **and** the `head()` `og:image` URL — all share the constant. The `head()` case is the most user-visible breakage in production (broken social previews on every shared match URL) but cannot be fixed in isolation: `head()` runs at navigation time in the browser, so relative URLs in `og:image` would only resolve correctly for crawlers that follow OpenGraph's "relative URLs allowed" allowance (Facebook does; Twitter/X historically required absolute). Safer to wait until the hosting choice fixes the absolute base URL.
+Two predictions in the original plan did not survive contact:
 
-**Why not ship as a quick-win today:** the fix shape depends on the hosting decision. Option A/B (separate api.vyoh.gg subdomain) → absolute env var URL everywhere. Option C (same-origin Nginx reverse-proxy) → relative `/api/...` paths everywhere + Vite dev proxy. Picking one before hosting lands means rework on the loser.
+- **Tests needed no changes.** The helper falls back to `http://localhost:2010` when `VITE_API_URL` is unset, so all 116 assertions still compare against the same literal. The step-4 "parallel updates" never materialised.
+- **The Vite dev proxy (step 5) is dead work.** It assumed Option C means same-origin. It does not — the [topology](#topology) below routes `vyoh.gg` and `api.vyoh.gg` as separate vhosts even on a single VPS, so the public base is an absolute origin under every option. A path prefix could not work here regardless: the api serves `/lol/summoners/…` while the web app owns `/lol/$accountSlug/…`, and no prefix rule separates an account slug from a literal route segment.
+
+What that leaves for the deploy: set `VITE_API_URL=https://api.vyoh.gg` at **build** time (it is baked into the bundle and into `index.html`'s `og:image`, not read at runtime), and `API_INTERNAL_URL` at **runtime** once SSR lands. Both are documented in `.env.example`.
+
+The `og:image` breakage this section flagged as the most user-visible symptom — broken social previews on every shared match URL — is fixed by the same change, since `head()` now emits the absolute public origin.
 
 ### 2. Configure CORS on the NestJS side
 
@@ -175,6 +176,12 @@ on the same box should follow.
   are `rsync` to `/var/www/<project>/dist/` (from CI or local). A
   container around `vite preview` or `serve` is pure overhead. Per site,
   expect 0–1 backend containers, not 2.
+  **vyoh.gg itself stops qualifying once Start lands** — SSR needs a
+  long-lived Node process, so `vyoh.gg` becomes a second `proxy_pass`
+  target rather than a static root, and the site goes to 2 containers.
+  The rule still holds for genuinely static sites on the same box.
+  Chunk 6 of the Start migration is where this gets written down as
+  actual vhost config.
 - **Backends run as per-project Docker Compose stacks.** Each project
   gets `/srv/<project>/docker-compose.yml`. Backend containers bind to
   a distinct `127.0.0.1:20XX` loopback port (no public bind, Nginx is
