@@ -35,14 +35,13 @@ const RECAP_WINDOW_DAYS = 365;
  * `LolAnalyticsService` keeps its calibration cache and drops `LolService`
  * entirely, since only the two methods moved here ever used it.
  *
- * Two pre-existing defects came across unchanged, so the move stays reviewable
- * as a pure move. Both are tracked in `open-work.md`:
- *   - `getChampionExtras` and `getChampionRecap` never call
- *     `identity.isLolAccountAllowed`. Every other method here and in
- *     `LolAnalyticsService` does.
- *   - `getChampionExtras` aggregates items and matchups over raw `matches`
- *     with no `excludeRemakes()`, against the domain invariant. It never
- *     spells `remake`, so the structural lint cannot see it.
+ * Two pre-existing defects came across the move unchanged so it stayed
+ * reviewable as a pure move, then were fixed in the follow-up commit:
+ * `getChampionExtras` and `getChampionRecap` were the only two analytics
+ * methods not calling `identity.isLolAccountAllowed`, and `getChampionExtras`
+ * aggregated over raw rows with no `excludeRemakes()`. The second was
+ * invisible to the structural lint because the code never spelled `remake` at
+ * all, which is the same blind spot that hid the post-game streak bug.
  */
 @Injectable()
 export class LolChampionAnalyticsService {
@@ -59,18 +58,25 @@ export class LolChampionAnalyticsService {
     championKey: string,
     queues?: readonly number[]
   ): Promise<ChampionExtras> {
+    if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
+      throw new ForbiddenException("Account not in whitelist");
+    }
     const summoner = await this.lol.resolveSummoner(region, gameName, tagLine);
 
     const queueNames = queues && queues.length > 0 ? queues.map(queueTypeName) : null;
-    const matches = await this.prisma.match.findMany({
+    const rows = await this.prisma.match.findMany({
       where: {
         puuid: summoner.puuid,
         champion: { equals: championKey, mode: "insensitive" },
         items: { isEmpty: false },
         ...(queueNames && { queueType: { in: queueNames } }),
       },
-      select: { items: true, laneOpponent: true, win: true },
+      select: { items: true, laneOpponent: true, win: true, remake: true },
     });
+    // `items: { isEmpty: false }` does not stand in for the remake filter: a
+    // remake can still run long enough for a first back, so it arrives here
+    // with items and a win flag and would count toward both aggregations.
+    const matches = excludeRemakes(rows);
 
     // Item frequency across all games on this champion
     const itemMap = new Map<number, { games: number; wins: number }>();
@@ -115,6 +121,9 @@ export class LolChampionAnalyticsService {
     tagLine: string,
     championKey: string
   ): Promise<ChampionRecap> {
+    if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
+      throw new ForbiddenException("Account not in whitelist");
+    }
     const summoner = await this.lol.resolveSummoner(region, gameName, tagLine);
 
     const cutoff = new Date(Date.now() - RECAP_WINDOW_DAYS * 24 * 60 * 60 * 1000);

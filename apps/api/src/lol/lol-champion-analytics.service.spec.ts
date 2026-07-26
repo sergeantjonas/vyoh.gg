@@ -124,9 +124,71 @@ describe("LolChampionAnalyticsService.getChampionExtras", () => {
     const call = prisma.match.findMany.mock.calls[0]?.[0];
     expect(call?.where).not.toHaveProperty("queueType");
   });
+
+  // `items: { isEmpty: false }` in the where clause does not stand in for the
+  // remake filter: a remake can run long enough for a first back, so it
+  // arrives with items and a win flag. Before the 2026-07-26 fix these rows
+  // counted toward both aggregations.
+  it("excludes remakes from both item and matchup aggregation", async () => {
+    const prisma = makePrisma();
+    prisma.match.findMany.mockResolvedValue([
+      { items: [3157], laneOpponent: { championName: "Lux" }, win: true, remake: false },
+      { items: [3157], laneOpponent: { championName: "Lux" }, win: true, remake: true },
+      { items: [3020], laneOpponent: { championName: "Zed" }, win: false, remake: true },
+    ]);
+    const resolveSummoner = vi.fn().mockResolvedValue({ puuid: "puuid-vyoh" });
+
+    const result = await makeService(prisma, { resolveSummoner }).getChampionExtras(
+      "euw1",
+      "Vyoh",
+      "Ahri",
+      "Ahri"
+    );
+
+    expect(result.topItems).toEqual([{ itemId: 3157, games: 1, wins: 1 }]);
+    expect(result.matchups).toEqual([{ champion: "Lux", games: 1, wins: 1 }]);
+  });
+
+  it("selects the remake column so the filter has something to read", async () => {
+    const prisma = makePrisma();
+    prisma.match.findMany.mockResolvedValue([]);
+    const resolveSummoner = vi.fn().mockResolvedValue({ puuid: "puuid-vyoh" });
+
+    await makeService(prisma, { resolveSummoner }).getChampionExtras(
+      "euw1",
+      "Vyoh",
+      "Ahri",
+      "Ahri"
+    );
+
+    expect(prisma.match.findMany.mock.calls[0]?.[0]?.select).toHaveProperty(
+      "remake",
+      true
+    );
+  });
+
+  it("throws Forbidden when the account isn't whitelisted", async () => {
+    const prisma = makePrisma();
+    const service = makeService(prisma, {
+      isLolAccountAllowed: vi.fn().mockReturnValue(false),
+    });
+    await expect(
+      service.getChampionExtras("euw1", "Vyoh", "Ahri", "Ahri")
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
 });
 
 describe("LolChampionAnalyticsService.getChampionRecap", () => {
+  it("throws Forbidden when the account isn't whitelisted", async () => {
+    const prisma = makePrisma();
+    const service = makeService(prisma, {
+      isLolAccountAllowed: vi.fn().mockReturnValue(false),
+    });
+    await expect(
+      service.getChampionRecap("euw1", "Vyoh", "Ahri", "Ahri")
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
   function matchRow(
     overrides: Partial<Record<string, unknown>> = {}
   ): Record<string, unknown> {
