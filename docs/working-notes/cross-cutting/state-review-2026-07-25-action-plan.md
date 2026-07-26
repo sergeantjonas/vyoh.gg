@@ -347,7 +347,26 @@ Correct contiguous deletion ranges: **`:146-265`** (extras + recap) and **`:1133
 
 ## Deferred
 
-- **Biome 1.9.4 → 2.5.5** — its own 3-commit arc, not a small item. Migration is trivial (4 mechanical config edits), but v2 reports ~571 errors / 189 warnings: a ~495-file `organizeImports` diff (v2 sorts named specifiers inside the braces), ~29 reformatted files, and 23 error-level lint findings needing human judgement (9 `noUnsafeOptionalChaining`, 13 a11y, 1 `useIterableCallbackReturn`). Re-measure in-repo first — the 571/189 figures came from a scratchpad config scanning ~70 extra files, and the "48 unused suppressions" explanation is wrong (v1 already reports that rule and `check:cc` is clean today).
+- **Biome 1.9.4 → 2.5.5** — its own 3-commit arc, not a small item. **Measured in-repo 2026-07-26** (superseding the ~571/189 estimate, which came from a scratchpad config scanning ~70 extra files): `biome migrate --write` converts the config cleanly in one pass, then `biome ci .` over 1,156 files reports **599 errors / 79 warnings**.
+
+  | Count | Rule | Character |
+  |---|---|---|
+  | 511 | `assist/source/organizeImports` | mechanical, auto-fixable — v2 sorts named specifiers inside the braces |
+  | 28 | `complexity/useOptionalChain` | auto-fixable |
+  | 19 | `a11y/*` | 10 `useSemanticElements`, 5 `useAriaPropsSupportedByRole`, 3 `noStaticElementInteractions`, 1 `noSvgWithoutTitle` |
+  | 15 | `suspicious/noTemplateCurlyInString` | judgement; likely false positives in fixtures |
+  | 15 | `style/noDescendingSpecificity` | CSS, new in v2 |
+  | 15 | `correctness/noUnknownTypeSelector` | CSS; suspect Tailwind/custom selectors |
+  | 10 | `correctness/useHookAtTopLevel` | judgement, possibly real |
+  | 9 | `correctness/noUnsafeOptionalChaining` | real; matches the original estimate |
+  | 9 | `complexity/noImportantStyles` | CSS `!important`, probably deliberate |
+  | 4+1+1+1+3 | `noArrayIndexKey`, `useIterableCallbackReturn`, `noUnusedVariables`, `noUnusedImports`, `noUnknownProperty` | small tail |
+
+  **The blocker on landing it piecemeal:** ~88 findings survive the auto-fixes, so a mechanical-only first commit leaves `check:cc` red, which breaks the pre-commit gate and main. Any staged plan has to either fix them all in one commit or deliberately set the unresolved rules to `off` with a tracked note, which is an owner decision rather than a mechanical one.
+
+  Note the CSS weight: five of the ten judgement rules (`noDescendingSpecificity`, `noUnknownTypeSelector`, `noImportantStyles`, `noUnknownProperty`, `noUnknownMediaFeatureName`) are CSS rules v2 enables and v1 did not. Biome 2 also fails to parse `apps/web/src/index.css` outright, which needs looking at before any of those counts can be trusted.
+
+  Suggested shape: (1) bump + config migrate + `check --write` mechanical fixes + explicitly disable the unresolved rules with reasons, landing green; (2) CSS rules, re-enabled one at a time; (3) the correctness tail (`noUnsafeOptionalChaining`, `useHookAtTopLevel`, `noArrayIndexKey`, `useIterableCallbackReturn`).
 - **`concurrently` 9 → 10** — decided in HEAD (`eb5ac211`). 10.0.3 pins `shell-quote` to an exact `1.8.4`; 9.2.4 floats to the patched `1.9.0`. Re-open only if upstream loosens the pin. Record the rationale in `docs/working-notes/ops/security.md` so the next sweep stops re-proposing it.
 - **`@types/node` 24 → 26** — skip. Four packages pin `^24.13.3` while the runtime is Node 22; 26 makes the types four majors ahead of the runtime with a silent failure mode. The correct direction is `^22`, which is a separate decision.
 - **`dropdown-menu.tsx` (12 fns) and `installViewTransitionLifecycleLogger` (8 fns)** — the two highest-value remaining web coverage targets, both behind unproven mechanisms. Radix DropdownMenu does not open in happy-dom (`matches-breadcrumb.test.tsx:64`); unlocking it likely needs `Element.prototype.hasPointerCapture` + a ResizeObserver stub in `test-setup.ts` (6 lines, cleanup only), which would be its own commit and unlock every future Radix-menu test. The VT logger needs `localStorage["vt-debug"]` + a fake `document.startViewTransition` + `vi.resetModules()` + a fresh module import in a **new** file (its `__vtLoggerInstalled` one-shot guard cannot be reset, and `view-transition-nav.test.ts`'s own setVT/clearVT helpers mutate the same property). Simplest alternative: export the function — it is dev-only tooling.
