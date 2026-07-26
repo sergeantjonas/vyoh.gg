@@ -10,6 +10,7 @@ import { Nav } from "@/components/nav";
 import { NotFound } from "@/components/not-found";
 import { ScrollProgress } from "@/components/scroll-progress";
 import { ScrollToTop } from "@/components/scroll-to-top";
+import { meQueryOptions } from "@/identity/use-me";
 import { API_PUBLIC_URL } from "@/lib/api-url";
 import { PresenceMounts } from "@/lib/presence-mounts";
 import { routeOwnsEntry } from "@/lib/route-owns-entry";
@@ -32,7 +33,7 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import { m } from "motion/react";
-import { Suspense, lazy, useEffect, useLayoutEffect, useRef } from "react";
+import { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from "react";
 import appCss from "../index.css?url";
 // `?url` rather than a bare side-effect import: the shell needs a real
 // <link rel="stylesheet"> in the server-rendered HTML. A bare import works in
@@ -70,6 +71,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   component: RootLayout,
   shellComponent: RootDocument,
   notFoundComponent: NotFound,
+  // Awaited at the root because almost everything downstream is keyed off it:
+  // `useAccountFromSlug` resolves the LoL section's account out of this list,
+  // `/lol` picks its redirect target from it, and `/` reads the primary
+  // account. Priming it once here means every section route can render an
+  // identity on the server instead of a spinner, at the cost of one request
+  // that every route was going to make anyway.
+  //
+  // Deliberately NOT wrapped in try/catch. A failure here is the api being
+  // unreachable, and `errorComponent` is the right place to say so — swallowing
+  // it would hand every child route an empty account list and render a
+  // confident "no accounts" page against what is really an outage.
+  loader: ({ context: { queryClient } }) => queryClient.ensureQueryData(meQueryOptions()),
   // The base document head, absorbed from index.html when the Start shell took
   // over. Per-route head() exports merge over this, so anything a deep route
   // overrides (title, description, og:image) only needs its own key here as a
@@ -145,6 +158,12 @@ function RootLayout() {
     reportWebVitals();
   }, []);
   useFaviconDot();
+  // False through the server render AND the hydrating client render, so both
+  // agree; flipped by an effect that only ever runs in the browser. The scope
+  // fade below reads it to suppress its entrance on the very first paint —
+  // see the comment at the `initial` prop for why that matters.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
   const perfEnabled = usePerfFlag();
   const scope = useRouterState({
     select: (s) => topLevelScope(s.location.pathname),
@@ -302,7 +321,21 @@ function RootLayout() {
                 >
                   <m.div
                     key={scope}
-                    initial={ownsEntry ? false : { opacity: 0 }}
+                    // `!hydrated` suppresses the fade for the first paint
+                    // only. Server-rendered markup that starts at opacity 0
+                    // is invisible until Motion runs, which costs the two
+                    // things this migration exists to buy: an HTML-only
+                    // crawler sees the page's primary content behind an
+                    // opacity rule, and LCP does not count an element that
+                    // has not painted, so the largest element's timestamp
+                    // slips to whenever hydration finishes.
+                    //
+                    // Nothing is lost visually — there is no previous route
+                    // to fade away from on a cold load. `key={scope}` still
+                    // remounts on every cross-scope navigation, and by then
+                    // `hydrated` is true, so the fade re-engages exactly
+                    // where it was always meant to run.
+                    initial={ownsEntry || !hydrated ? false : { opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.35, ease: "easeOut" }}
                   >

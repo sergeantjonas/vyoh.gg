@@ -170,6 +170,14 @@ async function fetchCachedMatches(
   return res.json();
 }
 
+// Deliberately NOT exposed as a `queryOptions` factory for a route loader.
+// The window this backs is 2000 matches / ~350 kB of JSON, and a loader that
+// awaits it does not just spend server time — the integration serialises every
+// resolved query into the HTML, so the document grows by the full payload.
+// That trade is wrong here twice over: the champion table's audience is the
+// owner rather than a crawler, and the rendered output is two orders of
+// magnitude smaller than its input. See repo-conventions.md § "Server-render
+// the routes a crawler cares about".
 export function useCachedMatchesWindow(
   account: LolAccount | undefined,
   count: number,

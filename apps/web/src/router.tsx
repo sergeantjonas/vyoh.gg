@@ -4,6 +4,7 @@ import { toastError } from "@/lib/toast";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
+import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import { LazyMotion, MotionConfig, domMax } from "motion/react";
 import { StrictMode, Suspense, lazy } from "react";
 import { getNavigationType } from "./lib/navigation-type";
@@ -61,7 +62,7 @@ export function getRouter() {
     }),
   });
 
-  return createRouter({
+  const router = createRouter({
     routeTree,
     // Route loaders read the Query cache through this context. Its shape is
     // declared by `createRootRouteWithContext` in routes/__root.tsx, which is
@@ -132,6 +133,24 @@ export function getRouter() {
       },
     },
   });
+
+  // Carries the Query cache across the SSR boundary. Without it a loader that
+  // awaits data warms only the *server's* cache: the server render has the
+  // data, the freshly-built client cache does not, so the first client render
+  // falls back to the pending branch and React reports a hydration mismatch
+  // against markup that was correct. The integration dehydrates resolved
+  // queries into the SSR stream and hydrates them before the client renders,
+  // which is what makes `useQuery` return primed data synchronously on both
+  // sides. It also streams queries that settle *after* the shell flushes, so a
+  // non-blocking loader still lands its data without a client-side refetch.
+  //
+  // `wrapQueryClient: false` because `Wrap` above already provides the same
+  // instance. Left at the default, this wraps a SECOND QueryClientProvider
+  // around it — same client, so no cache split, but a redundant provider that
+  // makes `router.test.ts`'s identity assertion read the wrong one.
+  setupRouterSsrQueryIntegration({ router, queryClient, wrapQueryClient: false });
+
+  return router;
 }
 
 declare module "@tanstack/react-router" {

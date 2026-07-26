@@ -94,6 +94,29 @@ Note the limit of the guarantee: this is compile-time only. `class-validator` co
 
 **This is unlinted** — `biome.json` sets no `useExplicitType` and `apps/api/src/conventions.spec.ts` carries no controller assertion — so it holds by review, not by tooling. A 2026-07-26 audit measured the actual posture at 58 of 61 web fetch sites and 62 of 65 JSON-returning handlers already conforming, with the 6 stragglers tracked in [open-work.md](./working-notes/open-work.md). If that ratio ever slips, add the lint rather than re-auditing.
 
+### Server-render the routes a crawler cares about; not the ones the owner cares about
+
+Under TanStack Start, a route renders on the server with whatever its `loader` awaited into the Query cache. Everything the loader awaits is then **serialised into the HTML** so the client can hydrate against it without refetching. That second half is the part that decides the rule: a route loader is not free, and its cost scales with the payload rather than with the render.
+
+So priming is a per-route judgement, made against two questions:
+
+> **Is this route's content something an HTML-only crawler should read?** and **is the data behind it small relative to what it renders?**
+
+Both yes → await it in the loader. Either no → leave it client-side.
+
+- **Prime**: `/lol/patches` and `/lol/patches/$version`. Patch notes are the page's indexable content, the payload is ~30 kB, and the rendered text is roughly the whole of it. Measured 2026-07-26: 61 → 1838 characters of server-rendered text.
+- **Prime**: the root route's `meQueryOptions()`. Small, and the entire LoL section resolves its account out of it, so one request lets every section route emit an identity instead of a spinner.
+- **Do not prime**: the champion table's `useCachedMatchesWindow(account, 2000)`. The window is ~350 kB of JSON that renders down to ~150 aggregated rows, and its audience is the owner, not a crawler. Awaiting it would add the full 350 kB to every document to save one client fetch.
+
+**Why:** the migration exists for AI-search and first-pass indexing ([tanstack-start-migration.md](./working-notes/cross-cutting/tanstack-start-migration.md) § Motivation), and both read static HTML. But a document that carries a large dehydrated cache is slower to deliver and pushes LCP out, which is the ranking signal the same migration is trying to protect. "SSR everything" trades one goal for the other without anyone deciding to.
+
+**How to apply:** when adding a route, ask the two questions above before writing a `loader`. If you prime, go through a shared `queryOptions` factory — the loader and the hook must build the same cache key, and a loader that constructs the key inline warms an entry the component never reads. That failure is quiet in exactly the wrong way: the data shows up in the dehydrated payload, so the page looks primed while the component still renders its pending branch. If you skip priming, say so at the hook with the payload size, so the next reader doesn't "fix" the omission.
+
+Two more traps worth knowing before writing a loader:
+
+- **Cover the whole loading gate, not one query.** Dependent queries have to be chained (`/lol/patches` awaits the list, reads the newest version off it, then awaits that changeset). Priming one of two leaves the page rendering its skeleton, because a gate like `!changes && (list === undefined || changesPending)` needs both.
+- **Data crossing the boundary needs `setupRouterSsrQueryIntegration`** (wired in [router.tsx](../apps/web/src/router.tsx)). Without it the server render has the data and the fresh client cache does not, so a correct server response hydrates into a pending branch and React reports a mismatch. `router.test.ts` pins that the hook is installed.
+
 ### Centralise domain invariants that must apply to every aggregation in a feature
 
 If a predicate or filter must hold for *every* stat computation, rollup, or display in a feature domain, define it as a named helper in `packages/shared/src/<domain>/` — never inline it at each call site. An inlined filter can be silently omitted when a new aggregation is added under time pressure; a named helper cannot.

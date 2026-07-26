@@ -1,5 +1,5 @@
 import { HttpError } from "@/lib/http-error";
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { Me } from "@vyoh/shared";
 
 import { API_URL } from "@/lib/api-url";
@@ -19,10 +19,20 @@ async function fetchMe(): Promise<Me> {
   return res.json();
 }
 
-export function useMe() {
-  return useQuery({
+// The account list every other surface keys off: which Riot accounts exist,
+// which is primary, and the slug→account mapping that `useAccountFromSlug`
+// resolves. The root route awaits this so `useMe()` is already resolved on the
+// server render, which is what lets a section route emit an identity instead
+// of a spinner. Kept as a factory so the loader and the hook cannot drift onto
+// different cache keys.
+export function meQueryOptions() {
+  return queryOptions({
     queryKey: ["me"],
     queryFn: fetchMe,
     staleTime: 30_000,
   });
+}
+
+export function useMe() {
+  return useQuery(meQueryOptions());
 }

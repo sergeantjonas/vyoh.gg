@@ -10,6 +10,9 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 vi.mock("./routeTree.gen", () => ({ routeTree: {} }));
 
+const toastError = vi.fn();
+vi.mock("./lib/toast", () => ({ toastError: (msg: string) => toastError(msg) }));
+
 import { getRouter } from "./router";
 
 const clientOf = (router: ReturnType<typeof getRouter>) =>
@@ -72,6 +75,33 @@ describe("getRouter", () => {
     const provider = findElementByType(wrapped ?? null, "QueryClientProvider");
 
     expect((provider?.props as { client?: unknown }).client).toBe(clientOf(router));
+  });
+
+  it("installs the SSR query hydration hook", () => {
+    // `setupRouterSsrQueryIntegration` is what carries loader-primed data
+    // across the server→client boundary. Drop the call and every awaited
+    // loader still renders correct HTML, then hydrates against an empty
+    // client cache — the failure shows up as a hydration mismatch and a
+    // refetch of data the page already had, not as a build error.
+    expect(typeof getRouter().options.hydrate).toBe("function");
+  });
+
+  it("keeps the error toast on the query cache the integration rewires", () => {
+    // The integration replaces `queryCache.config` wholesale to intercept
+    // redirects, calling through to whatever was there. If that call-through
+    // ever regresses, background-refresh failures go silent: no error, no
+    // toast, and stale data on screen with nothing to explain it.
+    toastError.mockClear();
+    const client = clientOf(getRouter());
+
+    client.getQueryCache().config.onError?.(
+      new Error("boom"),
+      // Only queries that already hold data toast — a first-load failure is
+      // rendered by the surface itself.
+      { state: { data: "cached" } } as never
+    );
+
+    expect(toastError).toHaveBeenCalledWith("boom");
   });
 
   it("passes the QueryClient through router context so loaders share it", () => {
