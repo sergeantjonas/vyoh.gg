@@ -1,6 +1,6 @@
 # State-of-the-app review — 2026-07-25
 
-**Status:** Reference — full-sweep audit (Phases 0–6) run on `main` @ `eb5ac211`, **now executed**. The sweep itself was read-only; the arc it produced landed as 23 commits on 2026-07-25/26 and closed F-1 through F-8 and F-10 through F-13, plus F-15. F-14 is partial (`size-limit` bumped, `typescript` 7 reverted — see below). **Still open: F-9** (drop awaiting sign-off), plus the follow-ups listed in [open-work.md](../open-work.md). F-18 was found and fixed on 2026-07-26 by the first CI run the F-1 fix made capable of failing. Per-finding resolutions are recorded inline against each finding.
+**Status:** Reference — full-sweep audit (Phases 0–6) run on `main` @ `eb5ac211`, **now executed**. The sweep itself was read-only; the arc it produced landed as 23 commits on 2026-07-25/26 and closed F-1 through F-8 and F-10 through F-13, plus F-15. F-14 is partial (`size-limit` bumped, `typescript` 7 reverted — see below). **Every finding F-1 through F-18 is now closed**, except F-14, which is partial by decision (`size-limit` bumped; `typescript` 7 blocked on the Nest CLI until TS 7.1). Remaining work is the follow-ups listed in [open-work.md](../open-work.md), which are new items surfaced by this arc rather than original findings. F-18 was found and fixed on 2026-07-26 by the first CI run the F-1 fix made capable of failing. Per-finding resolutions are recorded inline against each finding.
 
 ---
 
@@ -60,7 +60,7 @@ Working tree is clean. Two stashes, both **~10 weeks old** (2026-05-17):
 - Both stashes' `routeTree.gen.ts` hunks register an **account-scoped `/lol/$accountSlug/patches` route**. [patches-as-global-surface.md:3](../lol/patches-as-global-surface.md) records that route as deliberately removed ("account-scoped patches routes removed; Patches dropped from the account TABS"), and `apps/web/src/routes/lol/$accountSlug/patches.tsx` does not exist. Applying either would re-introduce a route the project chose to delete.
 - `stash@{1}`'s only other content is the `ChangeKindGlyph` extraction, already shipped at `apps/web/src/lol/patches/change-kind-glyph.tsx` — diffed against the stash's parent and **byte-identical** apart from the added `export` keyword — plus the matching `TABS` entry the same decision removed.
 
-**Not dropped.** `git stash drop` is destructive and these are owner-local, so it needs an explicit go-ahead rather than riding the plan's authorization. Drop order matters: `stash@{1}` first, because dropping `{0}` first renumbers `{1}`.
+**Dropped by the owner, 2026-07-26.** `git stash list` is now empty. The inspection above is retained because it is the evidence that dropping them was safe, not a pending action.
 
 ### Markers, skipped tests, dead flags
 
@@ -305,7 +305,7 @@ Also stale in the same neighbourhood: "pnpm 10" at `README.md:33`, `README.md:54
 
 ---
 
-**F-9 · Two stashes from 2026-05-17 are dead. CONFIRMED — inspection done 2026-07-26, drop awaiting owner sign-off.** `stash@{0}` is generated-file noise (`routeTree.gen.ts` only); `stash@{1}` touches `profile-patch-notice.tsx` and predates the shipped global-patches arc. Ten weeks old. Both verified fully superseded — evidence in [§2 Uncommitted work](#uncommitted-work) above. **Fix:** `git stash drop 'stash@{1}'` then `git stash drop 'stash@{0}'` (that order — dropping `{0}` first renumbers `{1}`). Held back because dropping stashes is destructive and owner-local. **Effort:** 1 min.
+**F-9 · Two stashes from 2026-05-17 are dead. CONFIRMED — CLOSED 2026-07-26, dropped by the owner.** `stash@{0}` is generated-file noise (`routeTree.gen.ts` only); `stash@{1}` touches `profile-patch-notice.tsx` and predates the shipped global-patches arc. Ten weeks old. Both verified fully superseded — evidence in [§2 Uncommitted work](#uncommitted-work) above. Held back from the automated pass because dropping stashes is destructive and owner-local; the owner dropped both directly. `git stash list` is empty. **Effort:** 1 min.
 
 **F-10 · `scroll-container-context.tsx` drives visible state with no test. CONFIRMED. — FIXED 2026-07-26.** `apps/web/src/lib/scroll-container-context.tsx:43-58` holds a module-level `openPanelCount` pubsub that `ScrollToTop` reads to hide itself while a panel is open. The repo bar names "context providers that drive visible state" explicitly. Of the four context files with no sibling test, the other three (`active-match-context`, `match-window-context`, `command-palette-context`) are covered indirectly by 3–6 test files each; this one is referenced by **zero**. **Fix:** a small test for register/unregister → subscriber notification. **Effort:** 20 min.
 
