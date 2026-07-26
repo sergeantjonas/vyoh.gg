@@ -216,7 +216,7 @@ Out of initial scope. When mobile-first work picks up, swap the desktop slide-ov
 
 ## TanStack Start migration interaction
 
-Per [tanstack-start-migration.md](tanstack-start-migration.md): the Start migration is committed direction but priority-slotted **after** MR3/MR4 + PN1–PN4 + TFT shape ship. This arc is **migration-neutral**, and arguably *improves* under Start:
+Per [tanstack-start-migration.md](tanstack-start-migration.md): the Start migration is committed direction, and as of 2026-07-26 all its trigger conditions are clear (TFT was cut from the trigger; MR1–MR4 + PN1–PN4 shipped). This arc is **migration-neutral**, and arguably *improves* under Start:
 
 - **URL-as-state is exactly the loader-friendly shape.** Every panel state is a real URL; Start loaders server-prime both the list and the panel queries on cold arrival.
 - **Cold-arrival experience improves.** Today: list loads via `useQuery` on mount, then panel loads its detail data — two cascading client-side fetches. Under Start: SSR delivers list HTML + panel HTML together, hydrate runs, virtualizer scrolls to row. No client-side load flash on direct deep-link arrivals.

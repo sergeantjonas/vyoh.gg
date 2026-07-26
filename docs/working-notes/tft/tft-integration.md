@@ -1,6 +1,6 @@
 # TFT integration
 
-**Status:** Active — warm but not urgent, queued behind Steam. Owner not playing the current set, so this is a "when it's cheap, not when it's urgent" arc. Shares Riot key, rate-limiter, and auth scaffolding with LoL; will compose `<SectionShell>` and the recap / `ConclusionCard` engine — do not build as a parallel system.
+**Status:** Active — warm but not urgent, queued behind Steam. Owner not playing the current set, so this is a "when it's cheap, not when it's urgent" arc. **This note no longer gates the TanStack Start migration** — TFT was cut from that trigger on 2026-07-26 and now lands *after* Start, built once against SSR instead of retrofitted from an SPA shape (reasoning in [tanstack-start-migration.md § Priority slot](../cross-cutting/tanstack-start-migration.md#priority-slot--when-to-do-this)). Shares Riot key, rate-limiter, and auth scaffolding with LoL; will compose `<SectionShell>` and the recap / `ConclusionCard` engine — do not build as a parallel system.
 
 A working note for the planned TFT (Teamfight Tactics) integration. Stated cadence (owner, 2026-05-14): **warm but not urgent** — owner played TFT heavily in earlier sets but is not playing the current set, so promoting this is a "when it's cheap, not when it's urgent" move. Steam ([steam-integration.md](../steam/steam-integration.md)) is the more committed near-term arc.
 
@@ -15,6 +15,7 @@ Sibling docs: [self-portrait-surfaces.md](../cross-cutting/self-portrait-surface
 - **Warm, not urgent.** Owner is not actively playing the current TFT set; do not propose starting this ahead of LoL feature work or Steam integration.
 - **Lowest activation cost of any "new game" integration.** Riot key, rate-limiter, asset pipeline, puuid model all already exist — TFT lights up by adding the new match endpoint and a TFT-specific match schema.
 - **Strongest narrative payoff:** the cross-game framing. "Same player across LoL and TFT" is the visible move that lifts vyoh.gg from "LoL stats" to "Riot account portrait."
+- **Lands after the Start migration, not before it** (decided 2026-07-26). Scope TFT against SSR conventions when the time comes: routes get a `loader` and a `head()` from the outset, and `/tft` registers a `topLevelScope` case plus `useScrollResetOnNav` in its section root. This is cheaper than the pre-Start alternative, not more expensive — the surfaces get built once, in their final shape.
 
 ---
 
