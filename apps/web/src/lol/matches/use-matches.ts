@@ -1,5 +1,6 @@
 import { HttpError } from "@/lib/http-error";
 import {
+  infiniteQueryOptions,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -292,8 +293,17 @@ export function useMatchEventsSubscription(account: LolAccount | undefined): voi
   }, [region, gameName, tagLine, queryClient]);
 }
 
-export function useCachedMatches(account: LolAccount | undefined, queue?: number) {
-  return useInfiniteQuery({
+// Single source of the cache key for the match list. Three callers reach for
+// this query — the list hook, the route loader that server-renders it, and the
+// nav/palette prefetch on hover — and each one used to spell the key out for
+// itself. Two of those spellings have to agree exactly or the prefetch warms an
+// entry the list never reads, which fails silently: the data is in the cache,
+// the list still shows a spinner.
+export function cachedMatchesInfiniteQueryOptions(
+  account: LolAccount | undefined,
+  queue?: number
+) {
+  return infiniteQueryOptions({
     queryKey: [
       "lol",
       "matches-cached-infinite",
@@ -320,21 +330,13 @@ export function useCachedMatches(account: LolAccount | undefined, queue?: number
   });
 }
 
+export function useCachedMatches(account: LolAccount | undefined, queue?: number) {
+  return useInfiniteQuery(cachedMatchesInfiniteQueryOptions(account, queue));
+}
+
 export async function prefetchCachedMatches(
   queryClient: QueryClient,
   account: LolAccount
 ): Promise<void> {
-  await queryClient.prefetchInfiniteQuery({
-    queryKey: [
-      "lol",
-      "matches-cached-infinite",
-      account.region,
-      account.gameName,
-      account.tagLine,
-      undefined,
-    ],
-    queryFn: ({ pageParam }) =>
-      fetchCachedMatches(account, pageParam as number, MATCHES_PAGE_SIZE, undefined),
-    initialPageParam: 0,
-  });
+  await queryClient.prefetchInfiniteQuery(cachedMatchesInfiniteQueryOptions(account));
 }

@@ -1,4 +1,5 @@
 import { routeMeta } from "@/lib/route-meta";
+import { steamWishlistQueryOptions } from "@/steam/use-wishlist";
 import { WishlistAllPanel } from "@/steam/wishlist/wishlist-all-panel";
 import {
   type WishlistTab,
@@ -17,6 +18,11 @@ interface WishlistSearch {
 
 export const Route = createFileRoute("/steam/wishlist")({
   component: WishlistPage,
+  // Both tabs read the one wishlist query, and it is 7 kB served from the
+  // backend's own GetWishlist cache in ~1 ms. Small, fast, and it is the whole
+  // of what either panel renders.
+  loader: ({ context: { queryClient } }) =>
+    queryClient.ensureQueryData(steamWishlistQueryOptions()),
   validateSearch: (search: Record<string, unknown>): WishlistSearch => {
     const raw = search.appid;
     const parsed =

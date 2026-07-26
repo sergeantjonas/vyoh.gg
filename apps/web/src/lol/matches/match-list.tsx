@@ -1,5 +1,5 @@
 import { VirtualizerStats } from "@/components/virtualizer-stats";
-import { mainScrollRef } from "@/lib/scroll-container";
+import { SSR_VIEWPORT_HEIGHT, mainScrollRef } from "@/lib/scroll-container";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { useActiveMatch } from "@/lol/matches/active-match-context";
@@ -187,6 +187,21 @@ export function MatchList({
     scrollMargin,
     overscan: 4,
     getScrollElement: () => mainScrollRef.current,
+    // The scroll element does not exist during a server render, and the
+    // virtualizer measures its window from that element — so without a stated
+    // rect it computes a zero-height viewport and emits no rows at all. That is
+    // what made this the emptiest document in the app: a route whose entire
+    // content is the list, served as an empty div.
+    //
+    // The same value is what the client's FIRST render sees, which is the
+    // property that keeps hydration honest. `mainScrollRef` is assigned by a
+    // callback ref on <main>, and React runs refs during commit — after the
+    // whole tree has rendered. So the hydrating render reads `null` here
+    // exactly like the server did, computes the same range from the same
+    // estimate, and matches the markup it is hydrating. The real element
+    // arrives in the layout effect that follows, and the virtualizer remeasures
+    // then, which is the same sequence a client-side mount has always run.
+    initialRect: { width: 0, height: SSR_VIEWPORT_HEIGHT },
   });
 
   const items = virtualizer.getVirtualItems();

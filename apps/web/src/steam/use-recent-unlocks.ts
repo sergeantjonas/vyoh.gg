@@ -1,5 +1,5 @@
 import { HttpError } from "@/lib/http-error";
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { SteamRecentUnlocks } from "@vyoh/shared";
 
 import { API_URL } from "@/lib/api-url";
@@ -23,10 +23,14 @@ async function fetchRecentUnlocks(limit: number): Promise<SteamRecentUnlocks> {
 // recently-played backstop + 4-hourly global sweep. 30min stale-time matches
 // the surrounding owned-games hooks and keeps in-session navigation silent;
 // a new unlock surfaces within a session-end + one render tick.
-export function useRecentUnlocks(limit: number) {
-  return useQuery({
+export function recentUnlocksQueryOptions(limit: number) {
+  return queryOptions({
     queryKey: ["steam", "achievements", "recent", limit],
     queryFn: () => fetchRecentUnlocks(limit),
     staleTime: 30 * 60 * 1_000,
   });
+}
+
+export function useRecentUnlocks(limit: number) {
+  return useQuery(recentUnlocksQueryOptions(limit));
 }

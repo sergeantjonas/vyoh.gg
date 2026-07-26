@@ -98,24 +98,48 @@ Note the limit of the guarantee: this is compile-time only. `class-validator` co
 
 Under TanStack Start, a route renders on the server with whatever its `loader` awaited into the Query cache. Everything the loader awaits is then **serialised into the HTML** so the client can hydrate against it without refetching. That second half is the part that decides the rule: a route loader is not free, and its cost scales with the payload rather than with the render.
 
-So priming is a per-route judgement, made against two questions:
+So priming is a per-route judgement, made against three questions:
 
-> **Is this route's content something an HTML-only crawler should read?** and **is the data behind it small relative to what it renders?**
+> **Is this route's content something an HTML-only crawler should read?** and **is the data behind it small relative to what it renders?** and **does the api answer it fast enough to sit in the critical path?**
 
-Both yes → await it in the loader. Either no → leave it client-side.
+All three yes → await it in the loader. Any no → leave it client-side.
 
 - **Prime**: `/lol/patches` and `/lol/patches/$version`. Patch notes are the page's indexable content, the payload is ~30 kB, and the rendered text is roughly the whole of it. Measured 2026-07-26: 61 → 1838 characters of server-rendered text.
 - **Prime**: the root route's `meQueryOptions()`. Small, and the entire LoL section resolves its account out of it, so one request lets every section route emit an identity instead of a spinner.
+- **Prime**: `/lol/$accountSlug/matches` (25 kB / 6 ms), `/steam/achievements` (23 kB / 4 ms), `/steam/wishlist` (7 kB / 1 ms). Each one's list *is* its page, and each reads our own Postgres cache rather than an upstream. Measured 2026-07-27: 62 → 1506, 176 → 1302, 184 → 628 characters.
 - **Do not prime**: the champion table's `useCachedMatchesWindow(account, 2000)`. The window is ~350 kB of JSON that renders down to ~150 aggregated rows, and its audience is the owner, not a crawler. Awaiting it would add the full 350 kB to every document to save one client fetch.
+- **Do not prime**: `/steam/library`'s owned-games query. 664 kB — the same objection as the champion window, twice over.
+- **Do not prime**: `/steam`'s `steamSummaryQueryOptions`. It is only 854 bytes, so it passes both size questions, and it is still wrong: it calls Steam live and measured **~900 ms warm across three runs**. Awaiting it would park every `/steam` document behind almost a second of upstream latency, which costs more LCP than server-rendering the page could ever return. This is the case that made the third question exist — payload size alone would have said yes.
 
 **Why:** the migration exists for AI-search and first-pass indexing ([tanstack-start-migration.md](./working-notes/cross-cutting/tanstack-start-migration.md) § Motivation), and both read static HTML. But a document that carries a large dehydrated cache is slower to deliver and pushes LCP out, which is the ranking signal the same migration is trying to protect. "SSR everything" trades one goal for the other without anyone deciding to.
 
-**How to apply:** when adding a route, ask the two questions above before writing a `loader`. If you prime, go through a shared `queryOptions` factory — the loader and the hook must build the same cache key, and a loader that constructs the key inline warms an entry the component never reads. That failure is quiet in exactly the wrong way: the data shows up in the dehydrated payload, so the page looks primed while the component still renders its pending branch. If you skip priming, say so at the hook with the payload size, so the next reader doesn't "fix" the omission.
+**How to apply:** when adding a route, ask the three questions above before writing a `loader`. Time the endpoint before you decide — `curl -o /dev/null -w '%{size_download}B %{time_total}s'` three times answers all three questions in one command, and the latency one is invisible from reading the code. If you prime, go through a shared `queryOptions` factory — the loader and the hook must build the same cache key, and a loader that constructs the key inline warms an entry the component never reads. That failure is quiet in exactly the wrong way: the data shows up in the dehydrated payload, so the page looks primed while the component still renders its pending branch. If you skip priming, say so at the hook with the payload size, so the next reader doesn't "fix" the omission.
 
 Two more traps worth knowing before writing a loader:
 
 - **Cover the whole loading gate, not one query.** Dependent queries have to be chained (`/lol/patches` awaits the list, reads the newest version off it, then awaits that changeset). Priming one of two leaves the page rendering its skeleton, because a gate like `!changes && (list === undefined || changesPending)` needs both.
 - **Data crossing the boundary needs `setupRouterSsrQueryIntegration`** (wired in [router.tsx](../apps/web/src/router.tsx)). Without it the server render has the data and the fresh client cache does not, so a correct server response hydrates into a pending branch and React reports a mismatch. `router.test.ts` pins that the hook is installed.
+
+### A server/client branch during render is a hydration bug, not a safety guard
+
+`if (typeof window === "undefined")` inside a render path reads as defensive, and under SSR it is the opposite. The server takes one branch; the client's **first** render — the one that hydrates — takes the other. React does not reconcile that difference. It throws away the entire server-rendered tree and re-renders the route on the client.
+
+That failure mode is what makes this worth a convention: **the page still works**. Nothing is visibly broken, no test fails, and the only evidence is a console error most of the time nobody is looking at. What is silently gone is the whole benefit of server-rendering that route — the markup a crawler reads still ships, but every user pays the full client render anyway. A 2026-07-27 sweep found three of these live at once, and between them they were discarding the server tree on `/`, all of `/lol`, and all of `/steam` — every route the migration had just been built for.
+
+The rule is about *when* a value is read, not whether it is browser-only:
+
+| Reading | Wrong | Right |
+|---|---|---|
+| A media query | `useState(() => matchMedia(q).matches)` | `useSyncExternalStore(subscribe, getSnapshot, () => false)` — [use-media-query.ts](../apps/web/src/lib/use-media-query.ts) |
+| localStorage / a persisted pref | lazy `useState` initialiser | seed the default, adopt the stored value in an effect — [serious-queues.tsx](../apps/web/src/lol/_shared/serious-queues/serious-queues.tsx) |
+| A portal, or anything needing the DOM | `typeof document === "undefined"` | `useHydrated()` — [use-hydrated.ts](../apps/web/src/lib/use-hydrated.ts) |
+| A virtualizer's scroll element | let it measure `null` and emit nothing | state `initialRect` — `SSR_VIEWPORT_HEIGHT` in [scroll-container.ts](../apps/web/src/lib/scroll-container.ts) |
+
+`useSyncExternalStore` is the preferred shape wherever it fits, because it is the only one that knows whether React is hydrating: `getServerSnapshot` answers the server render *and* the hydrating render, while `getSnapshot` answers every later render — including the first render of a component mounted by a client-side navigation, which therefore still reads the true value synchronously and never flashes. `useHydrated()` costs that component one extra commit, so prefer it for things that genuinely cannot exist server-side rather than for values that merely differ. One trap inside it: `getServerSnapshot` must return a **stable reference**, since React compares snapshots with `Object.is`. Returning a fresh object literal per call earns "The result of getServerSnapshot should be cached to avoid an infinite loop" — see `SERVER_PREFS` in [use-audio.ts](../apps/web/src/lib/use-audio.ts). Primitives are fine as-is.
+
+**How to apply:** grep for `typeof window`/`typeof document` before adding one, and ask whether the enclosing function runs during render. In an event handler or an effect it is fine — those never run on the server. In a render body, a lazy `useState` initialiser, or a `useMemo`, it is this bug.
+
+Two things do **not** catch it, which is why it lasted: a passing test suite (happy-dom has a `window`, so both "sides" agree there) and a smoke test in a fresh browser (the localStorage-backed ones only diverge once a preference has actually been stored). The check that does catch it is a real browser against a real server render, watching the console — [ssr-hydration.test.tsx](../apps/web/src/lib/ssr-hydration.test.tsx) pins the contract per-hook by asserting what `renderToString` emits while `matchMedia` and `localStorage` say otherwise.
 
 ### Centralise domain invariants that must apply to every aggregation in a feature
 

@@ -62,7 +62,11 @@ export function useMatureScreenshotsPref(): {
   const showMature = useSyncExternalStore(
     subscribe,
     readStored,
-    () => false // SSR snapshot — irrelevant in this Vite SPA but required by the API
+    // Answers the server render and the hydrating client render both, which is
+    // what keeps the two agreeing when the owner has the preference stored. It
+    // is a primitive, so it needs no caching (see use-audio's SERVER_PREFS for
+    // the object case, where returning a fresh literal per call is a bug).
+    () => false
   );
   const setShowMature = useCallback((next: boolean) => {
     writeStored(next);

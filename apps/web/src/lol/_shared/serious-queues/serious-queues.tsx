@@ -52,7 +52,23 @@ function readPersisted(): number[] {
 }
 
 export function SeriousQueuesProvider({ children }: { children: ReactNode }) {
-  const [ids, setIds] = useState<number[]>(() => readPersisted());
+  // Seeded with the defaults rather than with `readPersisted()`, because a lazy
+  // initialiser runs during render — the server would seed the defaults and the
+  // client's hydrating render would seed whatever localStorage holds, and any
+  // owner who has customised the selection would hydrate against markup built
+  // from a different queue set. The adopt-persisted effect below closes that by
+  // one commit. This only ever fired for a customised selection, which is why
+  // it survives an empty-storage smoke test.
+  const [ids, setIds] = useState<number[]>(() => [...DEFAULT_SERIOUS_QUEUE_IDS]);
+
+  useEffect(() => {
+    const persisted = readPersisted();
+    setIds((current) =>
+      persisted.length === current.length && persisted.every((id, i) => id === current[i])
+        ? current
+        : persisted
+    );
+  }, []);
 
   const set = useCallback((next: readonly number[]) => {
     const arr = [...next].filter((id) =>

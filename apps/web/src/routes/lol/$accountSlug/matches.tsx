@@ -1,17 +1,37 @@
 import { EmptyMatchesIllustration, EmptyState } from "@/components/empty-state";
 import { Loader } from "@/components/loader";
 import { Button } from "@/components/ui/button";
+import { meQueryOptions } from "@/identity/use-me";
 import { routeMeta } from "@/lib/route-meta";
+import { findAccountBySlug } from "@/lol/_shared/account/find-account-by-slug";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { QueueFilter } from "@/lol/_shared/queue/queue-filter";
 import { MatchList } from "@/lol/matches/match-list";
 import { MatchListSkeleton } from "@/lol/matches/match-list-skeleton";
-import { useCachedMatches } from "@/lol/matches/use-matches";
+import {
+  cachedMatchesInfiniteQueryOptions,
+  useCachedMatches,
+} from "@/lol/matches/use-matches";
 import { Outlet, createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
 
 export const Route = createFileRoute("/lol/$accountSlug/matches")({
   component: MatchesLayout,
+  // The match list is this route's entire content, and one page of it is 20
+  // matches / ~25 kB that render almost 1:1 into rows — the payload is the page
+  // rather than an aggregate the page reduces. It answers in single-digit ms
+  // because it reads our own match cache rather than Riot, so it can sit in the
+  // document's critical path without moving TTFB.
+  //
+  // Only the unfiltered view is primed. `?queue=` is a filter the owner reaches
+  // for, not a URL anything links to, so it renders client-side like any other
+  // interaction.
+  loader: async ({ context: { queryClient }, params }) => {
+    const me = await queryClient.ensureQueryData(meQueryOptions());
+    const account = findAccountBySlug(me.lol, params.accountSlug);
+    if (!account) return;
+    await queryClient.ensureInfiniteQueryData(cachedMatchesInfiniteQueryOptions(account));
+  },
   head: ({ params }) =>
     routeMeta({
       title: `Matches · ${params.accountSlug} · vyoh.gg`,

@@ -5,21 +5,26 @@ import {
 } from "@/components/empty-state";
 import { routeMeta } from "@/lib/route-meta";
 import { RecentUnlocksVirtual } from "@/steam/achievements/recent-unlocks-virtual";
-import { useRecentUnlocks } from "@/steam/use-recent-unlocks";
+import { recentUnlocksQueryOptions, useRecentUnlocks } from "@/steam/use-recent-unlocks";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import type { SteamRecentUnlock } from "@vyoh/shared";
 import { ArrowRight } from "lucide-react";
 
+const FEED_LIMIT = 100;
+
 export const Route = createFileRoute("/steam/achievements")({
   component: AchievementsPage,
+  // The unlock feed is the page. It comes out of our own achievement store
+  // rather than Steam, so it answers in a few ms, and 100 unlocks is ~23 kB
+  // that renders as ~100 rows — the payload is the content, not an aggregate.
+  loader: ({ context: { queryClient } }) =>
+    queryClient.ensureQueryData(recentUnlocksQueryOptions(FEED_LIMIT)),
   head: () =>
     routeMeta({
       title: "Achievements · Steam · vyoh.gg",
       description: "Recent Steam achievement unlocks on vyoh.gg.",
     }),
 });
-
-const FEED_LIMIT = 100;
 
 function AchievementsPage() {
   const { data, isPending, isError } = useRecentUnlocks(FEED_LIMIT);

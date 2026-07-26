@@ -32,8 +32,14 @@ function getSnapshot(): AudioPrefs {
   return cachedPrefs;
 }
 
+// Module constant, not a fresh literal per call. `useSyncExternalStore`
+// compares snapshots with Object.is, so returning a new object each time means
+// the snapshot never looks equal to itself — React warns about the infinite
+// loop that implies, and re-renders every consumer on each server pass.
+const SERVER_PREFS: AudioPrefs = { enabled: false, volume: DEFAULT_VOLUME };
+
 function getServerSnapshot(): AudioPrefs {
-  return { enabled: false, volume: DEFAULT_VOLUME };
+  return SERVER_PREFS;
 }
 
 function subscribe(listener: () => void): () => void {

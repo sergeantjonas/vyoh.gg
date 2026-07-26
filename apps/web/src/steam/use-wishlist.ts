@@ -1,5 +1,5 @@
 import { HttpError } from "@/lib/http-error";
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { SteamWishlist } from "@vyoh/shared";
 
 import { API_URL } from "@/lib/api-url";
@@ -19,12 +19,16 @@ async function fetchWishlist(): Promise<SteamWishlist> {
   return res.json() as Promise<SteamWishlist>;
 }
 
-export function useSteamWishlist() {
-  return useQuery({
+export function steamWishlistQueryOptions() {
+  return queryOptions({
     queryKey: ["steam", "wishlist"],
     queryFn: fetchWishlist,
     // The backend already caches GetWishlist + GetItems behind 1h / 24h TTLs;
     // the frontend just rides that. No need for an aggressive refetch.
     staleTime: 5 * 60 * 1_000,
   });
+}
+
+export function useSteamWishlist() {
+  return useQuery(steamWishlistQueryOptions());
 }

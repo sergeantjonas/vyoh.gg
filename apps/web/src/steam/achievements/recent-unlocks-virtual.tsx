@@ -1,6 +1,6 @@
 import { ChapterLabel } from "@/components/ui/chapter-label";
 import { VirtualizerStats } from "@/components/virtualizer-stats";
-import { mainScrollRef } from "@/lib/scroll-container";
+import { SSR_VIEWPORT_HEIGHT, mainScrollRef } from "@/lib/scroll-container";
 import { AchievementCardInner } from "@/steam/_shared/achievement-card";
 import { formatRowDate, groupByMonth } from "@/steam/achievements/group-by-month";
 import { Link } from "@tanstack/react-router";
@@ -68,6 +68,10 @@ export function RecentUnlocksVirtual({ unlocks }: { unlocks: SteamRecentUnlock[]
     scrollMargin,
     overscan: 6,
     getScrollElement: () => mainScrollRef.current,
+    // Server render and first client render both have no scroll element to
+    // measure; see SSR_VIEWPORT_HEIGHT for why stating one is what puts rows in
+    // the document, and why both sides still agree.
+    initialRect: { width: 0, height: SSR_VIEWPORT_HEIGHT },
   });
 
   const visible = virtualizer.getVirtualItems();
