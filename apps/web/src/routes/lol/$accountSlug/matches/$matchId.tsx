@@ -24,7 +24,7 @@ import {
 import { MatchHero } from "@/lol/matches/match-hero";
 import { matchOgImage } from "@/lol/matches/match-og";
 import { useLpDeltaMap } from "@/lol/matches/use-lp-delta";
-import { useMatchDetail } from "@/lol/matches/use-match-detail";
+import { matchDetailQueryOptions, useMatchDetail } from "@/lol/matches/use-match-detail";
 import { useCachedMatchSummary } from "@/lol/matches/use-matches";
 import {
   Outlet,
@@ -50,6 +50,30 @@ const MORPH_SETTLE_MS = 700;
 
 export const Route = createFileRoute("/lol/$accountSlug/matches/$matchId")({
   component: MatchDetailPanel,
+  // Non-blocking on purpose — this fires the detail fetch during route
+  // resolution (in parallel with the lazily-split component chunk) instead of
+  // waiting for the component to mount and call `useMatchDetail`, but it does
+  // not gate navigation on the response.
+  //
+  // `ensureQueryData` (awaited) is the textbook shape and is what the Start
+  // migration's chunk 4 will need for server-priming, but it cannot land here
+  // yet. Two things in this route break under a blocking loader:
+  //
+  //   1. `match-row.tsx` awaits `navigate()` *inside* `startViewTransition`, so
+  //      the router holding navigation open until the fetch settles freezes the
+  //      page under the VT snapshot for the whole request on Chrome/Safari.
+  //   2. There is no `pendingComponent`/`errorComponent` on this route, so a
+  //      blocking loader would skip `MatchDetailSkeleton` entirely (the query is
+  //      no longer pending at mount) and a rejection would replace the whole
+  //      SlidePanel subtree — tab strip, breadcrumb and close button included —
+  //      with the router's bare catch-boundary text.
+  //
+  // Keeping it non-blocking preserves the progressive render (cached hero →
+  // skeleton → content) and the in-component retry branch. Revisit when Start
+  // chunk 4 lands, alongside the VT choreography in `match-row.tsx`.
+  loader: ({ context: { queryClient }, params }) => {
+    void queryClient.prefetchQuery(matchDetailQueryOptions(params.matchId));
+  },
   // Static fallback drops the opaque matchId for a slug-scoped label; the
   // component enriches to `{Champion} {win|loss|remake} · {gameName#tagLine}`
   // once the match detail + account resolve.

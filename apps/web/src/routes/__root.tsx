@@ -20,10 +20,11 @@ import { useFaviconDot } from "@/lib/use-favicon-dot";
 import { usePerfFlag } from "@/lib/use-perf-flag";
 import { SplashProvider } from "@/lol/_shared/assets/splash-backdrop";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import type { QueryClient } from "@tanstack/react-query";
 import {
   HeadContent,
   Outlet,
-  createRootRoute,
+  createRootRouteWithContext,
   useRouter,
   useRouterState,
 } from "@tanstack/react-router";
@@ -37,7 +38,12 @@ const PerfOverlay = lazy(() =>
   import("@/components/perf-overlay").then((mod) => ({ default: mod.PerfOverlay }))
 );
 
-export const Route = createRootRoute({
+// Declares the shape of the router context so route `loader`s can reach the
+// Query cache in a typed way. Without this, `createRouter({ context })` in
+// main.tsx type-checks against the default `{}` and the property is silently
+// dropped — `context.queryClient` would then be a TS2741 at every loader.
+// The factory is curried: `createRootRouteWithContext<T>()({ ... })`.
+export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: RootLayout,
   notFoundComponent: NotFound,
 });

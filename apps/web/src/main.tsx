@@ -32,8 +32,48 @@ import "./styles/motion.css";
 
 const Toaster = lazy(() => import("sonner").then((m) => ({ default: m.Toaster })));
 
+const errorMessage = (error: unknown, fallback: string) => {
+  if (error instanceof HttpError) return error.message;
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+};
+
+// Declared above `createRouter` on purpose: the router options object is an
+// argument expression, so it is evaluated before the call. A `queryClient`
+// declared further down the module would still be in its temporal dead zone
+// here and throw `ReferenceError` at import time.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60_000,
+      refetchOnWindowFocus: false,
+      retry: (failureCount, error) => {
+        if (error instanceof HttpError && error.status >= 400 && error.status < 500) {
+          return false;
+        }
+        return failureCount < 3;
+      },
+    },
+  },
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      if (query.state.data === undefined) return;
+      void toastError(errorMessage(error, "Background refresh failed"));
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error) => {
+      void toastError(errorMessage(error, "Something went wrong"));
+    },
+  }),
+});
+
 const router = createRouter({
   routeTree,
+  // Route loaders read the Query cache through this context. Its shape is
+  // declared by `createRootRouteWithContext` in routes/__root.tsx, which is
+  // what makes this property required rather than silently widened to `{}`.
+  context: { queryClient },
   defaultPreload: "intent",
   defaultPreloadStaleTime: 0,
   defaultViewTransition: {
@@ -77,38 +117,6 @@ declare module "@tanstack/react-router" {
     router: typeof router;
   }
 }
-
-const errorMessage = (error: unknown, fallback: string) => {
-  if (error instanceof HttpError) return error.message;
-  if (error instanceof Error && error.message) return error.message;
-  return fallback;
-};
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 60_000,
-      refetchOnWindowFocus: false,
-      retry: (failureCount, error) => {
-        if (error instanceof HttpError && error.status >= 400 && error.status < 500) {
-          return false;
-        }
-        return failureCount < 3;
-      },
-    },
-  },
-  queryCache: new QueryCache({
-    onError: (error, query) => {
-      if (query.state.data === undefined) return;
-      void toastError(errorMessage(error, "Background refresh failed"));
-    },
-  }),
-  mutationCache: new MutationCache({
-    onError: (error) => {
-      void toastError(errorMessage(error, "Something went wrong"));
-    },
-  }),
-});
 
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Root element #root not found in index.html");

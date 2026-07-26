@@ -328,7 +328,24 @@ For patch-stable data, `staleTime: Infinity` (or a multi-hour value paired with 
 
 Audit focus: `05-frameworks.md` against the project's TanStack Router / Vite SPA shape. The structural framework-choice question (SPA → SSR via TanStack Start) is already owned by [tanstack-start-migration.md](tanstack-start-migration.md) — Round 5 does **not** re-litigate it. Instead it audits the project's adoption of the TanStack Router idioms the KB rubric calls out as best-in-class: typed search params (strong adoption, no gap), route loaders (zero adoption, Gap 15), per-route `head()` for SEO (one site, Gap 16). Both ship-now gaps are migration-safe — they are exactly the surfaces the eventual Start migration will lift, so doing them now de-risks the migration rather than creating throwaway work.
 
-### Gap 15 — Route loaders are unused; every route does render-then-fetch via Query hooks
+### Gap 15 — Route loaders are unused; every route does render-then-fetch via Query hooks — PILOT SHIPPED 2026-07-26 (non-blocking)
+
+**Pilot landed 2026-07-26**, with one deliberate deviation from the spec below: the loader calls `prefetchQuery` and returns `void`, it does **not** `await ensureQueryData`. Two things in this route make a blocking loader actively harmful today, both verified against the code before shipping:
+
+1. [`match-row.tsx`](../../../apps/web/src/lol/matches/match-row.tsx) awaits `navigate()` *inside* `document.startViewTransition(...)`. The router resolves that navigation only once the loader settles, so a blocking loader freezes the page under the VT snapshot for the whole request on Chrome and Safari.
+2. The route has no `pendingComponent` and no `errorComponent`, and neither is set as a router default. A blocking loader would therefore skip `MatchDetailSkeleton` entirely (the query is no longer pending at mount) and, on rejection, replace the whole `SlidePanel` subtree — tab strip, breadcrumb, close button — with the router's bare catch-boundary text. On a 5xx the client retries three times with 1s/2s/4s backoff, so that is a ~7s dead navigation with no UI feedback.
+
+Non-blocking keeps the progressive render and the in-component retry branch while still starting the fetch during route resolution, in parallel with the lazily-split component chunk. Locked by two assertions in [`match-detail-route.test.ts`](../../../apps/web/src/lol/matches/match-detail-route.test.ts), both confirmed to fail against a blocking variant.
+
+**Also corrected while shipping:** the "requires (b) refactoring `useMatchDetail` to expose a `queryOptions`-style factory" step below was already done — `matchDetailQueryOptions` has existed at [use-match-detail.ts:22](../../../apps/web/src/lol/matches/use-match-detail.ts#L22) for some time, and the same factory shape is used by at least six other hooks. And the stated verification ("match-detail XHR should fire on hover rather than after navigation") was **already true before this commit**: [match-row.tsx:74-75](../../../apps/web/src/lol/matches/match-row.tsx#L74-L75) hand-rolls exactly that prefetch on a 150 ms hover dwell, plus unconditionally on pointerdown. The loader's real win is therefore the **cold deep-link arrival** (paste or refresh a match URL, where no hover ever happens), not the hover path — plus establishing the router-context wiring that Start chunk 4 needs.
+
+**Two prerequisites that were not in the plan below and are mandatory:** `queryClient` must be constructed *above* `createRouter` in `main.tsx` (the options object is an argument expression, so a `const` below it is in its temporal dead zone and throws at import — `main.test.tsx` catches this), and `__root.tsx` must switch from `createRootRoute` to `createRootRouteWithContext<{ queryClient: QueryClient }>()` (curried). Without the second, `context: { queryClient }` type-checks against the default `{}` and is silently dropped, making `context.queryClient` a TS2741 at every loader.
+
+**Fan-out (P) is unchanged and still pending**, but inherits the blocking question: any route whose entrance is driven by a `startViewTransition`-wrapped navigate needs the same non-blocking treatment, or needs `pendingComponent` + `errorComponent` shipped alongside. Revisit blocking wholesale at Start chunk 4, where server-priming genuinely requires it and where cold arrivals do not morph anyway.
+
+---
+
+**Original gap text (kept for the rationale):**
 
 **Current state:** `ugrep -F 'loader:' apps/web/src/routes/ -r` returns **zero hits** across all 20+ route files. Every route component mounts and then triggers its `useQuery` hooks on render, producing a render-then-suspend waterfall on cold navigation. [apps/web/src/main.tsx:30-34](../../../apps/web/src/main.tsx#L30-L34) sets `defaultPreload: "intent"` which prefetches the **route chunk** on link hover, but does not prime the **data** — the chunk arrives early, then the component still has to wait for its queries on click.
 
@@ -390,7 +407,7 @@ These are strong-adoption signals confirming the framework pick is correctly use
 
 | Bundle | Gaps | Effort | Slot |
 |---|---|---|---|
-| **N — Route loader pilot on match-detail** | #15 (pilot) | ~1h | Ship now, single commit |
+| ~~**N — Route loader pilot on match-detail**~~ | #15 (pilot) | ~1h | **SHIPPED 2026-07-26** — non-blocking `prefetchQuery`, see Gap 15 |
 | **O — `head()` localhost bug fix** | #16 (part 1) | hosting-gated | Land as part of [hosting.md § Pre-deploy #1](../ops/hosting.md) — 20+ duplicate API_URL sites + hosting-shape dependency means this isn't a standalone quick-win |
 | **P — Loader fan-out + `head()` fan-out** | #15 (rest), #16 (part 2) | ~5h | Multi-commit sub-arc; can order after N alone (independent of O) |
 
