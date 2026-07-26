@@ -1,4 +1,6 @@
 import { AppErrorFallback, ErrorBoundary } from "@/components/error-boundary";
+import { Loader } from "@/components/loader";
+import { RouteErrorFallback } from "@/components/route-error";
 import { HttpError } from "@/lib/http-error";
 import { toastError } from "@/lib/toast";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
@@ -13,6 +15,21 @@ import { mainScrollRef } from "./lib/scroll-container";
 import { routeTree } from "./routeTree.gen";
 
 const Toaster = lazy(() => import("sonner").then((m) => ({ default: m.Toaster })));
+
+// Shown only when a loader is still running `defaultPendingMs` (1s) after a
+// navigation starts, so it is the slow path, not the normal one. Deliberately
+// minimal rather than a skeleton: this is the generic case, and a generic
+// skeleton would violate the "skeletons mirror the layout they replace" rule
+// for every route it landed on. Routes with a real skeleton pass their own
+// `pendingComponent` instead.
+function RoutePending() {
+  return (
+    <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
+      <Loader size={14} label="Loading" />
+      <span>Loading…</span>
+    </div>
+  );
+}
 
 const errorMessage = (error: unknown, fallback: string) => {
   if (error instanceof HttpError) return error.message;
@@ -98,6 +115,14 @@ export function getRouter() {
     ),
     defaultPreload: "intent",
     defaultPreloadStaleTime: 0,
+    // Every route gets the route-tier fallback, rather than each route file
+    // opting in. Router escalates a rejected loader to the nearest
+    // `errorComponent`, so without a default the nearest one is the root's, and
+    // one failing endpoint takes nav, backdrop and palette down with the
+    // content it broke. Routes that want something more specific still override
+    // it; `__root.tsx` does, because a root failure has no shell left to keep.
+    defaultErrorComponent: RouteErrorFallback,
+    defaultPendingComponent: RoutePending,
     defaultViewTransition: {
       types: ({ fromLocation, toLocation }) => {
         const types = getNavigationType(fromLocation, toLocation);

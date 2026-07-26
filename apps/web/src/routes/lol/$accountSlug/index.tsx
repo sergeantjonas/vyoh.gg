@@ -1,11 +1,13 @@
 import { CvSection, SectionPlaceholder } from "@/_shared/cv-section";
 import { ChartBoundary } from "@/components/error-boundary";
+import { meQueryOptions } from "@/identity/use-me";
 import { routeMeta } from "@/lib/route-meta";
+import { findAccountBySlug } from "@/lol/_shared/account/find-account-by-slug";
 import { LiveGameChip } from "@/lol/_shared/account/live-game-chip";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { DamageProfileRadar } from "@/lol/_shared/damage-profile-radar";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
-import { useLiveGame } from "@/lol/matches/use-live-match";
+import { liveGameQueryOptions, useLiveGame } from "@/lol/matches/use-live-match";
 import { ProfilePatchNotice } from "@/lol/patches/profile-patch-notice";
 import { LolIdentityHero } from "@/lol/profile/identity-hero";
 import { ProfileAramDashboard } from "@/lol/profile/profile-aram-dashboard";
@@ -20,7 +22,7 @@ import { ProfileRecentForm } from "@/lol/profile/profile-recent-form";
 import { ProfileRoleStrip } from "@/lol/profile/profile-role-strip";
 import { ProfileSquads } from "@/lol/profile/profile-squads";
 import { ProfileStatsBar } from "@/lol/profile/profile-stats-bar";
-import { useProfileRank } from "@/lol/profile/use-profile-rank";
+import { profileRankQueryOptions, useProfileRank } from "@/lol/profile/use-profile-rank";
 import { useRankHistory } from "@/lol/profile/use-rank-history";
 import { selectChampionOfYear } from "@/lol/recap/recap-champion";
 import { Link, createFileRoute } from "@tanstack/react-router";
@@ -73,6 +75,28 @@ import { API_PUBLIC_URL } from "@/lib/api-url";
 
 export const Route = createFileRoute("/lol/$accountSlug/")({
   component: ProfilePage,
+  // The identity hero's two inputs. Both are small and answered out of our own
+  // Postgres or the live poller's memory — measured 2026-07-27 at 173 B / 1.5 ms
+  // for rank and 3.9 kB / 0.8 ms for live, warm across three runs. Neither
+  // reaches Riot on the request path, so both clear the payload and latency
+  // questions in the priming convention.
+  //
+  // `live` is here for correctness rather than for content. `PresenceMounts`
+  // calls `useLiveGame` from the root layout, which is not code-split, while
+  // this route is — so on a cold load the root's live fetch resolves before the
+  // profile chunk arrives to hydrate it, and the hydrating render sees a live
+  // game the server render could not. That mismatch made React discard the
+  // server tree for the whole LoL landing page, and only while a game was
+  // actually in progress, which is why it survived the chunk 4b sweep.
+  loader: async ({ context: { queryClient }, params }) => {
+    const me = await queryClient.ensureQueryData(meQueryOptions());
+    const account = findAccountBySlug(me.lol, params.accountSlug);
+    if (!account) return;
+    await Promise.all([
+      queryClient.ensureQueryData(profileRankQueryOptions(account)),
+      queryClient.ensureQueryData(liveGameQueryOptions(account)),
+    ]);
+  },
   // Static fallback used until `ProfilePage` enriches `document.title`
   // with the resolved `gameName#tagLine` (see the useEffect below).
   // Crawlers that never run the component still get a non-slug title.

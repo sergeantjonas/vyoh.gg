@@ -8,6 +8,7 @@ import {
 import { FetchProgress } from "@/components/fetch-progress";
 import { Nav } from "@/components/nav";
 import { NotFound } from "@/components/not-found";
+import { RouteErrorFallback } from "@/components/route-error";
 import { ScrollProgress } from "@/components/scroll-progress";
 import { ScrollToTop } from "@/components/scroll-to-top";
 import { meQueryOptions } from "@/identity/use-me";
@@ -15,6 +16,7 @@ import { API_PUBLIC_URL } from "@/lib/api-url";
 import { PresenceMounts } from "@/lib/presence-mounts";
 import { routeOwnsEntry } from "@/lib/route-owns-entry";
 import { mainScrollRef } from "@/lib/scroll-container";
+import { canonicalUrl } from "@/lib/site-url";
 import { topLevelScope } from "@/lib/top-level-scope";
 import { useAudio, useAudioHydration } from "@/lib/use-audio";
 import { useAudioShortcut } from "@/lib/use-audio-shortcut";
@@ -25,6 +27,7 @@ import { SplashProvider } from "@/lol/_shared/assets/splash-backdrop";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { QueryClient } from "@tanstack/react-query";
 import {
+  type ErrorComponentProps,
   HeadContent,
   Outlet,
   Scripts,
@@ -71,6 +74,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   component: RootLayout,
   shellComponent: RootDocument,
   notFoundComponent: NotFound,
+  // Overrides the router's `defaultErrorComponent`. A route-tier failure keeps
+  // the shell and fails a region; a root-tier one has no shell to keep, because
+  // the loader below is what nav, backdrop and every section route resolve
+  // their identity from. So it owns the viewport rather than rendering a card
+  // into a page that was never built.
+  errorComponent: RootError,
   // Awaited at the root because almost everything downstream is keyed off it:
   // `useAccountFromSlug` resolves the LoL section's account out of this list,
   // `/lol` picks its redirect target from it, and `/` reads the primary
@@ -104,7 +113,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:site_name", content: "vyoh.gg" },
       { property: "og:title", content: "vyoh.gg" },
       { property: "og:description", content: SITE_DESCRIPTION },
-      { property: "og:url", content: "https://vyoh.gg/" },
       // Default site-wide OG image — overridden per-route by head() on routes
       // that ship their own template (match/champion/profile/Steam game).
       // Endpoint renders dynamically; HTTP cache absorbs the cost.
@@ -122,7 +130,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: appCss },
       { rel: "stylesheet", href: viewTransitionsCss },
       { rel: "stylesheet", href: motionCss },
-      { rel: "canonical", href: "https://vyoh.gg/" },
+      // No canonical here — see <CanonicalUrl /> below.
       { rel: "icon", type: "image/svg+xml", href: "/vyoh-orb-favicon.svg" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
       { rel: "manifest", href: "/manifest.json" },
@@ -141,12 +149,47 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     <html lang="en" className="dark">
       <head>
         <HeadContent />
+        <CanonicalUrl />
       </head>
       <body>
         {children}
         <Scripts />
       </body>
     </html>
+  );
+}
+
+// The document's self-identifying URL: exactly one <link rel="canonical"> plus
+// the matching og:url, built from whatever path is actually being rendered.
+//
+// This cannot live in a route's head(). Router merges `meta` by name/property
+// with the leaf winning, but it merges `links` by *exact JSON equality* — so a
+// root canonical and a leaf canonical produce two conflicting tags rather than
+// one override, and a page carrying conflicting canonicals has all of them
+// discarded. Nesting makes that unavoidable at route level: /lol/x/matches/y/
+// timeline has three ancestors with a head() and each would claim its own URL.
+// Emitting from the shell is the only place where "one tag, full pathname" is
+// structural rather than a convention every future route has to remember.
+//
+// Until 2026-07-27 the root emitted a hardcoded `https://vyoh.gg/`, so every
+// page in the app told crawlers it was a duplicate of the homepage — including
+// the patch-notes routes the SSR migration exists to get indexed.
+function RootError(props: ErrorComponentProps) {
+  return (
+    <div className="flex min-h-dvh items-center justify-center bg-background p-6 text-foreground">
+      <RouteErrorFallback {...props} />
+    </div>
+  );
+}
+
+function CanonicalUrl() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const href = canonicalUrl(pathname);
+  return (
+    <>
+      <link rel="canonical" href={href} />
+      <meta property="og:url" content={href} />
+    </>
   );
 }
 

@@ -104,6 +104,18 @@ describe("getRouter", () => {
     expect(toastError).toHaveBeenCalledWith("boom");
   });
 
+  it("gives every route a route-tier error and pending component", () => {
+    // Router escalates a rejected loader to the nearest `errorComponent`.
+    // Without these defaults the nearest one is the root's, so a single failing
+    // endpoint takes nav, backdrop and palette down with the region it broke —
+    // and on a cold server render, takes the document down with it. Nothing
+    // fails to compile if they go missing; the regression is only visible when
+    // an upstream is already down.
+    const { options } = getRouter();
+    expect(typeof options.defaultErrorComponent).toBe("function");
+    expect(typeof options.defaultPendingComponent).toBe("function");
+  });
+
   it("passes the QueryClient through router context so loaders share it", () => {
     // __root.tsx declares `context: { queryClient }` via
     // createRootRouteWithContext; loaders read the cache through it. A second

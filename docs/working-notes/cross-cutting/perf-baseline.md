@@ -199,3 +199,21 @@ The walk finds **21 chunks**, the same count the HTML parse found. That agreemen
 The ceiling moved 240 → 250 kB because the cost buys server rendering, which is the entire point of the migration; it is not a regression to chase. Headroom is deliberately similar to what 240 kB gave, so the budget still bites on the next unplanned addition. The two figures come from different derivation methods (HTML tags vs manifest walk), so treat the delta as approximate — the unambiguous part is that the payload crossed the previous ceiling.
 
 **Worth re-measuring after chunk 4.** Making virtualizers, portals, and charts render server-side changes what ships in the initial payload in both directions: more content in the HTML, and possibly more or less JS depending on how each surface is gated.
+
+## Re-baseline — 2026-07-27 (Start chunks 4b + 5)
+
+| Measure | 2026-07-26 (cutover) | After 4b | After 5 | Limit |
+|---|---|---|---|---|
+| Initial JS | 241.65 kB | 243.13 kB | **244.34 kB** | 250 kB |
+| Recharts lazy chunk | 68.25 kB | 68.25 kB | 68.25 kB | 85 kB |
+
++2.7 kB across the two chunks, against 5.7 kB of headroom left. 4b's share is the `initialRect` plumbing and `use-hydrated`; 5's is `route-error.tsx`, `site-url.ts`, and the shell's canonical component — all of which land in the entry graph because the router and the shell reach them on every route. Nothing here is a candidate for trimming; the next unplanned addition is what the budget is now defending against.
+
+**Layer/paint probe, warm dev server, 3-run bracket.** Both scenarios the chunks touched are comfortably inside the budgets in [repo-conventions.md § "Layer-count + paint budget per route scenario"](../../repo-conventions.md#layer-count--paint-budget-per-route-scenario), and both read *better* than the 2026-06-10 baselines:
+
+| Scenario | Layers (budget) | Load raster (budget) | Long tasks | Dropped |
+|---|---|---|---|---|
+| lol-overview | 13–16 (≤ 30) | 43–50 ms, median 44 (≤ 150) | 1 | 0 |
+| recap | 15 (≤ 20) | 98–121 ms, median 115 (≤ 220) | 0 | 0 |
+
+Recorded baselines were 24 layers / ~100 ms and 13 layers / ~195 ms respectively. The improvement is consistent with a server-rendered first paint that is no longer thrown away and re-rendered — chunk 4b found every route was failing hydration — but the probe cannot attribute it, and the pre-SSR numbers were captured on a different app shape. **Do not lower the budget rows on the strength of this**; treat it as headroom, not as a new floor.

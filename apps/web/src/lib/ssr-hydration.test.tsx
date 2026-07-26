@@ -9,6 +9,27 @@ import {
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+// The now-playing strip's inputs, stubbed as if the owner were mid-game. The
+// assertion below is only meaningful because these say "live" — with the real
+// hooks the strip would render nothing for want of data rather than because the
+// gate held.
+vi.mock("@/home/use-primary-account", () => ({
+  usePrimaryAccount: () => ({
+    account: { region: "euw1", gameName: "Vyoh", tagLine: "Ahri", slug: "ahri" },
+  }),
+}));
+vi.mock("@/lol/matches/use-live-match", () => ({
+  useLiveGame: () => ({ data: { queueId: 420, gameLength: 600, polledAt: 0 } }),
+}));
+vi.mock("@/steam/use-player-state", () => ({
+  useSteamPlayerState: () => ({ data: undefined }),
+}));
+vi.mock("@/steam/use-owned-games", () => ({
+  useSteamOwnedGames: () => ({ data: undefined }),
+}));
+
+import { NowPlayingStrip } from "@/home/conclusion/now-playing-strip";
+
 // Every assertion here pins the same contract: what a component renders on the
 // server must not depend on the browser it is running next to. Break that and
 // the client's hydrating render disagrees with the HTML it was handed, so React
@@ -57,6 +78,17 @@ describe("server rendering does not read the browser", () => {
     // via a hydration-aware flag, not `typeof document`, which would put the
     // client's first render on the other branch.
     expect(renderToString(<BackdropPortal>backdrop</BackdropPortal>)).toBe("");
+  });
+
+  it("renders nothing for a live-presence surface, whatever the queries hold", () => {
+    // The now-playing strip is the case where client-only is the right answer
+    // rather than a missed loader: it advances the clock with `Date.now()`, it
+    // reads the deliberately-unprimed owned-games query, and `PresenceMounts`
+    // starts its polls from the non-code-split root, so the data lands before
+    // this code-split chapter hydrates. Feeding it a live game and still
+    // expecting nothing is what pins the gate — drop it and the client's first
+    // render produces a strip the server never emitted, and React discards `/`.
+    expect(renderToString(<NowPlayingStrip />)).toBe("");
   });
 
   it("seeds the persisted queue selection from defaults, not from localStorage", () => {

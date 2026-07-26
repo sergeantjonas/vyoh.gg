@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { LiveMatch, LolAccount } from "@vyoh/shared";
 import { useEffect, useRef } from "react";
 
@@ -31,18 +31,35 @@ export function liveGameQueryKey(account: LolAccount | undefined) {
   return ["lol", "live", account?.region, account?.gameName, account?.tagLine] as const;
 }
 
-export function useLiveGame(
-  account: LolAccount | undefined,
-  options?: { refetchIntervalMs?: number }
-) {
-  return useQuery<LiveMatch | null>({
+/**
+ * Shared by `useLiveGame` and the profile route's loader so both build the same
+ * cache key.
+ *
+ * Priming this one is what keeps the profile hero's live-game halo out of the
+ * hydration diff. `PresenceMounts` calls `useLiveGame` from the root layout,
+ * which is not code-split, while the profile page is — so on a cold load the
+ * root's live fetch resolves *before* the profile chunk arrives to hydrate, and
+ * the hydrating render sees a live game the server render did not. Awaiting it
+ * in the loader makes both sides start from the same snapshot.
+ */
+export function liveGameQueryOptions(account: LolAccount | undefined) {
+  return queryOptions({
     queryKey: liveGameQueryKey(account),
-    queryFn: () => {
+    queryFn: (): Promise<LiveMatch | null> => {
       if (!account) throw new Error("No account");
       return fetchLiveGame(account);
     },
     enabled: account !== undefined,
     staleTime: 30_000,
+  });
+}
+
+export function useLiveGame(
+  account: LolAccount | undefined,
+  options?: { refetchIntervalMs?: number }
+) {
+  return useQuery({
+    ...liveGameQueryOptions(account),
     refetchInterval: options?.refetchIntervalMs ?? false,
   });
 }

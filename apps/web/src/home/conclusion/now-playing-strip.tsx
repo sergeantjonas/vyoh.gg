@@ -1,5 +1,6 @@
 import { SHADOW_BODY, SHADOW_LABEL } from "@/home/recap/chapter-shadows";
 import { usePrimaryAccount } from "@/home/use-primary-account";
+import { useHydrated } from "@/lib/use-hydrated";
 import { useLiveGame } from "@/lol/matches/use-live-match";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
 import { useSteamPlayerState } from "@/steam/use-player-state";
@@ -79,13 +80,27 @@ function StreamDot({ kind }: { kind: ResolvedStream["kind"] }) {
  * League queue is the more specific subject.
  */
 export function NowPlayingStrip() {
+  // Client-only, and one of the few places where that is the right answer
+  // rather than a missed priming opportunity. Three things rule out rendering
+  // this on the server: `formatLolDuration` advances the clock with
+  // `Date.now()` so the string is different by the time hydration runs; the
+  // Steam branch reads the 664 kB owned-games query, which the priming
+  // convention explicitly keeps client-side; and `PresenceMounts` starts both
+  // presence polls from the non-code-split root layout, so their data lands
+  // before this code-split chapter arrives to hydrate.
+  //
+  // Left ungated, the client's first render produced a strip the server render
+  // had returned null for, and React discarded the whole `/` tree over a chip
+  // that says what the owner is playing right now — which is not content a
+  // crawler has any use for.
+  const hydrated = useHydrated();
   const { account } = usePrimaryAccount();
   const liveQuery = useLiveGame(account);
   const steamQuery = useSteamPlayerState();
   const ownedQuery = useSteamOwnedGames();
   const stream = resolveStream(liveQuery.data, steamQuery.data, ownedQuery.data);
 
-  if (!stream) return null;
+  if (!hydrated || !stream) return null;
 
   return (
     <section className="flex justify-center">

@@ -17,6 +17,11 @@ import { useEffect, useMemo } from "react";
 
 export const Route = createFileRoute("/lol/$accountSlug/matches")({
   component: MatchesLayout,
+  // Overrides the router's generic pending spinner: this route has a skeleton
+  // that mirrors its own layout, which is the bar the convention sets. Only
+  // reached when the loader below is still running a second after a client
+  // navigation — a server render has already awaited it.
+  pendingComponent: MatchListSkeleton,
   // The match list is this route's entire content, and one page of it is 20
   // matches / ~25 kB that render almost 1:1 into rows — the payload is the page
   // rather than an aggregate the page reduces. It answers in single-digit ms

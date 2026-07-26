@@ -141,6 +141,31 @@ The rule is about *when* a value is read, not whether it is browser-only:
 
 Two things do **not** catch it, which is why it lasted: a passing test suite (happy-dom has a `window`, so both "sides" agree there) and a smoke test in a fresh browser (the localStorage-backed ones only diverge once a preference has actually been stored). The check that does catch it is a real browser against a real server render, watching the console — [ssr-hydration.test.tsx](../apps/web/src/lib/ssr-hydration.test.tsx) pins the contract per-hook by asserting what `renderToString` emits while `matchMedia` and `localStorage` say otherwise.
 
+#### A query the root warms is data a code-split route does not have on the server
+
+There is a second way into the same failure, and no `typeof window` appears anywhere in it. Every route component is code-split; the root layout is not. So on a cold load the order is: root hydrates and its hooks start fetching → route chunk arrives → route subtree hydrates. **Anything the root started has had a full network round-trip to resolve by the time the route's hydrating render runs**, while the server render of that same route never had it.
+
+The live one was [presence-mounts.tsx](../apps/web/src/lib/presence-mounts.tsx), which polls live-game and Steam-player-state from the root so the favicon dot works on every route. Two code-split surfaces read those same query keys: the profile hero's live halo, and `/`'s now-playing strip. Both rendered on the hydrating client render and on no server render, so React discarded the tree for the LoL landing page and for `/`. It reproduces **only while the owner is actually playing something**, which is why it survived a full 12-route sweep in chunk 4b and was found in chunk 5 by accident.
+
+Two fixes, and which one applies is decided by the data, not by preference:
+
+- **Prime it in the route's loader** when the value is deterministic and cheap — the profile route awaits rank (173 B / 1.5 ms) and live (3.9 kB / 0.8 ms), both answered from our own Postgres or the poller's memory. This is strictly better than gating, because the server render also stops lying: `/lol/$accountSlug` used to server-render "Unranked / Unranked" and now renders "Emerald I 92 LP · In Game".
+- **Gate it on `useHydrated()`** when priming cannot make the two sides agree. `/`'s now-playing strip is the example: it advances the clock with `Date.now()`, so the string differs by the time hydration runs whatever you prime, and its Steam branch reads the 664 kB owned-games query the priming rule keeps client-side. Live-presence chrome is not content a crawler wants, so client-only costs nothing.
+
+**How to apply:** when adding a `useQuery` to a route component, check whether anything mounted from `__root.tsx` reads the same key. If it does, either prime it in that route's loader or gate the branch on `useHydrated()`. The same question applies in reverse: before adding a poll to the root layout, check which route components read it.
+
+**Anything derived from the current clock has this shape too**, even with the data primed — `formatTimeAgo(...)` and `Date.now()` produce a string on the server and a possibly-different one a few hundred milliseconds later at hydration. That one is intermittent rather than reproducible, so it will not show up in a sweep; treat a relative timestamp in server-rendered markup as a hydration hazard on sight.
+
+### Exactly one `<link rel="canonical">`, emitted from the shell
+
+The canonical URL and `og:url` are rendered by `<CanonicalUrl />` in [__root.tsx](../apps/web/src/routes/__root.tsx)'s `shellComponent`, from `useRouterState`'s pathname via `canonicalUrl()` in [site-url.ts](../apps/web/src/lib/site-url.ts). **Do not add `rel: "canonical"` to any route's `head()`.**
+
+**Why:** router merges `meta` by name/property with the leaf winning, but it merges `links` by *exact JSON equality* (`appendUniqueUserTags` in `@tanstack/router-core`). A root canonical plus a leaf canonical is therefore two conflicting tags rather than one override, and a page carrying conflicting canonicals has all of them ignored. Nesting makes that unavoidable at route level — `/lol/x/matches/y/timeline` has three ancestors with a `head()`, and each would claim its own URL. The shell is the one place where "one tag, full pathname" is structural instead of a rule every future route has to remember.
+
+Until 2026-07-27 the root emitted a hardcoded `https://vyoh.gg/`, so **every page in the app told crawlers it was a duplicate of the homepage** — including the patch-notes routes the SSR migration exists to get indexed. Nothing catches that except reading the served HTML.
+
+**How to apply:** a new route needs no canonical wiring at all. If a route ever needs a canonical that differs from its own pathname (a filtered view pointing at the unfiltered one, say), extend `canonicalUrl()` rather than adding a second tag — search is already dropped there for exactly this reason, since every search param in this app is view state.
+
 ### Centralise domain invariants that must apply to every aggregation in a feature
 
 If a predicate or filter must hold for *every* stat computation, rollup, or display in a feature domain, define it as a named helper in `packages/shared/src/<domain>/` — never inline it at each call site. An inlined filter can be silently omitted when a new aggregation is added under time pressure; a named helper cannot.

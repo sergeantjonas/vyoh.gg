@@ -1,6 +1,7 @@
 import { routeMeta } from "@/lib/route-meta";
 import { steamWishlistQueryOptions } from "@/steam/use-wishlist";
 import { WishlistAllPanel } from "@/steam/wishlist/wishlist-all-panel";
+import { WishlistSkeleton } from "@/steam/wishlist/wishlist-skeleton";
 import {
   type WishlistTab,
   WishlistTabs,
@@ -18,6 +19,9 @@ interface WishlistSearch {
 
 export const Route = createFileRoute("/steam/wishlist")({
   component: WishlistPage,
+  // Same reasoning as the matches route: a layout-shaped skeleton beats the
+  // router's generic spinner, and only the slow client-navigation path sees it.
+  pendingComponent: WishlistSkeleton,
   // Both tabs read the one wishlist query, and it is 7 kB served from the
   // backend's own GetWishlist cache in ~1 ms. Small, fast, and it is the whole
   // of what either panel renders.
