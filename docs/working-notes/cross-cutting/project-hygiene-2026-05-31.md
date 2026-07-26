@@ -230,19 +230,31 @@ Pick one of these up the next time anyone is editing this file. Don't open a ded
 
 Landed shape: three tabs each in their own file (`match-detail-recap-tab.tsx` ~880L, `match-detail-your-game-tab.tsx` ~112L, `match-detail-timeline-tab.tsx` ~31L). `ChartFallback` extracted to `match-detail-shared.tsx` since both Your-game and Timeline tabs lazy-load Recharts charts behind a Suspense boundary with the same placeholder. `match-detail-view.tsx` is now a 3-line barrel re-export, so the 18 existing tests + 3 route files import unchanged. No shared mutable state across tabs turned up — `recapSeen` is recap-local, scroll state is `mainScrollRef`-anchored, hover state is per-component. The pre-split caution about lifting shared state didn't materialize.
 
-### D4 — API response DTOs as shared types
+### D4 — API response DTOs as shared types — CLOSED 2026-07-26 (premise was stale)
 
-**Scope:** the broader response-shape-sharing gap. Today web infers types from runtime fetch responses; API DTOs (`AccountParamsDto`, etc.) are validation-only on the request side. If the API shape drifts, web typechecks against stale assumptions until runtime.
+**Closed as already-done.** The trigger fired on 2026-07-26 (the route-loader pilot, Round 5 item N, is the "route loaders are the natural introduction point" moment), and measuring the repo before writing any code showed option 2 was already the shipped state — and had been since before this note was written on 2026-05-31.
 
-**Trigger:** sequence with [tanstack-start-migration.md](tanstack-start-migration.md) — route loaders are the natural place to introduce typed response DTOs end-to-end. Alternative trigger: a real incident where API drift broke web silently.
+**Measured, `apps/web/src`** — 62 `await fetch(` sites, 61 against the vyoh API (the 62nd is DDragon, returning `Promise<string>`):
 
-**Approach options (decide at start of session):**
-1. **Export response types from `apps/api` directly** — web imports via package boundary. Couples web to api's internal types.
-2. **Mirror DTOs in `packages/shared/src/<domain>/dto.ts`** — api maps to them on the way out, web imports them. Cleaner boundary but two-place definition.
-3. **Generate types from a runtime schema** (Zod/class-validator + reflection) defined in shared. Most ceremony, best safety. Sequence with V3 (POST body DTOs from the prior hygiene round).
+| Bucket | Count |
+|---|---|
+| explicit return type from `@vyoh/shared` | **58** |
+| explicit type declared locally in `apps/web` (a mirror that can drift) | **3**, plus 1 SSE payload |
+| no annotation, inferred from `res.json()` | **0** |
 
-**Risk:** large scope creep; could turn into a multi-session arc if option 3 is picked. Scope ruthlessly to a single domain (LoL match summary or Steam owned-games) first.
+**Measured, `apps/api/src`** — 12 controllers, 98 route handlers:
 
-**Estimated size:** 2–4 chunks, depending on option chosen. Owner-coordinated.
+| Bucket | Count |
+|---|---|
+| explicit return type from `@vyoh/shared` | **62** |
+| explicit but non-shared | **35** — of which **33 carry no JSON body** (30 `Promise<void>` `@Res()` binary handlers in `img`/`og`, 3 SSE `Observable<MessageEvent>`) |
+| no explicit return type | **1** |
 
-**Status:** waiting on Start migration kickoff or a drift incident.
+So the note's premise — "web infers types from runtime fetch responses" — was false when written: zero web fetch sites infer, and 58 of 61 already import the api's own response type from shared. The drift surface is **6 sites**, not a domain-wide gap, and it does not justify a 2–4 chunk arc. The three approach options are moot; option 2 won by default.
+
+**What was actually left,** now tracked as a single sub-session item in [open-work.md](../open-work.md) rather than as this arc:
+
+- api → shared: `lol.controller.ts:86` (`Promise<{ idCount, backfilled }>`), `patch.controller.ts:30` (`Promise<{ year: number }>`), `health.controller.ts:6` (no return type).
+- web mirrors to delete once the above export real types: `use-matches.ts:196`, `use-status.ts:120`, `use-ranked-emblem-year.ts:12`, and the SSE payload in `use-live-match.ts:7` (which mirrors `match-events.service.ts:13`, an api-local type that never reached shared).
+
+**Two things this note got right, and they outlive it.** First, the convention was real but undocumented and unlinted — nothing in [repo-conventions.md](../../repo-conventions.md) stated it, `biome.json` has no `useExplicitType`, and `apps/api/src/conventions.spec.ts` had no controller lint. It survived on discipline alone. The rule is now written down as part of this closure. Second, **no response payload is validated at runtime anywhere** in the app: `class-validator` covers request params only, and the workspace has no zod/valibot/arktype. That is a genuine gap, but it is a runtime-validation concern rather than a type-sharing one, so it is filed separately in [parked.md](../parked.md) with its own trigger instead of being smuggled in under D4.

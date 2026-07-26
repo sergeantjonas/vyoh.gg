@@ -69,6 +69,31 @@ If a helper function (formatter, type guard, domain utility) is used across more
 
 **How to apply:** Before writing a new utility function, check `packages/shared/src/` first. Before copying a helper from one package into another, move it to shared instead. When refactoring a feature, treat cross-package duplication as a defect, not style.
 
+### API response types live in `packages/shared`, and the controller declares them
+
+Every NestJS route handler that returns a JSON body carries an **explicit** return type, and that type is imported from `@vyoh/shared` — not declared locally in `apps/api`, and not left to inference. The web hook that consumes the endpoint annotates its fetch function with the *same* imported type.
+
+```ts
+// packages/shared/src/lol/match-detail.ts
+export type MatchDetail = { … };
+
+// apps/api/src/lol/match.controller.ts
+async getMatch(@Param() { matchId }: MatchIdParamDto): Promise<MatchDetail> { … }
+
+// apps/web/src/lol/matches/use-match-detail.ts
+async function fetchMatchDetail(matchId: string): Promise<MatchDetail> { … }
+```
+
+**Why:** this is what makes API drift a *build* failure instead of a runtime one. The shared type is the contract; the controller's explicit annotation is what pins the api to it. Drop the annotation and the handler's return type becomes whatever the service happens to return, so the contract silently re-shapes itself around the drift and web keeps type-checking against a type that no longer describes the response. The web-side annotation matters for the same reason in reverse: `res.json()` is `any`, so an unannotated fetch function launders a wrong shape into confident-looking typed code.
+
+A local mirror in `apps/web` is the trap this rule exists to prevent — it type-checks perfectly while describing a response the api no longer sends. Exporting the type from `apps/api` instead is also wrong: it inverts the package boundary (`apps/*` depending on `apps/*`) and drags Nest internals into web's typecheck graph.
+
+Note the limit of the guarantee: this is compile-time only. `class-validator` covers **request** params; nothing validates a response body at runtime, by decision (see the parked entry in [working-notes/parked.md](./working-notes/parked.md)).
+
+**How to apply:** when adding an endpoint, define its response type in `packages/shared/src/<domain>/` first, export it from the barrel, then annotate both ends against it. When touching an existing endpoint whose handler has no return type, add one in the same change rather than leaving it. If you are about to write a `type Foo = { … }` in a web hook to describe a response, the type belongs in shared instead.
+
+**This is unlinted** — `biome.json` sets no `useExplicitType` and `apps/api/src/conventions.spec.ts` carries no controller assertion — so it holds by review, not by tooling. A 2026-07-26 audit measured the actual posture at 58 of 61 web fetch sites and 62 of 65 JSON-returning handlers already conforming, with the 6 stragglers tracked in [open-work.md](./working-notes/open-work.md). If that ratio ever slips, add the lint rather than re-auditing.
+
 ### Centralise domain invariants that must apply to every aggregation in a feature
 
 If a predicate or filter must hold for *every* stat computation, rollup, or display in a feature domain, define it as a named helper in `packages/shared/src/<domain>/` — never inline it at each call site. An inlined filter can be silently omitted when a new aggregation is added under time pressure; a named helper cannot.
