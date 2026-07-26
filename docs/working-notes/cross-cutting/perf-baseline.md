@@ -7,7 +7,7 @@ Investigation started after the main roadmaps (views, match-depth, trends) shipp
 ## Tooling in place
 
 - **Bundle visualizer:** `rollup-plugin-visualizer` added as devDep. Run `ANALYZE=1 pnpm run build` from `apps/web/` to emit `dist/stats.html` (treemap) + `dist/stats.json` (parseable). Gated by `process.env.ANALYZE === "1"` in [apps/web/vite.config.ts](../../../apps/web/vite.config.ts) so normal builds are unaffected.
-- **Bundle budget:** `size-limit` configured in [apps/web/.size-limit.cjs](../../../apps/web/.size-limit.cjs) (not `package.json`). Run `pnpm run size` (full report) or `pnpm run size:cc` (silent, exit-code only — CI-friendly) after a build. Current budgets: **initial JS 240 kB gzip** (~4.4% headroom over 229.53 kB), Recharts lazy chunk 85 kB gzip (~20% over 68.25 kB). The check reads `dist/`, so the pattern is `pnpm run build && pnpm run size:cc`. The initial-JS entry derives its file list from `dist/index.html` at config load and **throws** if the parse looks partial — see the 2026-07-25 section below for why.
+- **Bundle budget:** `size-limit` configured in [apps/web/.size-limit.cjs](../../../apps/web/.size-limit.cjs) (not `package.json`). Run `pnpm run size` (full report) or `pnpm run size:cc` (silent, exit-code only — CI-friendly) after a build. Current budgets: **initial JS 250 kB gzip** (~3.3% headroom over 241.65 kB), Recharts lazy chunk 85 kB gzip (~20% over 68.25 kB). The check reads `dist/client/`, so the pattern is `pnpm run build && pnpm run size:cc`. The initial-JS entry derives its file list from `dist/client/.vite/manifest.json` at config load and **throws** if the walk looks partial — see the 2026-07-25 and 2026-07-26 sections below for why.
 - **Web Vitals:** wired via [apps/web/src/lib/web-vitals.ts](../../../apps/web/src/lib/web-vitals.ts) + dev-only [PerfOverlay](../../../apps/web/src/components/perf-overlay.tsx) gated by `usePerfFlag()`. Live updates enabled (`reportAllChanges: true` for CLS/INP/LCP). Activation: append `?perf` (or `?perf=1`) once — persists to `localStorage` for the session, survives TanStack Router validateSearch stripping. Clear `vyoh:perf` from localStorage to disable.
 - **Lighthouse:** **not** available inside the devcontainer (no Chrome). Use the PerfOverlay against `vite preview` on a forwarded port for live measurements. Firefox lacks the live CPU-throttling Chrome offers, so deeper throttled measurement requires Chrome/Edge.
 
@@ -177,3 +177,25 @@ Largest preloaded chunks the old budget ignored: `react-*.js` 38.17 kB, `Match-*
 Attribute patterns require preceding whitespace rather than `\b`, because `\bhref` also matches `data-href` (the hyphen is a non-word character) — the first draft of the guard missed the rename case for exactly that reason.
 
 **Not done:** no attempt was made to *reduce* initial JS. 240 kB records where the app actually is; trimming toward the old 210 kB figure is separate, optional work.
+
+## Initial-JS re-baseline — 2026-07-26 (TanStack Start cutover)
+
+Two changes, one forced and one measured.
+
+**The derivation source moved from HTML to the build manifest.** Start renders the document per request, so `dist/index.html` no longer exists at build time and the parse above had nothing to read. `.size-limit.cjs` now loads `dist/client/.vite/manifest.json` (`build.manifest: true` added to vite.config.ts) and walks the single client entry through its transitive static `imports`. `dynamicImports` are deliberately not walked — those are the lazily-fetched route chunks.
+
+The walk finds **21 chunks**, the same count the HTML parse found. That agreement is the evidence the swap is faithful rather than merely plausible, and it is worth re-checking if the number ever moves without a matching code change.
+
+**The guard survived the rewrite in spirit.** It can no longer count `modulepreload` tags, so it asserts the manifest contains exactly one `isEntry` chunk instead. The failure it defends against is unchanged: `size-limit` silently ignores a path that matches nothing, so a manifest-shape change upstream would otherwise shrink the measured payload and turn the budget green.
+
+| Measure | Value |
+|---|---|
+| Initial JS before the cutover (2026-07-25 method) | 229.53 kB gzip |
+| **Initial JS after the cutover** | **241.65 kB gzip** |
+| Delta attributable to the Start runtime | **≈ +12.1 kB gzip** |
+| Limit (set 2026-07-26) | 250 kB gzip (~3.3% headroom) |
+| Recharts lazy chunk | 68.25 kB gzip (limit 85 kB, unchanged) |
+
+The ceiling moved 240 → 250 kB because the cost buys server rendering, which is the entire point of the migration; it is not a regression to chase. Headroom is deliberately similar to what 240 kB gave, so the budget still bites on the next unplanned addition. The two figures come from different derivation methods (HTML tags vs manifest walk), so treat the delta as approximate — the unambiguous part is that the payload crossed the previous ceiling.
+
+**Worth re-measuring after chunk 4.** Making virtualizers, portals, and charts render server-side changes what ships in the initial payload in both directions: more content in the HTML, and possibly more or less JS depending on how each surface is gated.

@@ -187,7 +187,7 @@ export function MatchRow({
               };
               doc.startViewTransition?.(async () => {
                 if (cardRef.current) cardRef.current.style.viewTransitionName = "";
-                // Opt out of router-level `defaultViewTransition` (main.tsx) —
+                // Opt out of router-level `defaultViewTransition` (router.tsx) —
                 // this click already drives its own startViewTransition for the
                 // per-element morph. Nesting the two collides the snapshot
                 // pairs and breaks the forward morph.

@@ -1,4 +1,4 @@
-// Initial-JS budget, derived from the built `dist/index.html` at config load.
+// Initial-JS budget, derived from the client build manifest at config load.
 //
 // Why derived and not a glob: this entry read `dist/assets/index-*.js` until
 // 2026-07-25, which is ONE of the 21 chunks the browser actually loads on
@@ -9,8 +9,18 @@
 //
 // Hand-writing 21 globs is not the fix either: the names are content-hashed
 // and change every build, and prefix globs over-count (`dist/assets/dist-*.js`
-// matches five emitted chunks, only three of which are preloaded). Parsing the
-// HTML is the only source that stays correct as chunking changes.
+// matches five emitted chunks, only three of which are preloaded).
+//
+// It parsed `dist/index.html` for the entry script plus its modulepreloads
+// until 2026-07-26. TanStack Start renders the document per request, so no
+// build-time HTML survives to parse. The manifest describes the same graph:
+// the client entry chunk plus its transitive *static* imports are exactly the
+// set Vite would have emitted modulepreload tags for. It reproduces the same
+// 21 chunks the HTML parse found, which is the evidence that the swap is
+// faithful rather than merely plausible.
+//
+// `dynamicImports` are deliberately not walked — those are the lazily-fetched
+// route and feature chunks, which is the whole point of code splitting.
 //
 // CSS is deliberately out of scope — this is a JS budget. `index-*.css` is
 // ~31 kB gzip and render-blocking; if it ever needs a ceiling, give it its own
@@ -23,55 +33,64 @@
 const { readFileSync } = require("node:fs");
 const { join } = require("node:path");
 
-const DIST = join(__dirname, "dist");
+const CLIENT_DIST = join(__dirname, "dist", "client");
 
 function initialJsPaths() {
-  let html;
+  let manifest;
   try {
-    html = readFileSync(join(DIST, "index.html"), "utf8");
+    manifest = JSON.parse(
+      readFileSync(join(CLIENT_DIST, ".vite", "manifest.json"), "utf8")
+    );
   } catch {
     throw new Error(
-      "size-limit: dist/index.html not found — run `pnpm --filter @vyoh/web build` first."
+      "size-limit: dist/client/.vite/manifest.json not found — run `pnpm --filter @vyoh/web build` first. (It needs `build.manifest: true` in vite.config.ts.)"
     );
   }
 
-  // Attribute patterns require preceding whitespace, not \b: \bhref also
-  // matches data-href (the hyphen is a non-word char), which would let a
-  // renamed attribute keep matching and defeat the guard below.
-  const entry = [...html.matchAll(/<script\b[^>]*\ssrc="(\/assets\/[^"]+\.js)"/g)].map(
-    (m) => m[1]
-  );
-  const preloads = [
-    ...html.matchAll(
-      /<link\b[^>]*\srel="modulepreload"[^>]*\shref="(\/assets\/[^"]+\.js)"/g
-    ),
-  ].map((m) => m[1]);
+  const entries = Object.keys(manifest).filter((key) => manifest[key].isEntry);
 
-  // Guard against a partial parse, not just a zero one. size-limit silently
-  // ignores a path that matches nothing, so a tag-shape change upstream would
-  // otherwise quietly shrink the measured payload and turn the budget green.
-  const declaredPreloads = (html.match(/rel="modulepreload"/g) ?? []).length;
-  if (entry.length !== 1 || preloads.length !== declaredPreloads) {
+  // Guard against a partial walk, not just an empty one. size-limit silently
+  // ignores a path that matches nothing, so a manifest shape change upstream
+  // would otherwise quietly shrink the measured payload and turn the budget
+  // green. Start emits exactly one client entry (its default client entry);
+  // more than one means the build shape changed and this needs rethinking.
+  if (entries.length !== 1) {
     throw new Error(
-      `size-limit: initial-JS parse looks wrong — matched ${entry.length} entry script(s) and ${preloads.length} of ${declaredPreloads} modulepreload(s). The index.html tag shape probably changed; update the patterns above.`
+      `size-limit: expected exactly 1 client entry chunk in the manifest, found ${entries.length}. The build shape probably changed; update the walk above.`
     );
   }
 
-  return [...entry, ...preloads].map((p) => join(DIST, p.replace(/^\//, "")));
+  const seen = new Set();
+  const walk = (key) => {
+    if (seen.has(key)) return;
+    seen.add(key);
+    for (const imported of manifest[key].imports ?? []) walk(imported);
+  };
+  walk(entries[0]);
+
+  return [...seen].map((key) => join(CLIENT_DIST, manifest[key].file));
 }
 
 module.exports = [
   {
-    // Every chunk the browser fetches before first paint: the entry module
-    // plus its modulepreloads. ~230 kB at the 2026-07-25 baseline.
-    name: "initial JS (entry + modulepreloads)",
+    // Every chunk the browser fetches before first paint: the client entry
+    // module plus its transitive static imports.
+    //
+    // Ceiling went 240 kB → 250 kB on 2026-07-26: 229.53 kB before the Start
+    // cutover, 241.65 kB after. That ~12 kB is the Start client runtime and
+    // hydration path, i.e. the price of server rendering rather than a
+    // regression to chase. The two figures come from different derivation
+    // methods (HTML tags vs manifest walk), so treat the delta as approximate.
+    // Headroom stays near what 240 kB gave, so the budget still bites on the
+    // next unplanned addition.
+    name: "initial JS (entry + static imports)",
     path: initialJsPaths(),
-    limit: "240 kB",
+    limit: "250 kB",
     gzip: true,
   },
   {
     name: "recharts chunk (lazy)",
-    path: "dist/assets/CategoricalChart-*.js",
+    path: "dist/client/assets/CategoricalChart-*.js",
     limit: "85 kB",
     gzip: true,
   },

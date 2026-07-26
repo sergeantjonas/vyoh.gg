@@ -1,5 +1,5 @@
 // Tiny pub/sub for "a router-level view transition is starting". Fired
-// from the `defaultViewTransition.types` callback in main.tsx the moment
+// from the `defaultViewTransition.types` callback in router.tsx the moment
 // before TanStack Router invokes `document.startViewTransition` — early
 // enough that subscribers can pause expensive continuous work (video
 // decode, RAF loops, ResizeObservers feeding filters) before the OLD

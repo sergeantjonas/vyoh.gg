@@ -31,7 +31,7 @@ import { IDENTITY_AVATAR_MORPH_ID, IDENTITY_NAME_MORPH_ID } from "./identity-lay
 //    per-element morph so the identity still travels visibly.
 //
 // On the VT path the morph runs *alongside* the section slide: we set
-// `data-vt-shell="on"` + reset `<main>` scrollTop exactly as main.tsx's
+// `data-vt-shell="on"` + reset `<main>` scrollTop exactly as router.tsx's
 // router-level callback does, and add the slide type to our own transition.
 // `vt-main` slides while the named identity groups morph independently on
 // top. The fallback path skips the shell-slide coordination because there

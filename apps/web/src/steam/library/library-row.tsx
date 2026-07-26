@@ -246,7 +246,7 @@ export function LibraryRow({
         doc.startViewTransition?.(async () => {
           if (heroRef.current) heroRef.current.style.viewTransitionName = "";
           if (logoRef.current) logoRef.current.style.viewTransitionName = "";
-          // Opt out of router-level `defaultViewTransition` (main.tsx) —
+          // Opt out of router-level `defaultViewTransition` (router.tsx) —
           // this click already drives its own startViewTransition for the
           // per-element morph. Nesting the two collides the snapshot
           // pairs and breaks the forward morph.

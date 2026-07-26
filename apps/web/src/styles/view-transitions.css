@@ -5,7 +5,7 @@
  * — navigation still feels intentional rather than abrupt.
  *
  * Section-shell slide types are driven by TanStack Router's
- * `defaultViewTransition.types` callback in apps/web/src/main.tsx via
+ * `defaultViewTransition.types` callback in apps/web/src/router.tsx via
  * apps/web/src/lib/navigation-type.ts. The classifier emits one of:
  *   slide-left, slide-right, intra-section, cross-section, account-swap
  * Per docs/working-notes/cross-cutting/section-shell-vt-migration.md.
@@ -60,7 +60,7 @@ body[data-vt-shell="on"] [data-vt-main] {
 
 /* ── Slide types ──────────────────────────────────────────────────────────
    Only `vt-main` moves. Root (header + backdrop + scrollbar) holds.
-   `main.tsx`'s types callback resets `<main>` scrollTop BEFORE
+   `router.tsx`'s types callback resets `<main>` scrollTop BEFORE
    startViewTransition so both OLD and NEW capture with the same scroll
    position — without that, useScrollResetOnNav fires between snapshots
    and shifts the visible area, sliding diagonally. Because `<main>` has

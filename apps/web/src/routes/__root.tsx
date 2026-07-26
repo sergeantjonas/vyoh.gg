@@ -10,6 +10,7 @@ import { Nav } from "@/components/nav";
 import { NotFound } from "@/components/not-found";
 import { ScrollProgress } from "@/components/scroll-progress";
 import { ScrollToTop } from "@/components/scroll-to-top";
+import { API_PUBLIC_URL } from "@/lib/api-url";
 import { PresenceMounts } from "@/lib/presence-mounts";
 import { routeOwnsEntry } from "@/lib/route-owns-entry";
 import { mainScrollRef } from "@/lib/scroll-container";
@@ -18,18 +19,40 @@ import { useAudio, useAudioHydration } from "@/lib/use-audio";
 import { useAudioShortcut } from "@/lib/use-audio-shortcut";
 import { useFaviconDot } from "@/lib/use-favicon-dot";
 import { usePerfFlag } from "@/lib/use-perf-flag";
+import { reportWebVitals } from "@/lib/web-vitals";
 import { SplashProvider } from "@/lol/_shared/assets/splash-backdrop";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { QueryClient } from "@tanstack/react-query";
 import {
   HeadContent,
   Outlet,
+  Scripts,
   createRootRouteWithContext,
   useRouter,
   useRouterState,
 } from "@tanstack/react-router";
 import { m } from "motion/react";
 import { Suspense, lazy, useEffect, useLayoutEffect, useRef } from "react";
+import appCss from "../index.css?url";
+// `?url` rather than a bare side-effect import: the shell needs a real
+// <link rel="stylesheet"> in the server-rendered HTML. A bare import works in
+// the browser but leaves the first server response unstyled until the client
+// bundle evaluates, which is a full-page flash on every cold load.
+import motionCss from "../styles/motion.css?url";
+import viewTransitionsCss from "../styles/view-transitions.css?url";
+
+// Recharts ResponsiveContainer initialises with { width: -1, height: -1 } as a
+// sentinel before ResizeObserver fires, producing a noisy but harmless warning.
+if (import.meta.env.DEV) {
+  const _warn = console.warn.bind(console);
+  console.warn = (...args: unknown[]) => {
+    if (typeof args[0] === "string" && args[0].startsWith("The width(-1)")) return;
+    _warn(...args);
+  };
+}
+
+const SITE_DESCRIPTION =
+  "Personal cross-platform gaming dashboard — League of Legends, Steam, and more, stitched into one self-portrait.";
 
 // Debug-only web-vitals overlay. Gated on usePerfFlag() at the mount site so
 // the chunk is only fetched when ?perf / localStorage opt-in is set — keeps it
@@ -40,15 +63,87 @@ const PerfOverlay = lazy(() =>
 
 // Declares the shape of the router context so route `loader`s can reach the
 // Query cache in a typed way. Without this, `createRouter({ context })` in
-// main.tsx type-checks against the default `{}` and the property is silently
+// router.tsx type-checks against the default `{}` and the property is silently
 // dropped — `context.queryClient` would then be a TS2741 at every loader.
 // The factory is curried: `createRootRouteWithContext<T>()({ ... })`.
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: RootLayout,
+  shellComponent: RootDocument,
   notFoundComponent: NotFound,
+  // The base document head, absorbed from index.html when the Start shell took
+  // over. Per-route head() exports merge over this, so anything a deep route
+  // overrides (title, description, og:image) only needs its own key here as a
+  // site-wide default.
+  head: () => ({
+    meta: [
+      { charSet: "UTF-8" },
+      { name: "viewport", content: "width=device-width, initial-scale=1.0" },
+      { name: "theme-color", content: "#0a0a0a" },
+      { title: "vyoh.gg" },
+      { name: "description", content: SITE_DESCRIPTION },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      {
+        name: "apple-mobile-web-app-status-bar-style",
+        content: "black-translucent",
+      },
+      { name: "apple-mobile-web-app-title", content: "vyoh" },
+      { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "vyoh.gg" },
+      { property: "og:title", content: "vyoh.gg" },
+      { property: "og:description", content: SITE_DESCRIPTION },
+      { property: "og:url", content: "https://vyoh.gg/" },
+      // Default site-wide OG image — overridden per-route by head() on routes
+      // that ship their own template (match/champion/profile/Steam game).
+      // Endpoint renders dynamically; HTTP cache absorbs the cost.
+      { property: "og:image", content: `${API_PUBLIC_URL}/og/home.png` },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      {
+        name: "robots",
+        content: "index, follow, max-image-preview:large, max-snippet:-1",
+      },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: `${API_PUBLIC_URL}/og/home.png` },
+    ],
+    links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "stylesheet", href: viewTransitionsCss },
+      { rel: "stylesheet", href: motionCss },
+      { rel: "canonical", href: "https://vyoh.gg/" },
+      { rel: "icon", type: "image/svg+xml", href: "/vyoh-orb-favicon.svg" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+      { rel: "manifest", href: "/manifest.json" },
+    ],
+  }),
 });
 
+// The document itself. `shellComponent` is the only place allowed to render
+// <html>/<head>/<body>: it wraps every match, renders once per request on the
+// server, and is what makes the markup a real document rather than a div that
+// gets mounted into one. `className="dark"` stays on <html> because the theme
+// tokens in index.css are scoped to it and a flash of the light palette before
+// hydration would be visible.
+function RootDocument({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" className="dark">
+      <head>
+        <HeadContent />
+      </head>
+      <body>
+        {children}
+        <Scripts />
+      </body>
+    </html>
+  );
+}
+
 function RootLayout() {
+  // Was a bare call at the bottom of main.tsx. In an effect now because this
+  // component also renders on the server, where there is no performance
+  // observer to attach to and no browser to report from.
+  useEffect(() => {
+    reportWebVitals();
+  }, []);
   useFaviconDot();
   const perfEnabled = usePerfFlag();
   const scope = useRouterState({
@@ -134,7 +229,6 @@ function RootLayout() {
     <TooltipPrimitive.Provider delayDuration={150}>
       <CommandPaletteProvider>
         <SplashProvider>
-          <HeadContent />
           <PresenceMounts />
           <FetchProgress />
           {/* Widget-tier boundary: a crash in the palette overlay (grammar

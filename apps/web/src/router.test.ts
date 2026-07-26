@@ -1,4 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
+import type { ReactElement, ReactNode } from "react";
+import { isValidElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 // Boot no real router: the property under test is what the factory hands to
@@ -12,6 +14,23 @@ import { getRouter } from "./router";
 
 const clientOf = (router: ReturnType<typeof getRouter>) =>
   (router.options.context as { queryClient: QueryClient }).queryClient;
+
+function findElementByType(node: ReactNode, displayName: string): ReactElement | null {
+  if (!node || typeof node !== "object") return null;
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const hit = findElementByType(child, displayName);
+      if (hit) return hit;
+    }
+    return null;
+  }
+  if (!isValidElement(node)) return null;
+  const type = node.type as { displayName?: string; name?: string } | string;
+  const typeName = typeof type === "string" ? type : (type.displayName ?? type.name);
+  if (typeName === displayName) return node;
+  const children = (node.props as { children?: ReactNode }).children;
+  return findElementByType(children, displayName);
+}
 
 describe("getRouter", () => {
   it("gives every call its own QueryClient", () => {
@@ -29,6 +48,30 @@ describe("getRouter", () => {
 
     expect(first.getQueryData(["owner"])).toBe("account-a");
     expect(second.getQueryData(["owner"])).toBeUndefined();
+  });
+
+  it("wraps the route matches in a MotionConfig with reducedMotion='user'", () => {
+    // Inherited from the deleted main.test.tsx. The provider stack moved from
+    // main.tsx into the router's `Wrap` during the Start cutover, so this is
+    // the same assertion pointed at its new home: reduced-motion has to be
+    // configured above every route, not per-surface.
+    const wrapped = getRouter().options.Wrap?.({ children: null });
+    const motionConfig = findElementByType(wrapped ?? null, "MotionConfig");
+
+    expect(motionConfig).not.toBeNull();
+    expect((motionConfig?.props as { reducedMotion?: string }).reducedMotion).toBe(
+      "user"
+    );
+  });
+
+  it("provides the same QueryClient it puts in router context", () => {
+    // Two clients would type-check fine and silently double the cache: loaders
+    // would prime one and components would read the other.
+    const router = getRouter();
+    const wrapped = router.options.Wrap?.({ children: null });
+    const provider = findElementByType(wrapped ?? null, "QueryClientProvider");
+
+    expect((provider?.props as { client?: unknown }).client).toBe(clientOf(router));
   });
 
   it("passes the QueryClient through router context so loaders share it", () => {

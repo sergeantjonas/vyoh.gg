@@ -139,7 +139,7 @@ export function LibraryTile({
               doc.startViewTransition?.(async () => {
                 if (morphLayerRef.current)
                   morphLayerRef.current.style.viewTransitionName = "";
-                // Opt out of router-level `defaultViewTransition` (main.tsx) —
+                // Opt out of router-level `defaultViewTransition` (router.tsx) —
                 // this click already drives its own startViewTransition for the
                 // per-element morph. Nesting the two collides the snapshot
                 // pairs and breaks the forward morph.

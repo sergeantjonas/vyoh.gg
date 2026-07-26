@@ -36,7 +36,7 @@ export class ErrorBoundary extends Component<Props, State> {
 }
 
 /**
- * Full-card crash fallback shared by the app-root tier (main.tsx, outside the
+ * Full-card crash fallback shared by the app-root tier (router.tsx's Wrap, outside the
  * router) and the page-content tier (__root's <Outlet> boundary). `fullScreen`
  * centres it in the viewport for the root tier; the page tier renders it inside
  * the constrained <main> column. `error.message` shows only when an error is
