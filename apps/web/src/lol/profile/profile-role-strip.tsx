@@ -7,7 +7,7 @@ import {
   isRolePosition,
 } from "@/lol/_shared/assets/role-icon";
 import { useSeriousMatches } from "@/lol/_shared/serious-queues/serious-queues";
-import { type MatchSummary, formatPercent } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes, formatPercent } from "@vyoh/shared";
 import { useMemo } from "react";
 
 const ARAM_HEAVY_RATIO = 0.9;
@@ -28,8 +28,7 @@ function aggregate(matches: MatchSummary[]): {
   let total = 0;
   let positioned = 0;
   const map = new Map<RolePosition, { games: number; wins: number }>();
-  for (const m of matches) {
-    if (m.remake) continue;
+  for (const m of excludeRemakes(matches)) {
     total += 1;
     if (!isRolePosition(m.teamPosition)) continue;
     positioned += 1;

@@ -1,5 +1,5 @@
 import { type RolePosition, isRolePosition } from "@/lol/_shared/assets/role-icon";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 
 // Per-role slice surfaced inline on the consolidated row — lets a champion
 // played in multiple lanes (e.g. Ahri mid + top) show one card with a
@@ -71,8 +71,7 @@ export function aggregateChampionStats(matches: MatchSummary[]): ChampionStats[]
   };
   const byChamp = new Map<string, ChampAccum>();
 
-  for (const match of matches) {
-    if (match.remake) continue;
+  for (const match of excludeRemakes(matches)) {
     // Drop ARAM/Arena rows — they have no teamPosition and would muddle the
     // role breakdown.
     if (!isRolePosition(match.teamPosition)) continue;

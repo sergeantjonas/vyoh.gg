@@ -5,7 +5,7 @@ import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { ParentSize } from "@visx/responsive";
 import { scaleLinear } from "@visx/scale";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { hexbin as d3Hexbin } from "d3-hexbin";
 import { useMemo, useState } from "react";
 
@@ -68,8 +68,7 @@ function collectStats(matches: readonly MatchSummary[], mode: Mode): Stats {
   const zoneCounts = new Map<string, number>();
   let matchesWithPosition = 0;
   let totalMatches = 0;
-  for (const m of matches) {
-    if (m.remake) continue;
+  for (const m of excludeRemakes(matches)) {
     totalMatches++;
     const xs = mode === "deaths" ? m.deathXs : m.killXs;
     const ys = mode === "deaths" ? m.deathYs : m.killYs;

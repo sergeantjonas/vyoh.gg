@@ -9,7 +9,7 @@ import { useMatchWindow } from "@/lol/matches/match-window-context";
 import { AbilityChangeList } from "@/lol/patches/ability-change-list";
 import { useCurrentPatchChanges } from "@/lol/patches/use-current-patch-changes";
 import { Link } from "@tanstack/react-router";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -26,8 +26,7 @@ function topWikiChampions(
   resolve: (alias: string) => string
 ): string[] {
   const counts = new Map<string, number>();
-  for (const m of matches) {
-    if (m.remake) continue;
+  for (const m of excludeRemakes(matches)) {
     counts.set(m.champion, (counts.get(m.champion) ?? 0) + 1);
   }
   return [...counts.entries()]

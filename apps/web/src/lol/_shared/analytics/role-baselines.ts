@@ -6,7 +6,7 @@
 // "is the user above or below the typical role floor?" without claiming
 // statistical authority. Numbers are rounded to readable values.
 
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 
 export type Role = "TOP" | "JUNGLE" | "MIDDLE" | "BOTTOM" | "UTILITY";
 
@@ -70,8 +70,7 @@ export function aggregateByRole<T>(
   pick: (m: MatchSummary) => T
 ): Map<Role, T[]> {
   const out = new Map<Role, T[]>();
-  for (const m of matches) {
-    if (m.remake) continue;
+  for (const m of excludeRemakes(matches)) {
     if (!isRole(m.teamPosition)) continue;
     let bucket = out.get(m.teamPosition);
     if (!bucket) {

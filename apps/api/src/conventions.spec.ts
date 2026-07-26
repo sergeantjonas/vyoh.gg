@@ -141,6 +141,70 @@ describe("project conventions (structural lints)", () => {
     }
   });
 
+  // The other half of the invariant, and the one the method-call lint above is
+  // structurally blind to: a loop that guards with `continue` rather than
+  // filtering. Ten of these survived the 2026-07-18 sweep because no regex
+  // aimed at `.filter(...)` can see them.
+  //
+  // Scoped to `continue` deliberately. `if (summary.remake) return;` in
+  // match-hero is a single-match display guard (it suppresses a result chime),
+  // not an aggregation, and must not be flagged. Requiring `continue` excludes
+  // it for free, and also excludes backfill-remake-flag.ts, which is the script
+  // whose whole job is acting on the flag.
+  const REMAKE_CONTINUE =
+    /if\s*\([^;{}]{0,160}?\b[A-Za-z_$][\w$]*\.remake\b[^;{}]{0,160}?\)\s*continue\b/;
+
+  it("no remake loop-guard outside the helper", () => {
+    const hits = collect(
+      REMAKE_SCAN_ROOTS,
+      (text) => {
+        const regex = new RegExp(REMAKE_CONTINUE.source, "g");
+        const out: string[] = [];
+        let m: RegExpExecArray | null;
+        // biome-ignore lint/suspicious/noAssignInExpressions: standard exec loop
+        while ((m = regex.exec(text)) !== null) {
+          const line = text.slice(0, m.index).split("\n").length;
+          out.push(`L${line}: ${m[0].split("\n")[0]?.trim()}`);
+        }
+        return out;
+      },
+      REMAKE_ALLOWLIST
+    );
+    expect(
+      hits,
+      "Iterate excludeRemakes(matches) instead of guarding with `if (m.remake) continue`"
+    ).toEqual([]);
+  });
+
+  it("the remake loop-guard lint spares display guards and compound conditions", () => {
+    const build = () => new RegExp(REMAKE_CONTINUE.source, "g");
+
+    const mustFlag = [
+      "for (const m of matches) {\n    if (m.remake) continue;\n",
+      "if (match.remake) continue;",
+      // The compound form from trend-death-matchup-heatmap.
+      "if (m.remake || !m.laneOpponent || !m.hasTimeline) continue;",
+      "if (!isRole(m.teamPosition) && m.remake) continue;",
+    ];
+    for (const src of mustFlag) {
+      expect(build().test(src), `should flag: ${src}`).toBe(true);
+    }
+
+    const mustNotFlag = [
+      // match-hero: suppresses a result chime for one match, not an aggregation.
+      "if (summary.remake) return;",
+      // backfill-remake-flag: the script that sets the flag.
+      "if (summary.remake) {\n  updated += 1;\n}",
+      "const played = excludeRemakes(matches);",
+      "{!match.remake && lpDelta !== undefined && <LpBadge delta={lpDelta} />}",
+      // A `continue` far below an unrelated remake read must not pair with it.
+      "if (m.remake) return null;\nfor (const x of xs) {\n  if (!x) continue;\n}",
+    ];
+    for (const src of mustNotFlag) {
+      expect(build().test(src), `should NOT flag: ${src}`).toBe(false);
+    }
+  });
+
   // repo-conventions.md: "Use TooltipPrimitive for all tooltip surfaces;
   // never use title=". Catches native HTML `title=` on intrinsic JSX tags;
   // capitalized component props (e.g. <CardShell title=...>) are allowed.

@@ -40,10 +40,10 @@ interface MatchupRow {
 
 function buildRows(matches: readonly MatchSummary[]): MatchupRow[] {
   const map = new Map<string, MatchupRow>();
-  for (const m of matches) {
+  for (const m of excludeRemakes(matches)) {
     // hasTimeline gates death-timing aggregation — see trend-death-timing.tsx
     // for the PN3 rationale.
-    if (m.remake || !m.laneOpponent || !m.hasTimeline) continue;
+    if (!m.laneOpponent || !m.hasTimeline) continue;
     const opp = m.laneOpponent.championName;
     let row = map.get(opp);
     if (!row) {

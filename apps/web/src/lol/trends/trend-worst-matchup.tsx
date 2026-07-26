@@ -24,8 +24,7 @@ interface MatchupRow {
 // the aggregation should match the action.
 function aggregate(matches: MatchSummary[]): MatchupRow[] {
   const map = new Map<string, MatchupRow>();
-  for (const m of matches) {
-    if (m.remake) continue;
+  for (const m of excludeRemakes(matches)) {
     if (!m.laneOpponent) continue;
     const key = m.laneOpponent.championName;
     const prev = map.get(key) ?? {

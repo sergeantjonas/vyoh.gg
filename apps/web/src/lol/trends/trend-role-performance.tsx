@@ -8,7 +8,7 @@ import {
 } from "@/lol/_shared/assets/role-icon";
 import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
 import { formatPercent } from "@vyoh/shared";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";
 
 const MIN_BAR_SAMPLE = 3;
@@ -31,8 +31,7 @@ function aggregate(matches: MatchSummary[]): {
   let total = 0;
   let positioned = 0;
   const map = new Map<RolePosition, RoleStat>();
-  for (const m of matches) {
-    if (m.remake) continue;
+  for (const m of excludeRemakes(matches)) {
     total += 1;
     if (!isRolePosition(m.teamPosition)) continue;
     positioned += 1;

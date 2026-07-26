@@ -2,7 +2,7 @@ import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { ROLE_LABEL, type RolePosition } from "@/lol/_shared/assets/role-icon";
 import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
 import { useChampionName } from "@/lol/champions/use-champions";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -34,8 +34,7 @@ export function computePoolDrift(
   const currentCounts = new Map<string, number>();
   const priorCounts = new Map<string, number>();
 
-  for (const m of matches) {
-    if (m.remake) continue;
+  for (const m of excludeRemakes(matches)) {
     const t = new Date(m.playedAt).getTime();
     if (t >= currentCutoff && t <= now) {
       currentCounts.set(m.champion, (currentCounts.get(m.champion) ?? 0) + 1);

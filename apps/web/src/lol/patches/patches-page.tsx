@@ -27,6 +27,7 @@ import type {
   MatchSummary,
   PatchEntryChangeGroup,
 } from "@vyoh/shared";
+import { excludeRemakes } from "@vyoh/shared";
 import { type CSSProperties, useMemo, useState } from "react";
 
 // Default count for the personalized play-count window. Mirrors the account
@@ -466,8 +467,7 @@ function buildPlayCounts(
   resolve: (alias: string) => string
 ): Map<string, number> {
   const counts = new Map<string, number>();
-  for (const m of matches) {
-    if (m.remake) continue;
+  for (const m of excludeRemakes(matches)) {
     const wikiName = resolve(m.champion);
     counts.set(wikiName, (counts.get(wikiName) ?? 0) + 1);
   }

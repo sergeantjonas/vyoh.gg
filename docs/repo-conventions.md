@@ -77,6 +77,10 @@ If a predicate or filter must hold for *every* stat computation, rollup, or disp
 
 **How to apply:** When writing a new LoL aggregation, call `excludeRemakes()` from `@vyoh/shared` before computing stats — never re-derive `!m.remake` inline. For other feature domains, check whether must-hold preconditions exist and define a named helper in `packages/shared/src/<domain>/` the same way. If the helper doesn't exist yet, create it in the same change.
 
+**Iterate the helper, don't guard inside the loop.** `for (const m of excludeRemakes(matches))` is the shape; `for (const m of matches) { if (m.remake) continue; … }` is not. The two behave identically, which is exactly the problem: the second one hides from review and from tooling. Ten of them survived a dedicated sweep in 2026-07 because the structural lint only understood `.filter(…)` call shapes. Both forms are now linted in `apps/api/src/conventions.spec.ts`, and each lint carries fixtures asserting what it must *not* flag — the `continue` scoping is what spares `match-hero`'s single-match display guard and the backfill script.
+
+Two failures reached production through the gap this rule closes, both in code that never spelled `remake` at a filter site: `buildOutcomeSignal` walked an unfiltered history so a remake could pad a streak, and `getChampionExtras` counted remade games into item and matchup win rates. If an aggregation reads a match list and you cannot point at the `excludeRemakes()` call, assume it is wrong.
+
 ### Use `useChampionName()` for all champion name display
 
 When rendering a champion's name in any UI component, call `useChampionName()` from `@/lol/champions/use-champions` and use the returned function at the render site — never render a raw alias string directly as a display label.
