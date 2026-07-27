@@ -23,6 +23,8 @@
 // while the web app owns `/lol/$accountSlug/…`, and no prefix rule separates
 // an account slug from a literal route segment.
 
+import { envOrigin } from "./env-origin";
+
 // `process` sits outside this package's type scope on purpose: tsconfig.app.json
 // pins `types: ["vite/client"]` so Node globals cannot leak into browser code.
 // Declaring the one field the server branch reads keeps that boundary intact.
@@ -40,7 +42,7 @@ const DEV_ORIGIN = "http://localhost:2010";
  * Use for URLs that get **rendered into markup**. Identical on both sides of a
  * server render by construction.
  */
-export const API_PUBLIC_URL: string = import.meta.env.VITE_API_URL ?? DEV_ORIGIN;
+export const API_PUBLIC_URL: string = envOrigin(import.meta.env.VITE_API_URL, DEV_ORIGIN);
 
 function resolveFetchOrigin(): string {
   // Vite substitutes a literal for `import.meta.env.SSR` per build, so the
@@ -48,7 +50,7 @@ function resolveFetchOrigin(): string {
   // guard evaluated at runtime.
   if (!import.meta.env.SSR) return API_PUBLIC_URL;
   if (typeof process === "undefined") return API_PUBLIC_URL;
-  return process.env.API_INTERNAL_URL ?? API_PUBLIC_URL;
+  return envOrigin(process.env.API_INTERNAL_URL, API_PUBLIC_URL);
 }
 
 /**

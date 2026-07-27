@@ -1,0 +1,95 @@
+# Production stack for a single VPS. Nginx runs on the host and is the only
+# ingress, so every published port binds to loopback.
+#
+#   docker compose -f compose.prod.yaml up -d --build
+#
+# `compose.yaml` (unprefixed) stays the dev file and only runs Postgres; this
+# one is never loaded implicitly, hence the explicit `-f` above and the separate
+# project name, so a dev stack and a prod stack cannot adopt each other's
+# containers.
+name: vyoh-prod
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-vyoh}
+      # No default: a production database must not come up on `vyoh:vyoh`.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-vyoh}
+    # Loopback-published rather than internal-only, because the plan is one
+    # cluster per box with a database and role per project (see
+    # docs/working-notes/ops/hosting.md § Per-component conventions).
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vyoh} -d ${POSTGRES_DB:-vyoh}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      NODE_ENV: production
+      # Containers are UTC by default, and this app's dates are owner-local by
+      # definition (chronotype buckets, daily streak boundaries, "today").
+      TZ: ${TZ:-Europe/Brussels}
+      # Built here rather than read from .env: the host is `postgres` on the
+      # compose network, not the `localhost` the dev DATABASE_URL points at.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-vyoh}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-vyoh}
+      PORT: 2010
+      RIOT_API_KEY: ${RIOT_API_KEY:?set RIOT_API_KEY in .env}
+      STEAM_API_KEY: ${STEAM_API_KEY:-}
+      STEAM_GRIDDB_API_KEY: ${STEAM_GRIDDB_API_KEY:-}
+      # Required under NODE_ENV=production — see apps/api/src/env.ts.
+      WEB_ORIGIN: ${WEB_ORIGIN:?set WEB_ORIGIN in .env}
+      MATCH_SYNC_ENABLED: ${MATCH_SYNC_ENABLED:-true}
+      CUTOFF_DAYS: ${CUTOFF_DAYS:-90}
+      LOL_PREWARM: ${LOL_PREWARM:-0}
+      STEAM_PREWARM: ${STEAM_PREWARM:-0}
+    ports:
+      - "127.0.0.1:${API_PORT:-2010}:2010"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Build-time, and baked into the bundle and the markup: this is the
+        # origin a browser resolves, so it is the public api hostname even
+        # though the container talks to the api over the compose network.
+        VITE_API_URL: ${VITE_API_URL:?set VITE_API_URL in .env}
+        VITE_SITE_URL: ${VITE_SITE_URL:-}
+        BUILD_COMMIT: ${BUILD_COMMIT:-}
+    environment:
+      NODE_ENV: production
+      # Load-bearing, not hygiene. Every `Intl.DateTimeFormat` in the app that
+      # does not pin a `timeZone` resolves to the process's zone, so a UTC
+      # server renders "Jul 12" where the browser renders "Jul 13" and React
+      # throws the whole server tree away. Caught 2026-07-27 on
+      # /steam/achievements, which was the only route with an unlock close
+      # enough to midnight to straddle the offset.
+      TZ: ${TZ:-Europe/Brussels}
+      PORT: 2009
+      # Runtime, and server-side only: SSR loaders reach the api directly rather
+      # than back out through Nginx and the public hostname.
+      API_INTERNAL_URL: http://api:2010
+    ports:
+      - "127.0.0.1:${WEB_PORT:-2009}:2009"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:

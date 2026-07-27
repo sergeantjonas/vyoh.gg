@@ -50,6 +50,10 @@ function devFlattenCssNesting(): Plugin {
 }
 
 const buildCommit = (() => {
+  // Docker builds have no repository to ask: `.git` is in .dockerignore, and
+  // shipping it would be a large layer to buy one string. deploy.sh passes the
+  // SHA it is deploying instead.
+  if (process.env.BUILD_COMMIT) return process.env.BUILD_COMMIT;
   try {
     return execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] })
       .toString()
@@ -117,7 +121,10 @@ export default defineConfig({
   test: {
     environment: "happy-dom",
     setupFiles: ["./src/test-setup.ts"],
-    include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    // `server/` is the production Node entry, outside the Vite build graph. Its
+    // tests declare `@vitest-environment node` per-file — happy-dom's fetch
+    // primitives cannot carry a streamed request body.
+    include: ["src/**/*.{test,spec}.{ts,tsx}", "server/**/*.{test,spec}.ts"],
     // Cap concurrent test workers. Vitest defaults `maxWorkers` to the CPU
     // count (~8-10 on Apple Silicon); each loads happy-dom + React + most of
     // src/ → ~300-500MB resident. The peak fan-out exceeded available RAM on

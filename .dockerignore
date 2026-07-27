@@ -1,0 +1,37 @@
+# Everything a build stage should fetch or produce for itself, plus everything
+# that must never enter an image layer.
+#
+# Note the shape of the Dockerfiles: manifests are copied first so the install
+# layer caches, then sources. That only works if a stale local `node_modules` or
+# `dist` can't ride along and shadow the copy.
+
+**/node_modules
+**/dist
+**/coverage
+**/*.tsbuildinfo
+
+# Secrets. `.env.example` is the documented shape and is safe to carry.
+.env
+**/.env
+**/.env.*
+!**/.env.example
+
+# Local state and tooling that has no business in an image.
+.git
+.github
+.cache
+.claude
+.claudeignore
+.devcontainer
+.pnpm-store
+.postgres-data
+.vscode
+**/.DS_Store
+
+# Docs and working notes: large, and read by people rather than by the build.
+docs
+*.md
+!README.md
+
+# Playwright/probe output.
+tools/perf-probe/output

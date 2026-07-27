@@ -3,6 +3,18 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 
+/* Tailwind's automatic source detection skips whatever .gitignore excludes, and
+   `dist/` is in ours — so locally it never scans build output. A Docker image
+   has no .git, and there the omission is load-bearing: `pnpm build` runs the
+   client pass first, so by the time the server pass generates CSS, dist/client
+   exists and gets scanned. The two passes then produce different stylesheets,
+   the server render links the hash only it computed, and the deployed site 404s
+   its own stylesheet. Found 2026-07-27 in the first containerised build.
+
+   Stated explicitly here so the output no longer depends on a .git directory
+   being present. */
+@source not "../dist";
+
 /* C3 (css-platform-2026) — text-box-trim. Strips the font's half-leading above
    the cap-height and below the alphabetic baseline so uppercase editorial
    headers (SectionTitle / CardTitle) and display numerals (HeroNumber) sit

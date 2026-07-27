@@ -166,6 +166,23 @@ Until 2026-07-27 the root emitted a hardcoded `https://vyoh.gg/`, so **every pag
 
 **How to apply:** a new route needs no canonical wiring at all. If a route ever needs a canonical that differs from its own pathname (a filtered view pointing at the unfiltered one, say), extend `canonicalUrl()` rather than adding a second tag — search is already dropped there for exactly this reason, since every search param in this app is view state.
 
+### The production image is a different environment, and three things diverge there
+
+`pnpm build` on the dev box and `docker build` produce different artefacts from the same commit. Not occasionally — the first containerised build of this repo (2026-07-27) hit three separate defects at once, and every one of them was invisible to a passing test suite, a local build, and a code review. The differences are structural, so they will recur:
+
+| The container lacks | What breaks | The fix |
+|---|---|---|
+| `.git` | Tailwind's automatic source detection skips what `.gitignore` excludes. With no repo it scans `dist/`, which the client pass has already written by the time the server pass runs — so the two passes emit different CSS and the server render links a hash only it computed. **The site 404s its own stylesheet.** | `@source not "../dist"` in [index.css](../apps/web/src/index.css). State the scope; don't inherit it from a directory that may not be there. |
+| A shell that leaves unset vars unset | A Docker `ARG` the build was not given arrives as `""`, not as `undefined`. `value ?? fallback` passes it straight through, so `VITE_SITE_URL=` makes every canonical, `og:url` and sitemap entry **relative**. | [`envOrigin()`](../apps/web/src/lib/env-origin.ts) for anything read out of a build-time env var. Never `??` on one. |
+| A timezone | Containers are UTC. Every `Intl.DateTimeFormat` without an explicit `timeZone` resolves to the process zone, so the server renders a date one day off from the browser and React discards the tree. | `TZ` on the container ([compose.prod.yaml](../compose.prod.yaml)) as the floor; pinning `timeZone` per formatter is what actually fixes it for a visitor outside that zone. |
+
+**Why this is a convention and not a changelog entry:** each of these is silent. The stylesheet one does not fail the build, it fails the page. The empty-`ARG` one produces valid HTML that a crawler reads as "this page is not canonical". The timezone one only fires when a timestamp lands near midnight, so it reproduces on one route and looks like a fluke.
+
+**How to apply:** when a change touches the build (a new env var, a plugin with content detection, a formatter reading ambient state), ask what it reads that a container will not have. And before claiming a deploy works, probe **the container**, not a local server or a scratchpad harness — the four SSR chunks each verified against something more convenient than production, and each one shipped a defect that the next chunk's less convenient probe caught. Two traps in the probe itself:
+
+- **A clean console proves nothing without a positive check that the client bundle ran.** Chunk 4b reported "14 routes clean" against a harness that served no `dist/client`, so no JS had evaluated and there was nothing left to throw an error. Assert something only hydration produces — the container probe presses ⌘K and requires the palette to open.
+- **Count failed requests too.** The 404ing stylesheet raised no hydration error and no page error. It was visible only as a `response` with status ≥ 400.
+
 ### Centralise domain invariants that must apply to every aggregation in a feature
 
 If a predicate or filter must hold for *every* stat computation, rollup, or display in a feature domain, define it as a named helper in `packages/shared/src/<domain>/` — never inline it at each call site. An inlined filter can be silently omitted when a new aggregation is added under time pressure; a named helper cannot.

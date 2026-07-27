@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { requireEnv } from "./env";
+import { requireEnv, resolveCorsOrigin } from "./env";
 
 describe("requireEnv", () => {
   const originalValue = process.env.VYOH_ENV_SPEC;
@@ -25,4 +25,31 @@ describe("requireEnv", () => {
     process.env.VYOH_ENV_SPEC = "";
     expect(() => requireEnv("VYOH_ENV_SPEC")).toThrow(/Missing required env var/);
   });
+});
+
+describe("resolveCorsOrigin", () => {
+  it("falls back to any localhost port when WEB_ORIGIN is unset", () => {
+    const origin = resolveCorsOrigin(undefined);
+    expect(origin).toBeInstanceOf(RegExp);
+    expect(origin as RegExp).toSatisfy((re: RegExp) => re.test("http://localhost:2009"));
+    expect(origin as RegExp).toSatisfy((re: RegExp) => !re.test("https://evil.example"));
+  });
+
+  it("returns a single configured origin", () => {
+    expect(resolveCorsOrigin("https://vyoh.gg")).toEqual(["https://vyoh.gg"]);
+  });
+
+  it("splits a comma-separated list and trims it", () => {
+    expect(resolveCorsOrigin("https://vyoh.gg, https://www.vyoh.gg")).toEqual([
+      "https://vyoh.gg",
+      "https://www.vyoh.gg",
+    ]);
+  });
+
+  it.each(["", "   ", ",,"])(
+    "treats %o as unset rather than as an empty allowlist",
+    (value) => {
+      expect(resolveCorsOrigin(value)).toBeInstanceOf(RegExp);
+    }
+  );
 });

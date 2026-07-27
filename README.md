@@ -40,9 +40,11 @@ vyoh.gg/
 ├── .github/workflows/   # CI — lint/format/typecheck on every PR and push to main
 ├── apps/
 │   ├── web/             # React + Vite + Tailwind + shadcn + motion → http://localhost:2009
+│   │   └── server/      # node:http adapter over the built Start bundle (production entry)
 │   └── api/             # NestJS + SWC + Vitest                     → http://localhost:2010
 ├── packages/
 │   └── shared/          # cross-cutting types and DTOs imported by both apps
+├── deploy/nginx/        # vhosts for vyoh.gg + api.vyoh.gg, and the /img proxy cache
 └── tools/
     ├── champion-assets/ # build-time precompute: vibrant palette + blurhash per champion
     └── perf-probe/      # Playwright compositor/paint probe behind the per-route budgets
@@ -78,6 +80,22 @@ pnpm --filter @vyoh/web build              # production build with bundle report
 ```
 
 CI runs `pnpm ci:check` (Biome in non-writing CI mode), `pnpm typecheck`, `pnpm -r test --coverage` (uploaded to Codecov), a production `pnpm audit`, and a web-bundle size budget on every PR and every push to `main`.
+
+## Deployment
+
+A single VPS running three containers behind host-installed Nginx: the SSR web tier, the api, and Postgres. Both app containers bind `127.0.0.1`, so Nginx is the only ingress.
+
+```bash
+docker compose -f compose.prod.yaml up -d --build   # on the box
+VYOH_DEPLOY_HOST=vyoh scripts/deploy.sh             # from a local checkout
+```
+
+`deploy.sh` rsyncs the tree (excluding `.env` — production secrets live on the box), builds the images there, restarts the stack, and then smoke-checks the endpoints over ssh, exiting non-zero if they do not answer. Nginx install and TLS: [`deploy/nginx/README.md`](deploy/nginx/README.md).
+
+Two things are worth knowing about the build, both learned by getting them wrong:
+
+- **`VITE_API_URL` is a build argument, not an environment variable.** It is baked into the bundle and into the markup `head()` emits, so moving the api means rebuilding the image. Its runtime counterpart, `API_INTERNAL_URL`, lets SSR loaders reach the api over the compose network instead of back out through the public hostname.
+- **The container is a different environment from the dev box** — no `.git`, no timezone, and unset build args arrive as empty strings rather than as undefined. All three produced silent, shipping-quality defects on the first containerised build; the mechanisms are written up in [`docs/repo-conventions.md`](docs/repo-conventions.md#the-production-image-is-a-different-environment-and-three-things-diverge-there).
 
 ## Tracked metrics
 
