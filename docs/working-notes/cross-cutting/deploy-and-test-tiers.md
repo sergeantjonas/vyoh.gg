@@ -1,6 +1,11 @@
 # Deploy pipeline & tiered tests
 
-**Status:** Draft — 2026-05-20. Captures the model agreed in conversation: commit-to-main stays, tags become the deploy + heavy-test seam. **Host is not locked in** — Hetzner is the leading candidate but no VPS has been bought yet; this note treats the deploy target as a single-VPS-shaped abstraction and leaves the provider decision to a dedicated chunk. No code yet; this note scopes the work and the open questions before the first chunk.
+**Status:** Draft — 2026-05-20, **partially overtaken 2026-07-27.** Captures the model agreed in conversation: commit-to-main stays, tags become the deploy + heavy-test seam. Two of its premises have since been settled and this note has *not* been rewritten around them:
+
+- **The host is locked in.** Option C (Hetzner + Docker Compose), decided 2026-07-26 — [hosting.md](../ops/hosting.md).
+- **The deploy mechanics exist and are not tag-gated.** Start migration chunk 6 shipped both Dockerfiles, `compose.prod.yaml`, the Nginx vhosts and [`scripts/deploy.sh`](../../../scripts/deploy.sh), which deploys from a local checkout on demand. So the "§ Host & deploy mechanics (provider TBD)" section below describes a decision already made differently, and the § Chunk plan's deploy chunks are done.
+
+**What is still live here is the test stratification**, which is the part that was never about the host: the fast lane (already `verify:cc` + `ci.yml`) versus a heavy lane of real-Postgres Prisma integration tests, Playwright smoke against a built bundle, and upstream-fixture replay. None of that exists yet. Read this note for that; treat the deploy sections as historical. Whether tags become the deploy seam is now an open question rather than the plan — `deploy.sh` works without them.
 
 ## The model in one paragraph
 
