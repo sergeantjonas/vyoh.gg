@@ -12,11 +12,6 @@ export const QUEUE_COLOR: Record<RankedQueueKey, string> = {
   flex: "#fbbf24",
 };
 
-export const QUEUE_TYPE_FOR_BOUNDARIES: Record<RankedQueueKey, string> = {
-  solo: "Ranked Solo",
-  flex: "Ranked Flex",
-};
-
 export const STREAK_MIN_LENGTH = 3;
 
 // Snapshots are only written on LP change, so a wide wall-clock gap between

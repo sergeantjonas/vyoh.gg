@@ -98,16 +98,27 @@ describe("computeKdaSeries", () => {
 });
 
 describe("computeQueueCounts", () => {
-  it("groups matches by queue type and sorts by count descending", () => {
+  it("groups matches by queue label and sorts by count descending", () => {
     const counts = computeQueueCounts([
-      buildMatch({ matchId: "1", queueType: "Ranked Solo" }),
-      buildMatch({ matchId: "2", queueType: "ARAM" }),
-      buildMatch({ matchId: "3", queueType: "Ranked Solo" }),
-      buildMatch({ matchId: "4", queueType: "Ranked Solo" }),
+      buildMatch({ matchId: "1", queueId: 420 }),
+      buildMatch({ matchId: "2", queueId: 450 }),
+      buildMatch({ matchId: "3", queueId: 420 }),
+      buildMatch({ matchId: "4", queueId: 420 }),
     ]);
     expect(counts).toEqual([
-      { queueType: "Ranked Solo", count: 3 },
-      { queueType: "ARAM", count: 1 },
+      { queueId: 420, label: "Ranked Solo", count: 3 },
+      { queueId: 450, label: "ARAM", count: 1 },
     ]);
+  });
+
+  // The legend groups by what a player reads, so the four Swarm ids collapse
+  // into one row rather than four identically-named ones.
+  it("collapses ids that share a label into a single row", () => {
+    const counts = computeQueueCounts([
+      buildMatch({ matchId: "1", queueId: 1810 }),
+      buildMatch({ matchId: "2", queueId: 1820 }),
+      buildMatch({ matchId: "3", queueId: 1840 }),
+    ]);
+    expect(counts).toEqual([{ queueId: 1810, label: "Swarm", count: 3 }]);
   });
 });

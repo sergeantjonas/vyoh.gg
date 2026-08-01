@@ -18,22 +18,22 @@ export function ProfileQueueDistribution() {
       <div className="flex h-2.5 w-full overflow-hidden rounded-full">
         {counts.map((entry) => (
           <div
-            key={entry.queueType}
+            key={entry.label}
             style={{
               width: `${(entry.count / total) * 100}%`,
-              background: queueColor(entry.queueType),
+              background: queueColor(entry.queueId),
             }}
           />
         ))}
       </div>
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
         {counts.map((entry) => (
-          <li key={entry.queueType} className="flex items-center gap-1.5">
+          <li key={entry.label} className="flex items-center gap-1.5">
             <span
               className="size-2 shrink-0 rounded-sm"
-              style={{ background: queueColor(entry.queueType) }}
+              style={{ background: queueColor(entry.queueId) }}
             />
-            <span>{entry.queueType}</span>
+            <span>{entry.label}</span>
             <span className="tabular-nums text-foreground/70">{entry.count}</span>
           </li>
         ))}

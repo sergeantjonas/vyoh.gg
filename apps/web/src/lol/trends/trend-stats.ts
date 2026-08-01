@@ -1,4 +1,4 @@
-import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
+import { type MatchSummary, excludeRemakes, queueLabel } from "@vyoh/shared";
 
 export interface TrendSummary {
   games: number;
@@ -54,17 +54,30 @@ export function computeKdaSeries(matches: MatchSummary[]): KdaPoint[] {
 }
 
 export interface QueueCount {
-  queueType: string;
+  /** A representative id for the group. Every id sharing a label resolves to
+   *  the same colour, so which member it is doesn't matter. */
+  queueId: number;
+  label: string;
   count: number;
 }
 
+/**
+ * Grouped by *label*, not by id, and that is the right key here specifically
+ * because this feeds a legend. All four Swarm ids read "Swarm" to a player, so
+ * splitting them into four slices and four legend rows would be noise. This is
+ * the one place the label is the correct grouping key; anywhere a filter or a
+ * statistic asks "which queue", it asks the id.
+ */
 export function computeQueueCounts(matches: MatchSummary[]): QueueCount[] {
-  const counts = new Map<string, number>();
+  const counts = new Map<string, { queueId: number; count: number }>();
   for (const m of excludeRemakes(matches)) {
-    counts.set(m.queueType, (counts.get(m.queueType) ?? 0) + 1);
+    const label = queueLabel(m.queueId);
+    const prev = counts.get(label);
+    if (prev) prev.count += 1;
+    else counts.set(label, { queueId: m.queueId, count: 1 });
   }
   return [...counts.entries()]
-    .map(([queueType, count]) => ({ queueType, count }))
+    .map(([label, { queueId, count }]) => ({ queueId, label, count }))
     .sort((a, b) => b.count - a.count);
 }
 

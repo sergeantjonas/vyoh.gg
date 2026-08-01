@@ -35,14 +35,14 @@ function setTimeline(value: unknown) {
 
 function detailOf(
   overrides: {
-    queueType?: string;
+    queueId?: number;
     durationSec?: number;
     participants?: ParticipantDetail[];
   } = {}
 ) {
   return {
     matchId: "EUW1_1",
-    queueType: overrides.queueType ?? "Ranked Solo",
+    queueId: overrides.queueId ?? 420,
     durationSec: overrides.durationSec ?? 1800,
     participants: overrides.participants ?? [
       participant(1, "P1", "Ahri"),
@@ -156,7 +156,7 @@ describe("MatchEventTimelines", () => {
       isError: false,
       data: { participants: [], kills: [], objectives: [] },
     });
-    renderShell({ detail: detailOf({ queueType: "ARAM" }), myPuuid: "P1" });
+    renderShell({ detail: detailOf({ queueId: 450 }), myPuuid: "P1" });
     expect(screen.queryByText("View on map")).toBeNull();
   });
 

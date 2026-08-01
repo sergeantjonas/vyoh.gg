@@ -546,7 +546,10 @@ describe("MatchReviewView", () => {
   });
 
   it("shows unsupported queue message for ARAM", () => {
-    renderReview({ queueType: "ARAM" }, { queueType: "ARAM" });
+    renderReview(
+      { queueId: 450, queueType: "ARAM" },
+      { queueId: 450, queueType: "ARAM" }
+    );
     expect(screen.getByText(/ARAM/)).not.toBeNull();
     expect(screen.queryByText("Laning")).toBeNull();
   });

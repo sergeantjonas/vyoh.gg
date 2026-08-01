@@ -60,6 +60,34 @@ export const RANKED_QUEUE_MAP: Record<number, string> = {
 export const RANKED_QUEUE_IDS: readonly number[] =
   Object.keys(RANKED_QUEUE_MAP).map(Number);
 
+// Queue families, keyed on id. These used to be Sets of labels living in three
+// separate web components. Asking the label meant a queue that shares a label
+// with another was covered by accident rather than on purpose — "Arena" caught
+// both 1700 and 1710 for free, so listing both here is what preserves the
+// behaviour, not what changes it.
+
+/** Queues with no laned Summoner's Rift phase. Gates the lane-opponent chip
+ *  and the map overlay: there is no lane to have an opponent in. */
+export const NON_LANED_QUEUE_IDS: ReadonlySet<number> = new Set([
+  450, // ARAM
+  720, // ARAM Clash
+  1700, // Arena
+  1710, // Arena
+]);
+
+/** Summoner's Rift queues where the lane-phase review reads meaningfully.
+ *  Excludes co-op-vs-AI (830-890) on purpose: same map, but a bot lane makes
+ *  the differential meaningless. */
+export const SR_LANE_QUEUE_IDS: ReadonlySet<number> = new Set([
+  400, // Normal Draft
+  420, // Ranked Solo
+  430, // Normal Blind
+  440, // Ranked Flex
+  480, // Swiftplay
+  490, // Quickplay
+  700, // Clash
+]);
+
 // Compact discriminator used by ranked-only UIs (LP history, season history,
 // hero rank strip) that need to pick between exactly two queues. Pairs with
 // the four maps below so a single key value drives label, queueId, queueType,

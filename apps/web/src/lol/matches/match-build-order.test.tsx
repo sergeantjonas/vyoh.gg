@@ -77,7 +77,7 @@ function mockItems() {
 function renderBuild(props: {
   myPuuid?: string;
   participants?: ParticipantDetail[];
-  queueType?: string;
+  queueId?: number;
 }) {
   return render(
     <MotionConfig reducedMotion="always">
@@ -85,7 +85,7 @@ function renderBuild(props: {
         <MatchBuildOrder
           detail={{
             matchId: "EUW1_1",
-            queueType: props.queueType ?? "Ranked Solo",
+            queueId: props.queueId ?? 420,
             participants: props.participants ?? [participant("me", 100, "MIDDLE")],
           }}
           {...(props.myPuuid !== undefined && { myPuuid: props.myPuuid })}
@@ -163,7 +163,7 @@ describe("MatchBuildOrder", () => {
     mockItems();
     renderBuild({
       myPuuid: "me",
-      queueType: "Normal Draft",
+      queueId: 400,
       participants: [participant("me", 100, "MIDDLE")],
     });
     expect(screen.queryByText(/opponent/i)).toBeNull();

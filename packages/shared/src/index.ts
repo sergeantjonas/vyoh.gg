@@ -17,6 +17,7 @@ export { isPersonalRecord } from "./lol/personal-records.ts";
 export type { PersonalRecordDirection } from "./lol/personal-records.ts";
 export { REMAKE_DURATION_S, isRemakeMatch } from "./lol/remake.ts";
 export {
+  NON_LANED_QUEUE_IDS,
   QUEUE_TYPES,
   RANKED_QUEUE_KEY_LABEL,
   RANKED_QUEUE_KEY_TO_ID,
@@ -24,6 +25,7 @@ export {
   RANKED_QUEUE_IDS,
   RANKED_QUEUE_KEYS,
   RANKED_QUEUE_MAP,
+  SR_LANE_QUEUE_IDS,
   queueLabel,
   queueLabelExpanded,
 } from "./lol/queue-types.ts";

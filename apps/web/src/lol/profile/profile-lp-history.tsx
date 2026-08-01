@@ -27,6 +27,7 @@ import { scaleLinear } from "@visx/scale";
 import { LinePath } from "@visx/shape";
 import {
   RANKED_QUEUE_KEY_LABEL,
+  RANKED_QUEUE_KEY_TO_ID,
   type RankedQueueKey,
   excludeRemakes,
 } from "@vyoh/shared";
@@ -47,7 +48,6 @@ import {
 } from "recharts";
 import {
   QUEUE_COLOR,
-  QUEUE_TYPE_FOR_BOUNDARIES,
   RANGE_LABEL,
   RESOLUTION_FOR_RANGE,
   TIER_BANDS,
@@ -370,9 +370,9 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
   const { matches: allMatches } = useMatchWindow();
   const patchBoundaries = useMemo(() => {
     if (!allMatches || points.length === 0) return [];
-    const queueType = QUEUE_TYPE_FOR_BOUNDARIES[activeQueue];
+    const queueId = RANKED_QUEUE_KEY_TO_ID[activeQueue];
     const chrono = excludeRemakes(allMatches)
-      .filter((m) => m.queueType === queueType && m.gameVersion)
+      .filter((m) => m.queueId === queueId && m.gameVersion)
       .slice()
       .sort((a, b) => a.playedAt.localeCompare(b.playedAt));
     return findPatchBoundaries(

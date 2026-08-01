@@ -382,7 +382,7 @@ describe("ProfilePregameRitual", () => {
       }),
     ]);
     setCalibration({
-      "Ranked Solo": {
+      420: {
         n: 50,
         directionalHits: 30,
         directionalAccuracy: 0.6,
@@ -391,7 +391,7 @@ describe("ProfilePregameRitual", () => {
         meanLpForNeutral: 0,
         bySignal: emptyBySignal(),
       },
-      "Ranked Flex": {
+      440: {
         n: 10,
         directionalHits: 6,
         directionalAccuracy: 0.6,
@@ -428,7 +428,7 @@ describe("ProfilePregameRitual", () => {
       }),
     ]);
     setCalibration({
-      "Ranked Solo": {
+      420: {
         n: 200,
         directionalHits: 120,
         directionalAccuracy: 0.6,
@@ -437,7 +437,7 @@ describe("ProfilePregameRitual", () => {
         meanLpForNeutral: 0,
         bySignal: emptyBySignal(),
       },
-      "Ranked Flex": {
+      440: {
         n: 35,
         directionalHits: 21,
         directionalAccuracy: 0.6,
@@ -501,7 +501,7 @@ describe("ProfilePregameRitual", () => {
       }),
     ]);
     setCalibration({
-      "Ranked Solo": {
+      420: {
         n: 80,
         directionalHits: 56,
         directionalAccuracy: 0.7,

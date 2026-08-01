@@ -24,6 +24,7 @@ import {
   emptyBySignal,
   excludeRemakes,
   formatPercent,
+  queueLabel,
 } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
@@ -46,7 +47,7 @@ const EMPTY_CALIBRATION: CalibrationStats = {
 };
 
 // Solo and Flex are independent LP ladders. The active queue (= "what are
-// you about to play next?") is always the queueType of the most recent
+// you about to play next?") is always the queue id of the most recent
 // serious match — it drives the verdict label and the signal-history
 // filter regardless of whether calibration data exists yet. Calibration
 // is a separate concern: prefer the active queue's stats; if absent, fall
@@ -54,10 +55,10 @@ const EMPTY_CALIBRATION: CalibrationStats = {
 // directional read while the active queue accumulates LP snapshots.
 function pickActiveCalibration(
   byQueue: PregameCalibrationByQueue,
-  activeQueueType: string | null
+  activeQueueId: number | null
 ): CalibrationStats {
-  if (activeQueueType && byQueue[activeQueueType]) {
-    return byQueue[activeQueueType];
+  if (activeQueueId !== null && byQueue[activeQueueId]) {
+    return byQueue[activeQueueId];
   }
   let best: CalibrationStats | null = null;
   for (const stats of Object.values(byQueue)) {
@@ -413,9 +414,9 @@ function CompositeDisclosure({
         </div>
         {queueRows.length > 0 && (
           <ul className="flex flex-col gap-0.5 border-t border-border/40 pt-1">
-            {queueRows.map(([queueType, stats]) => (
-              <li key={queueType} className="flex items-center justify-between gap-2">
-                <span className="text-foreground/70">{queueType}</span>
+            {queueRows.map(([queueId, stats]) => (
+              <li key={queueId} className="flex items-center justify-between gap-2">
+                <span className="text-foreground/70">{queueLabel(Number(queueId))}</span>
                 <span className="text-muted-foreground/60">
                   {stats.n >= MIN_CALIBRATION_SAMPLE
                     ? `${formatPercent(stats.directionalAccuracy)} directional · n=${stats.n}`
@@ -448,22 +449,22 @@ export function ProfilePregameRitual({ accountSlug }: { accountSlug: string }) {
   const byQueue: PregameCalibrationByQueue = calibrationQuery.data ?? {};
 
   // Active queue = "what are you about to play next?", read from the most
-  // recent serious match's queueType. The signals and the headline label
+  // recent serious match's queue id. The signals and the headline label
   // both scope to this queue so a Solo prediction never carries Flex form
   // or tilt. Calibration may not exist yet for this queue (LP snapshots
   // can lag), so it's looked up separately and falls back gracefully.
-  const activeQueueType = useMemo(() => {
+  const activeQueueId = useMemo(() => {
     if (!matches || matches.length === 0) return null;
     const ordered = [...matches].sort((a, b) => b.playedAt.localeCompare(a.playedAt));
-    return ordered[0]?.queueType ?? null;
+    return ordered[0]?.queueId ?? null;
   }, [matches]);
-  const activeCalibration = pickActiveCalibration(byQueue, activeQueueType);
+  const activeCalibration = pickActiveCalibration(byQueue, activeQueueId);
 
   const queueScopedMatches = useMemo(() => {
     if (!matches) return null;
-    if (!activeQueueType) return matches;
-    return matches.filter((m) => m.queueType === activeQueueType);
-  }, [matches, activeQueueType]);
+    if (activeQueueId === null) return matches;
+    return matches.filter((m) => m.queueId === activeQueueId);
+  }, [matches, activeQueueId]);
 
   const signals = useMemo(() => {
     if (!queueScopedMatches) return null;
@@ -489,7 +490,7 @@ export function ProfilePregameRitual({ accountSlug }: { accountSlug: string }) {
         composite={composite}
         signals={signals}
         calibration={activeCalibration}
-        headlineQueueType={activeQueueType}
+        headlineQueueType={activeQueueId === null ? null : queueLabel(activeQueueId)}
         byQueue={byQueue}
       />
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">

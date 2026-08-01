@@ -19,12 +19,16 @@ import { MatchListRowPopover } from "@/lol/matches/match-list-row-popover";
 import { matchDetailQueryOptions } from "@/lol/matches/use-match-detail";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { type Duo, type MatchSummary, formatDuration, formatLpDelta } from "@vyoh/shared";
+import {
+  type Duo,
+  type MatchSummary,
+  NON_LANED_QUEUE_IDS,
+  formatDuration,
+  formatLpDelta,
+} from "@vyoh/shared";
 import { Users } from "lucide-react";
 import { m, useReducedMotion } from "motion/react";
 import { useLayoutEffect, useRef } from "react";
-
-const ARAM_ARENA_QUEUES = new Set(["ARAM", "ARAM Clash", "Arena"]);
 
 // "DuoLuke", "DuoLuke & Mira", or "DuoLuke, Mira +2" — names only (no tagLine)
 // to keep the row chrome compact. Duos arrive highest-games first.
@@ -136,7 +140,7 @@ export function MatchRow({
   }, []);
 
   const showVsLabel =
-    match.laneOpponent !== null && !ARAM_ARENA_QUEUES.has(match.queueType);
+    match.laneOpponent !== null && !NON_LANED_QUEUE_IDS.has(match.queueId);
 
   return (
     <MatchListRowPopover matchId={match.matchId} userChampion={match.champion}>
@@ -274,7 +278,7 @@ export function MatchRow({
                   <span
                     aria-hidden="true"
                     className="size-2 shrink-0 rounded-sm"
-                    style={{ background: queueColor(match.queueType) }}
+                    style={{ background: queueColor(match.queueId) }}
                   />
                   <span>
                     {match.queueType} · {formatDuration(match.durationSec)} ·{" "}

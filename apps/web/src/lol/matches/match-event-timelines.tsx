@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { useMatchTimeline } from "@/lol/matches/use-match-timeline";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { formatGameTime } from "@vyoh/shared";
+import { NON_LANED_QUEUE_IDS, formatGameTime } from "@vyoh/shared";
 import type {
   MatchTimelineKill,
   MatchTimelineObjective,
@@ -32,8 +32,6 @@ import { m, useReducedMotion } from "motion/react";
 import { Suspense, lazy, useState } from "react";
 
 const MatchMapOverlay = lazy(() => import("./match-map-overlay"));
-
-const NON_RIFT_QUEUES = new Set(["ARAM", "ARAM Clash", "Arena"]);
 
 const springIn = {
   initial: { opacity: 0, y: 8 },
@@ -246,7 +244,7 @@ export function MatchEventTimelines({
 }: {
   detail: {
     matchId: string;
-    queueType: string;
+    queueId: number;
     durationSec: number;
     participants: ParticipantDetail[];
   };
@@ -257,7 +255,7 @@ export function MatchEventTimelines({
   const reduced = useReducedMotion();
   const [zoom, setZoom] = useState(1);
   const [mapOpen, setMapOpen] = useState(false);
-  const showMapTrigger = !NON_RIFT_QUEUES.has(detail.queueType);
+  const showMapTrigger = !NON_LANED_QUEUE_IDS.has(detail.queueId);
 
   if (!myPuuid) return null;
 

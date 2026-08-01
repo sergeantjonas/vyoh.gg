@@ -1,6 +1,6 @@
 # Queue identity: migrate `Match.queueType` label → numeric `queueId`
 
-**Status:** Active — chunks 1 and 2 of 4 shipped 2026-08-01; every api query now filters on the number. Next: chunk 3, move web onto it and drop the label column.
+**Status:** Active — chunks 1, 2 and 3a shipped 2026-08-01; every query, filter and bucket in the app now keys on the number. Next: 3b, switch the display sites to `queueLabel(queueId)` and drop the column.
 
 ## Why
 
@@ -26,7 +26,12 @@ The identity/cadence surfaces (Recent form, Now playing, Queue distribution, Act
   Measured effect on the owner's data: filtering Swarm by 1810 returned **155** rows before (every Swarm variant, because they share a label) and returns **145** after; 1820 returned **155** and returns **10**. Every non-colliding queue is unchanged, which is the check that the migration was faithful.
 
   One label-keyed site deliberately left for chunk 3: `computeCalibrationByQueue` in `packages/shared/src/lol/pregame-signals.ts` buckets on `queueType` and returns a record keyed by label. The *query* feeding it is numeric now; changing the record's keys changes a wire shape that web consumes, so it moves with web.
-- **3 — web reads the number.** `filterToSerious` compares ids and `selectedLabels` is deleted; `queue-color.ts` anchors rekey from labels to ids; `computeCalibrationByQueue` rekeys its record; labels become render-time `queueLabel(queueId)`. Then drop `queueType` from the wire types and the column.
+- **3a — web keys on the number.** ✅ 2026-08-01. `filterToSerious` compares ids (`selectedLabels` deleted); `computeCalibrationByQueue` and `ReplayPoint` rekey to `queueId`, so `PregameCalibrationByQueue` is now `Record<number, …>` on the wire; `queueColor` takes an id; three label Sets living in three separate components (`ARAM_ARENA_QUEUES`, `NON_RIFT_QUEUES`, `SR_QUEUES`) collapse into `NON_LANED_QUEUE_IDS` + `SR_LANE_QUEUE_IDS` in shared; `match-build-order`'s `queueType.includes("Ranked")` becomes `RANKED_QUEUE_IDS`; `QUEUE_TYPE_FOR_BOUNDARIES` was a local duplicate of `RANKED_QUEUE_KEY_TO_ID` and is gone.
+
+  **Watch the set membership when porting a label test to ids.** A label test covered every id sharing that label *for free* — `"Arena"` caught 1700 and 1710 both. An id set has to list them on purpose or it silently narrows, which is a behaviour change disguised as a refactor. Pinned by a test in `queue-types.test.ts`.
+
+  Two things stay label-keyed on purpose, both display-only: the distribution donut groups by label (four Swarm ids are one legend row, not four), and `queueColor` resolves the id to a label before picking a colour so a queue family paints as one colour. Neither is a filter.
+- **3b — drop the label.** Remaining `queueType` reads are display sites (`match-row`, `match-hero`, `match-record`, the palette, `og-card`, the moments payload). Switch them to `queueLabel(queueId)`, then delete `queueType` from `MatchSummary` / `MatchDetail` / `RecapCandidate.matchStats` and drop the column.
 - **4 — extend the map.** Brawl (2300, 2301–2305) and ARAM: Mayhem (2400/2401/2403/2405/2410/2450, 3240/3270/3280) are live public modes with no entry today; customs (0, 3100, 3130) get real labels. Must follow chunk 2 — adding a label for a currently-unmapped id while the filter still round-trips strings would break existing rows.
 
 ## Constraint: no LoL Classic

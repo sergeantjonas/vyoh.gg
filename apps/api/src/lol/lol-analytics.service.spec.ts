@@ -630,6 +630,7 @@ describe("LolAnalyticsService.getPregameCalibration", () => {
     return {
       matchId: `M${Math.random()}`,
       playedAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      queueId: 420,
       queueType: "Ranked Solo",
       win: true,
       remake: false,
@@ -667,7 +668,7 @@ describe("LolAnalyticsService.getPregameCalibration", () => {
     expect(prisma.match.findMany).not.toHaveBeenCalled();
   });
 
-  it("partitions stats per queueType so Solo and Flex are reported separately", async () => {
+  it("partitions stats per queue id so Solo and Flex are reported separately", async () => {
     const prisma = makePrisma();
     prisma.summoner.findUnique.mockResolvedValue({ puuid: "p1" });
     prisma.match.findFirst.mockResolvedValue({
@@ -677,19 +678,19 @@ describe("LolAnalyticsService.getPregameCalibration", () => {
       fakeRow({
         matchId: "s",
         playedAt: new Date("2026-05-20T00:00:00Z"),
-        queueType: "Ranked Solo",
+        queueId: 420,
       }),
       fakeRow({
         matchId: "f",
         playedAt: new Date("2026-05-19T00:00:00Z"),
-        queueType: "Ranked Flex",
+        queueId: 440,
       }),
     ]);
     const stats = await makeService(prisma).getPregameCalibration("euw1", "Vyoh", "Ahri");
-    // Structural contract: the response is keyed per queueType rather than
+    // Structural contract: the response is keyed per queue id rather than
     // mashed into a single combined number. The partitioning math itself is
     // covered by computeCalibrationByQueue's unit tests in shared.
-    expect(Object.keys(stats).sort()).toEqual(["Ranked Flex", "Ranked Solo"]);
+    expect(Object.keys(stats).sort()).toEqual(["420", "440"]);
   });
 
   it("caches the result when the latest playedAt is unchanged", async () => {

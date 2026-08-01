@@ -107,7 +107,7 @@ export function toneToScore(tone: SignalTone): number {
 export interface ReplayPoint {
   matchId: string;
   playedAt: string;
-  queueType: string;
+  queueId: number;
   score: number;
   firing: number;
   signalTones: Record<SignalId, SignalTone>;
@@ -171,7 +171,7 @@ function replayPoint(history: MatchSummary[], match: MatchSummary): ReplayPoint 
   return {
     matchId: match.matchId,
     playedAt: match.playedAt,
-    queueType: match.queueType,
+    queueId: match.queueId,
     score,
     firing,
     signalTones: { form, tilt, slot, champ },
@@ -189,7 +189,10 @@ export function replayHistory(matches: MatchSummary[]): ReplayPoint[] {
   return points;
 }
 
-export type PregameCalibrationByQueue = Record<string, CalibrationStats>;
+// Keyed by queueId. JSON object keys are strings on the wire, so a consumer
+// reading this off a fetch indexes with the number and lets JS coerce — the
+// same thing every Record<number, T> does.
+export type PregameCalibrationByQueue = Record<number, CalibrationStats>;
 
 // Solo and Flex are independent LP ladders — directional accuracy needs to
 // stay queue-scoped or "65% right on Solo" gets diluted by a smaller Flex
@@ -199,15 +202,15 @@ export type PregameCalibrationByQueue = Record<string, CalibrationStats>;
 export function computeCalibrationByQueue(
   points: ReplayPoint[]
 ): PregameCalibrationByQueue {
-  const byQueue = new Map<string, ReplayPoint[]>();
+  const byQueue = new Map<number, ReplayPoint[]>();
   for (const p of points) {
-    const bucket = byQueue.get(p.queueType) ?? [];
+    const bucket = byQueue.get(p.queueId) ?? [];
     bucket.push(p);
-    byQueue.set(p.queueType, bucket);
+    byQueue.set(p.queueId, bucket);
   }
   const result: PregameCalibrationByQueue = {};
-  for (const [queueType, queuePoints] of byQueue.entries()) {
-    result[queueType] = computeCalibration(queuePoints);
+  for (const [queueId, queuePoints] of byQueue.entries()) {
+    result[queueId] = computeCalibration(queuePoints);
   }
   return result;
 }

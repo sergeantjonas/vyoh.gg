@@ -161,7 +161,7 @@ export function MatchHero({
           <span
             aria-hidden="true"
             className="size-2 shrink-0 rounded-sm"
-            style={{ background: queueColor(summary.queueType) }}
+            style={{ background: queueColor(summary.queueId) }}
           />
           <span>
             {summary.queueType} ·{" "}

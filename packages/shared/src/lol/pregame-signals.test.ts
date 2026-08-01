@@ -17,7 +17,7 @@ const DAY_MS = 24 * HOUR_MS;
 function fakeMatch(overrides: Partial<MatchSummary> = {}): MatchSummary {
   return {
     matchId: `M${Math.random()}`,
-    queueType: "Ranked Solo",
+    queueId: 420,
     champion: "Ahri",
     kills: 5,
     deaths: 4,
@@ -349,7 +349,7 @@ describe("computeCalibration", () => {
       {
         matchId: "a",
         playedAt: "2026-01-01T00:00:00Z",
-        queueType: "Ranked Solo",
+        queueId: 420,
         score: 0.5,
         firing: 2,
         signalTones: {
@@ -365,7 +365,7 @@ describe("computeCalibration", () => {
       {
         matchId: "b",
         playedAt: "2026-01-02T00:00:00Z",
-        queueType: "Ranked Solo",
+        queueId: 420,
         score: 0.25,
         firing: 3,
         signalTones: {
@@ -381,7 +381,7 @@ describe("computeCalibration", () => {
       {
         matchId: "c",
         playedAt: "2026-01-03T00:00:00Z",
-        queueType: "Ranked Solo",
+        queueId: 420,
         score: 0.25,
         firing: 1,
         signalTones: {
@@ -413,7 +413,7 @@ describe("computeCalibration", () => {
       {
         matchId: "p",
         playedAt: "2026-01-01T00:00:00Z",
-        queueType: "Ranked Solo",
+        queueId: 420,
         score: 0.5,
         firing: 2,
         signalTones: {
@@ -427,7 +427,7 @@ describe("computeCalibration", () => {
       {
         matchId: "n",
         playedAt: "2026-01-02T00:00:00Z",
-        queueType: "Ranked Solo",
+        queueId: 420,
         score: -0.5,
         firing: 2,
         signalTones: {
@@ -441,7 +441,7 @@ describe("computeCalibration", () => {
       {
         matchId: "z",
         playedAt: "2026-01-03T00:00:00Z",
-        queueType: "Ranked Solo",
+        queueId: 420,
         score: 0,
         firing: 2,
         signalTones: {
@@ -465,7 +465,7 @@ describe("computeCalibrationByQueue", () => {
       {
         matchId: "s1",
         playedAt: "2026-01-01T00:00:00Z",
-        queueType: "Ranked Solo",
+        queueId: 420,
         score: 0.5,
         firing: 2,
         signalTones: {
@@ -479,7 +479,7 @@ describe("computeCalibrationByQueue", () => {
       {
         matchId: "s2",
         playedAt: "2026-01-02T00:00:00Z",
-        queueType: "Ranked Solo",
+        queueId: 420,
         score: 0.5,
         firing: 2,
         signalTones: {
@@ -493,7 +493,7 @@ describe("computeCalibrationByQueue", () => {
       {
         matchId: "f1",
         playedAt: "2026-01-03T00:00:00Z",
-        queueType: "Ranked Flex",
+        queueId: 440,
         score: 0.5,
         firing: 2,
         signalTones: {
@@ -506,11 +506,11 @@ describe("computeCalibrationByQueue", () => {
       },
     ] as const;
     const by = computeCalibrationByQueue(points as never);
-    expect(Object.keys(by).sort()).toEqual(["Ranked Flex", "Ranked Solo"]);
-    expect(by["Ranked Solo"]?.n).toBe(2);
-    expect(by["Ranked Solo"]?.directionalAccuracy).toBe(1);
-    expect(by["Ranked Flex"]?.n).toBe(1);
-    expect(by["Ranked Flex"]?.directionalAccuracy).toBe(0);
+    expect(Object.keys(by).sort()).toEqual(["420", "440"]);
+    expect(by[420]?.n).toBe(2);
+    expect(by[420]?.directionalAccuracy).toBe(1);
+    expect(by[440]?.n).toBe(1);
+    expect(by[440]?.directionalAccuracy).toBe(0);
   });
 
   it("returns an empty record for an empty points array", () => {

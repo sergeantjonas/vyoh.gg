@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  NON_LANED_QUEUE_IDS,
   QUEUE_TYPES,
+  RANKED_QUEUE_IDS,
   RANKED_QUEUE_KEYS,
   RANKED_QUEUE_KEY_LABEL,
   RANKED_QUEUE_KEY_TO_ID,
   RANKED_QUEUE_KEY_TO_TYPE,
   RANKED_QUEUE_MAP,
+  SR_LANE_QUEUE_IDS,
   queueLabel,
   queueLabelExpanded,
 } from "./queue-types.ts";
@@ -44,6 +47,52 @@ describe("RANKED_QUEUE_MAP", () => {
     expect(RANKED_QUEUE_MAP[420]).toBe("RANKED_SOLO_5x5");
     expect(RANKED_QUEUE_MAP[440]).toBe("RANKED_FLEX_SR");
     expect(RANKED_QUEUE_MAP[450]).toBeUndefined();
+  });
+});
+
+describe("RANKED_QUEUE_IDS", () => {
+  it("stays in step with RANKED_QUEUE_MAP because it is derived from it", () => {
+    expect([...RANKED_QUEUE_IDS].sort((a, b) => a - b)).toEqual([420, 440]);
+    for (const id of RANKED_QUEUE_IDS) {
+      expect(RANKED_QUEUE_MAP[id]).toBeDefined();
+    }
+  });
+});
+
+describe("queue-family sets", () => {
+  // These replaced Sets of labels. A label test caught every id sharing that
+  // label for free, so an id set has to list each one explicitly or it
+  // silently narrows: "Arena" covered 1700 and 1710, "Swarm" covered four.
+  it("lists every id behind a shared label, not just the first", () => {
+    expect(NON_LANED_QUEUE_IDS.has(1700)).toBe(true);
+    expect(NON_LANED_QUEUE_IDS.has(1710)).toBe(true);
+    expect(queueLabel(1700)).toBe(queueLabel(1710));
+  });
+
+  it("covers the ARAM family and excludes Summoner's Rift", () => {
+    expect(NON_LANED_QUEUE_IDS.has(450)).toBe(true); // ARAM
+    expect(NON_LANED_QUEUE_IDS.has(720)).toBe(true); // ARAM Clash
+    expect(NON_LANED_QUEUE_IDS.has(420)).toBe(false);
+  });
+
+  it("keeps the two families disjoint", () => {
+    for (const id of SR_LANE_QUEUE_IDS) {
+      expect(NON_LANED_QUEUE_IDS.has(id)).toBe(false);
+    }
+  });
+
+  it("treats both ranked queues as laned Summoner's Rift", () => {
+    for (const id of RANKED_QUEUE_IDS) {
+      expect(SR_LANE_QUEUE_IDS.has(id)).toBe(true);
+    }
+  });
+
+  // Co-op vs AI runs on Summoner's Rift but against bots, so a lane-phase
+  // differential against a bot opponent would read as skill.
+  it("excludes co-op vs AI from the lane-review set", () => {
+    for (const id of [830, 840, 850, 870, 880, 890]) {
+      expect(SR_LANE_QUEUE_IDS.has(id)).toBe(false);
+    }
   });
 });
 

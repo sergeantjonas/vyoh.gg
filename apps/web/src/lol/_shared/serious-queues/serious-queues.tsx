@@ -113,25 +113,18 @@ export function useSeriousQueues(): SeriousQueuesValue {
   return ctx;
 }
 
-const SERIOUS_LABELS_BY_ID = new Map(
-  CONFIGURABLE_SERIOUS_QUEUES.map((q) => [q.id, q.label] as const)
-);
-
-function selectedLabels(ids: ReadonlySet<number>): Set<string> {
-  const labels = new Set<string>();
-  for (const id of ids) {
-    const label = SERIOUS_LABELS_BY_ID.get(id);
-    if (label) labels.add(label);
-  }
-  return labels;
-}
-
+// Compares ids directly. This used to map the selected ids to labels through
+// the local CONFIGURABLE_SERIOUS_QUEUES copy and intersect on `m.queueType`,
+// which made every statistic in the app depend on two independent label
+// spellings agreeing: the one above and the canonical one in QUEUE_TYPES.
+// Renaming "Normal Draft" in the canonical map would have made Normal Draft
+// silently vanish from every analysis surface — an empty intersection, not an
+// error, so nothing would have failed.
 export function filterToSerious(
   matches: MatchSummary[],
   ids: ReadonlySet<number>
 ): MatchSummary[] {
-  const labels = selectedLabels(ids);
-  return matches.filter((m) => labels.has(m.queueType));
+  return matches.filter((m) => ids.has(m.queueId));
 }
 
 /**

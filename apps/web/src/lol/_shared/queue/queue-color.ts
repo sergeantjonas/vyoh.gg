@@ -1,3 +1,5 @@
+import { queueLabel } from "@vyoh/shared";
+
 // Stable queue → color mapping shared between the trends donut and the match
 // rows so a queue always reads the same color across the app. Anchors the
 // most-common queues to specific palette slots (Solo gets amber, ARAM sky,
@@ -25,12 +27,24 @@ const ANCHORS: Record<string, string> = {
   Clash: "#fb923c", // orange
 };
 
-export function queueColor(queueType: string): string {
-  const anchor = ANCHORS[queueType];
+/**
+ * Takes a queueId but resolves it to a label before picking a colour, and that
+ * indirection is deliberate rather than leftover. Colour is a *display*
+ * concern, and the surfaces that consume it (the distribution donut, the match
+ * row chip) want queues that read as one thing to look like one thing: all
+ * four Swarm ids share a label, so they share a slice and must share a colour.
+ * Hashing the id instead would hand them four different colours and split a
+ * single legend entry into four.
+ *
+ * The id is still the parameter, so no caller needs the label on the wire.
+ */
+export function queueColor(queueId: number): string {
+  const label = queueLabel(queueId);
+  const anchor = ANCHORS[label];
   if (anchor) return anchor;
   let h = 2166136261;
-  for (let i = 0; i < queueType.length; i++) {
-    h = Math.imul(h ^ queueType.charCodeAt(i), 16777619) >>> 0;
+  for (let i = 0; i < label.length; i++) {
+    h = Math.imul(h ^ label.charCodeAt(i), 16777619) >>> 0;
   }
   return PALETTE[h % PALETTE.length] ?? PALETTE[0] ?? "#94a3b8";
 }

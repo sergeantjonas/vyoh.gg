@@ -15,6 +15,7 @@ import {
   type MatchSummary,
   type MatchTimelineProjection,
   type ParticipantOwnerExtras,
+  SR_LANE_QUEUE_IDS,
   formatKda,
   formatPercent,
 } from "@vyoh/shared";
@@ -31,17 +32,6 @@ import {
 } from "./match-review-logic";
 import { type NarrativeSentence, buildNarrativeSentences } from "./narrativeTemplates";
 import { useMatchBaseline } from "./use-match-baseline";
-
-// Summoner's Rift queues — lane-phase review makes sense for these.
-const SR_QUEUES = new Set([
-  "Ranked Solo",
-  "Ranked Flex",
-  "Normal Draft",
-  "Normal Blind",
-  "Swiftplay",
-  "Quickplay",
-  "Clash",
-]);
 
 // --- Data helpers ---
 
@@ -719,7 +709,7 @@ export function MatchReviewView({
     ];
   }, [summary, ownerDetail, goldDiffSeries, ownerTeam]);
 
-  if (!SR_QUEUES.has(detail.queueType)) {
+  if (!SR_LANE_QUEUE_IDS.has(detail.queueId)) {
     return (
       <div className="flex min-h-32 items-center justify-center rounded-lg border border-dashed border-border/50">
         <p className="text-sm text-muted-foreground">

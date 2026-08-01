@@ -8,8 +8,8 @@ vi.mock("@/lol/_shared/queue/queue-color", () => ({
   queueColor: () => "#abc",
 }));
 
-function fakeMatch(queueType: string): MatchSummary {
-  return { queueType } as unknown as MatchSummary;
+function fakeMatch(queueId: number): MatchSummary {
+  return { queueId } as unknown as MatchSummary;
 }
 
 function renderWith(matches: MatchSummary[] | undefined) {
@@ -39,8 +39,8 @@ describe("ProfileQueueDistribution", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("renders one bar segment and one legend row per queueType, with counts", () => {
-    renderWith([fakeMatch("Ranked Solo"), fakeMatch("Ranked Solo"), fakeMatch("ARAM")]);
+  it("renders one bar segment and one legend row per queue, with counts", () => {
+    renderWith([fakeMatch(420), fakeMatch(420), fakeMatch(450)]);
     expect(screen.getByText("Queue distribution")).toBeTruthy();
     expect(screen.getByText("Ranked Solo")).toBeTruthy();
     expect(screen.getByText("ARAM")).toBeTruthy();

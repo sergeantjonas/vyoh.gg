@@ -8,7 +8,7 @@ import { useChampionName } from "@/lol/champions/use-champions";
 import { useItems } from "@/lol/matches/use-items";
 import { useMatchTimeline } from "@/lol/matches/use-match-timeline";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { formatGameTime } from "@vyoh/shared";
+import { RANKED_QUEUE_IDS, formatGameTime } from "@vyoh/shared";
 import type {
   MatchTimelineBuildEvent,
   MatchTimelineProjection,
@@ -236,7 +236,7 @@ export function MatchBuildOrder({
   detail,
   myPuuid,
 }: {
-  detail: { matchId: string; queueType: string; participants: ParticipantDetail[] };
+  detail: { matchId: string; queueId: number; participants: ParticipantDetail[] };
   myPuuid?: string | undefined;
 }) {
   const timeline = useMatchTimeline(detail.matchId);
@@ -245,7 +245,7 @@ export function MatchBuildOrder({
 
   const myParticipant = detail.participants.find((p) => p.puuid === myPuuid);
   const isARAM = !myParticipant?.teamPosition;
-  const isRanked = detail.queueType.includes("Ranked");
+  const isRanked = RANKED_QUEUE_IDS.includes(detail.queueId);
 
   const opponent =
     !isARAM && myParticipant
