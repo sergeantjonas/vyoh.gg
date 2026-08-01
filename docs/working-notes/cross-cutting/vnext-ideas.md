@@ -25,7 +25,7 @@ This is a backlog. Bands set the search order, not commitment:
 
 ### LoL surfaces
 
-**Duo / squad detection.** ⚠️ v1 shipped 2026-05-10 (top recurring teammates with W-L + most-played champion); cross-team champion synergy chord shipped 2026-05-11. Squad detection (3+ groupings), LP-overlay graphs per duo, per-duo champion pairs, and match-list duo highlight remain — tracked in [match-depth-roadmap.md](../lol/match-depth-roadmap.md) Phase D under [open-work.md](../open-work.md). Original framing retained: we see all 10 puuids in every match. Across many games, certain puuids recur — that's a duo. Auto-detect and surface "you and {DuoName} are 22–8 in lane swap games." LP graphs overlaid, shared champion-pair stats. Strong "this site noticed something I didn't" moment, novel framing in the LoL-companion space.
+**Duo / squad detection.** ⚠️ v1 shipped 2026-05-10 (top recurring teammates with W-L + most-played champion); cross-team champion synergy chord shipped 2026-05-11; match-list duo highlight shipped 2026-06-15; squad detection (3+ groupings) and per-duo champion pairs shipped 2026-06-16. Only LP-overlay graphs per duo remain — blocked on owner-auth (LP is owner-private), tracked in [match-depth-roadmap.md](../lol/match-depth-roadmap.md) Phase D under [open-work.md](../open-work.md). Original framing retained: we see all 10 puuids in every match. Across many games, certain puuids recur — that's a duo. Auto-detect and surface "you and {DuoName} are 22–8 in lane swap games." LP graphs overlaid, shared champion-pair stats. Strong "this site noticed something I didn't" moment, novel framing in the LoL-companion space.
 
 **Pre-game ritual widget.** ✅ Shipped 2026-05-10 as a Profile section (`profile-pregame-ritual.tsx`) between live chip and recent form: form, after-last-game tilt, current-hour slot WR, top recent champion. Original framing: glanceable card before queueing — small focused surface (peer route, modal, or Profile section). Best embodiment of the "calm coaching" tonal bet.
 
@@ -33,7 +33,7 @@ This is a backlog. Bands set the search order, not commitment:
 
 **Patch-aware everything.** ✅ Shipped 2026-05-10. `gameVersion` plumbed through `RiotMatch.info` → `MatchSummary` → `Match` table; existing rows backfilled. Four UI features ride on top: per-patch champion WR strip on Champion detail, patch boundary `ReferenceLine`s on LP history + KDA trend + champion-detail WR sparkline, "this patch vs last patch" range option on Trends, and a "Patch X.Y" badge with full-build hover on Champion detail. Original framing: shade chart backgrounds at patch boundaries; show per-patch champion WR; "you went 2–8 on Yasuo this patch — buffs/nerfs changed something" copy. Underutilized signal everywhere in the LoL-stat-site space.
 
-**ARAM-specific dashboard.** ARAM is the most-played queue but currently lumped in with everything. Heal-shield delivered, damage-tank ratio, healing-taken. Probably justifies its own sub-route. (Also called out in match-depth Phase D.7.)
+**ARAM-specific dashboard.** ✅ Shipped 2026-06-22 as match-depth D.7 — `ProfileAramDashboard`, a queue-isolated Profile section (owner decision: additive Profile section, not a sub-route): WR/KDA strip, per-game heal+shield / damage-taken / self-mitigated, top ARAM champs. "Healing-taken" turned out not to be a Match-V5 field. Original framing: ARAM is the most-played queue but was lumped in with everything.
 
 **Cross-account portfolio / unified identity.** Multi-account is supported; "Account A vs Account B" comparison is missing. Smurf vs main, EU vs NA. Single Profile-level "unified identity" view across whitelisted accounts.
 
@@ -69,7 +69,7 @@ This is a backlog. Bands set the search order, not commitment:
 
 **Scroll-driven case-study pages.** Once we write up "how LP history works without TimescaleDB" or "the Riot rate-limiter fix," scrollytelling treatments are interesting — the chart redraws as the reader scrolls the prose. Different bundle, opt-in per page.
 
-**View Transitions API.** Wider browser support now (Chrome/Edge/Safari TP). Could replace some of the current AnimatePresence dance for cross-route morphs. Worth a feasibility spike — if it works for our shared-element morphs, it's a substantial code reduction.
+**View Transitions API.** ✅ Adopted 2026-05-24 — the section-shell VT migration ([section-shell-vt-migration.md](section-shell-vt-migration.md)) replaced the AnimatePresence-around-`<Outlet/>` dance with router-driven `startViewTransition`, coexisting with the per-element morphs; Firefox and Steam-on-WebKit are engine-gated. Original framing: worth a feasibility spike for cross-route morphs.
 
 ### Animation stack — Motion stays primary
 
@@ -151,7 +151,7 @@ The things that don't land in screenshots but matter long-term. Cherry-pick when
 
 ### Observability
 
-**Web Vitals dashboard.** Capture LCP, INP, CLS per route, plot trends. Existing `reportWebVitals` import in [main.tsx](../../../apps/web/src/main.tsx) is the entry point; currently unused. Could be an internal `/perf` route or a public one — public version is a case-study anchor.
+**Web Vitals dashboard.** Capture LCP, INP, CLS per route, plot trends. Existing pub/sub plumbing in [web-vitals.ts](../../../apps/web/src/lib/web-vitals.ts) (called from [__root.tsx](../../../apps/web/src/routes/__root.tsx)) is the entry point; only the console reporter subscribes. Could be an internal `/perf` route or a public one — public version is a case-study anchor.
 
 **Bundle size budgets in CI.** Per-route chunk thresholds, CI fails the PR if exceeded. Cheap to wire; portfolio-credible perf evidence.
 

@@ -526,17 +526,17 @@ Pick when triggered, per KB §3.10:
 
 ### `persistQueryClient` (TanStack Query localStorage/IndexedDB hydration)
 
-Status: parked — superseded by Start migration loaders
+Status: closed 2026-07-27 — superseded by the shipped Start migration loaders
 
 What it covers: hydrate the TanStack Query cache from localStorage/IndexedDB on boot, so cold loads show last-seen data immediately rather than shell-then-data.
 
 Why tempting: the app is CSR; cold loads currently show the SPA shell before any data. `persistQueryClient` is ~30 lines of wire-up and would give "instant last-seen profile" on revisit.
 
-Why parked: [tanstack-start-migration.md](tanstack-start-migration.md) (parked structural arc) ships server-side loaders that prime the cache on first render — strictly better than client-side hydration (no cache-key version-drift, no localStorage 5MB quota, no flash of stale data). Adding `persistQueryClient` now would be replaced when Start lands.
+Why parked: [tanstack-start-migration.md](tanstack-start-migration.md) (since shipped, 2026-07-27) ships server-side loaders that prime the cache on first render — strictly better than client-side hydration (no cache-key version-drift, no localStorage 5MB quota, no flash of stale data). Adding `persistQueryClient` now would be replaced when Start lands.
 
 When to reconsider:
 
-- The Start migration is descoped or deferred indefinitely. Then `persistQueryClient` becomes the right call (the IndexedDB persister, not localStorage — the cache will exceed 5MB).
+- No trigger remains — the Start migration shipped 2026-07-27, so server loaders + SSR dehydration cover the goal. Kept as the decision record; the IndexedDB-persister note above applies only if SSR is ever abandoned.
 
 ### EventSource (Web API, not a library) — auth gotcha for post-owner-auth
 
@@ -637,11 +637,11 @@ Surfaced during the §05-frameworks sweep. The structural migration question (CS
 
 ### TanStack Start 1.x
 
-Status: parked-active, decision pending (see [tanstack-start-migration.md](tanstack-start-migration.md))
+Status: ✅ adopted — shipped 2026-07-27, all 6 chunks ([tanstack-start-migration.md](tanstack-start-migration.md)); the SSR conventions now live in [repo-conventions.md](../../repo-conventions.md)
 
 What it is: The SSR/full-stack layer over TanStack Router. Same router APIs as today's SPA setup, with server-rendered HTML, route loaders running on the server, streaming SSR, and direct server-function support.
 
-Why parked, not rejected: The migration is forward-compatible — typed search params, route definitions, head exports, and (after Round 5 Gap 15 lands) route loaders all work unchanged. The KB §05 rubric scores Start 5/5 for "type safety end-to-end" and "complex search-params state", both exact-fit. Gate: post-launch, after the first ~30 days of CSR analytics so the SEO/perf delta is measurable, not hypothetical.
+Why it was parked, not rejected: The migration is forward-compatible — typed search params, route definitions, head exports, and route loaders all work unchanged. The KB §05 rubric scores Start 5/5 for "type safety end-to-end" and "complex search-params state", both exact-fit. The original gate (post-launch + ~30 days of CSR analytics) was overtaken: the migration ran pre-launch on 2026-07-26/27, motivated by AI-search/first-pass indexing rather than a measured CSR delta.
 
 ### Next.js 16
 

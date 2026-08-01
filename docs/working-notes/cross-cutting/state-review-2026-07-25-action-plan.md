@@ -1,4 +1,4 @@
-**Status:** Active — action plan derived from [state-review-2026-07-25.md](state-review-2026-07-25.md). Produced 2026-07-25 by a 20-agent sweep (7 investigations, each adversarially verified, plus a completeness critic). Corrections from the critic and from a main-thread re-verification are folded in and marked **[corrected]**.
+**Status:** Closed 2026-07-26 — executed as the state-review hygiene arc: 23 commits, findings F-1 through F-18 closed except F-14 (partial by decision); spin-offs (`typescript` 7 retry, Biome 2 migration) tracked in [open-work.md](../open-work.md) § Adjacent maintenance. The per-chunk annotations below were not maintained during execution — [state-review-2026-07-25.md](state-review-2026-07-25.md) and [project-history.md](../project-history.md) carry the outcome; this file stays as the plan of record. Produced 2026-07-25 by a 20-agent sweep (7 investigations, each adversarially verified, plus a completeness critic). Corrections from the critic and from a main-thread re-verification are folded in and marked **[corrected]**.
 
 ## Sequencing rationale
 

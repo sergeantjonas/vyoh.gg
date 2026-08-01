@@ -1,6 +1,6 @@
 # Steam library-card enrichment — `GetItems` field harvest
 
-**Status:** Largely shipped 2026-05-25 — chunks 0-6, 8, and 9a/9b/9c all landed in one session. The harvest's outstanding in-scope work is Chunk 7 (microtrailer hover preview), which lives in its own arc note ([microtrailer-hover-preview.md](../cross-cutting/microtrailer-hover-preview.md)). Backlogged rows (10-12) stay parked in [steam-integration.md candidate board](./steam-integration.md). This note is the umbrella roadmap; each chunk links out to the working-note (quick-wins, elevation arc, palette grammar, etc.) where it actually lands.
+**Status:** Shipped — chunks 0-6, 8, and 9a/9b/9c landed 2026-05-25 in one session; Chunk 7 (microtrailer hover preview) shipped 2026-05-28/29 through its arc note ([microtrailer-hover-preview.md](../cross-cutting/microtrailer-hover-preview.md), both rungs including the full-trailer lightbox). Backlogged rows (10-12) stay parked in [steam-integration.md candidate board](./steam-integration.md). This note is the umbrella roadmap; each chunk links out to the working-note (quick-wins, elevation arc, palette grammar, etc.) where it actually lands.
 
 Premise: the existing [enrichment.service.ts](../../../apps/api/src/steam/enrichment.service.ts) already calls `GetItems` per owned game and writes a `SteamGameEnrichment` row. The current `data_request` only opts into `include_assets`, `include_release`, `include_categories`, `include_tag_count` — but the same endpoint, same rate-limit budget, returns ~12 more field families when more flags flip on. Capturing them is purely "more `include_*: true` + more columns + more projection lines" — no new endpoint, no extra request, no second cache.
 
@@ -23,7 +23,7 @@ Sized so each row is independently committable. Some chunks land changes in this
 | 4 | `reviews.summary_filtered` "Very Positive (56k)" chip | [quick-wins.md](../cross-cutting/quick-wins.md) | ✅ shipped 2026-05-25 |
 | 5 | `game_rating` ESRB/PEGI chip + descriptors | [quick-wins.md](../cross-cutting/quick-wins.md) | ✅ shipped 2026-05-25 |
 | 6 | `basic_info.publishers / developers / franchises` filtering | [command-palette.md](../cross-cutting/command-palette.md) Phase G | ✅ shipped 2026-05-25 |
-| 7 | `trailers.highlights[].microtrailer` hover preview | [microtrailer-hover-preview.md](../cross-cutting/microtrailer-hover-preview.md) | Planned (arc) |
+| 7 | `trailers.highlights[].microtrailer` hover preview | [microtrailer-hover-preview.md](../cross-cutting/microtrailer-hover-preview.md) | ✅ shipped 2026-05-28/29 (arc) |
 | 8 | `full_description_bbcode` → game-detail body | this note (Chunk 8 below) | ✅ shipped 2026-05-25 |
 | 9 | `screenshots.all_ages_screenshots[]` → game-detail gallery | this note (Chunk 9 below) | ✅ shipped 2026-05-25 |
 | 10 | `supported_languages` → audio/subtitle filter | [steam-integration.md candidate board](./steam-integration.md) | Backlogged |

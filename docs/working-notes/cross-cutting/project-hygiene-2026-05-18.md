@@ -17,7 +17,7 @@ Two subagent findings were *wrong* on initial pass; they are recorded here so a 
 - **Workspace boundaries.** `apps/web` and `apps/api` import only from `@vyoh/shared`; `packages/shared` imports from neither. No back-channels.
 - **TypeScript strictness.** Base `tsconfig` enables `strict`, `noUncheckedIndexedAccess`, `noImplicitOverride`, `noFallthroughCasesInSwitch`. Web layer adds `noUnusedLocals` / `noUnusedParameters`. Zero `@ts-ignore` / `@ts-expect-error` in handwritten code; one manual `as any` in [apps/web/src/components/command-palette-dialog.tsx](../../../apps/web/src/components/command-palette-dialog.tsx).
 - **Lint discipline.** ~20 `biome-ignore` suppressions repo-wide, each justified.
-- **Error handling.** Global `RiotExceptionFilter` at [apps/api/src/main.ts:14](../../../apps/api/src/main.ts#L14) maps 404/429/504 to user-facing responses; web has a root error boundary and TanStack Query global handlers in [apps/web/src/main.tsx](../../../apps/web/src/main.tsx).
+- **Error handling.** Global `RiotExceptionFilter` at [apps/api/src/main.ts:14](../../../apps/api/src/main.ts#L14) maps 404/429/504 to user-facing responses; web has a root error boundary and TanStack Query global handlers in [apps/web/src/router.tsx](../../../apps/web/src/router.tsx) (was `main.tsx` until the Start migration, 2026-07-26).
 - **Security basics.** `.env` gitignored (verified above), `requireEnv()` everywhere, CORS origin whitelist, no hardcoded secrets in source.
 - **API test depth.** 46 spec files for 135 sources (~7.9k LOC of tests), unit + integration.
 - **Git/lockfile/package manager.** Single `pnpm-lock.yaml`, `packageManager` + `engines.node>=22` set, commit-style discipline applied.

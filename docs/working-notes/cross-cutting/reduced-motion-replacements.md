@@ -1,6 +1,6 @@
 # Reduced-motion replacements — audit + standard
 
-**Status:** Active — Chunks 1–3 landed (2026-05-28). Part of [elevation-arcs.md](elevation-arcs.md) Tier 2. A single pass to audit every animated surface in the app against the **"replace, don't disable"** principle from [03-motion.md §6.5](~/.claude/knowledge/frontend-2026/03-motion.md), and to standardise the replacement variants in one place so future motion arcs inherit the pattern.
+**Status:** Shipped 2026-05-28 — all chunks landed or closed as no-ops (global `MotionConfig` mount + sheen CSS shipped; keyframe audit verified colocated rm blocks everywhere; standard rewritten to colocated-per-keyframe; regression test added). Stays live as a standing reference — other arc notes link in for their per-arc rm sections. Since the Start migration (2026-07-26) the global mount lives in [router.tsx](../../../apps/web/src/router.tsx), pinned by [router.test.ts](../../../apps/web/src/router.test.ts); `main.tsx` mentions in the audit and chunk-plan sections below are historical. Part of [elevation-arcs.md](elevation-arcs.md) Tier 2. A single pass to audit every animated surface in the app against the **"replace, don't disable"** principle from [03-motion.md §6.5](~/.claude/knowledge/frontend-2026/03-motion.md), and to standardise the replacement variants in one place so future motion arcs inherit the pattern.
 
 Read this **after** any new motion-bearing arc lands and as a standing checklist before merging anything motion-touching. Also acts as the reference for the reduced-motion sections inside every other arc note in this directory.
 
@@ -157,7 +157,7 @@ This is genuine "replace": each surface keeps the *information* the animation ca
 2. **Review locality.** A reviewer looking at a new `@keyframes` immediately sees whether the matching rm block exists three lines down; a consolidated block requires cross-file jumping to verify coverage.
 3. **No global ordering tax.** A consolidated block is a single specificity baseline; per-surface needs (e.g. sheen's `!important` to win over `transition-[--sheen-extent,opacity]` from inline Tailwind) live with the surface that needs them, not in a shared block that has to escalate for the noisiest consumer.
 
-What this means at the JS layer is unchanged: the global `MotionConfig reducedMotion="user"` in [main.tsx](../../../apps/web/src/main.tsx) is the *single* JS switch, and surface-level `useReducedMotion()` calls layer finer-grained replacements on top. The "one place" principle applies to JS contract, not CSS placement.
+What this means at the JS layer is unchanged: the global `MotionConfig reducedMotion="user"` in [router.tsx](../../../apps/web/src/router.tsx) (moved from `main.tsx` by the Start migration) is the *single* JS switch, and surface-level `useReducedMotion()` calls layer finer-grained replacements on top. The "one place" principle applies to JS contract, not CSS placement.
 
 The Chunk 3 audit table above is the authoritative inventory — if a new keyframe lands without an entry there, it's missing an rm block.
 
