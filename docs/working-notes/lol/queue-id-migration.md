@@ -1,6 +1,6 @@
 # Queue identity: migrate `Match.queueType` label → numeric `queueId`
 
-**Status:** Active — chunks 1–4 shipped 2026-08-01; `queueType` no longer exists, and every live queue has a label. Chunk 5 is open and was not in the original plan: queue 710 ("Ranked 5s") carries LP on a `RANKED_PREMADE_5x5` ladder that the rank poller discards.
+**Status:** Active — chunks 1–4 and 5a shipped 2026-08-01. `queueType` no longer exists, every live queue has a label, and the rank poller now persists queue 710's `RANKED_PREMADE_5x5` ladder instead of discarding it. 5b (the `rankEntries` display surfaces) and 5c (the serious-queues opt-in) remain.
 
 ## Why
 
@@ -44,15 +44,22 @@ The identity/cadence surfaces (Recent form, Now playing, Queue distribution, Act
 
   **Names came from CommunityDragon's queue catalogue, not Riot's static `queues.json`, which does not contain 710 at all.** Prefer CommunityDragon when adding a live queue; the static doc lags.
 
-- **5 — the `RANKED_PREMADE_5x5` ladder.** Not started. 710 carries real LP on its own League-V4 ladder, and we throw every capture of it away.
+- **5 — the `RANKED_PREMADE_5x5` ladder.** 710 carries real LP on its own League-V4 ladder, and we threw every capture of it away. Owner's calls: **full parity with solo and flex**, and **opt-in for statistics, off by default**.
 
   Confirmed against live Riot data 2026-08-01: League-V4 `entries/by-puuid` returns `RANKED_PREMADE_5x5` (MASTER I, 8W/4L) alongside solo and flex, and match-v5 `ids?queue=710` returns exactly 12 — the same 12 games. Riot has repurposed the legacy premade-team string for this queue.
 
-  **Do not conclude "there is no ladder" from the `RankSnapshot` table.** [lol.service.ts:505](../../../apps/api/src/lol/lol.service.ts) `continue`s past any `queueType` that is not solo or flex before writing, so the table can only ever contain those two — querying it and reading the result as evidence about what League-V4 returns is circular, and did produce a wrong answer once.
+  **Do not conclude "there is no ladder" from the `RankSnapshot` table.** The capture filter ran *before* the write, so the table could only ever contain the queues the filter already named — querying it and reading the result as evidence about what League-V4 returns is circular, and did produce a wrong answer once.
 
-  The two-ladder assumption is hardcoded at ~15 sites, so this is not a map edit: `lol.service.ts` (the poller filter, the rank-history fetch pair, the solo/flex snapshot bucketing, the latest-per-queue read), `RankHistoryResponse`'s `{ solo, flex }` wire shape, `live-game-poller`, `og.service`, `nav.tsx`, `$accountSlug/index.tsx`, plus the `RankedQueueKey = "solo" | "flex"` union behind LP history, season history and the hero rank strip.
+  - **5a — the vocabulary, and stop discarding the ladder.** ✅ 2026-08-01. `RankedQueueKey` is a three-value union; `RANKED_QUEUE_MAP` gains `710 → RANKED_PREMADE_5x5` (so `RANKED_QUEUE_IDS` widens to `[420, 440, 710]`, which is what makes 710 count as "real ELO consequences" for the eleven moment detectors and for the CS personal-record gate). New `RANKED_QUEUE_TYPE_TO_KEY` is derived from `RANKED_QUEUE_KEY_TO_TYPE` and is now the membership test the rank poller runs before writing a snapshot. `lol.service.ts`'s four hardcoded pairs — the capture filter, the profile fetch pair, the history bucketing, the denorm latest-per-queue — all iterate `RANKED_QUEUE_KEYS` instead.
 
-  Two product decisions gate it: whether 710 enters `RANKED_QUEUE_MAP` (which would put it in `RANKED_QUEUE_IDS` — the moment detectors' "real ELO consequences" filter and the CS personal-record gate), and whether it joins `CONFIGURABLE_SERIOUS_QUEUES` so its games can count toward statistics. Note `RANKED_QUEUE_IDS` is documented as "which queues carry LP"; 710 satisfies that, so leaving it out needs its own reason.
+    `RankHistoryResponse` changed from `{ solo, flex }` to `Record<RankedQueueKey, RankHistoryPoint[]>`. **That is the load-bearing part of the chunk**: literal field names let a new ladder land silently absent, whereas the Record made six consumers fail to compile until each handled the new series. Every one of those was a real site that would otherwise have quietly ignored 710. `emptyRankHistory()` is the shape's constructor, used by the service and by three test fixtures so none of them re-enumerate the keys.
+
+    LP history and season history render one tab per key, disabled when that ladder has no data — same treatment flex already got. The active-queue fallback walks `RANKED_QUEUE_KEYS` in order rather than defaulting to solo. Recap's rank arc folds its peak over every ladder; its net-LP delta stays solo-only, which it already was and which reads as intended.
+
+    Nothing backfills. Riot exposes no history for this ladder, so the premade series starts accumulating from deploy — the friend's 12 played games are unrecoverable, and the chart will be empty on it until new snapshots land.
+
+  - **5b — the `rankEntries` surfaces.** Open. Separate mechanism from 5a: these read `RankEntry.queueId`, which carries the *League-V4 string*, not the numeric queueId. `nav.tsx`, `hero-rank-strip.tsx` (`QUEUE_LABEL` + `QUEUE_ORDER` + the storage-key map), `og.service.ts:140-141`, and `live-game-poller.service.ts:212` — the last picks solo unconditionally for the live overlay, so a premade game in progress shows a solo rank.
+  - **5c — serious-queues opt-in.** Open, one line plus a test: `{ id: 710, label: "Ranked 5s" }` joins `CONFIGURABLE_SERIOUS_QUEUES`, and `DEFAULT_SERIOUS_QUEUE_IDS` stays `[420, 440]` so 710 is off until the owner turns it on.
 
 ## Constraint: no LoL Classic
 

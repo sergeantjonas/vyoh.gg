@@ -5,16 +5,22 @@ import {
   type MessageEvent,
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
-import { RANKED_QUEUE_MAP } from "@vyoh/shared";
+import {
+  RANKED_QUEUE_KEYS,
+  RANKED_QUEUE_KEY_TO_TYPE,
+  RANKED_QUEUE_MAP,
+  RANKED_QUEUE_TYPE_TO_KEY,
+  emptyRankHistory,
+} from "@vyoh/shared";
 import type {
   CachedMatchesResult,
+  ComparableRank,
   LiveMatch,
   LolAccount,
   MatchDetail,
   MatchSummary,
   MatchTimelineProjection,
   RankEntry,
-  RankHistoryPoint,
   RankHistoryResponse,
   SummonerProfile,
 } from "@vyoh/shared";
@@ -412,9 +418,9 @@ export class LolService {
     if (!summoner) return { profileIconId: null, summonerLevel: null, rankEntries: [] };
 
     const snapshots = await Promise.all(
-      ["RANKED_SOLO_5x5", "RANKED_FLEX_SR"].map((queueId) =>
+      RANKED_QUEUE_KEYS.map((key) =>
         this.prisma.rankSnapshot.findFirst({
-          where: { puuid: summoner.puuid, queueId },
+          where: { puuid: summoner.puuid, queueId: RANKED_QUEUE_KEY_TO_TYPE[key] },
           orderBy: { capturedAt: "desc" },
         })
       )
@@ -454,7 +460,7 @@ export class LolService {
     const summoner = await this.prisma.summoner.findUnique({
       where: { gameName_tagLine_region: { gameName, tagLine, region } },
     });
-    if (!summoner) return { solo: [], flex: [] };
+    if (!summoner) return emptyRankHistory();
 
     const since =
       days !== undefined && days > 0
@@ -469,20 +475,22 @@ export class LolService {
       orderBy: { capturedAt: "asc" },
     });
 
-    const solo: RankHistoryPoint[] = [];
-    const flex: RankHistoryPoint[] = [];
+    // Reads the whole snapshot table for the account and routes each row by its
+    // League-V4 queueType. Rows on a ladder we don't chart (RANKED_TFT) resolve
+    // to no key and are dropped.
+    const history = emptyRankHistory();
     for (const s of snapshots) {
-      const point: RankHistoryPoint = {
+      const key = RANKED_QUEUE_TYPE_TO_KEY[s.queueId];
+      if (!key) continue;
+      history[key].push({
         capturedAt: s.capturedAt.toISOString(),
         queueId: s.queueId,
         tier: s.tier,
         rank: s.rank,
         leaguePoints: s.leaguePoints,
-      };
-      if (s.queueId === "RANKED_SOLO_5x5") solo.push(point);
-      else if (s.queueId === "RANKED_FLEX_SR") flex.push(point);
+      });
     }
-    return { solo, flex };
+    return history;
   }
 
   async captureRankSnapshot(account: LolAccount): Promise<void> {
@@ -502,9 +510,14 @@ export class LolService {
 
     let wroteSnapshot = false;
     for (const entry of entries) {
-      if (entry.queueType !== "RANKED_SOLO_5x5" && entry.queueType !== "RANKED_FLEX_SR") {
-        continue;
-      }
+      // League-V4 returns every ladder the account has standing on, including
+      // ones with no place in this app (RANKED_TFT). Deciding membership from
+      // the shared map rather than from a condition here is what makes a new
+      // ladder a one-line change: the previous hardcoded pair silently threw
+      // away every RANKED_PREMADE_5x5 capture, and because the filter runs
+      // before the write, the table it produced looked like proof that Riot
+      // exposed no such ladder.
+      if (!RANKED_QUEUE_TYPE_TO_KEY[entry.queueType]) continue;
 
       const latest = await this.prisma.rankSnapshot.findFirst({
         where: { puuid: summoner.puuid, queueId: entry.queueType },
@@ -553,17 +566,18 @@ export class LolService {
   // can hydrate the denorm columns from existing snapshots without
   // re-running Riot fetches.
   async refreshAccountSummary(puuid: string): Promise<void> {
-    const [soloLatest, flexLatest, lastMatch] = await Promise.all([
-      this.prisma.rankSnapshot.findFirst({
-        where: { puuid, queueId: "RANKED_SOLO_5x5" },
-        orderBy: { capturedAt: "desc" },
-        select: { tier: true, rank: true, leaguePoints: true },
-      }),
-      this.prisma.rankSnapshot.findFirst({
-        where: { puuid, queueId: "RANKED_FLEX_SR" },
-        orderBy: { capturedAt: "desc" },
-        select: { tier: true, rank: true, leaguePoints: true },
-      }),
+    const [latestPerQueue, lastMatch] = await Promise.all([
+      Promise.all(
+        RANKED_QUEUE_KEYS.map(async (key) => {
+          const queueId = RANKED_QUEUE_KEY_TO_TYPE[key];
+          const latest = await this.prisma.rankSnapshot.findFirst({
+            where: { puuid, queueId },
+            orderBy: { capturedAt: "desc" },
+            select: { tier: true, rank: true, leaguePoints: true },
+          });
+          return latest && { ...latest, queueId };
+        })
+      ),
       this.prisma.match.findFirst({
         where: { puuid, remake: false },
         orderBy: { playedAt: "desc" },
@@ -571,11 +585,12 @@ export class LolService {
       }),
     ]);
 
-    // Solo first so its queue label wins on identical-LP ties — matches
-    // the UI's solo-over-flex display preference.
-    const higher = pickHigherRank(
-      soloLatest && { ...soloLatest, queueId: "RANKED_SOLO_5x5" },
-      flexLatest && { ...flexLatest, queueId: "RANKED_FLEX_SR" }
+    // Folded in RANKED_QUEUE_KEYS order, and `pickHigherRank` favours its left
+    // argument, so an identical-LP tie resolves to the earlier queue — solo
+    // over flex over the premade ladder, matching the UI's display preference.
+    const higher = latestPerQueue.reduce<ComparableRank | null>(
+      (best, next) => pickHigherRank(best, next),
+      null
     );
 
     await this.prisma.summoner.update({

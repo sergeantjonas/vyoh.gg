@@ -25,6 +25,7 @@ export {
   RANKED_QUEUE_IDS,
   RANKED_QUEUE_KEYS,
   RANKED_QUEUE_MAP,
+  RANKED_QUEUE_TYPE_TO_KEY,
   SR_LANE_QUEUE_IDS,
   queueLabel,
   queueLabelExpanded,
@@ -153,10 +154,12 @@ export type {
 } from "./lol/match-detail.ts";
 export type { RankEntry, SummonerProfile } from "./lol/profile.ts";
 export type {
+  ComparableRank,
   DetectedSeason,
   RankHistoryPoint,
   RankHistoryResponse,
 } from "./lol/rank-history.ts";
+export { emptyRankHistory } from "./lol/rank-history.ts";
 export {
   formatRank,
   formatRankTitle,

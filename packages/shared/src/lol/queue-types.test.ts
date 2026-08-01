@@ -8,6 +8,7 @@ import {
   RANKED_QUEUE_KEY_TO_ID,
   RANKED_QUEUE_KEY_TO_TYPE,
   RANKED_QUEUE_MAP,
+  RANKED_QUEUE_TYPE_TO_KEY,
   SR_LANE_QUEUE_IDS,
   queueLabel,
   queueLabelExpanded,
@@ -60,14 +61,36 @@ describe("RANKED_QUEUE_MAP", () => {
     expect(RANKED_QUEUE_MAP[440]).toBe("RANKED_FLEX_SR");
     expect(RANKED_QUEUE_MAP[450]).toBeUndefined();
   });
+
+  // Riot put queue 710 on the legacy premade-team string. Nothing in the
+  // static docs says so — it is only observable from a live entries/by-puuid
+  // response, so pin it rather than leave it to be re-derived.
+  it("pairs 710 with the legacy RANKED_PREMADE_5x5 ladder", () => {
+    expect(RANKED_QUEUE_MAP[710]).toBe("RANKED_PREMADE_5x5");
+  });
 });
 
 describe("RANKED_QUEUE_IDS", () => {
   it("stays in step with RANKED_QUEUE_MAP because it is derived from it", () => {
-    expect([...RANKED_QUEUE_IDS].sort((a, b) => a - b)).toEqual([420, 440]);
+    expect([...RANKED_QUEUE_IDS].sort((a, b) => a - b)).toEqual([420, 440, 710]);
     for (const id of RANKED_QUEUE_IDS) {
       expect(RANKED_QUEUE_MAP[id]).toBeDefined();
     }
+  });
+});
+
+describe("RANKED_QUEUE_TYPE_TO_KEY", () => {
+  it("round-trips every key through its League-V4 queueType", () => {
+    for (const key of RANKED_QUEUE_KEYS) {
+      expect(RANKED_QUEUE_TYPE_TO_KEY[RANKED_QUEUE_KEY_TO_TYPE[key]]).toBe(key);
+    }
+  });
+
+  // This is the membership test the rank poller runs before writing a
+  // snapshot, so a ladder missing here is a ladder whose LP is discarded.
+  it("rejects ladders we do not track", () => {
+    expect(RANKED_QUEUE_TYPE_TO_KEY.RANKED_TFT).toBeUndefined();
+    expect(RANKED_QUEUE_TYPE_TO_KEY.RANKED_PREMADE_5x5).toBe("premade");
   });
 });
 
@@ -93,7 +116,7 @@ describe("queue-family sets", () => {
     }
   });
 
-  it("treats both ranked queues as laned Summoner's Rift", () => {
+  it("treats every ranked queue as laned Summoner's Rift", () => {
     for (const id of RANKED_QUEUE_IDS) {
       expect(SR_LANE_QUEUE_IDS.has(id)).toBe(true);
     }

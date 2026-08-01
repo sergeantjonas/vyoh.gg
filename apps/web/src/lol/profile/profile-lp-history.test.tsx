@@ -3,7 +3,14 @@ import { MatchWindowProvider } from "@/lol/matches/match-window-context";
 import { useRankHistory } from "@/lol/profile/use-rank-history";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import type { LolAccount, MatchSummary, RankHistoryPoint } from "@vyoh/shared";
+import {
+  type LolAccount,
+  type MatchSummary,
+  RANKED_QUEUE_KEYS,
+  type RankHistoryPoint,
+  type RankHistoryResponse,
+  emptyRankHistory,
+} from "@vyoh/shared";
 import { MotionConfig } from "motion/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -75,18 +82,25 @@ function point(overrides: Partial<RankHistoryPoint> = {}): RankHistoryPoint {
   } as RankHistoryPoint;
 }
 
-function setHistory(opts: {
-  isLoading?: boolean;
-  isError?: boolean;
-  solo?: RankHistoryPoint[];
-  flex?: RankHistoryPoint[];
-}) {
+// Cases name only the ladders they exercise; the rest fill in empty, so adding
+// a ladder to RANKED_QUEUE_KEYS doesn't touch this file.
+function setHistory(
+  opts: {
+    isLoading?: boolean;
+    isError?: boolean;
+  } & Partial<RankHistoryResponse>
+) {
+  const history = emptyRankHistory();
+  let named = false;
+  for (const key of RANKED_QUEUE_KEYS) {
+    const points = opts[key];
+    if (!points) continue;
+    history[key] = points;
+    named = true;
+  }
   vi.mocked(useAccountFromSlug).mockReturnValue(account);
   vi.mocked(useRankHistory).mockReturnValue({
-    data:
-      opts.solo || opts.flex
-        ? { solo: opts.solo ?? [], flex: opts.flex ?? [] }
-        : undefined,
+    data: named ? history : undefined,
     isLoading: opts.isLoading ?? false,
     isError: opts.isError ?? false,
   } as unknown as ReturnType<typeof useRankHistory>);
@@ -188,6 +202,27 @@ describe("ProfileLpHistory", () => {
     // Solo tab should be disabled when no solo data
     const soloBtn = screen.getByRole("button", { name: "Solo/Duo" }) as HTMLButtonElement;
     expect(soloBtn.disabled).toBe(true);
+  });
+
+  it("offers the premade-5s ladder as its own tab", () => {
+    setHistory({ solo: [], flex: [], premade: [point({ leaguePoints: 12 })] });
+    renderShell();
+    const premadeBtn = screen.getByRole("button", { name: "5s" }) as HTMLButtonElement;
+    expect(premadeBtn.disabled).toBe(false);
+  });
+
+  // The fallback walks RANKED_QUEUE_KEYS in order rather than hardcoding solo,
+  // so an account whose only history is on a later ladder still charts.
+  it("falls through to the only ladder with history", () => {
+    setHistory({ solo: [], flex: [], premade: [point(), point({ leaguePoints: 40 })] });
+    renderShell();
+    const soloBtn = screen.getByRole("button", { name: "Solo/Duo" }) as HTMLButtonElement;
+    expect(soloBtn.disabled).toBe(true);
+    // Assert the populated branch rendered, not just that the empty state is
+    // absent — the latter would also hold if the component bailed out. The
+    // accompanying data table only renders when the chart has points.
+    expect(screen.getByRole("table")).toBeTruthy();
+    expect(screen.queryByText("No rank snapshots yet")).toBeNull();
   });
 
   it("renders patch boundary lines when matches span multiple game versions", () => {

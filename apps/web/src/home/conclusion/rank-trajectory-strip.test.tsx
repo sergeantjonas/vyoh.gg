@@ -1,23 +1,29 @@
 import { usePrimaryAccount } from "@/home/use-primary-account";
 import { useRankHistory } from "@/lol/profile/use-rank-history";
 import { render, screen } from "@testing-library/react";
-import type { LolAccountWithSummary, RankHistoryResponse } from "@vyoh/shared";
+import {
+  type LolAccountWithSummary,
+  type RankHistoryResponse,
+  emptyRankHistory,
+} from "@vyoh/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RankTrajectoryStrip } from "./rank-trajectory-strip";
 
 vi.mock("@/home/use-primary-account", () => ({ usePrimaryAccount: vi.fn() }));
 vi.mock("@/lol/profile/use-rank-history", () => ({ useRankHistory: vi.fn() }));
 
+// `data` names only the ladders a case exercises; the rest fill in empty, so
+// adding a ladder to RANKED_QUEUE_KEYS doesn't touch this file.
 function mockHooks(opts: {
   account?: LolAccountWithSummary;
-  data?: RankHistoryResponse;
+  data?: Partial<RankHistoryResponse>;
 }) {
   vi.mocked(usePrimaryAccount).mockReturnValue({
     account: opts.account,
     isPending: opts.account === undefined,
   });
   vi.mocked(useRankHistory).mockReturnValue({
-    data: opts.data,
+    data: opts.data && { ...emptyRankHistory(), ...opts.data },
   } as unknown as ReturnType<typeof useRankHistory>);
 }
 

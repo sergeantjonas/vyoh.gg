@@ -2,7 +2,12 @@ import { EmptyLpHistoryIllustration, EmptyState } from "@/components/empty-state
 import { ChapterLabel } from "@/components/ui/chapter-label";
 import { useRankHistory } from "@/lol/profile/use-rank-history";
 import { ChapterShell } from "@/lol/recap/chapter-shell";
-import { type LolAccount, type RankHistoryPoint, formatLpDelta } from "@vyoh/shared";
+import {
+  type LolAccount,
+  RANKED_QUEUE_KEYS,
+  type RankHistoryPoint,
+  formatLpDelta,
+} from "@vyoh/shared";
 import {
   type DetectedSeason,
   detectSeasons,
@@ -35,16 +40,11 @@ export function RecapRankArc({ account }: { account: LolAccount | undefined }) {
 
   const summary = useMemo(() => {
     if (!data) return null;
-    const all = [...data.solo, ...data.flex];
+    const all = RANKED_QUEUE_KEYS.flatMap((key) => data[key]);
     if (all.length === 0) return null;
-    const peakSolo = findPeak(data.solo);
-    const peakFlex = findPeak(data.flex);
-    const peak =
-      peakSolo && peakFlex
-        ? peakSolo.total >= peakFlex.total
-          ? peakSolo
-          : peakFlex
-        : (peakSolo ?? peakFlex);
+    // Peak is the best rank reached anywhere, so it folds over every ladder —
+    // the season's high-water mark doesn't care which queue produced it.
+    const peak = findPeak(all);
     const sortedSolo = [...data.solo].sort((a, b) =>
       a.capturedAt.localeCompare(b.capturedAt)
     );

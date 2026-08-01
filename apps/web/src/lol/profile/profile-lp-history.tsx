@@ -26,6 +26,7 @@ import { ParentSize } from "@visx/responsive";
 import { scaleLinear } from "@visx/scale";
 import { LinePath } from "@visx/shape";
 import {
+  RANKED_QUEUE_KEYS,
   RANKED_QUEUE_KEY_LABEL,
   RANKED_QUEUE_KEY_TO_ID,
   type RankedQueueKey,
@@ -97,7 +98,7 @@ function QueueTabs({
 }) {
   return (
     <div className="inline-flex rounded-md border bg-muted/40 p-0.5 text-xs">
-      {(["solo", "flex"] as const).map((q) => {
+      {RANKED_QUEUE_KEYS.map((q) => {
         const disabled = !available[q];
         const active = value === q;
         return (
@@ -296,19 +297,20 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
 
   const history = useRankHistory(account, range);
 
-  const available = useMemo<Record<RankedQueueKey, boolean>>(
-    () => ({
-      solo: (history.data?.solo.length ?? 0) > 0,
-      flex: (history.data?.flex.length ?? 0) > 0,
-    }),
-    [history.data]
-  );
+  const available = useMemo<Record<RankedQueueKey, boolean>>(() => {
+    const byQueue = {} as Record<RankedQueueKey, boolean>;
+    for (const key of RANKED_QUEUE_KEYS) {
+      byQueue[key] = (history.data?.[key]?.length ?? 0) > 0;
+    }
+    return byQueue;
+  }, [history.data]);
 
+  // Falls back in RANKED_QUEUE_KEYS order, so an account with no solo history
+  // lands on the next ladder that has any. When nothing is available the
+  // first key wins and the chart renders its empty state.
   const activeQueue: RankedQueueKey = available[queue]
     ? queue
-    : available.solo
-      ? "solo"
-      : "flex";
+    : (RANKED_QUEUE_KEYS.find((q) => available[q]) ?? "solo");
 
   const resolution = RESOLUTION_FOR_RANGE[range];
 

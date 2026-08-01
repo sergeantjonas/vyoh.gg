@@ -13,6 +13,7 @@ function makeService(opts: {
   snapshots?: unknown[];
   rankEntries?: unknown[];
 }) {
+  let findFirstCalls = 0;
   const prisma = {
     summoner: {
       findUnique: vi.fn().mockResolvedValue(opts.summoner ?? null),
@@ -22,10 +23,15 @@ function makeService(opts: {
       update: vi.fn().mockResolvedValue(undefined),
     },
     rankSnapshot: {
-      findFirst: vi
-        .fn()
-        .mockImplementationOnce(async () => opts.snapshots?.[0] ?? null)
-        .mockImplementationOnce(async () => opts.snapshots?.[1] ?? null),
+      // Serves `opts.snapshots` positionally: the Nth findFirst of a call gets
+      // the Nth entry. Driven by a counter rather than a fixed chain of
+      // `mockImplementationOnce` so it keeps working as the number of tracked
+      // ladders grows.
+      findFirst: vi.fn().mockImplementation(async () => {
+        const snapshot = opts.snapshots?.[findFirstCalls];
+        findFirstCalls += 1;
+        return snapshot ?? null;
+      }),
       findMany: vi.fn().mockResolvedValue(opts.snapshots ?? []),
       create: vi.fn().mockResolvedValue(undefined),
     },
@@ -115,13 +121,13 @@ describe("LolService.getRankHistory", () => {
     );
   });
 
-  it("returns empty arrays when no summoner row exists", async () => {
+  it("returns an empty series per tracked ladder when no summoner row exists", async () => {
     const { service } = makeService({ summoner: null });
     const result = await service.getRankHistory("euw1", "Vyoh", "EUW");
-    expect(result).toEqual({ solo: [], flex: [] });
+    expect(result).toEqual({ solo: [], flex: [], premade: [] });
   });
 
-  it("partitions snapshots into solo + flex by queueId", async () => {
+  it("partitions snapshots by queueId and drops ladders we don't chart", async () => {
     const now = new Date("2026-05-01T00:00:00Z");
     const { service } = makeService({
       summoner: { puuid: "p1" },
@@ -142,6 +148,13 @@ describe("LolService.getRankHistory", () => {
         },
         {
           capturedAt: now,
+          queueId: "RANKED_PREMADE_5x5",
+          tier: "MASTER",
+          rank: "I",
+          leaguePoints: 12,
+        },
+        {
+          capturedAt: now,
           queueId: "RANKED_TFT",
           tier: "PLATINUM",
           rank: "IV",
@@ -152,6 +165,7 @@ describe("LolService.getRankHistory", () => {
     const result = await service.getRankHistory("euw1", "Vyoh", "EUW");
     expect(result.solo).toHaveLength(1);
     expect(result.flex).toHaveLength(1);
+    expect(result.premade).toHaveLength(1);
     // TFT entry is silently dropped
   });
 
@@ -225,7 +239,7 @@ describe("LolService.captureRankSnapshot", () => {
     expect(riot.getLeagueEntriesByPuuid).not.toHaveBeenCalled();
   });
 
-  it("skips entries that are not RANKED_SOLO_5x5 or RANKED_FLEX_SR", async () => {
+  it("skips entries on a ladder we don't track", async () => {
     const { service, prisma } = makeService({
       summoner: { puuid: "p1" },
       rankEntries: [
@@ -241,6 +255,40 @@ describe("LolService.captureRankSnapshot", () => {
     expect(prisma.rankSnapshot.create).not.toHaveBeenCalled();
     // No ranked snapshot was created → denorm refresh shouldn't fire.
     expect(prisma.summoner.update).not.toHaveBeenCalled();
+  });
+
+  // The filter used to be a hardcoded solo-or-flex pair, so every capture of
+  // this ladder was discarded before the write. Because that ran ahead of the
+  // insert, the resulting table looked like evidence that Riot exposed no such
+  // ladder — assert the write, not the absence of one.
+  it("persists the premade-5s ladder League-V4 returns alongside solo and flex", async () => {
+    const { service, prisma } = makeService({
+      summoner: { puuid: "p1" },
+      rankEntries: [
+        {
+          queueType: "RANKED_PREMADE_5x5",
+          tier: "MASTER",
+          rank: "I",
+          leaguePoints: 12,
+          wins: 8,
+          losses: 4,
+          hotStreak: false,
+        },
+      ],
+    });
+    await service.captureRankSnapshot({
+      slug: "ahri",
+      region: "euw1",
+      gameName: "Vyoh",
+      tagLine: "EUW",
+    });
+    expect(prisma.rankSnapshot.create).toHaveBeenCalledTimes(1);
+    const call = prisma.rankSnapshot.create.mock.calls[0]?.[0] as {
+      data: { queueId: string; tier: string; leaguePoints: number };
+    };
+    expect(call.data.queueId).toBe("RANKED_PREMADE_5x5");
+    expect(call.data.tier).toBe("MASTER");
+    expect(call.data.leaguePoints).toBe(12);
   });
 
   it("refreshes the denorm summary after a new snapshot is written", async () => {

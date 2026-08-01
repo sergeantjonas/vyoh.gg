@@ -6,7 +6,11 @@ import { rankEmblemUrl } from "@/lol/_shared/assets/champion-icon";
 import { useRankedEmblemYear } from "@/lol/_shared/use-ranked-emblem-year";
 import { useRankHistory } from "@/lol/profile/use-rank-history";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { RANKED_QUEUE_KEY_LABEL, type RankedQueueKey } from "@vyoh/shared";
+import {
+  RANKED_QUEUE_KEYS,
+  RANKED_QUEUE_KEY_LABEL,
+  type RankedQueueKey,
+} from "@vyoh/shared";
 import type { DetectedSeason } from "@vyoh/shared";
 import { detectSeasons } from "@vyoh/shared/lol/rank-history";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
@@ -61,7 +65,7 @@ function QueueTabs({
 }) {
   return (
     <div className="inline-flex rounded-md border bg-muted/40 p-0.5 text-xs">
-      {(["solo", "flex"] as const).map((q) => {
+      {RANKED_QUEUE_KEYS.map((q) => {
         const disabled = !available[q];
         const active = value === q;
         return (
@@ -151,27 +155,25 @@ export function ProfileSeasonHistory({ accountSlug }: { accountSlug: string }) {
 
   const history = useRankHistory(account, "season");
 
-  const seasons = useMemo<Record<RankedQueueKey, DetectedSeason[]>>(
-    () => ({
-      solo: detectSeasons(history.data?.solo ?? []),
-      flex: detectSeasons(history.data?.flex ?? []),
-    }),
-    [history.data]
-  );
+  const seasons = useMemo<Record<RankedQueueKey, DetectedSeason[]>>(() => {
+    const byQueue = {} as Record<RankedQueueKey, DetectedSeason[]>;
+    for (const key of RANKED_QUEUE_KEYS) {
+      byQueue[key] = detectSeasons(history.data?.[key] ?? []);
+    }
+    return byQueue;
+  }, [history.data]);
 
-  const available = useMemo<Record<RankedQueueKey, boolean>>(
-    () => ({
-      solo: seasons.solo.length > 0,
-      flex: seasons.flex.length > 0,
-    }),
-    [seasons]
-  );
+  const available = useMemo<Record<RankedQueueKey, boolean>>(() => {
+    const byQueue = {} as Record<RankedQueueKey, boolean>;
+    for (const key of RANKED_QUEUE_KEYS) byQueue[key] = seasons[key].length > 0;
+    return byQueue;
+  }, [seasons]);
 
+  // Falls back in RANKED_QUEUE_KEYS order, so an account with no detected solo
+  // seasons lands on the next ladder that has any.
   const activeQueue: RankedQueueKey = available[queue]
     ? queue
-    : available.solo
-      ? "solo"
-      : "flex";
+    : (RANKED_QUEUE_KEYS.find((q) => available[q]) ?? "solo");
 
   const list = seasons[activeQueue];
   // Reverse chronological: ongoing first, then most-recently-closed.

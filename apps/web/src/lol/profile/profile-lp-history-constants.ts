@@ -10,6 +10,7 @@ export const RANGE_LABEL: Record<RangeKey, string> = {
 export const QUEUE_COLOR: Record<RankedQueueKey, string> = {
   solo: "#34d399",
   flex: "#fbbf24",
+  premade: "#818cf8",
 };
 
 export const STREAK_MIN_LENGTH = 3;

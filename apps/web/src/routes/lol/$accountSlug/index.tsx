@@ -26,7 +26,11 @@ import { profileRankQueryOptions, useProfileRank } from "@/lol/profile/use-profi
 import { useRankHistory } from "@/lol/profile/use-rank-history";
 import { selectChampionOfYear } from "@/lol/recap/recap-champion";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { excludeRemakes } from "@vyoh/shared";
+import {
+  RANKED_QUEUE_KEYS,
+  RANKED_QUEUE_KEY_TO_TYPE,
+  excludeRemakes,
+} from "@vyoh/shared";
 import { normalizeLp } from "@vyoh/shared/lol/rank-history";
 import { ChevronRight } from "lucide-react";
 import { Suspense, lazy, useEffect, useMemo } from "react";
@@ -141,16 +145,17 @@ function ProfilePage() {
   const recentLpByQueue = useMemo<Record<string, number[]>>(() => {
     const data = rankHistory.data;
     if (!data) return {};
-    const toSeries = (points: typeof data.solo) =>
-      [...points]
+    // Keyed by League-V4 queueType because the consumer walks RankEntry rows,
+    // which carry that string rather than the numeric queueId.
+    const byQueue: Record<string, number[]> = {};
+    for (const key of RANKED_QUEUE_KEYS) {
+      byQueue[RANKED_QUEUE_KEY_TO_TYPE[key]] = [...data[key]]
         .sort(
           (a, b) => new Date(a.capturedAt).getTime() - new Date(b.capturedAt).getTime()
         )
         .map((p) => normalizeLp(p.tier, p.rank, p.leaguePoints));
-    return {
-      RANKED_SOLO_5x5: toSeries(data.solo),
-      RANKED_FLEX_SR: toSeries(data.flex),
-    };
+    }
+    return byQueue;
   }, [rankHistory.data]);
   const { matches } = useMatchWindow();
   // Most-recent non-remake match drives the identity block's "last played X"

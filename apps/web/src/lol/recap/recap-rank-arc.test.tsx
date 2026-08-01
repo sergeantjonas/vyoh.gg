@@ -1,6 +1,10 @@
 import { useRankHistory } from "@/lol/profile/use-rank-history";
 import { render, screen } from "@testing-library/react";
-import type { LolAccount, RankHistoryResponse } from "@vyoh/shared";
+import {
+  type LolAccount,
+  type RankHistoryResponse,
+  emptyRankHistory,
+} from "@vyoh/shared";
 import { MotionConfig } from "motion/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RecapRankArc } from "./recap-rank-arc";
@@ -16,9 +20,11 @@ const account: LolAccount = {
   slug: "jonas-euw",
 };
 
-function mockHistory(value: RankHistoryResponse | undefined): void {
+// Fixtures name only the ladders they exercise; the rest fill in empty, so
+// adding a ladder to RANKED_QUEUE_KEYS doesn't touch this file.
+function mockHistory(value: Partial<RankHistoryResponse> | undefined): void {
   vi.mocked(useRankHistory).mockReturnValue({
-    data: value,
+    data: value && { ...emptyRankHistory(), ...value },
   } as unknown as ReturnType<typeof useRankHistory>);
 }
 
@@ -41,8 +47,8 @@ describe("RecapRankArc", () => {
     expect(screen.getByText("Not enough rank snapshots yet")).toBeTruthy();
   });
 
-  it("renders the empty state when both solo and flex history are empty", () => {
-    mockHistory({ solo: [], flex: [] });
+  it("renders the empty state when every ladder is empty", () => {
+    mockHistory({});
     renderArc();
     expect(screen.getByText("Not enough rank snapshots yet")).toBeTruthy();
   });

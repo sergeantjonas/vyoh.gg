@@ -1,3 +1,5 @@
+import { RANKED_QUEUE_KEYS, type RankedQueueKey } from "./queue-types.ts";
+
 // LP cannot be plotted directly across tiers because each tier+division resets
 // to 0–100. We normalize to a single monotonically-increasing scale so the
 // chart can render tier transitions as smooth movement instead of vertical
@@ -100,9 +102,18 @@ export interface RankHistoryPoint {
   leaguePoints: number;
 }
 
-export interface RankHistoryResponse {
-  solo: RankHistoryPoint[];
-  flex: RankHistoryPoint[];
+// Keyed by the union rather than by literal field names, so adding a ladder to
+// RANKED_QUEUE_KEYS widens the wire shape and every exhaustive consumer fails
+// to compile until it handles the new series. Spelling `{ solo, flex }` out
+// here would let a third ladder land silently absent instead.
+export type RankHistoryResponse = Record<RankedQueueKey, RankHistoryPoint[]>;
+
+/** Every series present and empty — the shape callers build up into, and the
+ *  answer for an account with no snapshots. */
+export function emptyRankHistory(): RankHistoryResponse {
+  const history = {} as RankHistoryResponse;
+  for (const key of RANKED_QUEUE_KEYS) history[key] = [];
+  return history;
 }
 
 // Season detection

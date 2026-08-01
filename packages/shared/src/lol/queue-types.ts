@@ -71,9 +71,15 @@ export function queueLabelExpanded(queueId: number): string {
 
 // Maps Riot's numeric Match-V5 queueId to the League-V4 queueType string
 // used in RankSnapshot rows — bridges the two API representations.
+//
+// 710 is on Riot's legacy `RANKED_PREMADE_5x5` string, which League-V4 returns
+// alongside solo and flex for accounts that have played it. Verified against
+// live data 2026-08-01; it is absent from Riot's static queue docs, so the
+// pairing is only observable from an entries/by-puuid response.
 export const RANKED_QUEUE_MAP: Record<number, string> = {
   420: "RANKED_SOLO_5x5",
   440: "RANKED_FLEX_SR",
+  710: "RANKED_PREMADE_5x5",
 };
 
 // "Which queues carry LP" as Match.queueId values. Derived from the map above
@@ -127,26 +133,43 @@ export const SR_LANE_QUEUE_IDS: ReadonlySet<number> = new Set([
 ]);
 
 // Compact discriminator used by ranked-only UIs (LP history, season history,
-// hero rank strip) that need to pick between exactly two queues. Pairs with
-// the four maps below so a single key value drives label, queueId, queueType,
-// and accent colour consistently across surfaces.
-export type RankedQueueKey = "solo" | "flex";
+// hero rank strip) to pick between the ladders. Pairs with the maps below so a
+// single key value drives label, queueId, queueType, and accent colour
+// consistently across surfaces — a new ladder is an entry here, never a new
+// condition at a call site.
+//
+// Order is the display preference: surfaces that must choose one queue take the
+// first available, and `pickHigherRank` folds in this order so an identical-LP
+// tie resolves to the earlier key.
+export type RankedQueueKey = "solo" | "flex" | "premade";
 
-export const RANKED_QUEUE_KEYS: readonly RankedQueueKey[] = ["solo", "flex"];
+export const RANKED_QUEUE_KEYS: readonly RankedQueueKey[] = ["solo", "flex", "premade"];
 
 export const RANKED_QUEUE_KEY_TO_ID: Record<RankedQueueKey, number> = {
   solo: 420,
   flex: 440,
+  premade: 710,
 };
 
 export const RANKED_QUEUE_KEY_TO_TYPE: Record<RankedQueueKey, string> = {
   solo: "RANKED_SOLO_5x5",
   flex: "RANKED_FLEX_SR",
+  premade: "RANKED_PREMADE_5x5",
 };
 
-// Shortest readable label — used in the segmented "Solo/Duo | Flex" toggle
+// The inverse, for reading a League-V4 row back into a key. Derived rather than
+// restated so the two directions cannot disagree, and it doubles as the "do we
+// track this ladder" test: League-V4 returns every ladder an account has played
+// (RANKED_TFT, arena queues), and an unknown string yields `undefined` here.
+export const RANKED_QUEUE_TYPE_TO_KEY: Record<string, RankedQueueKey> =
+  Object.fromEntries(
+    RANKED_QUEUE_KEYS.map((key) => [RANKED_QUEUE_KEY_TO_TYPE[key], key])
+  );
+
+// Shortest readable label — used in the segmented "Solo/Duo | Flex | 5s" toggle
 // where the surrounding chrome already implies "ranked queue."
 export const RANKED_QUEUE_KEY_LABEL: Record<RankedQueueKey, string> = {
   solo: "Solo/Duo",
   flex: "Flex",
+  premade: "5s",
 };
