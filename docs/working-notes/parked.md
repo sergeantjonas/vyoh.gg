@@ -74,10 +74,10 @@ One-line pointers to work that was scoped, evaluated, and intentionally set asid
 These aren't parked — they're a separate sequence gated on the pre-launch sweep. Listed here for completeness so the reader doesn't conflate "waiting for hosting" with "indefinitely paused":
 
 - **Owner auth (GitHub OAuth + `OwnerGuard`)** → [owner-auth.md](ops/owner-auth.md)
-- **CORS hardening, prod env vars, hosting choice** → [hosting.md](ops/hosting.md)
-- **TanStack Start + SSR migration** → [tanstack-start-migration.md](cross-cutting/tanstack-start-migration.md)
+- **CORS hardening, prod env vars, backups** → [hosting.md](ops/hosting.md)
+- ~~TanStack Start + SSR migration~~ — shipped 2026-07-27 → [tanstack-start-migration.md](cross-cutting/tanstack-start-migration.md)
 
-The full pre-launch sweep is one deliberate arc, not background drift. See [open-work.md](open-work.md) for current state.
+The full pre-launch sweep is one deliberate arc, not background drift; its canonical gate list is [ops/pre-launch-sweep.md](ops/pre-launch-sweep.md), with current state in [open-work.md](open-work.md).
 
 ---
 

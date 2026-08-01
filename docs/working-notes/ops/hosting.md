@@ -1,6 +1,6 @@
 # Hosting plan and pre-deploy checklist
 
-**Status:** Active — **Option C (Hetzner VPS + Docker Compose) chosen 2026-07-26**, and **the machinery is written and verified as of 2026-07-27** ([Start migration](../cross-cutting/tanstack-start-migration.md) chunk 6). Nginx routes `vyoh.gg` and `api.vyoh.gg` as separate vhosts on the one VM; "same-origin" in the earlier drafts meant one machine, not one origin. Checklist items 1–3 are done in code; **4 and 5 are the only ones left, and both need a VPS that does not exist yet** — nothing here is blocked on the repo any more, it is blocked on buying the box. See [open-work.md](../open-work.md) for sibling pre-deploy items (owner auth, status admin surface).
+**Status:** Active — **Option C (Hetzner VPS + Docker Compose) chosen 2026-07-26**, and **the machinery is written and verified as of 2026-07-27** ([Start migration](../cross-cutting/tanstack-start-migration.md) chunk 6). Nginx routes `vyoh.gg` and `api.vyoh.gg` as separate vhosts on the one VM; "same-origin" in the earlier drafts meant one machine, not one origin. Checklist items 1–3 are done in code; **4–6 remain — 4 and 5 need a VPS that does not exist yet, and 6 (backups, added 2026-08-01) must be live before launch** — nothing here is blocked on the repo any more, it is blocked on buying the box. The full launch-gate list (owner auth, ValidationPipe V3, timeZone sweep, branch protection, and this file's items 4–6) lives in [pre-launch-sweep.md](pre-launch-sweep.md).
 
 **What exists in-repo now:** [`apps/api/Dockerfile`](../../../apps/api/Dockerfile), [`apps/web/Dockerfile`](../../../apps/web/Dockerfile), [`compose.prod.yaml`](../../../compose.prod.yaml), [`deploy/nginx/`](../../../deploy/nginx/) (two vhosts + the `proxy_cache_path` file + install/TLS instructions), and [`scripts/deploy.sh`](../../../scripts/deploy.sh). The whole stack was brought up locally on shifted ports and probed end to end: 60 migrations applied from empty, 12 routes hydrating clean, CORS answering for the configured origin and refusing another. What has *not* been exercised is anything that needs the real box — TLS, DNS, certbot, and the Steam CM egress question below.
 
@@ -150,6 +150,31 @@ Buffering goes back on inside `location /img/`, where `proxy_cache` needs it.
 
 The symptom to recognise if this is ever undone: the stream connects, stays
 open, and delivers nothing until enough bytes accumulate to flush a buffer.
+
+### 6. Backups — added 2026-08-01
+
+Until the docs survey's prod-risk pass, no backup/restore story existed anywhere
+in the notes (it was a one-word ★ idea in vnext-ideas). It gates launch because
+the Postgres volume is the only irreplaceable artefact in the stack: LP-history
+snapshots, Steam playtime snapshots, and every match older than Riot's retention
+window cannot be re-fetched from any upstream — a lost volume is lost history,
+not a re-sync. Everything else (images, containers, code) rebuilds from the repo
+and the upstreams.
+
+Minimum shape before the site is public:
+
+- Nightly `pg_dump` (custom format) via cron/systemd timer on the VPS, ~14 days
+  retained. The dump reads through `docker compose exec postgres pg_dump`;
+  `deploy.sh` and compose stay backup-agnostic.
+- A copy **off the box** (Hetzner Storage Box or object storage) — a backup on
+  the same disk it protects is not one.
+- One restore drill against a scratch database before launch, so the first
+  restore is not performed during an incident.
+
+This also unblocks the parked destructive data arcs: match-cache tiers 1B/2/3
+and the Tier-5 TTL eviction ([match-cache-storage.md](../lol/match-cache-storage.md))
+are irreversible transforms whose trigger (DB size pressure) will fire on prod —
+none of them should run without a verified restore.
 
 ---
 
