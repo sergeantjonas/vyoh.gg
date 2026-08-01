@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
+import { queueLabel } from "@vyoh/shared";
 
 async function main() {
   const prisma = new PrismaClient({
@@ -21,7 +22,7 @@ async function main() {
       gameVersion: { startsWith: "16.8." },
     },
     orderBy: { playedAt: "desc" },
-    select: { matchId: true, playedAt: true, queueType: true, gameVersion: true },
+    select: { matchId: true, playedAt: true, queueId: true, gameVersion: true },
   });
 
   if (!newestPrev) {
@@ -31,7 +32,9 @@ async function main() {
 
   console.log("Newest 26.8 match for Agurin:");
   console.log(`  ${newestPrev.playedAt.toISOString()}  ${newestPrev.matchId}`);
-  console.log(`  queue=${newestPrev.queueType}  gameVersion=${newestPrev.gameVersion}`);
+  console.log(
+    `  queue=${queueLabel(newestPrev.queueId)}  gameVersion=${newestPrev.gameVersion}`
+  );
 
   const totalSince = await prisma.match.count({
     where: {
@@ -43,7 +46,7 @@ async function main() {
     where: {
       puuid: summoner.puuid,
       playedAt: { gt: newestPrev.playedAt },
-      queueType: { in: ["Ranked Solo", "Ranked Flex"] },
+      queueId: { in: [420, 440] },
     },
   });
 

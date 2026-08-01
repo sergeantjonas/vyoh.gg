@@ -8,7 +8,6 @@ function match(index: number, win: boolean): MatchSummary {
   return {
     matchId: `EUW1_${index}`,
     queueId: 420,
-    queueType: "Ranked Solo",
     champion: "Ahri",
     kills: 0,
     deaths: 0,

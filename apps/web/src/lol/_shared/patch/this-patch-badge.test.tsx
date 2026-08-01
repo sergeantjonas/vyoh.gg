@@ -8,7 +8,6 @@ function match(idx: number, playedAt: string, gameVersion: string): MatchSummary
   return {
     matchId: `M_${idx}`,
     queueId: 420,
-    queueType: "Ranked Solo",
     champion: "Ahri",
     kills: 0,
     deaths: 0,

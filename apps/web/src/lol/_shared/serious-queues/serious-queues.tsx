@@ -113,13 +113,16 @@ export function useSeriousQueues(): SeriousQueuesValue {
   return ctx;
 }
 
-// Compares ids directly. This used to map the selected ids to labels through
-// the local CONFIGURABLE_SERIOUS_QUEUES copy and intersect on `m.queueType`,
-// which made every statistic in the app depend on two independent label
-// spellings agreeing: the one above and the canonical one in QUEUE_TYPES.
-// Renaming "Normal Draft" in the canonical map would have made Normal Draft
-// silently vanish from every analysis surface — an empty intersection, not an
-// error, so nothing would have failed.
+// Compares ids directly, and must keep doing so. Every statistic in the app
+// flows through here, so routing the decision through a rendered name would
+// make all of them depend on the label above agreeing with the canonical one
+// in QUEUE_TYPES — and a rename there would empty the intersection silently,
+// dropping that queue from every analysis surface without an error.
+//
+// The allowlist is also what keeps customs and unrecognised queues out of
+// statistics: nothing enters without being named in CONFIGURABLE_SERIOUS_QUEUES,
+// so a queue Riot ships mid-season is excluded by default rather than by a rule
+// someone has to remember to write.
 export function filterToSerious(
   matches: MatchSummary[],
   ids: ReadonlySet<number>

@@ -9,7 +9,6 @@ function match(idx: number, position: string, csAt10: number): MatchSummary {
   return {
     matchId: `M_${idx}`,
     queueId: 420,
-    queueType: "Ranked Solo",
     champion: "Ahri",
     kills: 0,
     deaths: 0,

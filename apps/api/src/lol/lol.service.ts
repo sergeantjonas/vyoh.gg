@@ -5,6 +5,7 @@ import {
   type MessageEvent,
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
+import { RANKED_QUEUE_MAP } from "@vyoh/shared";
 import type {
   CachedMatchesResult,
   LiveMatch,
@@ -28,7 +29,6 @@ import { LiveGamePollerService } from "./live-game-poller.service";
 import { MatchEventsService } from "./match-events.service";
 import { extractItems, riotMatchToDetail, riotMatchToSummary } from "./match-mapper";
 import { projectMatchForStorage } from "./match-projection";
-import { RANKED_QUEUE_MAP } from "./queue-types";
 import { riotTimelineToProjection } from "./timeline-mapper";
 import {
   type TimelineSummaryMetrics,
@@ -88,7 +88,6 @@ export class LolService {
       select: {
         matchId: true,
         queueId: true,
-        queueType: true,
         champion: true,
         kills: true,
         deaths: true,
@@ -187,7 +186,6 @@ export class LolService {
         select: {
           matchId: true,
           queueId: true,
-          queueType: true,
           champion: true,
           kills: true,
           deaths: true,

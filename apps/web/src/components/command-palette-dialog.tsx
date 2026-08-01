@@ -40,6 +40,7 @@ import {
   parsePaletteVerb,
   parseSteamLibraryQuery,
   parseWishlistQuery,
+  queueLabel,
 } from "@vyoh/shared";
 import {
   Crown,
@@ -802,11 +803,11 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
                 filteredMatches.slice(0, 8).map((match) => (
                   <CommandItem
                     key={match.matchId}
-                    value={`match:${match.matchId} ${match.champion.toLowerCase()} ${match.win ? "wins" : "losses"} ${match.queueType.toLowerCase()} ${match.matchId}`}
+                    value={`match:${match.matchId} ${match.champion.toLowerCase()} ${match.win ? "wins" : "losses"} ${queueLabel(match.queueId).toLowerCase()} ${match.matchId}`}
                     onSelect={() =>
                       go({
                         path: `/lol/${currentSlug}/matches/${match.matchId}`,
-                        label: `${championName(match.champion)} ${match.kills}/${match.deaths}/${match.assists} ${match.queueType}`,
+                        label: `${championName(match.champion)} ${match.kills}/${match.deaths}/${match.assists} ${queueLabel(match.queueId)}`,
                         kind: "match",
                       })
                     }
@@ -826,7 +827,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
                       <span>
                         {match.kills}/{match.deaths}/{match.assists}
                       </span>
-                      <span>{match.queueType}</span>
+                      <span>{queueLabel(match.queueId)}</span>
                       <span>{relativeTime(match.playedAt)}</span>
                     </span>
                   </CommandItem>

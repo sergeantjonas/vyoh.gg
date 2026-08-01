@@ -74,7 +74,6 @@ function detail(participants: ParticipantDetail[]): MatchDetail {
   return {
     matchId: "EUW1_42",
     queueId: 420,
-    queueType: "Ranked Solo",
     durationSec: 1834, // 30m 34s
     playedAt: "2026-05-16T12:00:00.000Z",
     teams: [],
@@ -166,7 +165,7 @@ describe("OgService.generateMatchCard", () => {
       deaths: 4,
       assists: 7,
       win: true,
-      queueType: "Ranked Solo",
+      queueLabel: "Ranked Solo",
       durationLabel: "30m 34s",
       accountLabel: "Vyoh#Ahri",
       region: "EUW1",
@@ -262,7 +261,6 @@ describe("OgService.generateProfileCard", () => {
     renderProfileCardMock.mockClear();
     const matchRow = (overrides: Partial<{ win: boolean; remake: boolean }> = {}) => ({
       matchId: "EUW1_1",
-      queueType: "Ranked Solo",
       champion: "Ahri",
       kills: 5,
       deaths: 2,

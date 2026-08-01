@@ -11,6 +11,7 @@ import {
   type LolRankUpDelta,
   type LolStreakStats,
   formatRankTitle,
+  queueLabel,
 } from "@vyoh/shared";
 import { Clock, Hourglass, Trophy } from "lucide-react";
 import type { ReactNode } from "react";
@@ -743,7 +744,7 @@ export function LolMomentBeat({
             >
               {copy.eyebrow}
             </span>
-            {matchStats?.queueType ? (
+            {matchStats ? (
               <>
                 <span
                   aria-hidden="true"
@@ -753,7 +754,7 @@ export function LolMomentBeat({
                   ·
                 </span>
                 <span className="text-foreground/75" style={{ textShadow: SHADOW_LABEL }}>
-                  {matchStats.queueType}
+                  {queueLabel(matchStats.queueId)}
                 </span>
               </>
             ) : null}

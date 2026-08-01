@@ -6,7 +6,6 @@ function buildMatch(overrides: Partial<MatchSummary>): MatchSummary {
   return {
     matchId: overrides.matchId ?? "M_1",
     queueId: overrides.queueId ?? 420,
-    queueType: overrides.queueType ?? "Ranked Solo",
     champion: overrides.champion ?? "Ahri",
     kills: overrides.kills ?? 5,
     deaths: overrides.deaths ?? 3,
@@ -102,7 +101,7 @@ describe("matchesQuery", () => {
   });
 
   it("filters by queue type (substring, case-insensitive)", () => {
-    const m = buildMatch({ queueType: "Ranked Solo" });
+    const m = buildMatch({ queueId: 420 });
     expect(matchesQuery(m, query({ queues: ["ranked"] }))).toBe(true);
     expect(matchesQuery(m, query({ queues: ["aram"] }))).toBe(false);
   });
@@ -161,7 +160,6 @@ describe("matchesQuery", () => {
       matchId: "EUW1_123",
       champion: "Ahri",
       queueId: 450,
-      queueType: "ARAM",
       teamPosition: "MIDDLE",
       laneOpponent: {
         puuid: "p",

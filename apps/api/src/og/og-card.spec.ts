@@ -61,7 +61,7 @@ describe("renderMatchCard", () => {
     deaths: 3,
     assists: 12,
     win: true,
-    queueType: "Ranked Solo",
+    queueLabel: "Ranked Solo",
     durationLabel: "30m 00s",
     accountLabel: "Vyoh#EUW",
     region: "EUW",

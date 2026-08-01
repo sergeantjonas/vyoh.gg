@@ -1,3 +1,4 @@
+import { queueLabel } from "@vyoh/shared";
 import { assert, describe, expect, it } from "vitest";
 import type {
   RiotMatch,
@@ -161,7 +162,6 @@ describe("riotMatchToSummary", () => {
     expect(summary).toEqual({
       matchId: "EUW1_42",
       queueId: 420,
-      queueType: "Ranked Solo",
       champion: "Ahri",
       kills: 8,
       deaths: 3,
@@ -238,14 +238,6 @@ describe("riotMatchToSummary", () => {
     });
   });
 
-  it("falls back to 'Queue N' for unmapped queue ids", () => {
-    const summary = riotMatchToSummary(
-      { ...baseMatch, info: { ...baseMatch.info, queueId: 9999 } },
-      "puuid-vyoh"
-    );
-    expect(summary.queueType).toBe("Queue 9999");
-  });
-
   // The whole point of storing the number: an id the label map has never
   // heard of still round-trips exactly, so a later map update relabels it
   // instead of leaving a frozen `Queue 9999` behind. Riot ships new queues
@@ -269,7 +261,7 @@ describe("riotMatchToSummary", () => {
       { ...baseMatch, info: { ...baseMatch.info, queueId: 1820 } },
       "puuid-vyoh"
     );
-    expect(swarmA.queueType).toBe(swarmB.queueType);
+    expect(queueLabel(swarmA.queueId)).toBe(queueLabel(swarmB.queueId));
     expect(swarmA.queueId).not.toBe(swarmB.queueId);
   });
 

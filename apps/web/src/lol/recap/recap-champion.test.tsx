@@ -27,7 +27,6 @@ function match(overrides: Partial<MatchSummary>): MatchSummary {
   return {
     matchId: overrides.matchId ?? "M_1",
     queueId: 420,
-    queueType: "Ranked Solo",
     champion: overrides.champion ?? "Ahri",
     kills: overrides.kills ?? 5,
     deaths: overrides.deaths ?? 3,

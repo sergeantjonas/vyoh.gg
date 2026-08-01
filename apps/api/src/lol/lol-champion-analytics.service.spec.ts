@@ -194,7 +194,7 @@ describe("LolChampionAnalyticsService.getChampionRecap", () => {
   ): Record<string, unknown> {
     return {
       matchId: "EUW_1",
-      queueType: "RANKED_SOLO_5x5",
+      queueId: 420,
       champion: "Ahri",
       kills: 8,
       deaths: 4,

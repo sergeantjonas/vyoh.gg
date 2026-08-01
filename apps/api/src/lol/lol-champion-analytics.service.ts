@@ -136,7 +136,6 @@ export class LolChampionAnalyticsService {
       select: {
         matchId: true,
         queueId: true,
-        queueType: true,
         champion: true,
         kills: true,
         deaths: true,

@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
+import { queueLabel } from "@vyoh/shared";
 
 async function main() {
   const prisma = new PrismaClient({
@@ -25,12 +26,12 @@ async function main() {
     where: { puuid: summoner.puuid },
     orderBy: { playedAt: "desc" },
     take: 200,
-    select: { matchId: true, playedAt: true, queueType: true, gameVersion: true },
+    select: { matchId: true, playedAt: true, queueId: true, gameVersion: true },
   });
   console.log(`\nMost recent 200 cached matches for Agurin: ${top200.length}`);
 
-  const seriousQueues = new Set(["Ranked Solo", "Ranked Flex"]);
-  const serious = top200.filter((m) => seriousQueues.has(m.queueType));
+  const seriousQueues = new Set([420, 440]);
+  const serious = top200.filter((m) => seriousQueues.has(m.queueId));
   console.log(`  filtered to serious (Solo+Flex): ${serious.length}`);
 
   const seriousWithVersion = serious.filter((m) => m.gameVersion !== "");
@@ -67,14 +68,14 @@ async function main() {
     where: { puuid: summoner.puuid, playedAt: { gte: oneYearAgo } },
   });
   const yearByQueue = await prisma.match.groupBy({
-    by: ["queueType"],
+    by: ["queueId"],
     where: { puuid: summoner.puuid, playedAt: { gte: oneYearAgo } },
     _count: { matchId: true },
   });
   console.log(`\nMatches in the last 365 days (all queues): ${yearTotal}`);
   console.log("  by queue:");
   for (const row of yearByQueue.sort((a, b) => b._count.matchId - a._count.matchId)) {
-    console.log(`    ${row.queueType}: ${row._count.matchId}`);
+    console.log(`    ${queueLabel(row.queueId)}: ${row._count.matchId}`);
   }
 
   await prisma.$disconnect();

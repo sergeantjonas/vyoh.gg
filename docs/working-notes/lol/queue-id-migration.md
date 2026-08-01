@@ -1,6 +1,6 @@
 # Queue identity: migrate `Match.queueType` label → numeric `queueId`
 
-**Status:** Active — chunks 1, 2 and 3a shipped 2026-08-01; every query, filter and bucket in the app now keys on the number. Next: 3b, switch the display sites to `queueLabel(queueId)` and drop the column.
+**Status:** Active — chunks 1, 2, 3a and 3b shipped 2026-08-01. `queueType` no longer exists: not on the wire, not in the database. Only chunk 4 (extend the label map) remains.
 
 ## Why
 
@@ -31,8 +31,16 @@ The identity/cadence surfaces (Recent form, Now playing, Queue distribution, Act
   **Watch the set membership when porting a label test to ids.** A label test covered every id sharing that label *for free* — `"Arena"` caught 1700 and 1710 both. An id set has to list them on purpose or it silently narrows, which is a behaviour change disguised as a refactor. Pinned by a test in `queue-types.test.ts`.
 
   Two things stay label-keyed on purpose, both display-only: the distribution donut groups by label (four Swarm ids are one legend row, not four), and `queueColor` resolves the id to a label before picking a colour so a queue family paints as one colour. Neither is a filter.
-- **3b — drop the label.** Remaining `queueType` reads are display sites (`match-row`, `match-hero`, `match-record`, the palette, `og-card`, the moments payload). Switch them to `queueLabel(queueId)`, then delete `queueType` from `MatchSummary` / `MatchDetail` / `RecapCandidate.matchStats` and drop the column.
-- **4 — extend the map.** Brawl (2300, 2301–2305) and ARAM: Mayhem (2400/2401/2403/2405/2410/2450, 3240/3270/3280) are live public modes with no entry today; customs (0, 3100, 3130) get real labels. Must follow chunk 2 — adding a label for a currently-unmapped id while the filter still round-trips strings would break existing rows.
+- **3b — drop the label.** ✅ 2026-08-01. Display sites render `queueLabel(queueId)`; `queueType` is gone from `MatchSummary`, `MatchDetail` and `LolMomentMatchStats`, and migration `20260801120000_lol_match_drop_queue_type` drops the column. `OgMatchCardData.queueType` became `queueLabel`, since that field really is a pre-rendered string and keeping the old name would have re-seeded the confusion. The api-side `lol/queue-types.ts` shim is deleted — after the mapper stopped calling `queueTypeName`, it re-exported one symbol straight from `@vyoh/shared` to one consumer.
+
+  **The drop was proven lossless before it ran**, not argued to be: `queueLabel(queueId) === queueType` held for all 5781 rows, including the frozen `Queue 0` / `Queue 710` / `Queue 3100` / `Queue 3130` placeholders, which the fallback reproduces character-for-character.
+
+  **Found a live bug while doing it.** `match-detail-recap-tab` gated the owner's CS personal-record wrap on `RANKED_QUEUE_TYPES.has(matchQueueType)`, where the Set held *League-V4* strings (`RANKED_SOLO_5x5`) and the argument was the *Match-V5* label (`Ranked Solo`). It had never matched, in any queue — `Set<string>.has(string)` type-checks perfectly. The prop is now `matchQueueId: number` tested against `RANKED_QUEUE_IDS`, with tests pinning both the ranked and the excluded case. Four `MatchSummary` test fixtures carried the same mix-up in the other direction (`queueType: "RANKED_SOLO_5x5"`), harmless only because nothing read the field.
+
+  Also fixed in passing: `prisma/seed.ts` had been broken since chunk 1 made `queueId` required. `prisma/*.ts` sits outside the api's `include: ["src"]`, so no typecheck covers it.
+- **4 — extend the map.** Brawl (2300, 2301–2305) and ARAM: Mayhem (2400/2401/2403/2405/2410/2450, 3240/3270/3280) are live public modes with no entry today; customs (0, 3100, 3130) and **710** (found in the owner's data during 3b, 1 row) get real labels. Must follow chunk 2 — adding a label for a currently-unmapped id while the filter still round-trips strings would break existing rows.
+
+  Chunk 3b removed the cost of getting this wrong: labels are now derived at render, so a map update relabels every existing row instead of only the ones ingested afterwards.
 
 ## Constraint: no LoL Classic
 

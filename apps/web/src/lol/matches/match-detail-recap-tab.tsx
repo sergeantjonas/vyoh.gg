@@ -31,16 +31,11 @@ import {
   type MatchDetail,
   type MatchTimelineProjection,
   type ParticipantDetail,
-  RANKED_QUEUE_KEY_TO_TYPE,
+  RANKED_QUEUE_IDS,
   type TeamSummary,
 } from "@vyoh/shared";
 import { type Variants, m, useReducedMotion } from "motion/react";
 import { type ComponentType, useEffect, useState } from "react";
-
-const RANKED_QUEUE_TYPES = new Set([
-  RANKED_QUEUE_KEY_TO_TYPE.solo,
-  RANKED_QUEUE_KEY_TO_TYPE.flex,
-]);
 
 // Tracks which matchId recap tabs have already played their entry animations.
 // Cleared only on full page reload — tab switches within a session skip re-animating.
@@ -588,7 +583,7 @@ function ParticipantRow({
   badge,
   accountSlug,
   skipAnimation,
-  matchQueueType,
+  matchQueueId,
   matchDurationSec,
 }: {
   p: ParticipantDetail;
@@ -598,16 +593,18 @@ function ParticipantRow({
   badge?: { label: string; tip: string } | undefined;
   accountSlug: string;
   skipAnimation?: boolean | undefined;
-  matchQueueType: string;
+  matchQueueId: number;
   matchDurationSec: number;
 }) {
   // Personal-record gating: owner row only, ranked queues only, finite duration
-  // (avoid divide-by-zero on the cs/min normalisation). Off-meta queue types
-  // (ARAM, draft, custom) skip the wrap so a 400-CS ARAM cheese game can't
-  // overwrite the ranked record.
+  // (avoid divide-by-zero on the cs/min normalisation). Off-meta queues (ARAM,
+  // draft, custom) skip the wrap so a 400-CS ARAM cheese game can't overwrite
+  // the ranked record. Gate on the numeric id, never on a ranked-queue *name*:
+  // League-V4 ("RANKED_SOLO_5x5") and Match-V5 ("Ranked Solo") both type as
+  // `string`, so mixing them compiles, always tests false, and fails silently.
   const csPerMin = matchDurationSec > 0 ? p.csTotal / (matchDurationSec / 60) : 0;
   const showCsRecord =
-    isMe && RANKED_QUEUE_TYPES.has(matchQueueType) && Number.isFinite(csPerMin);
+    isMe && RANKED_QUEUE_IDS.includes(matchQueueId) && Number.isFinite(csPerMin);
   const championName = useChampionName();
   const reduced = useReducedMotion();
   const displayName = championName(p.championName);
@@ -777,7 +774,7 @@ function TeamBlock({
   goldLead,
   accountSlug,
   skipAnimation,
-  matchQueueType,
+  matchQueueId,
   matchDurationSec,
 }: {
   title: string;
@@ -789,7 +786,7 @@ function TeamBlock({
   goldLead: number;
   accountSlug: string;
   skipAnimation?: boolean | undefined;
-  matchQueueType: string;
+  matchQueueId: number;
   matchDurationSec: number;
 }) {
   const win = participants[0]?.win ?? false;
@@ -833,7 +830,7 @@ function TeamBlock({
             badge={badges.get(p.puuid)}
             accountSlug={accountSlug}
             skipAnimation={skipAnimation}
-            matchQueueType={matchQueueType}
+            matchQueueId={matchQueueId}
             matchDurationSec={matchDurationSec}
           />
         ))}
@@ -886,7 +883,7 @@ export function MatchRecapTab({
             goldLead={blueGold - redGold}
             accountSlug={accountSlug}
             skipAnimation={skip}
-            matchQueueType={detail.queueType}
+            matchQueueId={detail.queueId}
             matchDurationSec={detail.durationSec}
           />
         </m.div>
@@ -901,7 +898,7 @@ export function MatchRecapTab({
             goldLead={redGold - blueGold}
             accountSlug={accountSlug}
             skipAnimation={skip}
-            matchQueueType={detail.queueType}
+            matchQueueId={detail.queueId}
             matchDurationSec={detail.durationSec}
           />
         </m.div>

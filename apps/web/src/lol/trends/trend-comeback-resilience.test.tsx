@@ -9,7 +9,6 @@ function match(idx: number, win: boolean, teamGoldDiffAt15: number): MatchSummar
   return {
     matchId: `M_${idx}`,
     queueId: 420,
-    queueType: "Ranked Solo",
     champion: "Ahri",
     kills: 0,
     deaths: 0,

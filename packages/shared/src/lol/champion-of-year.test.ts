@@ -5,7 +5,6 @@ import type { MatchSummary } from "./match.ts";
 function fixture(overrides: Partial<MatchSummary> & { matchId: string }): MatchSummary {
   return {
     queueId: 420,
-    queueType: "RANKED_SOLO_5x5",
     champion: "Ahri",
     kills: 6,
     deaths: 4,

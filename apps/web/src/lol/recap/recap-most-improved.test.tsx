@@ -28,7 +28,6 @@ function match(
   return {
     matchId: `M_${index}`,
     queueId: 420,
-    queueType: "Ranked Solo",
     champion,
     kills: 0,
     deaths: 0,

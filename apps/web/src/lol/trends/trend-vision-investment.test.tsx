@@ -1,6 +1,6 @@
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { render, screen } from "@testing-library/react";
-import { type MatchSummary, queueLabel } from "@vyoh/shared";
+import type { MatchSummary } from "@vyoh/shared";
 import { MotionConfig } from "motion/react";
 import { describe, expect, it } from "vitest";
 import { TrendVisionInvestment } from "./trend-vision-investment";
@@ -14,7 +14,6 @@ function match(
   return {
     matchId: `M_${idx}`,
     queueId,
-    queueType: queueLabel(queueId),
     champion: "Ahri",
     kills: 0,
     deaths: 0,

@@ -16,7 +16,7 @@ const matches = [
   {
     matchId: "EUW1_7234521894",
     puuid: FAKE_PUUID,
-    queueType: "Ranked Solo",
+    queueId: 420,
     champion: "Ahri",
     kills: 8,
     deaths: 3,
@@ -28,7 +28,7 @@ const matches = [
   {
     matchId: "EUW1_7234518332",
     puuid: FAKE_PUUID,
-    queueType: "Ranked Solo",
+    queueId: 420,
     champion: "Jhin",
     kills: 4,
     deaths: 7,
@@ -40,7 +40,7 @@ const matches = [
   {
     matchId: "EUW1_7234511027",
     puuid: FAKE_PUUID,
-    queueType: "Ranked Flex",
+    queueId: 440,
     champion: "Lulu",
     kills: 2,
     deaths: 4,
@@ -52,7 +52,7 @@ const matches = [
   {
     matchId: "EUW1_7234503991",
     puuid: FAKE_PUUID,
-    queueType: "ARAM",
+    queueId: 450,
     champion: "Jinx",
     kills: 21,
     deaths: 9,
@@ -64,7 +64,7 @@ const matches = [
   {
     matchId: "EUW1_7234492210",
     puuid: FAKE_PUUID,
-    queueType: "Normal Draft",
+    queueId: 400,
     champion: "Lee Sin",
     kills: 6,
     deaths: 6,
@@ -76,7 +76,7 @@ const matches = [
   {
     matchId: "EUW1_7234481105",
     puuid: FAKE_PUUID,
-    queueType: "Ranked Solo",
+    queueId: 420,
     champion: "Akali",
     kills: 11,
     deaths: 5,

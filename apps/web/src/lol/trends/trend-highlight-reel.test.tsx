@@ -33,7 +33,6 @@ function match(idx: number, remake = false): MatchSummary {
   return {
     matchId: `EUW1_${idx}`,
     queueId: 420,
-    queueType: "Ranked Solo",
     champion: "Ahri",
     kills: 0,
     deaths: 0,

@@ -13,7 +13,6 @@ function match(
   return {
     matchId: `EUW1_${index}`,
     queueId: 420,
-    queueType: "Ranked Solo",
     champion: "Ahri",
     kills: 0,
     deaths: 0,

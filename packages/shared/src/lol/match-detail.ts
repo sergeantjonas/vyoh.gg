@@ -97,7 +97,6 @@ export interface MatchDetail {
   // raw payload rather than a column, since match detail is projected out of
   // MatchDetailCache rather than the Match table.
   queueId: number;
-  queueType: string;
   durationSec: number;
   playedAt: string;
   teams: TeamSummary[];

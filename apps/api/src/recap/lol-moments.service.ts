@@ -352,7 +352,7 @@ export class LolMomentsService {
         assists: true,
         win: true,
         durationSec: true,
-        queueType: true,
+        queueId: true,
       },
     });
     if (!offMetaMatch) return [];
@@ -379,7 +379,7 @@ export class LolMomentsService {
           assists: offMetaMatch.assists,
           win: offMetaMatch.win,
           durationSec: offMetaMatch.durationSec,
-          queueType: offMetaMatch.queueType,
+          queueId: offMetaMatch.queueId,
         },
         offMeta: true,
       },
@@ -439,7 +439,7 @@ export class LolMomentsService {
         assists: true,
         win: true,
         durationSec: true,
-        queueType: true,
+        queueId: true,
         snapshotTier: true,
         snapshotRank: true,
         snapshotLp: true,
@@ -498,7 +498,7 @@ export class LolMomentsService {
             assists: m.assists,
             win: m.win,
             durationSec: m.durationSec,
-            queueType: m.queueType,
+            queueId: m.queueId,
           },
           rankUp: {
             fromTier,
@@ -564,7 +564,7 @@ export class LolMomentsService {
         assists: true,
         win: true,
         durationSec: true,
-        queueType: true,
+        queueId: true,
       },
     });
 
@@ -614,7 +614,7 @@ export class LolMomentsService {
           assists: best.assists,
           win: best.win,
           durationSec: best.durationSec,
-          queueType: best.queueType,
+          queueId: best.queueId,
         },
         kdaOutlier: {
           matchKda: bestKda,
@@ -674,7 +674,7 @@ export class LolMomentsService {
         assists: true,
         win: true,
         durationSec: true,
-        queueType: true,
+        queueId: true,
       },
     });
 
@@ -718,7 +718,7 @@ export class LolMomentsService {
           assists: m.assists,
           win: m.win,
           durationSec: m.durationSec,
-          queueType: m.queueType,
+          queueId: m.queueId,
         },
         hiatusReturn: { gapDays },
       },
@@ -771,7 +771,7 @@ export class LolMomentsService {
         assists: true,
         win: true,
         durationSec: true,
-        queueType: true,
+        queueId: true,
       },
     });
 
@@ -811,7 +811,7 @@ export class LolMomentsService {
           assists: head.assists,
           win: head.win,
           durationSec: head.durationSec,
-          queueType: head.queueType,
+          queueId: head.queueId,
         },
         streak: { result, length },
       },
@@ -863,7 +863,7 @@ export class LolMomentsService {
         assists: true,
         win: true,
         durationSec: true,
-        queueType: true,
+        queueId: true,
       },
     });
 
@@ -930,7 +930,7 @@ export class LolMomentsService {
           assists: capMatch.assists,
           win: capMatch.win,
           durationSec: capMatch.durationSec,
-          queueType: capMatch.queueType,
+          queueId: capMatch.queueId,
         },
         marathon: { matchCount: bestCount, spanHours },
       },
@@ -1038,7 +1038,7 @@ export class LolMomentsService {
           assists: true,
           win: true,
           durationSec: true,
-          queueType: true,
+          queueId: true,
         },
       }),
     ]);
@@ -1076,7 +1076,7 @@ export class LolMomentsService {
           assists: bestMatch.assists,
           win: bestMatch.win,
           durationSec: bestMatch.durationSec,
-          queueType: bestMatch.queueType,
+          queueId: bestMatch.queueId,
         },
         favoriteChampion: {
           gameCount: favorite.games,
@@ -1108,10 +1108,10 @@ export class LolMomentsService {
    *
    * Algorithm:
    *   1. Read all owner `RankSnapshot` rows from the ranked-solo and
-   *      ranked-flex queues. Riot's queueId strings here are the API
-   *      values (`RANKED_SOLO_5x5` / `RANKED_FLEX_SR`), distinct from
-   *      the `Match.queueType` editorial strings used by the other
-   *      detectors.
+   *      ranked-flex queues. `RankSnapshot.queueId` is a *string* column
+   *      holding League-V4 values (`RANKED_SOLO_5x5` / `RANKED_FLEX_SR`);
+   *      `Match.queueId` is Riot's numeric Match-V5 id. Same field name,
+   *      two unrelated vocabularies — never compare one against the other.
    *   2. Sort desc by `normalizeLp(tier, rank, lp)` and pick the head.
    *   3. Emit one candidate with `daysSince = 0` regardless of when
    *      the peak was hit — the chapter is being SURFACED today even

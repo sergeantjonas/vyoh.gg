@@ -90,7 +90,6 @@ function buildDetail(): MatchDetail {
   return {
     matchId: "EUW1_1",
     queueId: 420,
-    queueType: "Ranked Solo",
     durationSec: 1800,
     playedAt: "2026-05-19T10:00:00Z",
     teams: [team(100, true, 60000, 20), team(200, false, 50000, 12)],
@@ -266,7 +265,6 @@ describe("TeamBlock badge tooltip", () => {
     const detail = {
       matchId: "EUW1_BADGE",
       queueId: 420,
-      queueType: "Ranked Solo",
       durationSec: 1800,
       playedAt: "2026-05-19T10:00:00Z",
       teams: [team(100, true, 60000, 20), team(200, false, 50000, 12)],

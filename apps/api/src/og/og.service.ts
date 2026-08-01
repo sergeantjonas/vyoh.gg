@@ -6,6 +6,7 @@ import {
   formatKda,
   formatPercent,
   formatPlaytimeFromSeconds,
+  queueLabel,
   selectChampionOfYear,
 } from "@vyoh/shared";
 import { IdentityService } from "../identity/identity.service";
@@ -73,7 +74,7 @@ export class OgService {
       deaths: me.deaths,
       assists: me.assists,
       win: me.win,
-      queueType: detail.queueType,
+      queueLabel: queueLabel(detail.queueId),
       durationLabel: formatDuration(detail.durationSec),
       accountLabel: `${account.gameName}#${account.tagLine}`,
       region: account.region.toUpperCase(),

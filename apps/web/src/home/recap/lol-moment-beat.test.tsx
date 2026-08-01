@@ -49,7 +49,6 @@ const matchStats = {
   win: true,
   durationSec: 1860,
   queueId: 420,
-  queueType: "Ranked Solo",
 };
 
 const baseProps = {
@@ -116,7 +115,6 @@ const kdaOutlierProps = {
     win: true,
     durationSec: 1820,
     queueId: 420,
-    queueType: "Ranked Solo",
   },
   rankUp: null,
   kdaOutlier: kdaOutlierStats,

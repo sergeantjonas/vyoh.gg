@@ -22,7 +22,6 @@ function match(idx: number, k: number, d: number, a: number): MatchSummary {
   return {
     matchId: `M_${idx}`,
     queueId: 420,
-    queueType: "Ranked Solo",
     champion: "Ahri",
     kills: k,
     deaths: d,

@@ -21,7 +21,6 @@ function fakeMatch(overrides: Partial<MatchSummary> = {}): MatchSummary {
   return {
     matchId: `M${Math.random()}`,
     queueId: 420,
-    queueType: "Ranked Solo",
     champion: "Ahri",
     win: true,
     remake: false,

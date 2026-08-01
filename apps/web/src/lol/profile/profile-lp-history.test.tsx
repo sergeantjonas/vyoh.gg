@@ -203,7 +203,6 @@ describe("ProfileLpHistory", () => {
       {
         matchId: "M1",
         queueId: 420,
-        queueType: "Ranked Solo",
         champion: "Ahri",
         kills: 1,
         deaths: 1,
@@ -218,7 +217,6 @@ describe("ProfileLpHistory", () => {
       {
         matchId: "M2",
         queueId: 420,
-        queueType: "Ranked Solo",
         champion: "Ahri",
         kills: 1,
         deaths: 1,

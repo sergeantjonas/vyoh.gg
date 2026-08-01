@@ -92,7 +92,6 @@ function buildRow(matchId: string, playedAtMs: number) {
   return {
     matchId,
     puuid: "puuid-vyoh",
-    queueType: "Ranked Solo",
     champion: "Ahri",
     kills: 1,
     deaths: 2,
@@ -278,8 +277,8 @@ describe("LolService.getMatchesForSummoner", () => {
     const matchFindMany = vi
       .fn()
       .mockImplementation(async (args: { select?: Record<string, boolean> }) =>
-        // backfill check: select has only matchId; result fetch: has queueType too
-        args.select?.queueType ? rowSet : matchIds.map((matchId) => ({ matchId }))
+        // backfill check: select has only matchId; result fetch: has queueId too
+        args.select?.queueId ? rowSet : matchIds.map((matchId) => ({ matchId }))
       );
     const prisma = {
       summoner: { findUnique: summonerFindUnique, upsert: vi.fn() },
@@ -403,7 +402,7 @@ describe("LolService.getMatchesForSummoner", () => {
     const matchFindMany = vi
       .fn()
       .mockImplementation(async (args: { select?: Record<string, boolean> }) =>
-        args.select?.queueType ? [] : matchIds.map((matchId) => ({ matchId }))
+        args.select?.queueId ? [] : matchIds.map((matchId) => ({ matchId }))
       );
     const prisma = {
       summoner: { findUnique: summonerFindUnique, upsert: vi.fn() },
@@ -562,7 +561,6 @@ describe("LolService.getCachedMatches", () => {
       select: {
         matchId: true,
         queueId: true,
-        queueType: true,
         champion: true,
         kills: true,
         deaths: true,
@@ -615,7 +613,6 @@ describe("LolService.getCachedMatches", () => {
       select: {
         matchId: true,
         queueId: true,
-        queueType: true,
         champion: true,
         kills: true,
         deaths: true,

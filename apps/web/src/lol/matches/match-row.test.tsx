@@ -46,7 +46,6 @@ function summary(overrides: Partial<MatchSummary> = {}): MatchSummary {
   return {
     matchId: "EUW1_42",
     queueId: 420,
-    queueType: "Ranked Solo",
     champion: "Ahri",
     kills: 8,
     deaths: 3,
@@ -192,7 +191,6 @@ describe("MatchRow", () => {
     const { container } = renderRow({
       match: summary({
         queueId: 450,
-        queueType: "ARAM",
         laneOpponent: {
           championName: "Yasuo",
           gameName: "Other",

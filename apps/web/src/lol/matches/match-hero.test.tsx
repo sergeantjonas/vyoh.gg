@@ -22,7 +22,6 @@ function summary(overrides: Partial<MatchSummary> = {}): MatchSummary {
   return {
     matchId: "EUW1_1",
     queueId: 420,
-    queueType: "Ranked Solo",
     champion: "Ahri",
     kills: 5,
     deaths: 2,

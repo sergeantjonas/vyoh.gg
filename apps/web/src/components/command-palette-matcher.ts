@@ -1,5 +1,5 @@
 import { truncatePatch } from "@/lol/_shared/patch/patch-version";
-import type { MatchSummary, ParsedMatchQuery } from "@vyoh/shared";
+import { type MatchSummary, type ParsedMatchQuery, queueLabel } from "@vyoh/shared";
 
 function kda(match: MatchSummary): number {
   return (match.kills + match.assists) / Math.max(1, match.deaths);
@@ -7,7 +7,7 @@ function kda(match: MatchSummary): number {
 
 export function matchesQuery(match: MatchSummary, parsed: ParsedMatchQuery): boolean {
   const champion = match.champion.toLowerCase();
-  const queue = match.queueType.toLowerCase();
+  const queue = queueLabel(match.queueId).toLowerCase();
   const role = match.teamPosition.toLowerCase();
   const patch = truncatePatch(match.gameVersion);
   const opponent = match.laneOpponent?.championName.toLowerCase() ?? "";

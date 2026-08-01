@@ -29,7 +29,7 @@ interface SnapshotMatchRow extends MatchRow {
   assists: number;
   win: boolean;
   durationSec: number;
-  queueType: string;
+  queueId: number;
   snapshotTier: string | null;
   snapshotRank: string | null;
   snapshotLp: number | null;
@@ -44,7 +44,7 @@ interface KdaMatchRow extends MatchRow {
   assists: number;
   win: boolean;
   durationSec: number;
-  queueType: string;
+  queueId: number;
 }
 
 function makeService(opts: {
@@ -329,7 +329,7 @@ function makeSnapshotRow(opts: {
   assists?: number;
   win?: boolean;
   durationSec?: number;
-  queueType?: string;
+  queueId?: number;
 }): SnapshotMatchRow {
   return {
     matchId: opts.matchId ?? "EUW_RU_1",
@@ -340,7 +340,7 @@ function makeSnapshotRow(opts: {
     assists: opts.assists ?? 9,
     win: opts.win ?? true,
     durationSec: opts.durationSec ?? 1820,
-    queueType: opts.queueType ?? "Ranked Solo",
+    queueId: opts.queueId ?? 420,
     snapshotTier: opts.toTier,
     snapshotRank: opts.toRank,
     snapshotLp: opts.toLp,
@@ -443,7 +443,7 @@ describe("LolMomentsService.detectRankUps", () => {
       assists: 9,
       win: true,
       durationSec: 1820,
-      queueType: "Ranked Solo",
+      queueId: 420,
     });
   });
 
@@ -530,7 +530,7 @@ function makeKdaRow(opts: {
   assists: number;
   win?: boolean;
   durationSec?: number;
-  queueType?: string;
+  queueId?: number;
 }): KdaMatchRow {
   return {
     matchId: opts.matchId ?? "EUW_KDA_1",
@@ -541,7 +541,7 @@ function makeKdaRow(opts: {
     assists: opts.assists,
     win: opts.win ?? true,
     durationSec: opts.durationSec ?? 1820,
-    queueType: opts.queueType ?? "Ranked Solo",
+    queueId: opts.queueId ?? 420,
   };
 }
 
@@ -612,7 +612,7 @@ describe("LolMomentsService.detectKdaOutliers", () => {
       assists: 14,
       win: true,
       durationSec: 1820,
-      queueType: "Ranked Solo",
+      queueId: 420,
     });
   });
 
@@ -711,7 +711,7 @@ function makeHiatusRow(opts: {
   assists?: number;
   win?: boolean;
   durationSec?: number;
-  queueType?: string;
+  queueId?: number;
 }): KdaMatchRow {
   return {
     matchId: opts.matchId ?? `EUW_H_${opts.playedAt.getTime()}`,
@@ -722,7 +722,7 @@ function makeHiatusRow(opts: {
     assists: opts.assists ?? 7,
     win: opts.win ?? true,
     durationSec: opts.durationSec ?? 1820,
-    queueType: opts.queueType ?? "Ranked Solo",
+    queueId: opts.queueId ?? 420,
   };
 }
 
@@ -799,7 +799,7 @@ describe("LolMomentsService.detectReturnsFromHiatus", () => {
       assists: 12,
       win: true,
       durationSec: 1820,
-      queueType: "Ranked Solo",
+      queueId: 420,
     });
   });
 
@@ -889,7 +889,7 @@ function makeStreakRow(opts: {
   deaths?: number;
   assists?: number;
   durationSec?: number;
-  queueType?: string;
+  queueId?: number;
 }): KdaMatchRow {
   return {
     matchId: opts.matchId ?? `EUW_S_${opts.playedAt.getTime()}`,
@@ -900,7 +900,7 @@ function makeStreakRow(opts: {
     assists: opts.assists ?? 7,
     win: opts.win,
     durationSec: opts.durationSec ?? 1820,
-    queueType: opts.queueType ?? "Ranked Solo",
+    queueId: opts.queueId ?? 420,
   };
 }
 
@@ -1070,7 +1070,7 @@ function makeMarathonRow(opts: {
   deaths?: number;
   assists?: number;
   durationSec?: number;
-  queueType?: string;
+  queueId?: number;
 }): KdaMatchRow {
   return {
     matchId: opts.matchId ?? `EUW_M_${opts.playedAt.getTime()}`,
@@ -1081,7 +1081,7 @@ function makeMarathonRow(opts: {
     assists: opts.assists ?? 8,
     win: opts.win ?? true,
     durationSec: opts.durationSec ?? 1800,
-    queueType: opts.queueType ?? "Ranked Solo",
+    queueId: opts.queueId ?? 420,
   };
 }
 
@@ -1237,7 +1237,7 @@ describe("LolMomentsService.detectFavoriteChampions", () => {
       assists: opts.assists ?? 9,
       win: opts.win ?? true,
       durationSec: opts.durationSec ?? 1820,
-      queueType: "Ranked Solo",
+      queueId: 420,
     };
   }
 

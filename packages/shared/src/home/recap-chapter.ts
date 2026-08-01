@@ -52,7 +52,7 @@ export interface LolMomentMatchStats {
   assists: number;
   win: boolean;
   durationSec: number;
-  queueType: string;
+  queueId: number;
 }
 
 /**

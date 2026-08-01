@@ -21,7 +21,6 @@ function summary(queueId: number, idx = 0): MatchSummary {
   return {
     matchId: `M_${idx}`,
     queueId,
-    queueType: queueLabel(queueId),
     champion: "Ahri",
     kills: 0,
     deaths: 0,
@@ -64,15 +63,18 @@ describe("filterToSerious", () => {
     expect(filterToSerious(matches, new Set([420]))).toEqual([]);
   });
 
-  // This used to intersect the selected ids' labels against `m.queueType`, so
-  // every statistic in the app depended on two independently-written label
-  // spellings agreeing. A canonical rename would have emptied the intersection
-  // and silently dropped that queue from every analysis surface, with nothing
-  // throwing. Feeding a label that matches nothing proves the label is no
-  // longer part of the decision.
-  it("ignores queueType entirely", () => {
-    const stale = { ...summary(420, 0), queueType: "Whatever The Map Used To Say" };
-    expect(filterToSerious([stale], new Set([420]))).toHaveLength(1);
+  // Guards against reintroducing a label-keyed filter here. Every statistic in
+  // the app flows through this function, so matching on a rendered name would
+  // make them all depend on two label spellings agreeing — and a canonical
+  // rename would empty the intersection silently rather than throw. Queues
+  // that share a label are the cheapest proof the name plays no part: 1700 and
+  // 1710 both render "Arena", so a label-keyed filter cannot separate them.
+  it("separates queues that render the same label", () => {
+    const matches = [summary(1700, 0), summary(1710, 1)];
+    expect(queueLabel(1700)).toBe(queueLabel(1710));
+    expect(filterToSerious(matches, new Set([1700])).map((m) => m.queueId)).toEqual([
+      1700,
+    ]);
   });
 
   // Customs (0, 3100, 3130) and every non-configurable queue are excluded by

@@ -177,7 +177,6 @@ function MatchDetailPanel() {
       ? {
           matchId: detail.data.matchId,
           queueId: detail.data.queueId,
-          queueType: detail.data.queueType,
           champion: myParticipant.championName,
           kills: myParticipant.kills,
           deaths: myParticipant.deaths,

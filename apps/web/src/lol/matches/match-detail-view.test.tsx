@@ -32,6 +32,15 @@ vi.mock("@/lol/_shared/assets/summoner-spell-icon", () => ({
   SummonerSpellIcon: () => <span data-testid="summ-spell" />,
 }));
 
+// Stands in for the real record wrap so the CS-record gate is observable
+// without seeding localStorage; children still render, so text queries in the
+// other suites are unaffected.
+vi.mock("@/components/personal-record", () => ({
+  PersonalRecord: ({ children }: { children: ReactNode }) => (
+    <span data-testid="cs-record">{children}</span>
+  ),
+}));
+
 vi.mock("@/lol/matches/use-items", () => ({
   useItems: () => ({ data: undefined }),
 }));
@@ -123,7 +132,6 @@ function buildDetail(): MatchDetail {
   return {
     matchId: "EUW1_1",
     queueId: 420,
-    queueType: "Ranked Solo",
     durationSec: 1800,
     playedAt: "2026-05-19T10:00:00Z",
     teams: [team(100, true, 60000, 20), team(200, false, 50000, 12)],
@@ -161,6 +169,21 @@ describe("MatchRecapTab", () => {
     const { container } = renderShell(<MatchRecapTab detail={detail} accountSlug="me" />);
     expect(container.firstChild).not.toBeNull();
   });
+
+  // Assert the ranked case, not only the excluded one: a gate that is wrong in
+  // the "never fires" direction looks identical to a correctly-excluded queue
+  // from the outside, and this one shipped that way — it compared League-V4
+  // names against Match-V5 ones, which both type as `string`.
+  it("wraps the owner's CS in a personal record on ranked queues", () => {
+    renderShell(<MatchRecapTab detail={buildDetail()} myPuuid="PA" accountSlug="me" />);
+    expect(screen.getAllByTestId("cs-record")).toHaveLength(1);
+  });
+
+  it("skips the CS record outside ranked, so an ARAM game can't set it", () => {
+    const detail = { ...buildDetail(), queueId: 450 };
+    renderShell(<MatchRecapTab detail={detail} myPuuid="PA" accountSlug="me" />);
+    expect(screen.queryByTestId("cs-record")).toBeNull();
+  });
 });
 
 describe("MatchYourGameTab", () => {
@@ -195,7 +218,6 @@ describe("MatchRecapTab badges", () => {
     const detail = {
       matchId: "EUW1_BADGES",
       queueId: 420,
-      queueType: "Ranked Solo",
       durationSec: 1800,
       playedAt: "2026-05-19T10:00:00Z",
       teams: [team(100, true, 60000, 20), team(200, false, 50000, 12)],
@@ -231,7 +253,6 @@ describe("MatchRecapTab badges", () => {
     const detail = {
       matchId: "EUW1_FB",
       queueId: 420,
-      queueType: "Ranked Solo",
       durationSec: 1800,
       playedAt: "2026-05-19T10:00:00Z",
       teams: [
@@ -280,7 +301,6 @@ describe("MatchRecapTab badges", () => {
     const tied = {
       matchId: "EUW1_TIED",
       queueId: 420,
-      queueType: "Ranked Solo",
       durationSec: 1800,
       playedAt: "2026-05-19T10:00:00Z",
       teams: [team(100, true, 60000, 20), team(200, false, 50000, 12)],

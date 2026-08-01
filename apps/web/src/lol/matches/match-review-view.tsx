@@ -18,6 +18,7 @@ import {
   SR_LANE_QUEUE_IDS,
   formatKda,
   formatPercent,
+  queueLabel,
 } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { type MouseEvent, useMemo, useState } from "react";
@@ -713,7 +714,7 @@ export function MatchReviewView({
     return (
       <div className="flex min-h-32 items-center justify-center rounded-lg border border-dashed border-border/50">
         <p className="text-sm text-muted-foreground">
-          Review isn't available for {detail.queueType} matches.
+          Review isn't available for {queueLabel(detail.queueId)} matches.
         </p>
       </div>
     );

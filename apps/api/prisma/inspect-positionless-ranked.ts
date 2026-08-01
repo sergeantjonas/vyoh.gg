@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
+import { queueLabel } from "@vyoh/shared";
 
 async function main() {
   const prisma = new PrismaClient({
@@ -10,15 +11,15 @@ async function main() {
   // Per-queue: how many matches have empty teamPosition? Ranked queues
   // SHOULD always have a position. ARAM/Arena/Tutorial don't.
   const rows = await prisma.$queryRaw<
-    Array<{ queueType: string; total: bigint; positionless: bigint }>
+    Array<{ queueId: number; total: bigint; positionless: bigint }>
   >`
     SELECT
-      "queueType",
+      "queueId",
       COUNT(*)::bigint AS total,
       COUNT(*) FILTER (WHERE "teamPosition" = '')::bigint AS positionless
     FROM "Match"
     WHERE NOT remake
-    GROUP BY "queueType"
+    GROUP BY "queueId"
     ORDER BY total DESC
   `;
 
@@ -29,7 +30,7 @@ async function main() {
         ? Math.round((Number(r.positionless) / Number(r.total)) * 100)
         : 0;
     console.log(
-      `  ${r.queueType.padEnd(20)} total=${String(r.total).padStart(5)}  positionless=${String(r.positionless).padStart(5)} (${pct}%)`
+      `  ${queueLabel(r.queueId).padEnd(20)} total=${String(r.total).padStart(5)}  positionless=${String(r.positionless).padStart(5)} (${pct}%)`
     );
   }
 

@@ -25,6 +25,7 @@ import {
   NON_LANED_QUEUE_IDS,
   formatDuration,
   formatLpDelta,
+  queueLabel,
 } from "@vyoh/shared";
 import { Users } from "lucide-react";
 import { m, useReducedMotion } from "motion/react";
@@ -281,7 +282,7 @@ export function MatchRow({
                     style={{ background: queueColor(match.queueId) }}
                   />
                   <span>
-                    {match.queueType} · {formatDuration(match.durationSec)} ·{" "}
+                    {queueLabel(match.queueId)} · {formatDuration(match.durationSec)} ·{" "}
                     {formatTimeAgo(match.playedAt)}
                   </span>
                   {match.teamGoldDiffSeries.length >= 5 && (

@@ -1,13 +1,12 @@
 export interface MatchSummary {
   matchId: string;
-  // Riot's numeric Match-V5 queueId — the stored truth. `queueType` below is
-  // the rendered label for the same value and is derived, never matched on.
-  // Filtering, bucketing, and the serious-queues allowlist all key on this
-  // number: labels collide (1700/1710 are both "Arena", 1810–1840 are all
-  // "Swarm") and unmapped ids used to persist a `Queue 3130` placeholder that
-  // froze whatever the map happened to say at ingest time.
+  // Riot's numeric Match-V5 queueId — the only queue identity on the wire.
+  // Render it with `queueLabel()` at the display site; never persist or
+  // compare the label. Labels collide (1700/1710 are both "Arena", 1810–1840
+  // are all "Swarm"), so bucketing on one merges distinct queues, and an
+  // unmapped id renders a `Queue 3130` placeholder that would freeze whatever
+  // the map happened to say at ingest time if it were stored.
   queueId: number;
-  queueType: string;
   champion: string;
   kills: number;
   deaths: number;

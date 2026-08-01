@@ -460,7 +460,7 @@ describe("computeCalibration", () => {
 });
 
 describe("computeCalibrationByQueue", () => {
-  it("partitions points by queueType and computes calibration per bucket", () => {
+  it("partitions points by queueId and computes calibration per bucket", () => {
     const points = [
       {
         matchId: "s1",

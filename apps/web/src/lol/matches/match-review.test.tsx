@@ -36,7 +36,6 @@ function makeSummary(overrides: Partial<MatchSummary> = {}): MatchSummary {
   return {
     matchId: "EUW1_123",
     queueId: 420,
-    queueType: "Ranked Solo",
     champion: "Ahri",
     kills: 5,
     deaths: 2,
@@ -71,7 +70,6 @@ function makeDetail(overrides: Partial<MatchDetail> = {}): MatchDetail {
   return {
     matchId: "EUW1_123",
     queueId: 420,
-    queueType: "Ranked Solo",
     durationSec: 1800,
     playedAt: "2026-05-21T12:00:00Z",
     teams: [
@@ -546,10 +544,7 @@ describe("MatchReviewView", () => {
   });
 
   it("shows unsupported queue message for ARAM", () => {
-    renderReview(
-      { queueId: 450, queueType: "ARAM" },
-      { queueId: 450, queueType: "ARAM" }
-    );
+    renderReview({ queueId: 450 }, { queueId: 450 });
     expect(screen.getByText(/ARAM/)).not.toBeNull();
     expect(screen.queryByText("Laning")).toBeNull();
   });

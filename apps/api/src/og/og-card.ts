@@ -24,7 +24,9 @@ export interface MatchCardData {
   deaths: number;
   assists: number;
   win: boolean;
-  queueType: string;
+  // Already-rendered strings: the card is a pure layout, so the caller
+  // resolves the queue id and the duration before handing them over.
+  queueLabel: string;
   durationLabel: string;
   accountLabel: string;
   region: string;
@@ -297,7 +299,7 @@ export async function renderMatchCard(data: MatchCardData): Promise<Buffer> {
                 color: "#71717a",
               },
             },
-            `· ${data.queueType} · ${data.durationLabel}`
+            `· ${data.queueLabel} · ${data.durationLabel}`
           )
         )
       ),

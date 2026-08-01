@@ -69,7 +69,6 @@ const matchStats = {
   win: true,
   durationSec: 1860,
   queueId: 420,
-  queueType: "Ranked Solo",
 };
 
 function makeMoment(

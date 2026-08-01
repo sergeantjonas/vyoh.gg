@@ -468,12 +468,12 @@ model SteamPlaytimeSnapshot {
 model Match {
   matchId      String
   puuid        String
-  // Riot's numeric queueId — the stored truth for "which queue was this".
-  // `queueType` is the rendered label for the same value; it survives here
-  // only until every read path matches on the number instead of the string.
+  // Riot's numeric queueId — the only stored queue identity. The rendered
+  // label is derived at the display site via `queueLabel()`; storing it would
+  // freeze an unmapped id's `Queue 3130` placeholder against later map
+  // updates, and leave colliding labels (1700/1710 → "Arena") unfilterable.
   // Backfilled from MatchDetailCache by 20260801000000_lol_match_queue_id.
   queueId      Int
-  queueType    String
   champion     String
   kills        Int
   deaths       Int

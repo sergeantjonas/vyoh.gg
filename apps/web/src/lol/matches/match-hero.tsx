@@ -11,7 +11,7 @@ import {
 import { useChampionName } from "@/lol/champions/use-champions";
 import type { CardOrigin } from "@/lol/matches/active-match-context";
 import { useActiveMatch } from "@/lol/matches/active-match-context";
-import { formatDuration } from "@vyoh/shared";
+import { formatDuration, queueLabel } from "@vyoh/shared";
 import type { MatchSummary } from "@vyoh/shared";
 import { useReducedMotion } from "motion/react";
 import { useEffect, useLayoutEffect, useRef } from "react";
@@ -164,7 +164,7 @@ export function MatchHero({
             style={{ background: queueColor(summary.queueId) }}
           />
           <span>
-            {summary.queueType} ·{" "}
+            {queueLabel(summary.queueId)} ·{" "}
             {accountSlug && summary.win && !summary.remake ? (
               <PersonalRecord
                 storageKey={`lol:fastest-win-duration:${accountSlug}`}

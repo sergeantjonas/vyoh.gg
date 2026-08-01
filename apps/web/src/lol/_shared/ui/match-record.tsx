@@ -2,7 +2,7 @@ import { MatchPips } from "@/lol/_shared/ui/match-pips";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { computeLpDeltaMap } from "@/lol/matches/use-lp-delta";
 import { useNavigate } from "@tanstack/react-router";
-import { type MatchSummary, formatKda, formatLpDelta } from "@vyoh/shared";
+import { type MatchSummary, formatKda, formatLpDelta, queueLabel } from "@vyoh/shared";
 import { useMemo } from "react";
 
 function PipTooltip({
@@ -21,7 +21,7 @@ function PipTooltip({
   return (
     <div className="flex flex-col gap-0.5">
       <div className="text-sm font-semibold leading-tight">{championName}</div>
-      <div className="text-xs text-muted-foreground">{match.queueType}</div>
+      <div className="text-xs text-muted-foreground">{queueLabel(match.queueId)}</div>
       <div className="mt-0.5 font-mono text-xs">
         {match.kills}/{match.deaths}/{match.assists}{" "}
         <span className="text-muted-foreground">({kda} KDA)</span>

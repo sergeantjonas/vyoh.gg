@@ -6,7 +6,7 @@
 
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
-import { type MatchSummary, formatDuration, formatKda } from "@vyoh/shared";
+import { type MatchSummary, formatDuration, formatKda, queueLabel } from "@vyoh/shared";
 
 type Props = {
   match: MatchSummary;
@@ -57,7 +57,7 @@ export function CommandPalettePreviewMatch({ match }: Props) {
               {match.win ? "Win" : "Loss"}
             </span>
           </div>
-          <div className="text-muted-foreground">{match.queueType}</div>
+          <div className="text-muted-foreground">{queueLabel(match.queueId)}</div>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground">

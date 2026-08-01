@@ -6,7 +6,6 @@ import type {
 } from "@vyoh/shared";
 import { isRemakeMatch } from "@vyoh/shared";
 import type { RiotMatch, RiotMatchParticipantOwner, StoredMatch } from "../riot/types";
-import { queueTypeName } from "./queue-types";
 
 // Rift lane positions where `laneMinionsFirst10Minutes` is a faithful proxy
 // for `csAt10`. JUNGLE is excluded — jungle CS comes from camps, not lanes —
@@ -121,7 +120,6 @@ export function riotMatchToSummary(match: RiotMatch, puuid: string): MatchSummar
   return {
     matchId: match.metadata.matchId,
     queueId: match.info.queueId,
-    queueType: queueTypeName(match.info.queueId),
     champion: participant.championName,
     kills: participant.kills,
     deaths: participant.deaths,
@@ -263,7 +261,6 @@ export function riotMatchToDetail(match: RiotMatch | StoredMatch): MatchDetail {
   return {
     matchId: match.metadata.matchId,
     queueId: match.info.queueId,
-    queueType: queueTypeName(match.info.queueId),
     durationSec: match.info.gameDuration,
     playedAt: new Date(match.info.gameStartTimestamp).toISOString(),
     teams,

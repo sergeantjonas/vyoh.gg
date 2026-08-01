@@ -11,7 +11,6 @@ function buildMatch(
   return {
     matchId: overrides.matchId ?? "M_1",
     queueId: 420,
-    queueType: "Ranked Solo",
     champion: overrides.champion ?? "Ahri",
     kills: 0,
     deaths: 0,
