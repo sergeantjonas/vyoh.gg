@@ -2,6 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { type MatchSummary, queueLabel } from "@vyoh/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  CONFIGURABLE_SERIOUS_QUEUES,
   DEFAULT_SERIOUS_QUEUE_IDS,
   SeriousQueuesProvider,
   filterToSerious,
@@ -77,9 +78,24 @@ describe("filterToSerious", () => {
     ]);
   });
 
+  // 710 carries LP, which makes it ranked everywhere else in the app — but a
+  // five-stack ladder measures the stack, so it stays out of the baseline and
+  // the owner opts in. Pin both halves: offered, and off.
+  it("offers the premade 5s ladder without enabling it by default", () => {
+    expect(CONFIGURABLE_SERIOUS_QUEUES.map((q) => q.id)).toContain(710);
+    expect(DEFAULT_SERIOUS_QUEUE_IDS).not.toContain(710);
+    expect(
+      filterToSerious([summary(710, 0)], new Set(DEFAULT_SERIOUS_QUEUE_IDS))
+    ).toEqual([]);
+    expect(
+      filterToSerious([summary(710, 0)], new Set([...DEFAULT_SERIOUS_QUEUE_IDS, 710]))
+    ).toHaveLength(1);
+  });
+
   // Customs (0, 3100, 3130) and every non-configurable queue are excluded by
-  // construction: the allowlist can only ever contain 420/440/400, so a new
-  // Riot queue can never leak into statistics by default.
+  // construction: the allowlist can only ever contain the queues named in
+  // CONFIGURABLE_SERIOUS_QUEUES, so a new Riot queue can never leak into
+  // statistics by default.
   it("excludes custom and unmapped queues no matter what is selected", () => {
     const matches = [summary(0, 0), summary(3100, 1), summary(3130, 2)];
     const everything = new Set([420, 440, 400, 0, 3100, 3130]);

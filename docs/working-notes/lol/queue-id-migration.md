@@ -1,6 +1,6 @@
 # Queue identity: migrate `Match.queueType` label → numeric `queueId`
 
-**Status:** Active — chunks 1–4, 5a and 5b shipped 2026-08-01. `queueType` no longer exists, every live queue has a label, and queue 710's `RANKED_PREMADE_5x5` ladder is captured and displayed everywhere solo and flex are. Only 5c (the serious-queues opt-in) remains.
+**Status:** Shipped 2026-08-01 — every chunk landed. `Match.queueType` no longer exists, every live queue has a label, and queue 710's `RANKED_PREMADE_5x5` ladder is captured and displayed everywhere solo and flex are (opt-in for statistics). Two follow-ups live outside this arc: the app has not been exercised in a browser across the whole migration, and `live-game-poller` still passes `gameQueueConfigId` through unfiltered, so a LoL Classic game would reach the live surfaces.
 
 ## Why
 
@@ -63,7 +63,7 @@ The identity/cadence surfaces (Recent form, Now playing, Queue distribution, Act
     **The live poller was showing the wrong rank, not just a missing one.** It picked solo unconditionally, so every participant in a flex or premade lobby wore a rank from a queue they were not playing. It now prefers the ladder matching `gameQueueConfigId` and falls back to the display order — which also fixes flex lobbies, a case that predates 710 entirely.
 
     One deliberate asymmetry: solo and flex always hold a hero column so the strip cannot reflow to one, but a ladder beyond those two earns its column only once the account has standing on it. A permanently-empty third rail costs hero space on every profile that never touches the queue. The LP-history and season-history tabs make the opposite call (all three always render, disabled when empty) because a disabled tab in a segmented control is cheap where an empty hero column is not.
-  - **5c — serious-queues opt-in.** Open, one line plus a test: `{ id: 710, label: "Ranked 5s" }` joins `CONFIGURABLE_SERIOUS_QUEUES`, and `DEFAULT_SERIOUS_QUEUE_IDS` stays `[420, 440]` so 710 is off until the owner turns it on.
+  - **5c — serious-queues opt-in.** ✅ 2026-08-01. `{ id: 710, label: "Ranked 5s" }` joins `CONFIGURABLE_SERIOUS_QUEUES`; `DEFAULT_SERIOUS_QUEUE_IDS` stays `[420, 440]`. Off by default *despite* 710 being ranked everywhere else in the app, because a five-stack ladder measures the stack — enabling it silently would move every solo statistic on the page. The test pins both halves, offered and off; asserting only the allowlist entry would pass just as well if the default had been widened by accident.
 
 ## Constraint: no LoL Classic
 

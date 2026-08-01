@@ -21,11 +21,15 @@ export interface ConfigurableSeriousQueue {
 export const CONFIGURABLE_SERIOUS_QUEUES: readonly ConfigurableSeriousQueue[] = [
   { id: 420, label: "Ranked Solo" },
   { id: 440, label: "Ranked Flex" },
+  { id: 710, label: "Ranked 5s" },
   { id: 400, label: "Normal Draft" },
 ];
 
-// Baseline: ranked solo + flex. Users can include normal draft or exclude
-// flex via the SeriousQueuesSettings popover in the account header.
+// Baseline: ranked solo + flex. Users can include normal draft or the premade
+// 5s ladder, or exclude flex, via the SeriousQueuesSettings popover in the
+// account header. 710 is off by default despite carrying LP — a five-stack
+// ladder measures the stack, so folding it into the baseline would move every
+// solo statistic on the page without the owner asking.
 export const DEFAULT_SERIOUS_QUEUE_IDS: readonly number[] = [420, 440];
 
 const STORAGE_KEY = "vyoh:serious-queues";
