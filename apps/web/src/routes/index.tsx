@@ -1,5 +1,6 @@
 import { AmbientHero } from "@/home/ambient-hero";
 import { AtmosphereProvider } from "@/home/atmosphere/atmosphere-provider";
+import { useLiveAmbience } from "@/home/atmosphere/use-live-ambience";
 import { ConclusionChapter } from "@/home/conclusion/conclusion-chapter";
 import { LandingHeading } from "@/home/landing-heading";
 import { AhriChapter } from "@/home/recap/ahri-chapter";
@@ -33,6 +34,9 @@ function HomePage() {
   const { account } = usePrimaryAccount();
   const { data: activity } = useHomeActivityIntensity();
   const { data: chapters } = useChapters();
+  // Whatever the owner is playing right now, as a hue. Null unless a live
+  // session is in progress, so the page reads exactly as before when idle.
+  const live = useLiveAmbience();
   // Hero-band ref is the proximity target for the hero's atmosphere claim. The
   // atmosphere layer reads its bounding rect each scroll tick to weight the
   // hero's contribution against any subsequent band's claim.
@@ -44,7 +48,7 @@ function HomePage() {
   // fades the bg back to time-of-day painterly once the user scrolls
   // past the last asset-driven chapter.
   return (
-    <AtmosphereProvider>
+    <AtmosphereProvider live={live}>
       <div className="relative flex flex-col">
         {/* `--main-h` is written by <main>'s callback ref in __root.tsx (and kept
             current by a ResizeObserver there) — its value is <main>'s actual

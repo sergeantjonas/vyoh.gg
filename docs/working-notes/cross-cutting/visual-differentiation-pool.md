@@ -1,6 +1,6 @@
 # Visual differentiation pool
 
-**Status:** Reference — idea pool (2026-06-12 exploration, indexed in [idea-pool-2026-06.md](idea-pool-2026-06.md)), not scoped. Three independent ideas with separate triggers; promote individually. Context: the elevation-arc tiers are essentially exhausted (all shipped) — this is the residual headroom found after sweeping [elevation-arcs.md](elevation-arcs.md), [motion-backlog.md](motion-backlog.md), and [quick-wins.md](quick-wins.md).
+**Status:** Reference — idea pool (2026-06-12 exploration, indexed in [idea-pool-2026-06.md](idea-pool-2026-06.md)). Idea 2 shipped 2026-08-01; ideas 1 and 3 not scoped. Three independent ideas with separate triggers; promote individually. Context: the elevation-arc tiers are essentially exhausted (all shipped) — this is the residual headroom found after sweeping [elevation-arcs.md](elevation-arcs.md), [motion-backlog.md](motion-backlog.md), and [quick-wins.md](quick-wins.md).
 
 ## 1. Generative season artwork (owner-data-seeded)
 
@@ -11,13 +11,19 @@ A deterministic generative piece computed from the season's match history — e.
 - **Calm test:** generative ≠ loud — static output, no rAF loop, palette from the existing accent/atmosphere tokens. The reference aesthetic is data-art prints, not shader demos. Drafts can incubate in [`/lab`](lab-section.md) before one graduates.
 - **Risk:** "programmer art" — the idea lives or dies on one good visual metaphor. Prototype 2–3 metaphors cheaply before committing a surface; per [[feedback_dont_guess_visual_content]], judge on rendered output, not description.
 
-## 2. Live-state ambience (atmosphere × live presence)
+## 2. Live-state ambience (atmosphere × live presence) — shipped 2026-08-01
 
-Wire two **shipped** systems together: the atmosphere substrate publishes `--atmosphere-tint-h`/`--atmosphere-intensity` ([atmosphere-arc.md](atmosphere-arc.md)); `LiveGamePollerService` + Steam presence already know live state ([live-presence-chip.md](live-presence-chip.md)). Today the chip reacts; the *site* doesn't. States: idle → baseline; LoL champ-select/in-game → tint shifts toward the played champion's accent, intensity rises; Steam in-game → game accent. Visit-while-live becomes a story visitors tell.
+`/` now tilts toward whatever the owner is playing. `useLiveAmbience()` reduces live presence to one oklch hue — the owner's champion in a live LoL game via `championTheme()`, or the live Steam game's `dominantHex` — and `applyLiveAmbience()` rotates every gradient layer of the dominant atmosphere claim 45% of the way toward it, lifting the blend intensity by 0.15. The orb halo follows for free, since it already reads `--atmosphere-tint-h`.
 
-- **Cost:** CSS variable transitions only — no new layers, no new compositor cost; the substrate was built for exactly this kind of claim.
-- **Constraints:** honor `prefers-reduced-motion` (snap, don't pulse); never suppress descendant `backdrop-filter` via ancestor opacity ([[feedback_ancestor_opacity_suppresses_backdrop_filter]]).
-- **Risk:** rarity — most visitors never see it. Acceptable as a delight feature given near-zero cost; the live chip already explains the state when it happens.
+Landed as a **global modulation rather than a fourth claim**: live state is page-wide and has no band to be weighted against, so a page-spanning claim would have displaced the subject chapters' palettes instead of colouring them. The route owns the wiring (`useLiveAmbience()` → `<AtmosphereProvider live>`), which keeps the substrate a pure function of its inputs.
+
+- **Cost:** as predicted — no new layers, no new requests. Both presence polls already run at the root, owned-games is already mounted on `/` by `NowPlayingStrip`, and the LoL static bundle is already fetched by the Ahri chapter.
+- **Precedence:** LoL wins outright over Steam, matching `NowPlayingStrip` — Steam frequently still reports a background title the owner alt-tabbed away from. It deliberately does *not* fall through to Steam when the champion can't be resolved.
+- **Layers rotate by a fraction of their own arc**, not onto a shared hue, so a palette keeps its warm/cool split instead of flattening into one wall of colour.
+- **Achromatic guard:** `oklchHueFromHex()` returns null below 0.01 chroma. Without it, `championTheme`'s `#888888` fallback would have tilted the whole page toward a rounding-noise hue on any unrecognised champion.
+- **Not done:** the shift snaps when live state flips. That matches the substrate's existing behaviour at claim handoff (`resolveAtmosphere` renders the dominant claim's palette with no interpolation), so it's consistent rather than a regression — but a ramped `liveWeight` MotionValue, subscribed the way `bloomBlurPx` already is, is the obvious follow-up if it reads harsh. `prefers-reduced-motion` needs nothing today: nothing pulses.
+- **Champ-select is not reachable** — Spectator-V5 only answers for games already in progress, so the idea's champ-select state has no data behind it.
+- **Risk was rarity**, and it stands: most visitors never see this. A preview of the four palettes × subjects at three pull weights was generated to judge the art direction without waiting to be in a game.
 
 ## 3. Paper light theme
 

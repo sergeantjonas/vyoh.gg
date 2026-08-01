@@ -222,6 +222,34 @@ describe("resolveAtmosphere", () => {
     expect(resolved?.accentHex).toBe("#f04444");
   });
 
+  it("resolves identically whether live is omitted or explicitly null", () => {
+    const claim: AtmosphereClaim = { palette, intensity: 0.6 };
+    expect(resolveAtmosphere([{ claim, weight: 1 }])).toEqual(
+      resolveAtmosphere([{ claim, weight: 1 }], null)
+    );
+  });
+
+  it("tilts the published tint and lifts the intensity while a subject is live", () => {
+    const claim: AtmosphereClaim = { palette, intensity: 0.6 };
+    const idle = resolveAtmosphere([{ claim, weight: 1 }]);
+    const live = resolveAtmosphere([{ claim, weight: 1 }], { kind: "lol", tintH: 200 });
+    // Base tint is layer[1]'s hue (60°), pulled 45% of the way to 200°.
+    expect(idle?.tintH).toBeCloseTo(60, 4);
+    expect(live?.tintH).toBeCloseTo(123, 4);
+    expect(live?.intensity).toBeCloseTo(0.75, 4);
+  });
+
+  it("recolours the palette gradient itself, not just the published hue", () => {
+    const claim: AtmosphereClaim = { palette, intensity: 0.6 };
+    const idle = resolveAtmosphere([{ claim, weight: 1 }]);
+    const live = resolveAtmosphere([{ claim, weight: 1 }], { kind: "steam", tintH: 236 });
+    expect(live?.backgroundImage).not.toBe(idle?.backgroundImage);
+    // layer[0] sits at 200° and leans toward 236°, so the emitted gradient
+    // carries the tilted hue rather than the authored one.
+    expect(idle?.backgroundImage).toContain(" 200 /");
+    expect(live?.backgroundImage).not.toContain(" 200 /");
+  });
+
   it("adds the bloom MotionValue to the base blur each tick", () => {
     const bloom = motionValue(0);
     const claim: AtmosphereClaim = {

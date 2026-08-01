@@ -1,5 +1,6 @@
 import { type ReactNode, useCallback, useMemo, useState } from "react";
 import { AtmosphereLayer } from "./atmosphere-layer";
+import type { LiveAmbience } from "./live-ambience";
 import {
   type AtmosphereClaim,
   type AtmosphereClaimEntry,
@@ -31,8 +32,20 @@ function claimsEqual(a: AtmosphereClaim, b: AtmosphereClaim): boolean {
  * CSS custom properties — no React re-renders during scroll.
  *
  * Pattern parity with `SplashProvider` (apps/web/src/lol/_shared/assets/splash-backdrop.tsx).
+ *
+ * `live` is the one input that isn't a band claim: the subject the owner is
+ * playing right now tilts whichever claim is dominant, rather than competing
+ * with it for the viewport. It's passed in rather than read here so the
+ * substrate stays a pure function of its inputs — the route owns the wiring
+ * to the presence queries.
  */
-export function AtmosphereProvider({ children }: { children: ReactNode }) {
+export function AtmosphereProvider({
+  children,
+  live = null,
+}: {
+  children: ReactNode;
+  live?: LiveAmbience | null;
+}) {
   const [claims, setClaims] = useState<Map<AtmosphereOwnerId, AtmosphereClaimEntry>>(
     () => new Map()
   );
@@ -69,7 +82,7 @@ export function AtmosphereProvider({ children }: { children: ReactNode }) {
   return (
     <AtmosphereContext.Provider value={value}>
       {children}
-      <AtmosphereLayer claims={claims} />
+      <AtmosphereLayer claims={claims} live={live} />
     </AtmosphereContext.Provider>
   );
 }

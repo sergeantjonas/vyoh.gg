@@ -15,6 +15,12 @@ vyoh.gg/
     └── shared/   # cross-cutting types/DTOs imported by both apps
 ```
 
+## Last captured status — 2026-08-01
+
+**Live-state ambience** ([visual-differentiation-pool.md](cross-cutting/visual-differentiation-pool.md) idea 2) — `/` now takes on the colour of whatever the owner is playing. `useLiveAmbience()` reduces live presence to a single oklch hue (the owner's champion via `championTheme()`, or the live Steam game's `dominantHex`), and `applyLiveAmbience()` rotates every gradient layer of the dominant atmosphere claim 45% toward it while lifting intensity by 0.15; the orb halo follows without wiring because it already reads `--atmosphere-tint-h`.
+
+The design decision worth keeping is that this is a **global modulation, not a fourth claim**. The substrate weights claims by viewport intersection, and live state has no band to be weighted against — a page-spanning claim would have displaced the Ahri and Steam chapters' palettes rather than colouring them. The route owns the wiring so the substrate stays a pure function of its inputs. Two details that would otherwise have been bugs: layers rotate by a fraction of *their own* arc so a palette keeps its warm/cool split instead of collapsing onto one hue, and `oklchHueFromHex()` returns null below 0.01 chroma, because `championTheme`'s `#888888` fallback would otherwise have tilted the whole page toward a rounding-noise hue on any unrecognised champion. Cost was zero new requests — both presence polls already run at the root, owned-games is already mounted on `/`, and the LoL static bundle is already fetched by the Ahri chapter.
+
 ## Last captured status — 2026-07-27
 
 **TanStack Start + SSR migration, all six chunks** ([tanstack-start-migration.md](cross-cutting/tanstack-start-migration.md)) — the app went from a pure Vite SPA to server-rendering behind a Node process, and gained its first deploy machinery. Chunks 1–3 + 4a on 07-26 (`b720676d`, `ea8931f1`, `467e29f9`, `2b4bd725`), 4b/5/6 on 07-27 (`a2d1bd5e`, `84861ca5`, `16cb4e02`). `index.html` and `main.tsx` are gone; `__root.tsx` owns the document through a `shellComponent`, and `src/router.tsx`'s `getRouter()` is the entry.

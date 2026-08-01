@@ -7,6 +7,7 @@ import {
 import { mainScrollRef } from "@/lib/scroll-container";
 import { m, useMotionValue } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { type LiveAmbience, applyLiveAmbience } from "./live-ambience";
 import type { AtmosphereClaim, AtmosphereClaimEntry } from "./use-atmosphere-claim";
 
 // Viewport-intersection weight: 1.0 when the band fully covers the viewport
@@ -70,7 +71,8 @@ const DEFAULT_TINT_H = 240;
 const DEFAULT_BLUR_PX = 80;
 
 function resolveAtmosphere(
-  entries: Iterable<{ claim: AtmosphereClaim; weight: number }>
+  entries: Iterable<{ claim: AtmosphereClaim; weight: number }>,
+  live: LiveAmbience | null = null
 ): ResolvedAtmosphere | null {
   let total = 0;
   let bestWeight = -1;
@@ -86,12 +88,33 @@ function resolveAtmosphere(
     }
   }
   if (!bestClaim || total === 0) return null;
-  const intensity = blendedIntensity / total;
+  // Take hue from the dominant claim's *second* layer — its "accent." Layer[0]
+  // is the largest radial and dominates the bg colour-impression; if we tint
+  // the orb halo with the same hue, the halo loses contrast against the
+  // atmosphere bg (e.g. blue halo on blue day, purple halo on purple night).
+  // Layer[1] carries the palette's secondary accent (warm sun next to a cool
+  // sky, magenta tail next to a purple night) and reads as a complement — the
+  // halo pops against the bg by carrying the *other* colour in the palette.
+  const accentH = bestClaim.palette.layers[1]?.lch[2];
+  const baseTintH = accentH ?? bestClaim.palette.layers[0]?.lch[2] ?? DEFAULT_TINT_H;
+  // Whatever the owner is playing right now tilts the whole blend toward its
+  // colour and lifts the intensity. Applied here rather than as another claim
+  // because live state is page-global — it has no band to be weighted against,
+  // and a page-spanning claim would displace the subject chapters' palettes
+  // instead of colouring them. See live-ambience.ts.
+  const { layers, tintH, intensity } = applyLiveAmbience(
+    {
+      layers: bestClaim.palette.layers,
+      tintH: baseTintH,
+      intensity: blendedIntensity / total,
+    },
+    live
+  );
   // Palette interpolation between two claims is non-trivial (per-layer cx/cy/
   // radius/lch all differ). For A-1 we render the dominant claim's palette
   // at the blended intensity. Mixing palettes lands in a later chunk when a
   // second band claims and we can see how harsh the snap reads in practice.
-  const backgroundImage = bestClaim.palette.layers
+  const backgroundImage = layers
     .map((layer) => layerToCssGradient(layer, intensity))
     .join(", ");
   const imageUrl = bestClaim.image ?? null;
@@ -105,15 +128,6 @@ function resolveAtmosphere(
   const baseBlurPx = bestClaim.blurPx ?? DEFAULT_BLUR_PX;
   const bloomBlurPx = bestClaim.bloomBlurPx?.get() ?? 0;
   const imageBlurPx = baseBlurPx + bloomBlurPx;
-  // Take hue from the dominant claim's *second* layer — its "accent." Layer[0]
-  // is the largest radial and dominates the bg colour-impression; if we tint
-  // the orb halo with the same hue, the halo loses contrast against the
-  // atmosphere bg (e.g. blue halo on blue day, purple halo on purple night).
-  // Layer[1] carries the palette's secondary accent (warm sun next to a cool
-  // sky, magenta tail next to a purple night) and reads as a complement — the
-  // halo pops against the bg by carrying the *other* colour in the palette.
-  const accentH = bestClaim.palette.layers[1]?.lch[2];
-  const tintH = accentH ?? bestClaim.palette.layers[0]?.lch[2] ?? DEFAULT_TINT_H;
   const accentHex = bestClaim.accentHex ?? null;
   const imagePosition = bestClaim.subjectPosition ?? "center";
   return {
@@ -131,7 +145,10 @@ function resolveAtmosphere(
 const LAYER_CLASS =
   "pointer-events-none fixed inset-0 -z-20 overflow-hidden bg-background";
 
-type Props = { claims: Map<number, AtmosphereClaimEntry> };
+type Props = {
+  claims: Map<number, AtmosphereClaimEntry>;
+  live?: LiveAmbience | null;
+};
 
 /**
  * Renders the single shared atmosphere layer behind every band on `/`. Reads
@@ -143,7 +160,7 @@ type Props = { claims: Map<number, AtmosphereClaimEntry> };
  * With zero claims, the layer renders a transparent background-coloured
  * surface. Becomes the bg colour as the page scrolls past the last claim.
  */
-export function AtmosphereLayer({ claims }: Props) {
+export function AtmosphereLayer({ claims, live = null }: Props) {
   const backgroundImage = useMotionValue<string>("none");
   const imageOpacity = useMotionValue<number>(0);
   const imageFilter = useMotionValue<string>(`blur(${DEFAULT_BLUR_PX}px) saturate(1.1)`);
@@ -196,9 +213,9 @@ export function AtmosphereLayer({ claims }: Props) {
           }),
         };
       });
-      return resolveAtmosphere(weighted);
+      return resolveAtmosphere(weighted, live);
     };
-  }, [entries]);
+  }, [entries, live]);
 
   const apply = useMemo(() => {
     return () => {

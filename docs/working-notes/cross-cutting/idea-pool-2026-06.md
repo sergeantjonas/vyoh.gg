@@ -38,7 +38,7 @@ The exploration's framing, worth keeping with the index:
 
 ## Visual
 
-- [visual-differentiation-pool.md](visual-differentiation-pool.md) — three ideas with independent triggers: generative season artwork (owner-data-seeded), live-state ambience (atmosphere × live presence), paper light theme.
+- [visual-differentiation-pool.md](visual-differentiation-pool.md) — three ideas with independent triggers: generative season artwork (owner-data-seeded), live-state ambience (atmosphere × live presence, **shipped 2026-08-01**), paper light theme.
 
 ## Five-pick if picking today
 
