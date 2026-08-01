@@ -43,6 +43,18 @@ describe("HomeFirstPlayedService.getFirstPlayed", () => {
     expect(result.kind).toBe("none");
   });
 
+  it("scopes the match query to the owner's puuids, so a non-owner account cannot win the slot", async () => {
+    const { service, prisma } = makeService({
+      resolvableSummoners: [{ puuid: "p-owner" }],
+    });
+    await service.getFirstPlayed();
+    expect(prisma.match.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { remake: false, puuid: { in: ["p-owner"] } },
+      })
+    );
+  });
+
   it("resolves the lol slug from the configured accounts list when the summoner matches", async () => {
     const recent = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
     const { service } = makeService({

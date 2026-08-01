@@ -1,6 +1,6 @@
 # Accounts — move from JSON config to DB-backed admin surface
 
-**Status:** Active — pre-deploy work, planned 2026-06-06, not started. Pairs with [owner-auth.md](owner-auth.md) (its chunk 1 is a prerequisite — `OwnerGuard` ships dormant there, this arc applies it). Replaces the "Live-config edits" forward-looking item catalogued in [owner-auth.md § Forward-looking gated surfaces](owner-auth.md).
+**Status:** Active — pre-deploy work, planned 2026-06-06. Chunk 0 (owner filter fix) shipped 2026-06-09 (`1f33d7fc`); chunks 1–3 not started. Pairs with [owner-auth.md](owner-auth.md) (its chunk 1 is a prerequisite — `OwnerGuard` ships dormant there, this arc applies it). Replaces the "Live-config edits" forward-looking item catalogued in [owner-auth.md § Forward-looking gated surfaces](owner-auth.md).
 
 Today the tracked-accounts roster lives in [apps/api/accounts.json](../../../apps/api/accounts.json) — read at boot in [identity.module.ts:11-14](../../../apps/api/src/identity/identity.module.ts#L11-L14), held in memory by [identity.service.ts](../../../apps/api/src/identity/identity.service.ts), hot-reloaded via `fs.watch`. The file ships committed to git, so every roster change (add a Steam friend's library, flip an `isOwner` flag, retire a test account) is a deploy. Once hosting lands this stops being a non-issue and becomes a real friction. The arc swaps the JSON for two Prisma tables, adds an `OwnerGuard`-protected admin section on the status page, and keeps every existing synchronous `IdentityService` call site unchanged.
 
@@ -126,13 +126,9 @@ Per [feedback_test_alongside_code](#) — same-commit coverage is the standing b
 
 Each chunk is independently committable and fits a single session window.
 
-### Chunk 0 — Fix `home-first-played` owner filter
+### Chunk 0 — Fix `home-first-played` owner filter — ✅ shipped 2026-06-09 (`1f33d7fc`)
 
-- Swap `getLolAccounts()` → `getOwnerPuuids()` at [home-first-played.service.ts:189](../../../apps/api/src/home/home-first-played.service.ts#L189).
-- Update the comment to cite `HomeChronotypeService` like the other home services.
-- Same-commit spec: non-owner account with earlier first match must not win the slot.
-
-Files: 1 modified service + 1 modified spec. Independently mergeable; doesn't depend on owner-auth or the DB swap. Could land tomorrow.
+Landed three days after this plan was written, without this note being updated; closed 2026-08-01. The match query is scoped via `getOwnerPuuids()` at [home-first-played.service.ts:192](../../../apps/api/src/home/home-first-played.service.ts#L192) with the owner-only rationale in a comment. The class spec mocks `getOwnerPuuids`; a where-clause regression pin (non-owner puuids cannot re-enter the query) was added 2026-08-01.
 
 ### Chunk 1 — Schema + cutover (no admin endpoints yet)
 
@@ -171,5 +167,5 @@ Files: docs + small UX polish. Lands once the pre-launch sweep is otherwise comp
 
 1. **Sequencing: A.** Owner-auth chunk 1 lands first (ships `OwnerGuard` dormant), then this arc's chunks 1–3. No temporary-gate window.
 2. **`SteamAccount.isOwner`: default `true`, no v1 UI affordance to flip it.** Owner has no immediate plan to track non-owner Steam libraries; the field is provisioned for shape-consistency with `LolAccount` so a future Steam-friend use case doesn't require a migration. Admin form may omit the field on the Steam add dialog; backend accepts it and defaults to `true` when missing.
-3. **Chunk 0: immediate standalone commit.** The `home-first-played` filter fix ships independently of the rest of the arc — could land next session and would still be a valid commit on its own.
+3. **Chunk 0: immediate standalone commit.** The `home-first-played` filter fix ships independently of the rest of the arc — and did: `1f33d7fc`, 2026-06-09.
 4. **Riot ID validation: strict.** Account-v1 404 hard-fails the POST with an inline error on the form. Riot 5xx surfaces a retry hint in the error toast; the row is not persisted. Matches the API's posture elsewhere.
