@@ -253,6 +253,29 @@ export type {
   SteamStandoutUnlock,
   SteamUnlock,
 } from "./steam/game-recap.ts";
+export {
+  GENRE_TAG_RANK_LIMIT,
+  PORTRAIT_GENRE_TAGS,
+  isGenreTag,
+  isUmbrellaGenreTag,
+  selectGenreTags,
+} from "./steam/portrait/genre-tags.ts";
+export {
+  COMPLETIONIST_PLAYTIME_MINUTES,
+  MEANINGFUL_LAUNCH_DAYS,
+  MEANINGFUL_PLAYTIME_MINUTES,
+  RECENT_PLAYTIME_MINUTES,
+  engagementCohort,
+  excludeBarelyTouched,
+  isMeaningfullyPlayed,
+  selectEngagementCohort,
+  summariseEngagement,
+} from "./steam/portrait/engagement.ts";
+export type {
+  EngagementCohort,
+  EngagementInput,
+  EngagementSummary,
+} from "./steam/portrait/engagement.ts";
 export type { HomeChronotype, HomeChronotypeHour } from "./home/chronotype.ts";
 export type { HomeWeeklyTotals } from "./home/weekly-totals.ts";
 export type { HomeLifetimeTotals } from "./home/lifetime-totals.ts";
