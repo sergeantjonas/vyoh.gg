@@ -97,14 +97,20 @@ That blocks **card 4 (session shape)**, **card 8 (median bounce time)** and the 
 
 **The cohorts are the strongest thing here.** The floor does exactly what it was designed to do:
 
+Counts below are after filtering to `appType = 0` and `removedAt = null`, which is the population the cards will actually read. (Unfiltered, the owned table holds 195 rows and 2,893 hours; the difference is Wallpaper Engine, 3DMark and friends.)
+
 | | Games | Share |
 |---|---|---|
-| Owned | 195 | — |
-| Cleared the floor (≥60 min) | **60** | 31% |
-| Tasted (0 < p < 60 min) | 14 | 7% |
-| Bundle ghosts (0 min) | **121** | 62% |
+| Owned | 186 | — |
+| Cleared the floor (≥60 min) | **55** | 30% |
+| Tasted (0 < p < 60 min) | 11 | 6% |
+| Bundle ghosts (0 min) | **120** | 65% |
 
-2,893 lifetime hours, of which **2,887 — 99.8% — sit inside the 60-game cohort**. That single pair of numbers justifies the whole engagement floor: it discards 0.2% of the hours to discard 69% of the games. It is also, as the note predicted, portrait material in its own right — *"195 games. 60 hold 99.8% of the hours. 121 have never been launched."* 118 of the 121 ghosts are `appType = 0`, so the count survives filtering to actual games.
+2,385 lifetime hours, of which **2,380 — 99.8% — sit inside the 55-game cohort**. That single pair of numbers justifies the whole engagement floor: it discards 0.2% of the hours to discard 70% of the games. It is also, as the note predicted, portrait material in its own right — *"186 games. 55 hold 99.8% of the hours. 120 have never been launched."*
+
+**Card 1 should show two genres with confidence, not three.** Running the probe's rank sweep, the top two are immovable — `Souls-like` and `Action RPG` hold positions 1 and 2 at every rank limit from 6 to 20. The third slot is noise: it reads `RPG` at 6, `Third-Person Shooter` at 8, `Roguelite` at 10, `Third-Person Shooter` at 12 and 14, `Survival` at 20. The cause is visible in the per-genre game counts — `Third-Person Shooter` (6.5%, 10 games) and `Roguelite` (6.1%, **1 game**) are within half a percentage point of each other, and the one-game entry is ELDEN RING NIGHTREIGN's 434 hours landing whole on a genre nothing else in the library carries.
+
+So the card needs a **carrier count**, not just a share: a genre resting on one title is a fact about that title, not about the player. Either cut card 1 to the top two, or keep three and let the third be visibly thin ("Roguelite — one game, 145h"). The probe prints the carrier count next to every genre so this stays checkable as the library grows.
 
 **Card 10 (single-achievement club) lands at 7 games** — small, but that's the joke. 54 games carry any unlock at all against 157 with a schema.
 
@@ -192,7 +198,7 @@ Each chunk independently committable. Stop and re-evaluate after each — the Po
 
 Verified end-to-end against the live library before landing: the fingerprint that read **"Action, Singleplayer, Third Person"** unfiltered now reads **"57% of your 2,356 hours sit in Souls-like, Action RPG, Third-Person Shooter."** One of 55 cohort games ends with no genre signal, and it is genuinely untagged upstream.
 
-**Chunk 2 — Portrait half cards (cards 1–6).** API endpoints (or extensions of existing endpoints) + web cards. Reuses the cleaned cohort from chunk 1.
+**Chunk 2 — Portrait half cards (cards 1–6).** API endpoints (or extensions of existing endpoints) + web cards. Reuses the cleaned cohort from chunk 1. Run [probe-portrait-fingerprint.ts](../../../apps/api/src/scripts/probe-portrait-fingerprint.ts) before writing copy — it prints what each of these cards would currently say, including the carrier counts that decide whether card 1 shows two genres or three.
 
 **Chunk 3 — Anti-Portrait half cards (cards 7, 9–13).** New API computations for the bundle-ghost and tasted cohorts + web cards. The Anti-Portrait one-liner (card 13) is last because it synthesises numbers from earlier cards. **Cards 4 and 8 and the single-session cohort are out of scope** until the session table has hosted history behind it — building them against 28 rows would ship a confident wrong answer.
 
