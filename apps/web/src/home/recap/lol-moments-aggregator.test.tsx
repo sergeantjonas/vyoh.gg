@@ -68,6 +68,7 @@ const matchStats = {
   assists: 11,
   win: true,
   durationSec: 1860,
+  queueId: 420,
   queueType: "Ranked Solo",
 };
 

@@ -5,6 +5,7 @@ import { matchesQuery } from "./command-palette-matcher";
 function buildMatch(overrides: Partial<MatchSummary>): MatchSummary {
   return {
     matchId: overrides.matchId ?? "M_1",
+    queueId: overrides.queueId ?? 420,
     queueType: overrides.queueType ?? "Ranked Solo",
     champion: overrides.champion ?? "Ahri",
     kills: overrides.kills ?? 5,
@@ -159,6 +160,7 @@ describe("matchesQuery", () => {
     const m = buildMatch({
       matchId: "EUW1_123",
       champion: "Ahri",
+      queueId: 450,
       queueType: "ARAM",
       teamPosition: "MIDDLE",
       laneOpponent: {

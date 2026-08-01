@@ -36,6 +36,7 @@ function fakeMatch(
     matchId: `M${playedAtMs}-${overrides.gameVersion ?? "x"}`,
     playedAt: new Date(playedAtMs).toISOString(),
     gameVersion: "14.20.586.5840",
+    queueId: 420,
     queueType: "Ranked Solo",
     ...overrides,
   } as unknown as MatchSummary;

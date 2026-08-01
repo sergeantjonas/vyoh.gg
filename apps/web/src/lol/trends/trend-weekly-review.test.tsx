@@ -8,6 +8,7 @@ import { TrendWeeklyReview } from "./trend-weekly-review";
 function match(idx: number, win: boolean, durationSec = 1800): MatchSummary {
   return {
     matchId: `M_${idx}`,
+    queueId: 420,
     queueType: "Ranked Solo",
     champion: "Ahri",
     kills: 0,

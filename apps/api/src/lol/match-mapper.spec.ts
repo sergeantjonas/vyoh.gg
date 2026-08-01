@@ -160,6 +160,7 @@ describe("riotMatchToSummary", () => {
     const summary = riotMatchToSummary(baseMatch, "puuid-vyoh");
     expect(summary).toEqual({
       matchId: "EUW1_42",
+      queueId: 420,
       queueType: "Ranked Solo",
       champion: "Ahri",
       kills: 8,
@@ -245,6 +246,33 @@ describe("riotMatchToSummary", () => {
     expect(summary.queueType).toBe("Queue 9999");
   });
 
+  // The whole point of storing the number: an id the label map has never
+  // heard of still round-trips exactly, so a later map update relabels it
+  // instead of leaving a frozen `Queue 9999` behind. Riot ships new queues
+  // mid-season (Brawl, ARAM: Mayhem), so "unmapped at ingest" is routine.
+  it("carries the raw queueId through even when the label map has no entry", () => {
+    const summary = riotMatchToSummary(
+      { ...baseMatch, info: { ...baseMatch.info, queueId: 9999 } },
+      "puuid-vyoh"
+    );
+    expect(summary.queueId).toBe(9999);
+  });
+
+  // Labels are not injective: 1810 and 1820 are both "Swarm", so anything
+  // that buckets or filters on the string silently merges them.
+  it("distinguishes queues that share a label", () => {
+    const swarmA = riotMatchToSummary(
+      { ...baseMatch, info: { ...baseMatch.info, queueId: 1810 } },
+      "puuid-vyoh"
+    );
+    const swarmB = riotMatchToSummary(
+      { ...baseMatch, info: { ...baseMatch.info, queueId: 1820 } },
+      "puuid-vyoh"
+    );
+    expect(swarmA.queueType).toBe(swarmB.queueType);
+    expect(swarmA.queueId).not.toBe(swarmB.queueId);
+  });
+
   it("flags remake when participant.gameEndedInEarlySurrender and duration < 210s", () => {
     const remakeMatch: RiotMatch = {
       ...baseMatch,
@@ -324,6 +352,7 @@ describe("riotMatchToDetail", () => {
     });
 
     expect(detail.matchId).toBe("EUW1_42");
+    expect(detail.queueId).toBe(420);
     expect(detail.participants).toHaveLength(1);
     expect(detail.participants[0]?.items).toEqual([100, 200, 300, 0, 0, 0, 0]);
     expect(detail.participants[0]?.championName).toBe("Ahri");

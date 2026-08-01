@@ -16,6 +16,7 @@ vi.mock("@/lol/_shared/assets/role-icon", async (original) => {
 function match(idx: number, win: boolean, position: string | null): MatchSummary {
   return {
     matchId: `M_${idx}`,
+    queueId: 420,
     queueType: "Ranked Solo",
     champion: "Ahri",
     kills: 0,

@@ -22,6 +22,7 @@ vi.mock("@/lol/champions/use-champions", () => ({
 function match(overrides: Partial<MatchSummary>): MatchSummary {
   return {
     matchId: overrides.matchId ?? "M_1",
+    queueId: 420,
     queueType: "Ranked Solo",
     champion: overrides.champion ?? "Ahri",
     kills: overrides.kills ?? 0,

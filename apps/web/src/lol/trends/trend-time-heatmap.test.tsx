@@ -8,6 +8,7 @@ import { TrendTimeHeatmap } from "./trend-time-heatmap";
 function match(idx: number, win: boolean, playedAt: string): MatchSummary {
   return {
     matchId: `M_${idx}`,
+    queueId: 420,
     queueType: "Ranked Solo",
     champion: "Ahri",
     kills: 0,

@@ -15,6 +15,7 @@ function match(
 ): MatchSummary {
   return {
     matchId: `M_${idx}`,
+    queueId: 420,
     queueType: "Ranked Solo",
     champion: "Ahri",
     kills: 0,

@@ -8,6 +8,7 @@ import { TrendGameLength } from "./trend-game-length";
 function match(idx: number, win: boolean, durationSec: number): MatchSummary {
   return {
     matchId: `M_${idx}`,
+    queueId: 420,
     queueType: "Ranked Solo",
     champion: "Ahri",
     kills: 0,

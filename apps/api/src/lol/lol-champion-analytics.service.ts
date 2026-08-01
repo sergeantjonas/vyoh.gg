@@ -137,6 +137,7 @@ export class LolChampionAnalyticsService {
       orderBy: { playedAt: "desc" },
       select: {
         matchId: true,
+        queueId: true,
         queueType: true,
         champion: true,
         kills: true,

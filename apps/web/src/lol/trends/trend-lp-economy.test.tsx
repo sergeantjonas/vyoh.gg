@@ -12,6 +12,7 @@ function match(
 ): MatchSummary {
   const base: MatchSummary = {
     matchId: `M_${idx}`,
+    queueId: 420,
     queueType: "Ranked Solo",
     champion: "Ahri",
     kills: 0,

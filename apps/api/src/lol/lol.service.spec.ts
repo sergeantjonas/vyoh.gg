@@ -561,6 +561,7 @@ describe("LolService.getCachedMatches", () => {
       take: 20,
       select: {
         matchId: true,
+        queueId: true,
         queueType: true,
         champion: true,
         kills: true,
@@ -613,6 +614,7 @@ describe("LolService.getCachedMatches", () => {
       take: 10,
       select: {
         matchId: true,
+        queueId: true,
         queueType: true,
         champion: true,
         kills: true,

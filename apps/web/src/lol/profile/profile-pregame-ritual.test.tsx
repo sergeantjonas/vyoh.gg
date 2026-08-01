@@ -71,6 +71,7 @@ const DAY_MS = 24 * HOUR_MS;
 function fakeMatch(overrides: Partial<MatchSummary> = {}): MatchSummary {
   return {
     matchId: `M${Math.random()}`,
+    queueId: 420,
     queueType: "Ranked Solo",
     champion: "Ahri",
     kills: 5,
@@ -368,11 +369,13 @@ describe("ProfilePregameRitual", () => {
     // even though Flex would beat it on sample size in the calibration below.
     setMatches([
       fakeMatch({
+        queueId: 420,
         queueType: "Ranked Solo",
         win: true,
         playedAt: new Date(now - DAY_MS).toISOString(),
       }),
       fakeMatch({
+        queueId: 420,
         queueType: "Ranked Solo",
         win: true,
         playedAt: new Date(now - 2 * DAY_MS).toISOString(),
@@ -412,11 +415,13 @@ describe("ProfilePregameRitual", () => {
     // the Flex calibration for the headline.
     setMatches([
       fakeMatch({
+        queueId: 440,
         queueType: "Ranked Flex",
         win: true,
         playedAt: new Date(now - HOUR_MS).toISOString(),
       }),
       fakeMatch({
+        queueId: 420,
         queueType: "Ranked Solo",
         win: true,
         playedAt: new Date(now - DAY_MS).toISOString(),
@@ -454,11 +459,13 @@ describe("ProfilePregameRitual", () => {
     // the user is about to queue.
     setMatches([
       fakeMatch({
+        queueId: 440,
         queueType: "Ranked Flex",
         win: true,
         playedAt: new Date(now - HOUR_MS).toISOString(),
       }),
       fakeMatch({
+        queueId: 440,
         queueType: "Ranked Flex",
         win: true,
         playedAt: new Date(now - DAY_MS).toISOString(),
@@ -475,16 +482,19 @@ describe("ProfilePregameRitual", () => {
     // (Ahri 100% WR over 14 days), score >= 0.25 → positive bucket.
     setMatches([
       fakeMatch({
+        queueId: 420,
         queueType: "Ranked Solo",
         win: true,
         playedAt: new Date(now - DAY_MS).toISOString(),
       }),
       fakeMatch({
+        queueId: 420,
         queueType: "Ranked Solo",
         win: true,
         playedAt: new Date(now - 2 * DAY_MS).toISOString(),
       }),
       fakeMatch({
+        queueId: 420,
         queueType: "Ranked Solo",
         win: true,
         playedAt: new Date(now - 3 * DAY_MS).toISOString(),

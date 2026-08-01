@@ -73,6 +73,7 @@ function participant(overrides: Partial<ParticipantDetail> = {}): ParticipantDet
 function detail(participants: ParticipantDetail[]): MatchDetail {
   return {
     matchId: "EUW1_42",
+    queueId: 420,
     queueType: "Ranked Solo",
     durationSec: 1834, // 30m 34s
     playedAt: "2026-05-16T12:00:00.000Z",

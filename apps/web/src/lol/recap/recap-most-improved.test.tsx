@@ -27,6 +27,7 @@ function match(
 ): MatchSummary {
   return {
     matchId: `M_${index}`,
+    queueId: 420,
     queueType: "Ranked Solo",
     champion,
     kills: 0,

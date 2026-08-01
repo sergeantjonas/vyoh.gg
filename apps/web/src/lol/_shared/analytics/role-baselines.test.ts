@@ -5,6 +5,7 @@ import { aggregateByRole, isRole, primaryRole } from "./role-baselines";
 function buildMatch(overrides: Partial<MatchSummary>): MatchSummary {
   return {
     matchId: overrides.matchId ?? "M_1",
+    queueId: overrides.queueId ?? 420,
     queueType: overrides.queueType ?? "Ranked Solo",
     champion: overrides.champion ?? "Ahri",
     kills: overrides.kills ?? 5,

@@ -122,6 +122,7 @@ function team(teamId: number, win: boolean, totalGold: number, kills: number): u
 function buildDetail(): MatchDetail {
   return {
     matchId: "EUW1_1",
+    queueId: 420,
     queueType: "Ranked Solo",
     durationSec: 1800,
     playedAt: "2026-05-19T10:00:00Z",
@@ -193,6 +194,7 @@ describe("MatchRecapTab badges", () => {
   it("renders every category badge label when each metric has a distinct winner", () => {
     const detail = {
       matchId: "EUW1_BADGES",
+      queueId: 420,
       queueType: "Ranked Solo",
       durationSec: 1800,
       playedAt: "2026-05-19T10:00:00Z",
@@ -228,6 +230,7 @@ describe("MatchRecapTab badges", () => {
   it("renders First Blood + First Tower chips for whichever team claimed them", () => {
     const detail = {
       matchId: "EUW1_FB",
+      queueId: 420,
       queueType: "Ranked Solo",
       durationSec: 1800,
       playedAt: "2026-05-19T10:00:00Z",
@@ -276,6 +279,7 @@ describe("MatchRecapTab badges", () => {
   it("awards no badges when the top two values are tied across every metric", () => {
     const tied = {
       matchId: "EUW1_TIED",
+      queueId: 420,
       queueType: "Ranked Solo",
       durationSec: 1800,
       playedAt: "2026-05-19T10:00:00Z",

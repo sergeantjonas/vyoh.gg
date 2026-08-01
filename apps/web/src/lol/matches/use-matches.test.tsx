@@ -23,6 +23,7 @@ const account: LolAccount = {
 
 const sample: MatchSummary = {
   matchId: "EUW1_1",
+  queueId: 420,
   queueType: "Ranked Solo",
   champion: "Ahri",
   kills: 8,

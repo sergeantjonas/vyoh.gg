@@ -16,6 +16,7 @@ vi.mock("@/lol/champions/use-champions", () => ({
 function buildMatch(overrides: Partial<MatchSummary> = {}): MatchSummary {
   return {
     matchId: "EUW1_1234",
+    queueId: 420,
     queueType: "Ranked Solo",
     champion: "Jinx",
     kills: 8,

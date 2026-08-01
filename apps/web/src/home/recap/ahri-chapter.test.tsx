@@ -93,6 +93,7 @@ const account: LolAccount = {
 const matchFixture = (
   overrides: Partial<MatchSummary> & { matchId: string }
 ): MatchSummary => ({
+  queueId: 420,
   queueType: "RANKED_SOLO_5x5",
   champion: "Ahri",
   kills: 8,

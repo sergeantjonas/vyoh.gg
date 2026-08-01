@@ -48,6 +48,7 @@ const matchStats = {
   assists: 11,
   win: true,
   durationSec: 1860,
+  queueId: 420,
   queueType: "Ranked Solo",
 };
 
@@ -114,6 +115,7 @@ const kdaOutlierProps = {
     assists: 14,
     win: true,
     durationSec: 1820,
+    queueId: 420,
     queueType: "Ranked Solo",
   },
   rankUp: null,

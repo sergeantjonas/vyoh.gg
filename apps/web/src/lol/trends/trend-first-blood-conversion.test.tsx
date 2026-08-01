@@ -8,6 +8,7 @@ import { TrendFirstBloodConversion } from "./trend-first-blood-conversion";
 function match(idx: number, win: boolean, firstBlood: boolean): MatchSummary {
   return {
     matchId: `M_${idx}`,
+    queueId: 420,
     queueType: "Ranked Solo",
     champion: "Ahri",
     kills: 0,

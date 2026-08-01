@@ -8,6 +8,7 @@ import { TrendComebackResilience } from "./trend-comeback-resilience";
 function match(idx: number, win: boolean, teamGoldDiffAt15: number): MatchSummary {
   return {
     matchId: `M_${idx}`,
+    queueId: 420,
     queueType: "Ranked Solo",
     champion: "Ahri",
     kills: 0,

@@ -35,6 +35,7 @@ vi.mock("@/lol/matches/use-match-baseline", () => ({
 function makeSummary(overrides: Partial<MatchSummary> = {}): MatchSummary {
   return {
     matchId: "EUW1_123",
+    queueId: 420,
     queueType: "Ranked Solo",
     champion: "Ahri",
     kills: 5,
@@ -69,6 +70,7 @@ function makeSummary(overrides: Partial<MatchSummary> = {}): MatchSummary {
 function makeDetail(overrides: Partial<MatchDetail> = {}): MatchDetail {
   return {
     matchId: "EUW1_123",
+    queueId: 420,
     queueType: "Ranked Solo",
     durationSec: 1800,
     playedAt: "2026-05-21T12:00:00Z",

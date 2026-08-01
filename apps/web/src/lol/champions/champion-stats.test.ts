@@ -5,6 +5,7 @@ import { aggregateChampionStats } from "./champion-stats";
 function buildMatch(overrides: Partial<MatchSummary>): MatchSummary {
   return {
     matchId: overrides.matchId ?? "M_1",
+    queueId: 420,
     queueType: "Ranked Solo",
     champion: overrides.champion ?? "Ahri",
     kills: overrides.kills ?? 5,

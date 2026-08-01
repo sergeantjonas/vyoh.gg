@@ -23,6 +23,7 @@ function fakeMatch(overrides: Partial<MatchSummary> = {}): MatchSummary {
     win: true,
     remake: false,
     playedAt: new Date().toISOString(),
+    queueId: 420,
     queueType: "Ranked Solo",
     ...overrides,
   } as unknown as MatchSummary;

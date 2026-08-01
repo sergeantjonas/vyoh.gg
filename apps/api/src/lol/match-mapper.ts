@@ -120,6 +120,7 @@ export function riotMatchToSummary(match: RiotMatch, puuid: string): MatchSummar
 
   return {
     matchId: match.metadata.matchId,
+    queueId: match.info.queueId,
     queueType: queueTypeName(match.info.queueId),
     champion: participant.championName,
     kills: participant.kills,
@@ -261,6 +262,7 @@ export function riotMatchToDetail(match: RiotMatch | StoredMatch): MatchDetail {
 
   return {
     matchId: match.metadata.matchId,
+    queueId: match.info.queueId,
     queueType: queueTypeName(match.info.queueId),
     durationSec: match.info.gameDuration,
     playedAt: new Date(match.info.gameStartTimestamp).toISOString(),

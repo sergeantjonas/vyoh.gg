@@ -202,6 +202,7 @@ describe("ProfileLpHistory", () => {
     const matches: MatchSummary[] = [
       {
         matchId: "M1",
+        queueId: 420,
         queueType: "Ranked Solo",
         champion: "Ahri",
         kills: 1,
@@ -216,6 +217,7 @@ describe("ProfileLpHistory", () => {
       } as unknown as MatchSummary,
       {
         matchId: "M2",
+        queueId: 420,
         queueType: "Ranked Solo",
         champion: "Ahri",
         kills: 1,

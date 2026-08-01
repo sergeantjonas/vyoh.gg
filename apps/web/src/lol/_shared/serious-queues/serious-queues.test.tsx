@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, queueLabel } from "@vyoh/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   DEFAULT_SERIOUS_QUEUE_IDS,
@@ -17,10 +17,11 @@ afterEach(() => {
   window.localStorage.clear();
 });
 
-function summary(queueType: string, idx = 0): MatchSummary {
+function summary(queueId: number, idx = 0): MatchSummary {
   return {
     matchId: `M_${idx}`,
-    queueType,
+    queueId,
+    queueType: queueLabel(queueId),
     champion: "Ahri",
     kills: 0,
     deaths: 0,
@@ -52,19 +53,14 @@ function summary(queueType: string, idx = 0): MatchSummary {
 
 describe("filterToSerious", () => {
   it("keeps only matches whose queueType matches one of the selected ids' labels", () => {
-    const matches = [
-      summary("Ranked Solo", 0),
-      summary("Ranked Flex", 1),
-      summary("ARAM", 2),
-      summary("Normal Draft", 3),
-    ];
+    const matches = [summary(420, 0), summary(440, 1), summary(450, 2), summary(400, 3)];
     const ids = new Set([420, 440]);
     const filtered = filterToSerious(matches, ids);
     expect(filtered.map((m) => m.queueType)).toEqual(["Ranked Solo", "Ranked Flex"]);
   });
 
   it("returns an empty list when no ids match", () => {
-    const matches = [summary("ARAM", 0)];
+    const matches = [summary(450, 0)];
     expect(filterToSerious(matches, new Set([420]))).toEqual([]);
   });
 });

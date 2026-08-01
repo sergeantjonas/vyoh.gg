@@ -20,6 +20,7 @@ const DAY = 24 * 60 * 60 * 1000;
 function fakeMatch(overrides: Partial<MatchSummary> = {}): MatchSummary {
   return {
     matchId: `M${Math.random()}`,
+    queueId: 420,
     queueType: "Ranked Solo",
     champion: "Ahri",
     win: true,

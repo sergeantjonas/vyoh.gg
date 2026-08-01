@@ -87,6 +87,7 @@ export class LolService {
       orderBy: { playedAt: "desc" },
       select: {
         matchId: true,
+        queueId: true,
         queueType: true,
         champion: true,
         kills: true,
@@ -185,6 +186,7 @@ export class LolService {
         take: count,
         select: {
           matchId: true,
+          queueId: true,
           queueType: true,
           champion: true,
           kills: true,

@@ -45,6 +45,7 @@ vi.mock("./match-list-row-popover", () => ({
 function summary(overrides: Partial<MatchSummary> = {}): MatchSummary {
   return {
     matchId: "EUW1_42",
+    queueId: 420,
     queueType: "Ranked Solo",
     champion: "Ahri",
     kills: 8,
@@ -190,6 +191,7 @@ describe("MatchRow", () => {
   it("omits the 'vs <opponent>' line for ARAM / Arena queues", () => {
     const { container } = renderRow({
       match: summary({
+        queueId: 450,
         queueType: "ARAM",
         laneOpponent: {
           championName: "Yasuo",

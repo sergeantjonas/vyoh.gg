@@ -93,6 +93,10 @@ export interface TeamSummary {
 
 export interface MatchDetail {
   matchId: string;
+  // See MatchSummary.queueId — same rule, same reason. Derived from the cached
+  // raw payload rather than a column, since match detail is projected out of
+  // MatchDetailCache rather than the Match table.
+  queueId: number;
   queueType: string;
   durationSec: number;
   playedAt: string;

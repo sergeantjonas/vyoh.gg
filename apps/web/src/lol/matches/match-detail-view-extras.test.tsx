@@ -89,6 +89,7 @@ function team(teamId: number, win: boolean, totalGold: number, kills: number): u
 function buildDetail(): MatchDetail {
   return {
     matchId: "EUW1_1",
+    queueId: 420,
     queueType: "Ranked Solo",
     durationSec: 1800,
     playedAt: "2026-05-19T10:00:00Z",
@@ -264,6 +265,7 @@ describe("TeamBlock badge tooltip", () => {
   it("renders the participant badge label when a metric has a distinct winner", () => {
     const detail = {
       matchId: "EUW1_BADGE",
+      queueId: 420,
       queueType: "Ranked Solo",
       durationSec: 1800,
       playedAt: "2026-05-19T10:00:00Z",

@@ -98,6 +98,7 @@ function renderWithProviders(ui: ReactNode) {
 const matches: MatchSummary[] = [
   {
     matchId: "EUW1_1",
+    queueId: 420,
     queueType: "Ranked Solo",
     champion: "Ahri",
     kills: 8,
@@ -128,6 +129,7 @@ const matches: MatchSummary[] = [
   },
   {
     matchId: "EUW1_2",
+    queueId: 450,
     queueType: "ARAM",
     champion: "Jhin",
     kills: 4,

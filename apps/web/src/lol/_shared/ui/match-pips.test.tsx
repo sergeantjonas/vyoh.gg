@@ -8,6 +8,7 @@ import { MatchPips } from "./match-pips";
 function match(idx: number, win: boolean): MatchSummary {
   return {
     matchId: `M_${idx}`,
+    queueId: 420,
     queueType: "Ranked Solo",
     champion: "Ahri",
     kills: 0,

@@ -32,6 +32,7 @@ function match(daysAgo: number, idx: number): MatchSummary {
   const ts = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString();
   return {
     matchId: `M_${idx}`,
+    queueId: 420,
     queueType: "Ranked Solo",
     champion: "Ahri",
     kills: 0,

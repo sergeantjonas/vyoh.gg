@@ -21,6 +21,7 @@ vi.mock("@/lol/_shared/assets/champion-square-icon", () => ({
 function match(champion: string, idx: number, win = true): MatchSummary {
   return {
     matchId: `M_${idx}`,
+    queueId: 420,
     queueType: "Ranked Solo",
     champion,
     kills: 0,
