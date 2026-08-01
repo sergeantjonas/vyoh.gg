@@ -54,6 +54,12 @@ export const RANKED_QUEUE_MAP: Record<number, string> = {
   440: "RANKED_FLEX_SR",
 };
 
+// "Which queues carry LP" as Match.queueId values. Derived from the map above
+// rather than restated so the two cannot drift apart, and used wherever a
+// query needs to mean ranked-only.
+export const RANKED_QUEUE_IDS: readonly number[] =
+  Object.keys(RANKED_QUEUE_MAP).map(Number);
+
 // Compact discriminator used by ranked-only UIs (LP history, season history,
 // hero rank strip) that need to pick between exactly two queues. Pairs with
 // the four maps below so a single key value drives label, queueId, queueType,

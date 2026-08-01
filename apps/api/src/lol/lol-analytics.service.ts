@@ -19,7 +19,6 @@ import {
 } from "@vyoh/shared";
 import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
-import { queueTypeName } from "./queue-types";
 
 const EMPTY_CALIBRATION: PregameCalibrationByQueue = {};
 
@@ -38,9 +37,8 @@ const DUO_SESSION_GAP_MS = 3 * 60 * 60 * 1000; // 3h between two shared games
 // scannable and the DTO doesn't ship a long tail of one-off combos.
 const DUO_PAIR_TOP_N = 6;
 
-// ARAM dashboard (D.7). 450 is Riot's Match-V5 queueId for ARAM; routed through
-// `queueTypeName` so the filter matches exactly what match-mapper stores in
-// Match.queueType (single source of truth in @vyoh/shared queue-types).
+// ARAM dashboard (D.7). 450 is Riot's Match-V5 queueId for ARAM, matched
+// directly against Match.queueId.
 const ARAM_QUEUE_ID = 450;
 // Most-played ARAM champions surfaced on the dashboard.
 const ARAM_TOP_CHAMPIONS = 5;
@@ -757,7 +755,7 @@ export class LolAnalyticsService {
     if (!summoner) return makeEmpty();
 
     const matches = await this.prisma.match.findMany({
-      where: { puuid: summoner.puuid, queueType: queueTypeName(ARAM_QUEUE_ID) },
+      where: { puuid: summoner.puuid, queueId: ARAM_QUEUE_ID },
       orderBy: { playedAt: "desc" },
       take: count,
       select: { matchId: true, remake: true },
@@ -1009,12 +1007,11 @@ export class LolAnalyticsService {
     });
     if (!summoner) return EMPTY_CALIBRATION;
 
-    const queueNames = ids.map((id) => queueTypeName(id));
     const cacheKey = `${summoner.puuid}:${[...ids].sort((a, b) => a - b).join(",")}`;
 
     // Cheap staleness probe — one row by ordered index ≈ free vs the full scan.
     const latest = await this.prisma.match.findFirst({
-      where: { puuid: summoner.puuid, queueType: { in: queueNames }, remake: false },
+      where: { puuid: summoner.puuid, queueId: { in: ids }, remake: false },
       orderBy: { playedAt: "desc" },
       select: { playedAt: true },
     });
@@ -1028,11 +1025,12 @@ export class LolAnalyticsService {
     // snapshots; we select that subset and cast at the boundary rather than
     // rehydrating the full MatchSummary shape.
     const rows = await this.prisma.match.findMany({
-      where: { puuid: summoner.puuid, queueType: { in: queueNames } },
+      where: { puuid: summoner.puuid, queueId: { in: ids } },
       orderBy: { playedAt: "desc" },
       select: {
         matchId: true,
         playedAt: true,
+        queueId: true,
         queueType: true,
         win: true,
         remake: true,
@@ -1044,6 +1042,7 @@ export class LolAnalyticsService {
     const matches = rows.map((r) => ({
       matchId: r.matchId,
       playedAt: r.playedAt.toISOString(),
+      queueId: r.queueId,
       queueType: r.queueType,
       win: r.win,
       remake: r.remake,

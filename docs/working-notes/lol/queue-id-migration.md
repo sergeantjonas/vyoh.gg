@@ -1,6 +1,6 @@
 # Queue identity: migrate `Match.queueType` label → numeric `queueId`
 
-**Status:** Active — chunk 1 of 4 shipped 2026-08-01 (column added, all 5776 rows backfilled, nothing reads it yet). Next: chunk 2, move api reads onto the number.
+**Status:** Active — chunks 1 and 2 of 4 shipped 2026-08-01; every api query now filters on the number. Next: chunk 3, move web onto it and drop the label column.
 
 ## Why
 
@@ -21,8 +21,12 @@ The identity/cadence surfaces (Recent form, Now playing, Queue distribution, Act
 ## Chunks
 
 - **1 — persist the number.** ✅ 2026-08-01. `queueId` on `MatchSummary` + `MatchDetail`, emitted by both mappers; `Match.queueId Int` + `([puuid, queueId, playedAt])` index; migration `20260801000000_lol_match_queue_id` backfills in-place. Nothing reads it yet.
-- **2 — api reads the number.** Move `getCachedMatches`' filter, the snapshot bucketing in `lol.service.ts`, `RANKED_QUEUE_TYPES` in `lol-moments.service.ts`, and the label-keyed sites in `lol-analytics.service.ts` / `lol-champion-analytics.service.ts` off the string.
-- **3 — web reads the number.** `filterToSerious` compares ids and `selectedLabels` is deleted; `queue-color.ts` anchors rekey from labels to ids; labels become render-time `queueLabel(queueId)`. Then drop `queueType` from the wire types and the column.
+- **2 — api reads the number.** ✅ 2026-08-01. `getCachedMatches`' filter, the snapshot bucketing in `lol.service.ts`, the ARAM and calibration filters in `lol-analytics.service.ts`, the champion-extras queue filter, and all 11 ranked-queue filters in `lol-moments.service.ts` now match `Match.queueId`. `RANKED_QUEUE_TYPES` (a local string list) is replaced by `RANKED_QUEUE_IDS` in `@vyoh/shared`, derived from `RANKED_QUEUE_MAP`'s keys so the two can't drift.
+
+  Measured effect on the owner's data: filtering Swarm by 1810 returned **155** rows before (every Swarm variant, because they share a label) and returns **145** after; 1820 returned **155** and returns **10**. Every non-colliding queue is unchanged, which is the check that the migration was faithful.
+
+  One label-keyed site deliberately left for chunk 3: `computeCalibrationByQueue` in `packages/shared/src/lol/pregame-signals.ts` buckets on `queueType` and returns a record keyed by label. The *query* feeding it is numeric now; changing the record's keys changes a wire shape that web consumes, so it moves with web.
+- **3 — web reads the number.** `filterToSerious` compares ids and `selectedLabels` is deleted; `queue-color.ts` anchors rekey from labels to ids; `computeCalibrationByQueue` rekeys its record; labels become render-time `queueLabel(queueId)`. Then drop `queueType` from the wire types and the column.
 - **4 — extend the map.** Brawl (2300, 2301–2305) and ARAM: Mayhem (2400/2401/2403/2405/2410/2450, 3240/3270/3280) are live public modes with no entry today; customs (0, 3100, 3130) get real labels. Must follow chunk 2 — adding a label for a currently-unmapped id while the filter still round-trips strings would break existing rows.
 
 ## Constraint: no LoL Classic

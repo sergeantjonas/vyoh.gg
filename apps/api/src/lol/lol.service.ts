@@ -28,7 +28,7 @@ import { LiveGamePollerService } from "./live-game-poller.service";
 import { MatchEventsService } from "./match-events.service";
 import { extractItems, riotMatchToDetail, riotMatchToSummary } from "./match-mapper";
 import { projectMatchForStorage } from "./match-projection";
-import { RANKED_QUEUE_MAP, queueTypeName } from "./queue-types";
+import { RANKED_QUEUE_MAP } from "./queue-types";
 import { riotTimelineToProjection } from "./timeline-mapper";
 import {
   type TimelineSummaryMetrics,
@@ -172,9 +172,9 @@ export class LolService {
       return { matches: [], total: 0 };
     }
 
-    const where: { puuid: string; queueType?: string } = { puuid: summoner.puuid };
+    const where: { puuid: string; queueId?: number } = { puuid: summoner.puuid };
     if (queue !== undefined) {
-      where.queueType = queueTypeName(queue);
+      where.queueId = queue;
     }
 
     const [total, rows] = await Promise.all([
@@ -877,19 +877,23 @@ export class LolService {
     // has a more recent game — those were covered by a head-sync snapshot.
     const snapshotMatchIds = new Set<string>();
     if (opts.attachSnapshotToNewest) {
-      const newestPerQueue = new Map<string, { matchId: string; playedAt: string }>();
+      // Keyed on queueId, not the label: labels are not injective, so two
+      // distinct queues sharing one would collapse into a single bucket and
+      // only the later of the two would get a snapshot. Solo/flex don't
+      // collide today, but the bucket key should not depend on that.
+      const newestPerQueue = new Map<number, { matchId: string; playedAt: string }>();
       for (const r of fetched) {
         if (r.status !== "fulfilled") continue;
         const { matchId, raw, summary } = r.value;
         if (!RANKED_QUEUE_MAP[raw.info.queueId]) continue;
-        const prev = newestPerQueue.get(summary.queueType);
+        const prev = newestPerQueue.get(summary.queueId);
         if (!prev || summary.playedAt > prev.playedAt) {
-          newestPerQueue.set(summary.queueType, { matchId, playedAt: summary.playedAt });
+          newestPerQueue.set(summary.queueId, { matchId, playedAt: summary.playedAt });
         }
       }
-      for (const [queueType, { matchId, playedAt }] of newestPerQueue) {
+      for (const [queueId, { matchId, playedAt }] of newestPerQueue) {
         const hasNewer = await this.prisma.match.count({
-          where: { puuid, queueType, playedAt: { gt: new Date(playedAt) } },
+          where: { puuid, queueId, playedAt: { gt: new Date(playedAt) } },
         });
         if (hasNewer === 0) snapshotMatchIds.add(matchId);
       }

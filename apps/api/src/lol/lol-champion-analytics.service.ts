@@ -13,7 +13,6 @@ import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
 import type { RiotMatchTimeline } from "../riot/types";
 import { LolService } from "./lol.service";
-import { queueTypeName } from "./queue-types";
 import { frameAtMinute, resolveParticipantId } from "./timeline-summary-mapper";
 
 // Trailing window for the per-champion landing-chapter recap. 365 days
@@ -63,13 +62,12 @@ export class LolChampionAnalyticsService {
     }
     const summoner = await this.lol.resolveSummoner(region, gameName, tagLine);
 
-    const queueNames = queues && queues.length > 0 ? queues.map(queueTypeName) : null;
     const rows = await this.prisma.match.findMany({
       where: {
         puuid: summoner.puuid,
         champion: { equals: championKey, mode: "insensitive" },
         items: { isEmpty: false },
-        ...(queueNames && { queueType: { in: queueNames } }),
+        ...(queues && queues.length > 0 && { queueId: { in: [...queues] } }),
       },
       select: { items: true, laneOpponent: true, win: true, remake: true },
     });

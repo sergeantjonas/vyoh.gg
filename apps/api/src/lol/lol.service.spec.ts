@@ -540,7 +540,7 @@ describe("LolService.getCachedMatches", () => {
     expect(overrides.riot.getAccountByRiotId).not.toHaveBeenCalled();
   });
 
-  it("filters by queue when provided, mapping queue ID to queueType label", async () => {
+  it("filters by queue id, not by the rendered label", async () => {
     const summoner = makeSummoner(true);
     const overrides = makeCachedService({
       summoner,
@@ -552,10 +552,10 @@ describe("LolService.getCachedMatches", () => {
     await service.getCachedMatches("euw1", "Vyoh", "EUW", 0, 20, 420);
 
     expect(overrides.prisma.match.count).toHaveBeenCalledWith({
-      where: { puuid: "puuid-vyoh", queueType: "Ranked Solo" },
+      where: { puuid: "puuid-vyoh", queueId: 420 },
     });
     expect(overrides.prisma.match.findMany).toHaveBeenCalledWith({
-      where: { puuid: "puuid-vyoh", queueType: "Ranked Solo" },
+      where: { puuid: "puuid-vyoh", queueId: 420 },
       orderBy: { playedAt: "desc" },
       skip: 0,
       take: 20,

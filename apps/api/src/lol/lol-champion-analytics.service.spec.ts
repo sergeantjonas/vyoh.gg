@@ -88,7 +88,7 @@ describe("LolChampionAnalyticsService.getChampionExtras", () => {
     expect(result.topItems).toHaveLength(6);
   });
 
-  it("applies a queueType `in` filter when queue ids are provided", async () => {
+  it("applies a queueId `in` filter when queue ids are provided", async () => {
     const prisma = makePrisma();
     prisma.match.findMany.mockResolvedValue([]);
     const resolveSummoner = vi.fn().mockResolvedValue({ puuid: "puuid-vyoh" });
@@ -103,13 +103,13 @@ describe("LolChampionAnalyticsService.getChampionExtras", () => {
     expect(prisma.match.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          queueType: { in: ["Ranked Solo", "Ranked Flex"] },
+          queueId: { in: [420, 440] },
         }),
       })
     );
   });
 
-  it("omits the queueType filter when queue ids are empty or undefined", async () => {
+  it("omits the queue filter when queue ids are empty or undefined", async () => {
     const prisma = makePrisma();
     prisma.match.findMany.mockResolvedValue([]);
     const resolveSummoner = vi.fn().mockResolvedValue({ puuid: "puuid-vyoh" });
@@ -122,7 +122,7 @@ describe("LolChampionAnalyticsService.getChampionExtras", () => {
       []
     );
     const call = prisma.match.findMany.mock.calls[0]?.[0];
-    expect(call?.where).not.toHaveProperty("queueType");
+    expect(call?.where).not.toHaveProperty("queueId");
   });
 
   // `items: { isEmpty: false }` in the where clause does not stand in for the

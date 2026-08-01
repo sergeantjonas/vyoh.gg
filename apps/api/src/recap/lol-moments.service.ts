@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { type RecapCandidate, normalizeLp } from "@vyoh/shared";
+import { RANKED_QUEUE_IDS, type RecapCandidate, normalizeLp } from "@vyoh/shared";
 
 import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -217,21 +217,21 @@ function computeKda(kills: number, deaths: number, assists: number): number {
   return (kills + assists) / Math.max(1, deaths);
 }
 
-/** Queue types where champion pick is a deliberate signal under stakes.
+/** Queues where champion pick is a deliberate signal under stakes.
  *  ARAM rolls champions randomly; Swarm/Arena/URF run modified rulesets that
  *  invite experimentation; Normal Draft is practice space where Ahri OTPs
  *  trying Lee Sin once isn't a "stepping off Ahri" moment. Restricting the
  *  detector to ranked queues keeps the chapter framing honest — the off-meta
- *  pick has to have been a real pick under real ELO consequences. Mirrors
- *  the queueType strings emitted by `match-mapper.ts`. */
-const RANKED_QUEUE_TYPES = ["Ranked Solo", "Ranked Flex"] as const;
+ *  pick has to have been a real pick under real ELO consequences. Matched
+ *  against the numeric `Match.queueId`. */
+const RANKED_MATCH_QUEUES = { queueId: { in: [...RANKED_QUEUE_IDS] } };
 
-/** Riot's internal queueId strings, used on `RankSnapshot.queueId`
- *  (not the editorial `Match.queueType` strings above). The two
- *  vocabularies live on different tables — `Match.queueType` is the
- *  display name emitted by `match-mapper.ts`, while `RankSnapshot.queueId`
- *  is the raw Riot API value. R-7i Lane B's `detectLifetimePeak` reads
- *  from `RankSnapshot`, so it needs these. */
+/** Riot's internal queueType strings, used on `RankSnapshot.queueId`.
+ *  Beware the name: `RankSnapshot.queueId` is a *string* column holding the
+ *  League-V4 vocabulary ("RANKED_SOLO_5x5"), while `Match.queueId` is the
+ *  numeric Match-V5 one (420). The two tables genuinely disagree about what
+ *  a "queue id" is. R-7i Lane B's `detectLifetimePeak` reads `RankSnapshot`,
+ *  so it needs these. */
 const RIOT_RANKED_QUEUE_IDS = ["RANKED_SOLO_5x5", "RANKED_FLEX_SR"] as const;
 
 /**
@@ -318,7 +318,7 @@ export class LolMomentsService {
         puuid: { in: ownerPuuids },
         playedAt: { gte: mainPoolCutoff },
         remake: false,
-        queueType: { in: [...RANKED_QUEUE_TYPES] },
+        ...RANKED_MATCH_QUEUES,
       },
       _count: { _all: true },
     });
@@ -336,7 +336,7 @@ export class LolMomentsService {
         puuid: { in: ownerPuuids },
         playedAt: { gte: candidateCutoff },
         remake: false,
-        queueType: { in: [...RANKED_QUEUE_TYPES] },
+        ...RANKED_MATCH_QUEUES,
         champion: { notIn: Array.from(mainPool) },
       },
       orderBy: { playedAt: "desc" },
@@ -420,7 +420,7 @@ export class LolMomentsService {
         puuid: { in: ownerPuuids },
         playedAt: { gte: candidateCutoff },
         remake: false,
-        queueType: { in: [...RANKED_QUEUE_TYPES] },
+        ...RANKED_MATCH_QUEUES,
         snapshotTier: { not: null },
         snapshotRank: { not: null },
         snapshotLp: { not: null },
@@ -552,7 +552,7 @@ export class LolMomentsService {
         puuid: { in: ownerPuuids },
         playedAt: { gte: candidateCutoff },
         remake: false,
-        queueType: { in: [...RANKED_QUEUE_TYPES] },
+        ...RANKED_MATCH_QUEUES,
       },
       orderBy: { playedAt: "desc" },
       select: {
@@ -662,7 +662,7 @@ export class LolMomentsService {
       where: {
         puuid: { in: ownerPuuids },
         remake: false,
-        queueType: { in: [...RANKED_QUEUE_TYPES] },
+        ...RANKED_MATCH_QUEUES,
       },
       orderBy: { playedAt: "asc" },
       select: {
@@ -758,7 +758,7 @@ export class LolMomentsService {
       where: {
         puuid: { in: ownerPuuids },
         remake: false,
-        queueType: { in: [...RANKED_QUEUE_TYPES] },
+        ...RANKED_MATCH_QUEUES,
       },
       orderBy: { playedAt: "desc" },
       take: STREAK_SCAN_LIMIT,
@@ -850,7 +850,7 @@ export class LolMomentsService {
       where: {
         puuid: { in: ownerPuuids },
         remake: false,
-        queueType: { in: [...RANKED_QUEUE_TYPES] },
+        ...RANKED_MATCH_QUEUES,
         playedAt: { gte: windowCutoff },
       },
       orderBy: { playedAt: "asc" },
@@ -980,7 +980,7 @@ export class LolMomentsService {
         puuid: { in: ownerPuuids },
         playedAt: { gte: windowCutoff },
         remake: false,
-        queueType: { in: [...RANKED_QUEUE_TYPES] },
+        ...RANKED_MATCH_QUEUES,
       },
       _count: { _all: true },
     });
@@ -1017,7 +1017,7 @@ export class LolMomentsService {
           puuid: { in: ownerPuuids },
           playedAt: { gte: windowCutoff },
           remake: false,
-          queueType: { in: [...RANKED_QUEUE_TYPES] },
+          ...RANKED_MATCH_QUEUES,
         },
         orderBy: { playedAt: "desc" },
         select: { playedAt: true },
@@ -1027,7 +1027,7 @@ export class LolMomentsService {
           puuid: { in: ownerPuuids },
           playedAt: { gte: windowCutoff },
           remake: false,
-          queueType: { in: [...RANKED_QUEUE_TYPES] },
+          ...RANKED_MATCH_QUEUES,
           champion: favorite.champion,
         },
         select: {
@@ -1152,7 +1152,7 @@ export class LolMomentsService {
       this.prisma.match.findFirst({
         where: {
           puuid: { in: ownerPuuids },
-          queueType: { in: [...RANKED_QUEUE_TYPES] },
+          ...RANKED_MATCH_QUEUES,
         },
         orderBy: { playedAt: "desc" },
         select: { matchId: true, champion: true },

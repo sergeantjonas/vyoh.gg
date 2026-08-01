@@ -1122,7 +1122,7 @@ describe("LolAnalyticsService.getAramProfile", () => {
 
     expect(prisma.match.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ queueType: "ARAM" }),
+        where: expect.objectContaining({ queueId: 450 }),
       })
     );
   });

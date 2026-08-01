@@ -290,18 +290,14 @@ describe("LolMomentsService.detectOffMetaPicks", () => {
     await service.detectOffMetaPicks(NOW);
 
     const groupByArgs = vi.mocked(prisma.match.groupBy).mock.calls[0]?.[0] as {
-      where: { queueType: { in: string[] } };
+      where: { queueId: { in: number[] } };
     };
-    expect(new Set(groupByArgs.where.queueType.in)).toEqual(
-      new Set(["Ranked Solo", "Ranked Flex"])
-    );
+    expect(new Set(groupByArgs.where.queueId.in)).toEqual(new Set([420, 440]));
 
     const findArgs = vi.mocked(prisma.match.findFirst).mock.calls[0]?.[0] as {
-      where: { queueType: { in: string[] } };
+      where: { queueId: { in: number[] } };
     };
-    expect(new Set(findArgs.where.queueType.in)).toEqual(
-      new Set(["Ranked Solo", "Ranked Flex"])
-    );
+    expect(new Set(findArgs.where.queueId.in)).toEqual(new Set([420, 440]));
   });
 
   it("clamps daysSince to 0 when the match's playedAt is in the future (clock skew)", async () => {
@@ -512,15 +508,13 @@ describe("LolMomentsService.detectRankUps", () => {
     await service.detectRankUps(NOW);
     const args = vi.mocked(prisma.match.findMany).mock.calls[0]?.[0] as {
       where: {
-        queueType: { in: string[] };
+        queueId: { in: number[] };
         snapshotTier: { not: null };
         snapshotTierBefore: { not: null };
       };
       orderBy: { playedAt: "asc" | "desc" };
     };
-    expect(new Set(args.where.queueType.in)).toEqual(
-      new Set(["Ranked Solo", "Ranked Flex"])
-    );
+    expect(new Set(args.where.queueId.in)).toEqual(new Set([420, 440]));
     expect(args.where.snapshotTier).toEqual({ not: null });
     expect(args.where.snapshotTierBefore).toEqual({ not: null });
     expect(args.orderBy.playedAt).toBe("desc");
@@ -703,10 +697,8 @@ describe("LolMomentsService.detectKdaOutliers", () => {
         (c[0] as { where: { snapshotTier?: unknown } }).where?.snapshotTier === undefined
     );
     expect(kdaCall).toBeTruthy();
-    const args = kdaCall?.[0] as { where: { queueType: { in: string[] } } };
-    expect(new Set(args.where.queueType.in)).toEqual(
-      new Set(["Ranked Solo", "Ranked Flex"])
-    );
+    const args = kdaCall?.[0] as { where: { queueId: { in: number[] } } };
+    expect(new Set(args.where.queueId.in)).toEqual(new Set([420, 440]));
   });
 });
 
@@ -883,10 +875,8 @@ describe("LolMomentsService.detectReturnsFromHiatus", () => {
       return w?.snapshotTier === undefined && w?.playedAt === undefined;
     });
     expect(hiatusCall).toBeTruthy();
-    const args = hiatusCall?.[0] as { where: { queueType: { in: string[] } } };
-    expect(new Set(args.where.queueType.in)).toEqual(
-      new Set(["Ranked Solo", "Ranked Flex"])
-    );
+    const args = hiatusCall?.[0] as { where: { queueId: { in: number[] } } };
+    expect(new Set(args.where.queueId.in)).toEqual(new Set([420, 440]));
   });
 });
 
@@ -1063,13 +1053,11 @@ describe("LolMomentsService.detectStreaks", () => {
     const streakCall = calls.find((c) => (c[0] as { take?: number }).take !== undefined);
     expect(streakCall).toBeTruthy();
     const args = streakCall?.[0] as {
-      where: { queueType: { in: string[] } };
+      where: { queueId: { in: number[] } };
       take: number;
     };
     expect(args.take).toBeGreaterThan(0);
-    expect(new Set(args.where.queueType.in)).toEqual(
-      new Set(["Ranked Solo", "Ranked Flex"])
-    );
+    expect(new Set(args.where.queueId.in)).toEqual(new Set([420, 440]));
   });
 });
 
@@ -1225,10 +1213,8 @@ describe("LolMomentsService.detectMarathons", () => {
       return args.where?.playedAt !== undefined && args.orderBy?.playedAt === "asc";
     });
     expect(marathonCall).toBeTruthy();
-    const args = marathonCall?.[0] as { where: { queueType: { in: string[] } } };
-    expect(new Set(args.where.queueType.in)).toEqual(
-      new Set(["Ranked Solo", "Ranked Flex"])
-    );
+    const args = marathonCall?.[0] as { where: { queueId: { in: number[] } } };
+    expect(new Set(args.where.queueId.in)).toEqual(new Set([420, 440]));
   });
 });
 
@@ -1416,14 +1402,12 @@ describe("LolMomentsService.detectFavoriteChampions", () => {
     expect(favoriteGroupBy).toBeTruthy();
     const args = favoriteGroupBy?.[0] as {
       where: {
-        queueType?: { in: readonly string[] };
+        queueId?: { in: readonly number[] };
         remake?: boolean;
       };
     };
     expect(args.where.remake).toBe(false);
-    expect(new Set(args.where.queueType?.in ?? [])).toEqual(
-      new Set(["Ranked Solo", "Ranked Flex"])
-    );
+    expect(new Set(args.where.queueId?.in ?? [])).toEqual(new Set([420, 440]));
   });
 });
 
