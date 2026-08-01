@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import {
+  RANKED_QUEUE_KEYS,
+  RANKED_QUEUE_KEY_TO_TYPE,
   type SteamGameRecap,
   excludeRemakes,
   formatDuration,
@@ -135,11 +137,13 @@ export class OgService {
       ),
     ]);
 
-    // Rank line — prefer solo over flex (matches the in-app hierarchy). Apex
+    // Rank line — walks RANKED_QUEUE_KEYS, whose order is the in-app display
+    // hierarchy, and takes the first ladder the account has standing on. Apex
     // tiers (Master+) drop the division to match what the frontend renders.
-    const solo = profile.rankEntries.find((r) => r.queueId === "RANKED_SOLO_5x5");
-    const flex = profile.rankEntries.find((r) => r.queueId === "RANKED_FLEX_SR");
-    const primary = solo ?? flex ?? null;
+    const primary =
+      RANKED_QUEUE_KEYS.map((key) =>
+        profile.rankEntries.find((r) => r.queueId === RANKED_QUEUE_KEY_TO_TYPE[key])
+      ).find((entry) => entry !== undefined) ?? null;
     const rankLine = primary
       ? `${capitalize(primary.tier)}${APEX_TIERS.has(primary.tier) ? "" : ` ${primary.rank}`} · ${primary.leaguePoints} LP`
       : null;

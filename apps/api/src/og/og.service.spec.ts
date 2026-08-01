@@ -367,6 +367,40 @@ describe("OgService.generateProfileCard", () => {
     );
   });
 
+  // The rank line walks the display order and takes the first ladder with
+  // standing, so an account ranked only on premade-5s gets a rank line rather
+  // than the null the hardcoded solo-then-flex lookup produced.
+  it("falls through the display order to whichever ladder has standing", async () => {
+    renderProfileCardMock.mockClear();
+    const service = makeService({
+      identity: { findBySlug: vi.fn().mockReturnValue(ACCOUNT) },
+      lol: {
+        getSummonerProfile: vi.fn().mockResolvedValue({
+          profileIconId: null,
+          summonerLevel: null,
+          rankEntries: [
+            {
+              queueId: "RANKED_PREMADE_5x5",
+              tier: "MASTER",
+              rank: "I",
+              leaguePoints: 12,
+              wins: 8,
+              losses: 4,
+              hotStreak: false,
+            },
+          ],
+        }),
+        getCachedMatches: vi.fn().mockResolvedValue({ matches: [], total: 0 }),
+      },
+    });
+
+    await service.generateProfileCard("vyoh-ahri");
+
+    expect(renderProfileCardMock).toHaveBeenCalledWith(
+      expect.objectContaining({ rankLine: "Master · 12 LP" })
+    );
+  });
+
   it("renders rankLine null when no rank entries exist", async () => {
     renderProfileCardMock.mockClear();
     const service = makeService({

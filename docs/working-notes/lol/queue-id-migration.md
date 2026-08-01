@@ -1,6 +1,6 @@
 # Queue identity: migrate `Match.queueType` label → numeric `queueId`
 
-**Status:** Active — chunks 1–4 and 5a shipped 2026-08-01. `queueType` no longer exists, every live queue has a label, and the rank poller now persists queue 710's `RANKED_PREMADE_5x5` ladder instead of discarding it. 5b (the `rankEntries` display surfaces) and 5c (the serious-queues opt-in) remain.
+**Status:** Active — chunks 1–4, 5a and 5b shipped 2026-08-01. `queueType` no longer exists, every live queue has a label, and queue 710's `RANKED_PREMADE_5x5` ladder is captured and displayed everywhere solo and flex are. Only 5c (the serious-queues opt-in) remains.
 
 ## Why
 
@@ -58,7 +58,11 @@ The identity/cadence surfaces (Recent form, Now playing, Queue distribution, Act
 
     Nothing backfills. Riot exposes no history for this ladder, so the premade series starts accumulating from deploy — the friend's 12 played games are unrecoverable, and the chart will be empty on it until new snapshots land.
 
-  - **5b — the `rankEntries` surfaces.** Open. Separate mechanism from 5a: these read `RankEntry.queueId`, which carries the *League-V4 string*, not the numeric queueId. `nav.tsx`, `hero-rank-strip.tsx` (`QUEUE_LABEL` + `QUEUE_ORDER` + the storage-key map), `og.service.ts:140-141`, and `live-game-poller.service.ts:212` — the last picks solo unconditionally for the live overlay, so a premade game in progress shows a solo rank.
+  - **5b — the `rankEntries` surfaces.** ✅ 2026-08-01. A separate mechanism from 5a: these read `RankEntry.queueId`, which carries the *League-V4 string*, not the numeric queueId. The hero strip's `QUEUE_LABEL`, `QUEUE_ORDER` and storage-key map all derive from `RANKED_QUEUE_KEYS` now; the OG card's rank line walks that order and takes the first ladder with standing instead of `solo ?? flex`; nav keeps its own two-character-shorter vocabulary but keys it on `RankedQueueKey`, so a future ladder is a compile error rather than a raw `RANKED_PREMADE_5x5` leaking into the dropdown.
+
+    **The live poller was showing the wrong rank, not just a missing one.** It picked solo unconditionally, so every participant in a flex or premade lobby wore a rank from a queue they were not playing. It now prefers the ladder matching `gameQueueConfigId` and falls back to the display order — which also fixes flex lobbies, a case that predates 710 entirely.
+
+    One deliberate asymmetry: solo and flex always hold a hero column so the strip cannot reflow to one, but a ladder beyond those two earns its column only once the account has standing on it. A permanently-empty third rail costs hero space on every profile that never touches the queue. The LP-history and season-history tabs make the opposite call (all three always render, disabled when empty) because a disabled tab in a segmented control is cheap where an empty hero column is not.
   - **5c — serious-queues opt-in.** Open, one line plus a test: `{ id: 710, label: "Ranked 5s" }` joins `CONFIGURABLE_SERIOUS_QUEUES`, and `DEFAULT_SERIOUS_QUEUE_IDS` stays `[420, 440]` so 710 is off until the owner turns it on.
 
 ## Constraint: no LoL Classic

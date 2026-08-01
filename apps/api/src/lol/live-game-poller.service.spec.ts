@@ -254,6 +254,72 @@ describe("LiveGamePollerService poll → getForPuuid", () => {
     });
   });
 
+  it("shows the ladder the game in progress is played on, not always solo", async () => {
+    // The pick used to be hardcoded to solo, so every participant in a flex or
+    // premade-5s lobby wore a rank from a queue they weren't playing.
+    const stubs = makeStubs();
+    stubs.identity.getLolAccounts.mockReturnValue([ACCOUNT]);
+    stubs.prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    stubs.riot.getActiveGameByPuuid.mockResolvedValueOnce(
+      activeGame({ gameQueueConfigId: 710 })
+    );
+    stubs.riot.getLeagueEntriesByPuuid.mockResolvedValue([
+      {
+        queueType: "RANKED_SOLO_5x5",
+        tier: "PLATINUM",
+        rank: "III",
+        leaguePoints: 22,
+        wins: 30,
+        losses: 28,
+      },
+      {
+        queueType: "RANKED_PREMADE_5x5",
+        tier: "MASTER",
+        rank: "I",
+        leaguePoints: 12,
+        wins: 8,
+        losses: 4,
+      },
+    ]);
+
+    const service = makeService(stubs);
+    await (service as unknown as { poll(): Promise<void> }).poll();
+    await drainMicrotasks();
+
+    const me = service
+      .getForPuuid("puuid-vyoh")
+      ?.participants.find((p) => p.puuid === "puuid-vyoh");
+    expect(me?.rank).toEqual({ tier: "MASTER", rank: "I", lp: 12, wins: 8, losses: 4 });
+  });
+
+  it("falls back to the display order in a queue that carries no LP", async () => {
+    const stubs = makeStubs();
+    stubs.identity.getLolAccounts.mockReturnValue([ACCOUNT]);
+    stubs.prisma.summoner.findUnique.mockResolvedValue({ puuid: "puuid-vyoh" });
+    stubs.riot.getActiveGameByPuuid.mockResolvedValueOnce(
+      activeGame({ gameQueueConfigId: 450 })
+    );
+    stubs.riot.getLeagueEntriesByPuuid.mockResolvedValue([
+      {
+        queueType: "RANKED_FLEX_SR",
+        tier: "DIAMOND",
+        rank: "I",
+        leaguePoints: 80,
+        wins: 50,
+        losses: 40,
+      },
+    ]);
+
+    const service = makeService(stubs);
+    await (service as unknown as { poll(): Promise<void> }).poll();
+    await drainMicrotasks();
+
+    const me = service
+      .getForPuuid("puuid-vyoh")
+      ?.participants.find((p) => p.puuid === "puuid-vyoh");
+    expect(me?.rank?.tier).toBe("DIAMOND");
+  });
+
   it("surfaces partial enrichment when one Riot enrichment call rejects", async () => {
     // Realistic Riot failure mode: rate-limited on league/mastery for one
     // participant while the other call still succeeds. The projection should

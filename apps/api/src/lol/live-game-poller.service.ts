@@ -4,6 +4,11 @@ import {
   type OnApplicationBootstrap,
   type OnModuleDestroy,
 } from "@nestjs/common";
+import {
+  RANKED_QUEUE_KEYS,
+  RANKED_QUEUE_KEY_TO_TYPE,
+  RANKED_QUEUE_MAP,
+} from "@vyoh/shared";
 import type { LolAccount } from "@vyoh/shared";
 import type { LiveBan, LiveGameParticipant, LiveMatch } from "@vyoh/shared";
 import { IdentityService } from "../identity/identity.service";
@@ -207,18 +212,28 @@ export class LiveGamePollerService implements OnApplicationBootstrap, OnModuleDe
         const currentEntry = this.cache.get(ownerPuuid);
         if (!currentEntry || currentEntry.gameId !== game.gameId) return;
 
-        const soloEntry =
-          rankEntries.status === "fulfilled"
-            ? (rankEntries.value.find((e) => e.queueType === "RANKED_SOLO_5x5") ?? null)
-            : null;
+        // Show the ladder the game in progress actually plays on, so a flex or
+        // premade-5s lobby doesn't label everyone with their solo rank. Falls
+        // back to RANKED_QUEUE_KEYS order for unranked queues, where any
+        // standing the participant has is better than none.
+        const entries = rankEntries.status === "fulfilled" ? rankEntries.value : [];
+        const preferred = [
+          RANKED_QUEUE_MAP[game.gameQueueConfigId],
+          ...RANKED_QUEUE_KEYS.map((key) => RANKED_QUEUE_KEY_TO_TYPE[key]),
+        ];
+        const rankEntry =
+          preferred
+            .filter((queueType) => queueType !== undefined)
+            .map((queueType) => entries.find((e) => e.queueType === queueType))
+            .find((e) => e !== undefined) ?? null;
 
-        const rank = soloEntry
+        const rank = rankEntry
           ? {
-              tier: soloEntry.tier,
-              rank: soloEntry.rank,
-              lp: soloEntry.leaguePoints,
-              wins: soloEntry.wins,
-              losses: soloEntry.losses,
+              tier: rankEntry.tier,
+              rank: rankEntry.rank,
+              lp: rankEntry.leaguePoints,
+              wins: rankEntry.wins,
+              losses: rankEntry.losses,
             }
           : null;
 

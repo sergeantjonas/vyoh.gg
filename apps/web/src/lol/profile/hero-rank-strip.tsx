@@ -4,28 +4,37 @@ import { cn } from "@/lib/utils";
 import { rankEmblemUrl } from "@/lol/_shared/assets/champion-icon";
 import { useRankedEmblemYear } from "@/lol/_shared/use-ranked-emblem-year";
 import {
-  QUEUE_TYPES,
+  RANKED_QUEUE_KEYS,
   RANKED_QUEUE_KEY_TO_ID,
   RANKED_QUEUE_KEY_TO_TYPE,
   type RankEntry,
+  type RankedQueueKey,
   formatPercent,
+  queueLabel,
 } from "@vyoh/shared";
 import { Flame } from "lucide-react";
 import { m, useReducedMotion } from "motion/react";
 import { TIER_COLOR, TIER_GLOW } from "./tier-colors";
 
-// Queue rendering uses the canonical compact labels from QUEUE_TYPES ("Ranked
-// Solo" / "Ranked Flex"), keyed by the League-V4 queueType string we get back
-// in RankEntry rows. The two RANKED_QUEUE_KEY maps from shared bridge the
-// queueType string back to the numeric queueId that QUEUE_TYPES is keyed on.
-const QUEUE_LABEL: Record<string, string> = {
-  [RANKED_QUEUE_KEY_TO_TYPE.solo]:
-    QUEUE_TYPES[RANKED_QUEUE_KEY_TO_ID.solo] ?? "Ranked Solo",
-  [RANKED_QUEUE_KEY_TO_TYPE.flex]:
-    QUEUE_TYPES[RANKED_QUEUE_KEY_TO_ID.flex] ?? "Ranked Flex",
-};
+// Queue rendering uses the canonical compact labels ("Ranked Solo" / "Ranked
+// Flex" / "Ranked 5s"), keyed by the League-V4 queueType string we get back in
+// RankEntry rows. The RANKED_QUEUE_KEY maps from shared bridge the queueType
+// string back to the numeric queueId that the label map is keyed on.
+const QUEUE_LABEL: Record<string, string> = Object.fromEntries(
+  RANKED_QUEUE_KEYS.map((key) => [
+    RANKED_QUEUE_KEY_TO_TYPE[key],
+    queueLabel(RANKED_QUEUE_KEY_TO_ID[key]),
+  ])
+);
 
-const QUEUE_ORDER = [RANKED_QUEUE_KEY_TO_TYPE.solo, RANKED_QUEUE_KEY_TO_TYPE.flex];
+// Every ranked player has solo and flex, so both hold a column even when
+// unranked — the strip must not reflow to one. A ladder beyond those two only
+// earns a column once the account has standing on it; a permanently-empty
+// third column costs hero space that most accounts would never fill.
+const ALWAYS_SHOWN: ReadonlySet<RankedQueueKey> = new Set<RankedQueueKey>([
+  "solo",
+  "flex",
+]);
 const APEX_TIERS = new Set(["MASTER", "GRANDMASTER", "CHALLENGER"]);
 
 function tierLabel(entry: RankEntry): string {
@@ -53,9 +62,9 @@ function RankCell({
   reduced: boolean;
   accountSlug: string;
   // Per-queue scope so a solo-queue LP peak doesn't clobber the flex peak.
-  // Identifier is the short key ("solo" / "flex") not the API queueType
-  // string so the storageKey stays terse and the wire format is stable.
-  queueKey: "solo" | "flex";
+  // Identifier is the short key ("solo" / "flex" / "premade") not the API
+  // queueType string so the storageKey stays terse and the wire format stable.
+  queueKey: RankedQueueKey;
 }) {
   const emblemYear = useRankedEmblemYear();
 
@@ -258,13 +267,9 @@ export function HeroRankStrip({
 }) {
   const reduced = useReducedMotion();
   const byQueue = new Map(entries.map((e) => [e.queueId, e]));
-  // Map the QueueType string back to the short "solo"/"flex" key for the
-  // storage scope. Anchored on RANKED_QUEUE_KEY_TO_TYPE so it stays in sync
-  // with the shared queue-id constants instead of stringly-matching.
-  const queueIdToKey: Record<string, "solo" | "flex"> = {
-    [RANKED_QUEUE_KEY_TO_TYPE.solo]: "solo",
-    [RANKED_QUEUE_KEY_TO_TYPE.flex]: "flex",
-  };
+  const shown = RANKED_QUEUE_KEYS.filter(
+    (key) => ALWAYS_SHOWN.has(key) || byQueue.has(RANKED_QUEUE_KEY_TO_TYPE[key])
+  );
 
   return (
     <m.div
@@ -273,18 +278,21 @@ export function HeroRankStrip({
       transition={reduced ? { duration: 0 } : { delay: compact ? 0 : 0.3, duration: 0.3 }}
       className="relative flex flex-col gap-4 border-white/10 border-t bg-background/20 px-6 py-4 backdrop-blur-xs sm:flex-row sm:gap-6"
     >
-      {QUEUE_ORDER.map((queueId) => (
-        <RankCell
-          key={queueId}
-          entry={byQueue.get(queueId)}
-          recentLp={recentLpByQueue?.[queueId]}
-          label={QUEUE_LABEL[queueId] ?? queueId}
-          compact={compact}
-          reduced={!!reduced}
-          accountSlug={accountSlug ?? ""}
-          queueKey={queueIdToKey[queueId] ?? "solo"}
-        />
-      ))}
+      {shown.map((key) => {
+        const queueId = RANKED_QUEUE_KEY_TO_TYPE[key];
+        return (
+          <RankCell
+            key={key}
+            entry={byQueue.get(queueId)}
+            recentLp={recentLpByQueue?.[queueId]}
+            label={QUEUE_LABEL[queueId] ?? queueId}
+            compact={compact}
+            reduced={!!reduced}
+            accountSlug={accountSlug ?? ""}
+            queueKey={key}
+          />
+        );
+      })}
     </m.div>
   );
 }

@@ -27,7 +27,11 @@ import { steamOwnedGamesQueryOptions } from "@/steam/use-owned-games";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
-import type { LolAccountWithSummary } from "@vyoh/shared";
+import {
+  type LolAccountWithSummary,
+  RANKED_QUEUE_TYPE_TO_KEY,
+  type RankedQueueKey,
+} from "@vyoh/shared";
 import { formatRank } from "@vyoh/shared/lol/rank-history";
 import { Activity, Home, ScrollText, Search } from "lucide-react";
 import { m } from "motion/react";
@@ -379,14 +383,21 @@ function LolMenuPanel({
   );
 }
 
-// Compact queue label for the dropdown's sub-line — the full names
-// ("Ranked Solo", "Ranked Flex") used on the profile rank tiles are too
-// wide for the 280px-ish menu width. Unknown queues fall through to the
-// raw id so a future ranked queue still reads in the UI.
+// Compact queue label for the dropdown's sub-line — the full names ("Ranked
+// Solo", "Ranked Flex") used on the profile rank tiles are too wide for the
+// 280px-ish menu width, and even the shared RANKED_QUEUE_KEY_LABEL spends
+// four characters on "Solo/Duo" that this line doesn't have. Keyed on
+// RankedQueueKey so a new ladder is a compile error here rather than a raw
+// League-V4 string leaking into the UI.
+const NAV_QUEUE_LABEL: Record<RankedQueueKey, string> = {
+  solo: "Solo",
+  flex: "Flex",
+  premade: "5s",
+};
+
 function queueShortLabel(queueId: string): string {
-  if (queueId === "RANKED_SOLO_5x5") return "Solo";
-  if (queueId === "RANKED_FLEX_SR") return "Flex";
-  return queueId;
+  const key = RANKED_QUEUE_TYPE_TO_KEY[queueId];
+  return key ? NAV_QUEUE_LABEL[key] : queueId;
 }
 
 // Profile icons and rank emblems in the dropdown load over the network and

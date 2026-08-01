@@ -80,6 +80,31 @@ describe("HeroRankStrip", () => {
     expect(container.querySelector('img[src*="/rank/UNRANKED/"]')).toBeTruthy();
   });
 
+  // Solo and flex always hold a column so the strip can't reflow to one. A
+  // ladder beyond those two earns its column only once the account has
+  // standing on it — otherwise most profiles carry a permanent empty rail.
+  it("omits the premade-5s column for an account with no standing on it", () => {
+    renderStrip([entry({ queueId: "RANKED_SOLO_5x5" })]);
+    expect(screen.queryByText("Ranked 5s")).toBeNull();
+    expect(screen.getAllByText("Unranked")).toHaveLength(1);
+  });
+
+  it("adds the premade-5s column once the account is ranked on it", () => {
+    renderStrip([
+      entry({ queueId: "RANKED_SOLO_5x5" }),
+      entry({
+        queueId: "RANKED_PREMADE_5x5",
+        tier: "MASTER",
+        rank: "I",
+        leaguePoints: 12,
+      }),
+    ]);
+    expect(screen.getByText("Ranked 5s")).toBeTruthy();
+    expect(screen.getByText("Master")).toBeTruthy();
+    // Flex still holds its column even though it is unranked.
+    expect(screen.getAllByText("Unranked")).toHaveLength(1);
+  });
+
   it("renders both queues when both are ranked", () => {
     renderStrip([
       entry({
