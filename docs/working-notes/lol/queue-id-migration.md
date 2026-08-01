@@ -1,6 +1,6 @@
 # Queue identity: migrate `Match.queueType` label → numeric `queueId`
 
-**Status:** Active — chunks 1, 2, 3a and 3b shipped 2026-08-01. `queueType` no longer exists: not on the wire, not in the database. Only chunk 4 (extend the label map) remains.
+**Status:** Active — chunks 1–4 shipped 2026-08-01; `queueType` no longer exists, and every live queue has a label. Chunk 5 is open and was not in the original plan: queue 710 ("Ranked 5s") carries LP on a `RANKED_PREMADE_5x5` ladder that the rank poller discards.
 
 ## Why
 
@@ -38,9 +38,21 @@ The identity/cadence surfaces (Recent form, Now playing, Queue distribution, Act
   **Found a live bug while doing it.** `match-detail-recap-tab` gated the owner's CS personal-record wrap on `RANKED_QUEUE_TYPES.has(matchQueueType)`, where the Set held *League-V4* strings (`RANKED_SOLO_5x5`) and the argument was the *Match-V5* label (`Ranked Solo`). It had never matched, in any queue — `Set<string>.has(string)` type-checks perfectly. The prop is now `matchQueueId: number` tested against `RANKED_QUEUE_IDS`, with tests pinning both the ranked and the excluded case. Four `MatchSummary` test fixtures carried the same mix-up in the other direction (`queueType: "RANKED_SOLO_5x5"`), harmless only because nothing read the field.
 
   Also fixed in passing: `prisma/seed.ts` had been broken since chunk 1 made `queueId` required. `prisma/*.ts` sits outside the api's `include: ["src"]`, so no typecheck covers it.
-- **4 — extend the map.** Brawl (2300, 2301–2305) and ARAM: Mayhem (2400/2401/2403/2405/2410/2450, 3240/3270/3280) are live public modes with no entry today; customs (0, 3100, 3130) and **710** (found in the owner's data during 3b, 1 row) get real labels. Must follow chunk 2 — adding a label for a currently-unmapped id while the filter still round-trips strings would break existing rows.
+- **4 — extend the map.** ✅ 2026-08-01. Brawl (2300, 2301–2305), ARAM: Mayhem (2400/2401/2403/2405/2410/2450, 3240/3270/3280), customs (0, 3100), Tournament Draft (3130) and **710 → "Ranked 5s"**. Brawl and Mayhem join `NON_LANED_QUEUE_IDS`; 710 joins `SR_LANE_QUEUE_IDS` (verified from its own payload: mapId 11, 10 participants, `teamPosition` populated). `queueLabelExpanded`'s `queueId === 0` special case folded into the map.
 
-  Chunk 3b removed the cost of getting this wrong: labels are now derived at render, so a map update relabels every existing row instead of only the ones ingested afterwards.
+  Because 3b made the label derived, this relabelled every already-stored row on deploy — the reported `Queue 710` included — with no backfill.
+
+  **Names came from CommunityDragon's queue catalogue, not Riot's static `queues.json`, which does not contain 710 at all.** Prefer CommunityDragon when adding a live queue; the static doc lags.
+
+- **5 — the `RANKED_PREMADE_5x5` ladder.** Not started. 710 carries real LP on its own League-V4 ladder, and we throw every capture of it away.
+
+  Confirmed against live Riot data 2026-08-01: League-V4 `entries/by-puuid` returns `RANKED_PREMADE_5x5` (MASTER I, 8W/4L) alongside solo and flex, and match-v5 `ids?queue=710` returns exactly 12 — the same 12 games. Riot has repurposed the legacy premade-team string for this queue.
+
+  **Do not conclude "there is no ladder" from the `RankSnapshot` table.** [lol.service.ts:505](../../../apps/api/src/lol/lol.service.ts) `continue`s past any `queueType` that is not solo or flex before writing, so the table can only ever contain those two — querying it and reading the result as evidence about what League-V4 returns is circular, and did produce a wrong answer once.
+
+  The two-ladder assumption is hardcoded at ~15 sites, so this is not a map edit: `lol.service.ts` (the poller filter, the rank-history fetch pair, the solo/flex snapshot bucketing, the latest-per-queue read), `RankHistoryResponse`'s `{ solo, flex }` wire shape, `live-game-poller`, `og.service`, `nav.tsx`, `$accountSlug/index.tsx`, plus the `RankedQueueKey = "solo" | "flex"` union behind LP history, season history and the hero rank strip.
+
+  Two product decisions gate it: whether 710 enters `RANKED_QUEUE_MAP` (which would put it in `RANKED_QUEUE_IDS` — the moment detectors' "real ELO consequences" filter and the CS personal-record gate), and whether it joins `CONFIGURABLE_SERIOUS_QUEUES` so its games can count toward statistics. Note `RANKED_QUEUE_IDS` is documented as "which queues carry LP"; 710 satisfies that, so leaving it out needs its own reason.
 
 ## Constraint: no LoL Classic
 

@@ -24,7 +24,19 @@ describe("queueLabel", () => {
 
   it("falls back to `Queue <id>` for unmapped ids", () => {
     expect(queueLabel(9999)).toBe("Queue 9999");
-    expect(queueLabel(0)).toBe("Queue 0");
+  });
+
+  // 710 is live but absent from Riot's static queues.json, so the label comes
+  // from CommunityDragon's catalogue. It reached production as "Queue 710".
+  it("names queues Riot's static docs omit", () => {
+    expect(queueLabel(710)).toBe("Ranked 5s");
+  });
+
+  it("names the queues that render as one family", () => {
+    expect(queueLabel(2300)).toBe("Brawl");
+    expect(queueLabel(2305)).toBe("Brawl");
+    expect(queueLabel(2400)).toBe("ARAM: Mayhem");
+    expect(queueLabel(3280)).toBe("ARAM: Mayhem");
   });
 });
 
