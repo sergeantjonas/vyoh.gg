@@ -1,6 +1,6 @@
 # API exposure audit — what an anonymous caller can do
 
-**Status:** Active — audit complete 2026-08-03, remediation not started. Opened after the owner asked what protects the backend from unauthorized access; a ten-lane sweep followed. **22 findings, all code-verified against `main` and several confirmed live against the running api**; one reported finding was refuted by probe and is recorded as such. Remediation is a launch gate, mirrored in [pre-launch-sweep.md](pre-launch-sweep.md). Nothing here is reachable today because the api is not public — every item except F-5 becomes live the moment `api.vyoh.gg` resolves.
+**Status:** Active — audit complete 2026-08-03; remediation underway the same day. **10 of 22 findings fixed** (F-1, F-2, F-4, F-5, F-7 partly, F-8, F-9, F-10, F-19, F-20, plus half of F-21); `/og` (F-3/F-17) is the largest item left and the cheapest outage lever in the audit. Opened after the owner asked what protects the backend from unauthorized access; a ten-lane sweep followed. **22 findings, all code-verified against `main` and several confirmed live against the running api**; one reported finding was refuted by probe and is recorded as such. Remediation is a launch gate, mirrored in [pre-launch-sweep.md](pre-launch-sweep.md). Nothing here is reachable today because the api is not public — every item except F-5 becomes live the moment `api.vyoh.gg` resolves.
 
 [owner-auth.md](owner-auth.md) covers the *identity* question (who may call the mutating routes). This note covers the rest of the exposure surface: what an anonymous caller can make the api **do** — upstream quota, database growth, CPU, memory — regardless of whether they can log in. The two are complementary, and owner-auth alone does not close what is listed here.
 
@@ -387,12 +387,16 @@ Three patterns account for nearly every finding, and they are more useful than t
 
 F-1, F-2, F-4, F-7/8/9, F-13 and the F-20/F-21/F-22 cluster are launch gates, mirrored into [pre-launch-sweep.md](pre-launch-sweep.md). Ordered by value per unit of work:
 
-1. **Edge rate limiting (F-4)** — one config change that bounds every other finding at once, so it goes first even though it fixes no defect on its own. Zones and burst sizes are worked out and calibrated against a real page-load fan-out; pair with `app.set("trust proxy", 1)` so the limiter can see real client IPs.
-2. **The allowlist hoist + lint (F-1)** — a guard at the boundary, then a `conventions.spec.ts` lint with fixtures, so the 28th call site cannot repeat this.
-3. **Clamp the upstream miss-paths (F-2, F-20, F-21)** — only fetch what belongs to the owner. Same idea in three places: match detail/timeline, Steam description, wishlist hero-meta. Add cache-table eviction alongside F-2, gated on backups.
-4. **Image proxy hardening (F-7, F-8, F-9, F-11)** — validate `tier` against its closed set, `redirect: "manual"` on both fetches, an explicit `proxy_cache_key`, a response-size cap and `sharp.limitInputPixels`. F-10's header restoration rides along.
-5. **`/og` (F-3, F-17)** — a cache block, `renderAsync`, and a fetch timeout.
-6. **Error hygiene (F-13, F-19, F-16)** — generic error text in the status snapshot, a 400 instead of a 500 for unknown platforms, drop `X-Powered-By`.
+~~1. **Edge rate limiting (F-4)**~~ — **shipped.** Zones in `vyoh-cache.conf`, applied per-location. Still to do: `app.set("trust proxy", 1)`, without which a future *app-level* limiter would bucket every visitor as one client. The nginx limiter is unaffected, since it sees the real address directly.
+
+~~2. **The allowlist hoist + lint (F-1)**~~ — **shipped**, at the choke point rather than as a route guard.
+
+~~3. **Clamp the upstream miss-paths (F-2, F-20)**~~ — **shipped.** F-21's cache is bounded but its ownership clamp is still open, for the reason recorded in that finding. Cache-table eviction for F-2 remains, and still gates on verified backups.
+
+~~4. **Image proxy hardening (F-7 `tier`, F-8, F-9, F-10)**~~ — **shipped.** Remaining in this group: `alias` and `patch` reach CDragon and DDragon by the same interpolation as `tier` did, and F-11's response-size cap plus `sharp.limitInputPixels` are untouched.
+
+5. **`/og` (F-3, F-17)** — a cache block, `renderAsync`, and a fetch timeout. **Now the largest single item left**, and the cheapest outage lever in the audit.
+6. **Error hygiene (F-13, F-16)** — generic error text in the status snapshot, drop `X-Powered-By`. F-19 shipped with the match clamp.
 7. **Bounded pagination (F-18, F-15)** — one shared clamp pipe, applied everywhere `count`/`limit`/`start`/`queue` appears.
 8. **`/status/stream` multicast (F-14)** — one shared snapshot observable instead of one timer per subscriber.
 
