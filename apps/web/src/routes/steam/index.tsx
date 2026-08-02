@@ -1,5 +1,4 @@
 import { routeMeta } from "@/lib/route-meta";
-import { LibraryCompositionChip } from "@/steam/library-composition-chip";
 import { OwnedGamesChip } from "@/steam/owned-games-chip";
 import { PortraitSection } from "@/steam/portrait/portrait-section";
 import { portraitQueryOptions } from "@/steam/portrait/use-portrait";
@@ -45,7 +44,6 @@ function SteamPage() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <RecentUnlocksChip />
         <WishlistChip />
-        <LibraryCompositionChip />
         <OwnedGamesChip />
       </div>
     </div>
