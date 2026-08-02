@@ -231,10 +231,16 @@ async function main() {
     // rather than by anything above. Everything before this point is the
     // independent reading the numbers were argued from, so a disagreement
     // between the two sections is the finding.
+    // Timed because the SSR priming rule in docs/repo-conventions.md turns on
+    // latency, and reading the code cannot answer it.
+    const startedAt = performance.now();
     const portrait = await app.get(SteamPortraitService).getPortrait();
+    const elapsedMs = performance.now() - startedAt;
 
     console.log("\n── GET /api/steam/portrait ──────────────────────────");
-    console.log(`  synced ${portrait.lastSyncedAt ?? "never"}`);
+    console.log(
+      `  synced ${portrait.lastSyncedAt ?? "never"} · computed in ${elapsedMs.toFixed(0)} ms · ${JSON.stringify(portrait).length} B`
+    );
     console.log(
       `  posture  ${portrait.posture.meaningfulCount} meaningful · ${portrait.posture.tastedCount} tasted · ${portrait.posture.ghostCount} ghosts of ${portrait.posture.ownedCount} owned`
     );
