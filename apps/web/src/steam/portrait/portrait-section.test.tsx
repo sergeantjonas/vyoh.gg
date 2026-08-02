@@ -1,9 +1,10 @@
+import { useSteamPlatformMix } from "@/steam/use-platform-mix";
 import { render, screen } from "@testing-library/react";
-import type { GenreFingerprint, SteamPortrait } from "@vyoh/shared";
+import type { GenreFingerprint, SteamPlatformMix, SteamPortrait } from "@vyoh/shared";
 import { configureAxe } from "jest-axe";
 import { MotionConfig } from "motion/react";
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PortraitSection } from "./portrait-section";
 import { useSteamPortrait } from "./use-portrait";
 
@@ -12,6 +13,7 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 vi.mock("./use-portrait", () => ({ useSteamPortrait: vi.fn() }));
+vi.mock("@/steam/use-platform-mix", () => ({ useSteamPlatformMix: vi.fn() }));
 
 const axe = configureAxe({ rules: { "color-contrast": { enabled: false } } });
 
@@ -41,9 +43,35 @@ function portrait(overrides: Partial<SteamPortrait> = {}): SteamPortrait {
       totalMinutes: 143_100,
       meaningfulMinutes: 142_814,
     },
+    completion: {
+      cohortCount: 34,
+      finishedCount: 18,
+      perfectCount: 17,
+      medianCompletion: 0.95,
+    },
     lastSyncedAt: "2026-08-02T00:00:00.000Z",
     ...overrides,
   };
+}
+
+// The owner's live split: one platform, and a chunk of lifetime playtime that
+// predates Steam reporting per-OS minutes at all.
+const WINDOWS_ONLY: SteamPlatformMix = {
+  totalMinutes: 113_184,
+  windowsMinutes: 113_184,
+  macMinutes: 0,
+  linuxMinutes: 0,
+  deckMinutes: 0,
+  dominantPlatform: "windows",
+  lastSyncedAt: "2026-08-02T00:00:00.000Z",
+};
+
+function mockPlatformMix(data: SteamPlatformMix | undefined = WINDOWS_ONLY): void {
+  vi.mocked(useSteamPlatformMix).mockReturnValue({
+    data,
+    isPending: false,
+    isError: data === undefined,
+  } as unknown as ReturnType<typeof useSteamPlatformMix>);
 }
 
 function mockHook(value: {
@@ -64,8 +92,13 @@ function renderSection() {
   );
 }
 
+beforeEach(() => {
+  mockPlatformMix();
+});
+
 afterEach(() => {
   vi.mocked(useSteamPortrait).mockReset();
+  vi.mocked(useSteamPlatformMix).mockReset();
 });
 
 describe("PortraitSection", () => {
@@ -229,6 +262,76 @@ describe("RecentDriftCard", () => {
     });
     renderSection();
     expect(screen.getByText("Still Souls-like.")).toBeTruthy();
+  });
+});
+
+describe("CompletionistCard", () => {
+  it("states the selectiveness and the thoroughness in one claim", () => {
+    mockHook({ data: portrait(), isPending: false, isError: false });
+    renderSection();
+
+    expect(
+      screen.getByText("34 of 186 owned games reach 10 hours; 17 of those are at 100%.")
+    ).toBeTruthy();
+    expect(screen.getByText(/Median completion across the 34 is 95%/)).toBeTruthy();
+    expect(screen.getByText(/18 past 80% · 17 at 100% · 95% median/)).toBeTruthy();
+  });
+
+  it("declines to score a library where nothing has passed the hour floor", () => {
+    mockHook({
+      data: portrait({
+        completion: {
+          cohortCount: 0,
+          finishedCount: 0,
+          perfectCount: 0,
+          medianCompletion: 0,
+        },
+      }),
+      isPending: false,
+      isError: false,
+    });
+    renderSection();
+    expect(
+      screen.getByText("No game with achievements has passed 10 hours yet.")
+    ).toBeTruthy();
+  });
+});
+
+describe("PlatformIdentityCard", () => {
+  it("reads a single-platform library as a statement rather than a share", () => {
+    mockHook({ data: portrait(), isPending: false, isError: false });
+    renderSection();
+
+    expect(screen.getByText("Windows, exclusively.")).toBeTruthy();
+    // Per-OS minutes sit below lifetime playtime on an old library, so the
+    // card says which total its share is a share of.
+    expect(
+      screen.getByText(
+        /All 1,886h of tracked per-OS playtime, on one machine\. Steam attributes 79% of your lifetime playtime to a platform at all\./
+      )
+    ).toBeTruthy();
+  });
+
+  it("names the other platforms when there are any", () => {
+    mockPlatformMix({
+      ...WINDOWS_ONLY,
+      totalMinutes: 100,
+      windowsMinutes: 83,
+      deckMinutes: 17,
+    });
+    mockHook({ data: portrait(), isPending: false, isError: false });
+    renderSection();
+
+    expect(screen.getByText("Windows carries 83% of tracked playtime.")).toBeTruthy();
+    expect(screen.getByText(/Also tracked: Steam Deck 17%\./)).toBeTruthy();
+  });
+
+  it("omits the coverage note when per-OS minutes account for nearly everything", () => {
+    mockPlatformMix({ ...WINDOWS_ONLY, totalMinutes: 143_000, windowsMinutes: 143_000 });
+    mockHook({ data: portrait(), isPending: false, isError: false });
+    renderSection();
+
+    expect(screen.queryByText(/Steam attributes/)).toBeNull();
   });
 });
 

@@ -172,6 +172,12 @@ describe("SteamController", () => {
         totalMinutes: 143_100,
         meaningfulMinutes: 142_800,
       },
+      completion: {
+        cohortCount: 24,
+        finishedCount: 3,
+        perfectCount: 2,
+        medianCompletion: 0.42,
+      },
       lastSyncedAt: "2026-08-02T00:00:00.000Z",
     };
     const stub = vi.fn().mockResolvedValue(portrait);

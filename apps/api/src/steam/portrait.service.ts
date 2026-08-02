@@ -8,13 +8,19 @@
 // numbers come from the daily owned-games and playtime-snapshot pollers.
 
 import { Injectable } from "@nestjs/common";
-import type { GenreFingerprint, SteamPortrait, SteamPortraitRecent } from "@vyoh/shared";
+import type {
+  CompletionSummary,
+  GenreFingerprint,
+  SteamPortrait,
+  SteamPortraitRecent,
+} from "@vyoh/shared";
 import {
   PORTRAIT_RECENT_WINDOW_DAYS,
   buildGenreFingerprint,
   excludeBarelyPlayedInWindow,
   excludeBarelyTouched,
   isSteamGameAppType,
+  summariseCompletion,
   summariseEngagement,
 } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
@@ -28,12 +34,22 @@ const EMPTY_FINGERPRINT: GenreFingerprint = {
   gamesWithoutGenre: 0,
 };
 
+const EMPTY_COMPLETION: CompletionSummary = {
+  cohortCount: 0,
+  finishedCount: 0,
+  perfectCount: 0,
+  medianCompletion: 0,
+};
+
 type PortraitGame = {
   playtimeForeverMinutes: number;
   /** Minutes accrued between the baseline and latest snapshots. */
   windowMinutes: number;
   launchDayCount: number;
   tags: string[];
+  /** Achievements in this game's schema; zero when it has none. */
+  total: number;
+  unlocked: number;
 };
 
 /**
@@ -89,6 +105,7 @@ export class SteamPortraitService {
           totalMinutes: 0,
           meaningfulMinutes: 0,
         },
+        completion: EMPTY_COMPLETION,
         lastSyncedAt: null,
       };
     }
@@ -114,6 +131,10 @@ export class SteamPortraitService {
         totalMinutes: summary.totalMinutes,
         meaningfulMinutes: summary.meaningfulMinutes,
       },
+      // Deliberately over the whole library rather than the cleaned cohort:
+      // the cohort floor is an hour and this one is ten, so filtering twice
+      // would only ever remove games this filter already excludes.
+      completion: summariseCompletion(games),
       lastSyncedAt: latestDate.toISOString(),
     };
   }
@@ -130,21 +151,32 @@ export class SteamPortraitService {
   ): Promise<PortraitGame[]> {
     const dates = baselineDate === null ? [latestDate] : [latestDate, baselineDate];
 
-    const [owned, snapshots, enrichment, catalog, sessions] = await Promise.all([
-      this.prisma.steamOwnedGame.findMany({
-        where: { removedAt: null },
-        select: { appid: true },
-      }),
-      this.prisma.steamPlaytimeSnapshot.findMany({
-        where: { snapshotDate: { in: dates }, game: { removedAt: null } },
-        select: { appid: true, snapshotDate: true, playtimeForeverMinutes: true },
-      }),
-      this.prisma.steamGameEnrichment.findMany({
-        select: { appid: true, appType: true, tagIds: true },
-      }),
-      this.prisma.steamTag.findMany({ select: { id: true, name: true } }),
-      this.prisma.steamPlaySession.findMany({ select: { appid: true, startedAt: true } }),
-    ]);
+    const [owned, snapshots, enrichment, catalog, sessions, schemas, unlocks] =
+      await Promise.all([
+        this.prisma.steamOwnedGame.findMany({
+          where: { removedAt: null },
+          select: { appid: true },
+        }),
+        this.prisma.steamPlaytimeSnapshot.findMany({
+          where: { snapshotDate: { in: dates }, game: { removedAt: null } },
+          select: { appid: true, snapshotDate: true, playtimeForeverMinutes: true },
+        }),
+        this.prisma.steamGameEnrichment.findMany({
+          select: { appid: true, appType: true, tagIds: true },
+        }),
+        this.prisma.steamTag.findMany({ select: { id: true, name: true } }),
+        this.prisma.steamPlaySession.findMany({
+          select: { appid: true, startedAt: true },
+        }),
+        this.prisma.steamGameAchievement.groupBy({
+          by: ["appid"],
+          _count: { apiName: true },
+        }),
+        this.prisma.steamPlayerUnlock.groupBy({
+          by: ["appid"],
+          _count: { apiName: true },
+        }),
+      ]);
 
     const tagName = new Map(catalog.map((tag) => [tag.id, tag.name]));
     const enrichmentByAppid = new Map(enrichment.map((row) => [row.appid, row]));
@@ -157,6 +189,9 @@ export class SteamPortraitService {
           : baselineMinutes;
       target.set(row.appid, row.playtimeForeverMinutes);
     }
+
+    const schemaSize = new Map(schemas.map((row) => [row.appid, row._count.apiName]));
+    const unlockCount = new Map(unlocks.map((row) => [row.appid, row._count.apiName]));
 
     const launchDays = new Map<number, Set<string>>();
     for (const session of sessions) {
@@ -182,6 +217,8 @@ export class SteamPortraitService {
           windowMinutes: Math.max(0, minutes - before),
           launchDayCount: launchDays.get(game.appid)?.size ?? 0,
           tags,
+          total: schemaSize.get(game.appid) ?? 0,
+          unlocked: unlockCount.get(game.appid) ?? 0,
         };
       });
   }

@@ -2,6 +2,7 @@
 // Player Portrait. Everything here derives from tables the pollers already
 // fill; no Steam Web API call happens at request time.
 
+import type { CompletionSummary } from "./completion.ts";
 import type { GenreFingerprint } from "./fingerprint.ts";
 
 /** What "recently" asks for. What it gets is `SteamPortraitWindow`. */
@@ -47,6 +48,8 @@ export interface SteamPortrait {
   /** Null until two distinct snapshot dates exist to measure a delta between. */
   recent: SteamPortraitRecent | null;
   posture: SteamPortraitPosture;
+  /** Over games with an achievement schema and real time in them; see completion.ts. */
+  completion: CompletionSummary;
   /** ISO-8601 timestamp of the snapshot the whole payload was computed from. */
   lastSyncedAt: string | null;
 }

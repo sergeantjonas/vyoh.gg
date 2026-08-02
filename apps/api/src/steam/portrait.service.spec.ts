@@ -31,11 +31,21 @@ describe("pickBaselineDate", () => {
 type Snapshot = { appid: number; snapshotDate: Date; playtimeForeverMinutes: number };
 type Enrichment = { appid: number; appType: number | null; tagIds: number[] };
 
+const counts = (rows: Record<number, number> | undefined) =>
+  Object.entries(rows ?? {}).map(([appid, count]) => ({
+    appid: Number(appid),
+    _count: { apiName: count },
+  }));
+
 function mockPrisma(options: {
   dates: Date[];
   snapshots: Snapshot[];
   enrichment: Enrichment[];
   sessions?: { appid: number; startedAt: Date }[];
+  /** appid → achievements in the schema. */
+  schemas?: Record<number, number>;
+  /** appid → achievements unlocked. */
+  unlocks?: Record<number, number>;
 }): PrismaService {
   const appids = [...new Set(options.enrichment.map((row) => row.appid))];
   return {
@@ -59,6 +69,8 @@ function mockPrisma(options: {
       ]),
     },
     steamPlaySession: { findMany: vi.fn(async () => options.sessions ?? []) },
+    steamGameAchievement: { groupBy: vi.fn(async () => counts(options.schemas)) },
+    steamPlayerUnlock: { groupBy: vi.fn(async () => counts(options.unlocks)) },
   } as unknown as PrismaService;
 }
 
@@ -188,6 +200,36 @@ describe("SteamPortraitService.getPortrait", () => {
 
     expect(portrait.lifetime.genres.map((g) => g.tag)).toEqual(["Souls-like"]);
     expect(portrait.recent?.fingerprint.genres).toEqual([]);
+  });
+
+  it("computes completion only over games with a schema and ten hours in them", async () => {
+    const prisma = mockPrisma({
+      dates: [LATEST],
+      snapshots: [
+        { appid: 1, snapshotDate: LATEST, playtimeForeverMinutes: 3_000 },
+        { appid: 2, snapshotDate: LATEST, playtimeForeverMinutes: 3_000 },
+        { appid: 3, snapshotDate: LATEST, playtimeForeverMinutes: 120 },
+        { appid: 4, snapshotDate: LATEST, playtimeForeverMinutes: 3_000 },
+      ],
+      enrichment: [
+        { appid: 1, appType: 0, tagIds: [1] },
+        { appid: 2, appType: 0, tagIds: [1] },
+        { appid: 3, appType: 0, tagIds: [1] },
+        { appid: 4, appType: 0, tagIds: [1] },
+      ],
+      // appid 3 is perfect but two hours long; appid 4 has no schema at all.
+      schemas: { 1: 10, 2: 10, 3: 10 },
+      unlocks: { 1: 10, 2: 2, 3: 10 },
+    });
+
+    const portrait = await new SteamPortraitService(prisma).getPortrait();
+
+    expect(portrait.completion).toEqual({
+      cohortCount: 2,
+      finishedCount: 1,
+      perfectCount: 1,
+      medianCompletion: 0.6,
+    });
   });
 
   it("reports no recency window when only one snapshot date exists", async () => {

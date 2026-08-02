@@ -1,5 +1,5 @@
 import { HttpError } from "@/lib/http-error";
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { SteamPlatformMix } from "@vyoh/shared";
 
 import { API_URL } from "@/lib/api-url";
@@ -19,13 +19,20 @@ async function fetchPlatformMix(): Promise<SteamPlatformMix> {
   return res.json() as Promise<SteamPlatformMix>;
 }
 
-export function useSteamPlatformMix() {
-  return useQuery({
+// Primed in the /steam loader alongside the portrait, since the Portrait's
+// platform card is a claim rather than a count: 166 B answered in ~2 ms.
+//
+// Same backing poller as library-summary (daily 04:00 Brussels). Mix changes
+// are slower than library count changes, but keeping the stale-time aligned
+// keeps cache invalidation simple.
+export function platformMixQueryOptions() {
+  return queryOptions({
     queryKey: ["steam", "platform-mix"],
     queryFn: fetchPlatformMix,
-    // Same backing poller as library-summary (daily 04:00 Brussels). Mix
-    // changes are slower than library count changes, but keeping the
-    // stale-time aligned keeps cache invalidation simple.
     staleTime: 30 * 60 * 1_000,
   });
+}
+
+export function useSteamPlatformMix() {
+  return useQuery(platformMixQueryOptions());
 }

@@ -187,7 +187,7 @@ async function main() {
     console.log("\n── card 3 · completionist floor ─────────────────────");
     const deep = cohort.filter((game) => game.minutes >= COMPLETIONIST_PLAYTIME_MINUTES);
     console.log(
-      `  ${deep.length} games past ${COMPLETIONIST_PLAYTIME_MINUTES / 60}h — the only ones whose completion % means anything`
+      `  ${deep.length} games past ${COMPLETIONIST_PLAYTIME_MINUTES / 60}h — before the schema filter`
     );
 
     console.log("\n── cards 7 and 9 · the anti-portrait ────────────────");
@@ -252,6 +252,10 @@ async function main() {
         `    ${(genre.share * 100).toFixed(1).padStart(5)}%  ${genre.tag}  (${genre.gameCount})`
       );
     }
+    const { completion } = portrait;
+    console.log(
+      `  finish   ${completion.finishedCount} finished · ${completion.perfectCount} at 100% · median ${(completion.medianCompletion * 100).toFixed(0)}% across ${completion.cohortCount} games`
+    );
     if (portrait.recent === null) {
       console.log("  recent   none — a delta needs two snapshot dates");
     } else {

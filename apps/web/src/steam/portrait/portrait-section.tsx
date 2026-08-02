@@ -1,6 +1,8 @@
 import { SectionTitle } from "@/components/ui/section-title";
+import { CompletionistCard } from "./completionist-card";
 import { GenreAnchorCard } from "./genre-anchor-card";
 import { LibraryPostureCard } from "./library-posture-card";
+import { PlatformIdentityCard } from "./platform-identity-card";
 import { RecentDriftCard } from "./recent-drift-card";
 
 // Bare wrapper, chromed children: each card carries its own frosted shell, so
@@ -22,6 +24,8 @@ export function PortraitSection() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <GenreAnchorCard />
         <RecentDriftCard />
+        <CompletionistCard />
+        <PlatformIdentityCard />
         <LibraryPostureCard />
       </div>
     </section>

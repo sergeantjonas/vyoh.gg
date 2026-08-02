@@ -288,6 +288,16 @@ export type {
   GenreFingerprint,
   GenreShare,
 } from "./steam/portrait/fingerprint.ts";
+export {
+  FINISHED_COMPLETION_SHARE,
+  completionShare,
+  selectCompletionCohort,
+  summariseCompletion,
+} from "./steam/portrait/completion.ts";
+export type {
+  CompletionInput,
+  CompletionSummary,
+} from "./steam/portrait/completion.ts";
 export { PORTRAIT_RECENT_WINDOW_DAYS } from "./steam/portrait/portrait.ts";
 export type {
   SteamPortrait,
