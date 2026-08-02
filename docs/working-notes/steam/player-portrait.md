@@ -1,6 +1,6 @@
 # Steam Player Portrait — design note
 
-**Status:** Active — chunks 0 and 1 complete (2026-08-01, findings below). Snapshots are viable; `SteamPlaySession` is not, so cards 4 and 8 and the single-session cohort are deferred to post-hosting. Chunk 2 (Portrait-half cards 1–6) is the next step.
+**Status:** Active — chunks 0, 1 and 2a complete (2026-08-02). Snapshots are viable; `SteamPlaySession` is not, so cards 4 and 8 and the single-session cohort are deferred to post-hosting. `GET /api/steam/portrait` now answers cards 1, 2 and 6; the web half (2b) is the next step, and it must handle a recency window that currently has almost nothing in it — see below.
 
 A new section on the Steam route that synthesises the existing data into a *characterisation* of the owner as a player — who they are when they play, and (just as honest) who they are when they don't. Promoted from the broader [self-portrait-surfaces](../cross-cutting/self-portrait-surfaces.md) direction into a tracked Steam-specific design.
 
@@ -198,7 +198,13 @@ Each chunk independently committable. Stop and re-evaluate after each — the Po
 
 Verified end-to-end against the live library before landing: the fingerprint that read **"Action, Singleplayer, Third Person"** unfiltered now reads **"57% of your 2,356 hours sit in Souls-like, Action RPG, Third-Person Shooter."** One of 55 cohort games ends with no genre signal, and it is genuinely untagged upstream.
 
-**Chunk 2 — Portrait half cards (cards 1–6).** API endpoints (or extensions of existing endpoints) + web cards. Reuses the cleaned cohort from chunk 1. Run [probe-portrait-fingerprint.ts](../../../apps/api/src/scripts/probe-portrait-fingerprint.ts) before writing copy — it prints what each of these cards would currently say, including the carrier counts that decide whether card 1 shows two genres or three.
+**Chunk 2 — Portrait half cards (cards 1–6).** Reuses the cleaned cohort from chunk 1. Run [probe-portrait-fingerprint.ts](../../../apps/api/src/scripts/probe-portrait-fingerprint.ts) before writing copy — it prints what each of these cards would currently say, including the carrier counts that decide whether card 1 shows two genres or three, and it ends by printing the shipped endpoint's own answer so a disagreement between the two readings is visible.
+
+- **2a — API.** ✅ Done 2026-08-02. [portrait.service.ts](../../../apps/api/src/steam/portrait.service.ts) behind `GET /api/steam/portrait`, returning `SteamPortrait` (lifetime fingerprint, recency fingerprint + the window it actually covers, engagement posture). The genre weighting itself lives in [fingerprint.ts](../../../packages/shared/src/steam/portrait/fingerprint.ts) so chunk 3's card 11 and chunk 4's scoring share it rather than re-deriving the division rule.
+- **2b — Web.** Portrait section on `/steam`: cards 1, 2 and 6.
+- **2c — Web.** Cards 3 and 5 folded into the same section, reading the existing `achievements/library-completion` and `platform-mix` endpoints.
+
+**Card 2 has almost no data, and that is the finding.** Measured 2026-08-02 the recency window covers **80 days, 3 games, 29 hours** — every genre in it rests on a single game, at shares within 0.1 points of each other (Souls-like 17.3%, Stealth 17.3%, Survival 17.2%, Survival Horror 17.2%, Third-Person Shooter 17.2%). A "lifetime X, lately Y" claim built on that would be inventing a drift out of one weekend. Card 2 must gate on carrier count and say plainly that there has not been enough recent play, rather than rendering a confident ranking of noise. Re-measure once the window is genuinely 90 days of hosted history; the shape of the card can change then.
 
 **Chunk 3 — Anti-Portrait half cards (cards 7, 9–13).** New API computations for the bundle-ghost and tasted cohorts + web cards. The Anti-Portrait one-liner (card 13) is last because it synthesises numbers from earlier cards. **Cards 4 and 8 and the single-session cohort are out of scope** until the session table has hosted history behind it — building them against 28 rows would ship a confident wrong answer.
 

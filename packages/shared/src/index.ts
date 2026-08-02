@@ -266,8 +266,10 @@ export {
   MEANINGFUL_PLAYTIME_MINUTES,
   RECENT_PLAYTIME_MINUTES,
   engagementCohort,
+  excludeBarelyPlayedInWindow,
   excludeBarelyTouched,
   isMeaningfullyPlayed,
+  isRecentlyEngaged,
   selectEngagementCohort,
   summariseEngagement,
 } from "./steam/portrait/engagement.ts";
@@ -276,6 +278,23 @@ export type {
   EngagementInput,
   EngagementSummary,
 } from "./steam/portrait/engagement.ts";
+export {
+  THIN_GENRE_CARRIERS,
+  buildGenreFingerprint,
+  isThinGenre,
+} from "./steam/portrait/fingerprint.ts";
+export type {
+  FingerprintGame,
+  GenreFingerprint,
+  GenreShare,
+} from "./steam/portrait/fingerprint.ts";
+export { PORTRAIT_RECENT_WINDOW_DAYS } from "./steam/portrait/portrait.ts";
+export type {
+  SteamPortrait,
+  SteamPortraitPosture,
+  SteamPortraitRecent,
+  SteamPortraitWindow,
+} from "./steam/portrait/portrait.ts";
 export type { HomeChronotype, HomeChronotypeHour } from "./home/chronotype.ts";
 export type { HomeWeeklyTotals } from "./home/weekly-totals.ts";
 export type { HomeLifetimeTotals } from "./home/lifetime-totals.ts";

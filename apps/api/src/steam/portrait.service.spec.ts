@@ -1,0 +1,205 @@
+import { describe, expect, it, vi } from "vitest";
+import type { PrismaService } from "../prisma/prisma.service";
+import { SteamPortraitService, pickBaselineDate } from "./portrait.service";
+
+const date = (iso: string) => new Date(`${iso}T00:00:00.000Z`);
+
+// 2026-05-03 is exactly 90 days before 2026-08-01.
+const LATEST = date("2026-08-01");
+
+describe("pickBaselineDate", () => {
+  it("measures from the last snapshot on or before the window mark", () => {
+    const dates = [date("2026-04-01"), date("2026-05-03"), date("2026-06-01"), LATEST];
+
+    expect(pickBaselineDate(dates, 90)).toEqual(date("2026-05-03"));
+  });
+
+  it("falls back to the oldest snapshot when history is shorter than the window", () => {
+    // Reporting a 90-day window off 61 days of evidence would be a lie the
+    // card has no way to detect; the window labels itself from what it got.
+    const dates = [date("2026-06-01"), date("2026-07-01"), LATEST];
+
+    expect(pickBaselineDate(dates, 90)).toEqual(date("2026-06-01"));
+  });
+
+  it("returns null when there is only one observation to measure from", () => {
+    expect(pickBaselineDate([LATEST], 90)).toBeNull();
+    expect(pickBaselineDate([], 90)).toBeNull();
+  });
+});
+
+type Snapshot = { appid: number; snapshotDate: Date; playtimeForeverMinutes: number };
+type Enrichment = { appid: number; appType: number | null; tagIds: number[] };
+
+function mockPrisma(options: {
+  dates: Date[];
+  snapshots: Snapshot[];
+  enrichment: Enrichment[];
+  sessions?: { appid: number; startedAt: Date }[];
+}): PrismaService {
+  const appids = [...new Set(options.enrichment.map((row) => row.appid))];
+  return {
+    steamPlaytimeSnapshot: {
+      findMany: vi.fn(async (args: { distinct?: string[] }) =>
+        args.distinct === undefined
+          ? options.snapshots
+          : options.dates.map((snapshotDate) => ({ snapshotDate }))
+      ),
+    },
+    steamOwnedGame: {
+      findMany: vi.fn(async () => appids.map((appid) => ({ appid }))),
+    },
+    steamGameEnrichment: { findMany: vi.fn(async () => options.enrichment) },
+    steamTag: {
+      findMany: vi.fn(async () => [
+        { id: 1, name: "Souls-like" },
+        { id: 2, name: "Action RPG" },
+        { id: 3, name: "Atmospheric" },
+        { id: 4, name: "Roguelite" },
+      ]),
+    },
+    steamPlaySession: { findMany: vi.fn(async () => options.sessions ?? []) },
+  } as unknown as PrismaService;
+}
+
+describe("SteamPortraitService.getPortrait", () => {
+  it("returns an empty portrait rather than throwing before the first poll", async () => {
+    const prisma = mockPrisma({ dates: [], snapshots: [], enrichment: [] });
+
+    const portrait = await new SteamPortraitService(prisma).getPortrait();
+
+    expect(portrait.lastSyncedAt).toBeNull();
+    expect(portrait.recent).toBeNull();
+    expect(portrait.lifetime.genres).toEqual([]);
+    expect(portrait.posture.ownedCount).toBe(0);
+  });
+
+  it("keeps games below the lifetime floor out of the fingerprint but in the posture", async () => {
+    const prisma = mockPrisma({
+      dates: [LATEST],
+      snapshots: [
+        { appid: 1, snapshotDate: LATEST, playtimeForeverMinutes: 600 },
+        { appid: 2, snapshotDate: LATEST, playtimeForeverMinutes: 12 },
+        { appid: 3, snapshotDate: LATEST, playtimeForeverMinutes: 0 },
+      ],
+      enrichment: [
+        { appid: 1, appType: 0, tagIds: [1] },
+        { appid: 2, appType: 0, tagIds: [2] },
+        { appid: 3, appType: 0, tagIds: [2] },
+      ],
+    });
+
+    const portrait = await new SteamPortraitService(prisma).getPortrait();
+
+    expect(portrait.lifetime.genres.map((g) => g.tag)).toEqual(["Souls-like"]);
+    expect(portrait.posture).toEqual({
+      ownedCount: 3,
+      meaningfulCount: 1,
+      tastedCount: 1,
+      ghostCount: 1,
+      totalMinutes: 612,
+      meaningfulMinutes: 600,
+    });
+  });
+
+  it("excludes apps that are not games, whose tags would speak loudly", async () => {
+    const prisma = mockPrisma({
+      dates: [LATEST],
+      snapshots: [
+        { appid: 1, snapshotDate: LATEST, playtimeForeverMinutes: 600 },
+        { appid: 2, snapshotDate: LATEST, playtimeForeverMinutes: 60_000 },
+      ],
+      enrichment: [
+        { appid: 1, appType: 0, tagIds: [1] },
+        { appid: 2, appType: 6, tagIds: [2] }, // Wallpaper Engine
+      ],
+    });
+
+    const portrait = await new SteamPortraitService(prisma).getPortrait();
+
+    expect(portrait.posture.ownedCount).toBe(1);
+    expect(portrait.lifetime.genres.map((g) => g.tag)).toEqual(["Souls-like"]);
+  });
+
+  it("weights the recency fingerprint by in-window minutes, not lifetime", async () => {
+    // The whole point of card 2: a 1000-hour favourite touched for an hour
+    // must not outrank the thing actually being played this month.
+    const baseline = date("2026-05-03");
+    const prisma = mockPrisma({
+      dates: [baseline, LATEST],
+      snapshots: [
+        { appid: 1, snapshotDate: baseline, playtimeForeverMinutes: 59_940 },
+        { appid: 1, snapshotDate: LATEST, playtimeForeverMinutes: 60_000 },
+        { appid: 2, snapshotDate: baseline, playtimeForeverMinutes: 0 },
+        { appid: 2, snapshotDate: LATEST, playtimeForeverMinutes: 600 },
+      ],
+      enrichment: [
+        { appid: 1, appType: 0, tagIds: [1] },
+        { appid: 2, appType: 0, tagIds: [4] },
+      ],
+    });
+
+    const portrait = await new SteamPortraitService(prisma).getPortrait();
+
+    expect(portrait.lifetime.genres[0]?.tag).toBe("Souls-like");
+    expect(portrait.recent?.fingerprint.genres[0]?.tag).toBe("Roguelite");
+    expect(portrait.recent?.window).toEqual({
+      days: 90,
+      since: baseline.toISOString(),
+      until: LATEST.toISOString(),
+    });
+  });
+
+  it("credits a game bought inside the window with all of its playtime", async () => {
+    const baseline = date("2026-05-03");
+    const prisma = mockPrisma({
+      dates: [baseline, LATEST],
+      snapshots: [
+        { appid: 1, snapshotDate: baseline, playtimeForeverMinutes: 600 },
+        { appid: 1, snapshotDate: LATEST, playtimeForeverMinutes: 600 },
+        // No baseline row: appid 2 was not owned when the window opened.
+        { appid: 2, snapshotDate: LATEST, playtimeForeverMinutes: 900 },
+      ],
+      enrichment: [
+        { appid: 1, appType: 0, tagIds: [1] },
+        { appid: 2, appType: 0, tagIds: [4] },
+      ],
+    });
+
+    const portrait = await new SteamPortraitService(prisma).getPortrait();
+
+    expect(portrait.recent?.fingerprint.genres).toEqual([
+      { tag: "Roguelite", minutes: 900, share: 1, gameCount: 1 },
+    ]);
+  });
+
+  it("drops games below the recency floor without dropping them from lifetime", async () => {
+    const baseline = date("2026-05-03");
+    const prisma = mockPrisma({
+      dates: [baseline, LATEST],
+      snapshots: [
+        { appid: 1, snapshotDate: baseline, playtimeForeverMinutes: 590 },
+        { appid: 1, snapshotDate: LATEST, playtimeForeverMinutes: 600 }, // 10 min in-window
+      ],
+      enrichment: [{ appid: 1, appType: 0, tagIds: [1] }],
+    });
+
+    const portrait = await new SteamPortraitService(prisma).getPortrait();
+
+    expect(portrait.lifetime.genres.map((g) => g.tag)).toEqual(["Souls-like"]);
+    expect(portrait.recent?.fingerprint.genres).toEqual([]);
+  });
+
+  it("reports no recency window when only one snapshot date exists", async () => {
+    const prisma = mockPrisma({
+      dates: [LATEST],
+      snapshots: [{ appid: 1, snapshotDate: LATEST, playtimeForeverMinutes: 600 }],
+      enrichment: [{ appid: 1, appType: 0, tagIds: [1] }],
+    });
+
+    const portrait = await new SteamPortraitService(prisma).getPortrait();
+
+    expect(portrait.recent).toBeNull();
+    expect(portrait.lastSyncedAt).toBe(LATEST.toISOString());
+  });
+});

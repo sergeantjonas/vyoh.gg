@@ -17,6 +17,7 @@ import { SteamPlayerStatePoller } from "./player-state.poller";
 import { SteamPlayerStateService } from "./player-state.service";
 import { SteamPlayerUnlocksPoller } from "./player-unlocks.poller";
 import { SteamPlayerUnlocksService } from "./player-unlocks.service";
+import { SteamPortraitService } from "./portrait.service";
 import { SteamRateLimiterService } from "./rate-limiter.service";
 import { SteamRecentlyPlayedUnlocksPoller } from "./recently-played-unlocks.poller";
 import { SteamChronotypeService } from "./steam-chronotype.service";
@@ -47,6 +48,7 @@ import { SteamWishlistHeroService } from "./wishlist-hero.service";
     SteamPlayerStatePoller,
     SteamPlayerUnlocksService,
     SteamPlayerUnlocksPoller,
+    SteamPortraitService,
     SteamRecentlyPlayedUnlocksPoller,
     SteamGlobalRarityService,
     SteamGlobalRarityPoller,

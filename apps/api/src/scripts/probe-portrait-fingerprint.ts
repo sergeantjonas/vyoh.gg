@@ -26,6 +26,7 @@ import {
 } from "@vyoh/shared";
 import { AppModule } from "../app.module";
 import { PrismaService } from "../prisma/prisma.service";
+import { SteamPortraitService } from "../steam/portrait.service";
 
 function numericFlag(name: string, fallback: number): number {
   const index = process.argv.indexOf(`--${name}`);
@@ -224,6 +225,38 @@ async function main() {
       console.log(
         `  ${limit.toString().padStart(2)}  blind ${blindAt}  ${top.map(([g]) => g).join(", ")}`
       );
+    }
+
+    // What the endpoint actually answers, computed by the shipped service
+    // rather than by anything above. Everything before this point is the
+    // independent reading the numbers were argued from, so a disagreement
+    // between the two sections is the finding.
+    const portrait = await app.get(SteamPortraitService).getPortrait();
+
+    console.log("\n── GET /api/steam/portrait ──────────────────────────");
+    console.log(`  synced ${portrait.lastSyncedAt ?? "never"}`);
+    console.log(
+      `  posture  ${portrait.posture.meaningfulCount} meaningful · ${portrait.posture.tastedCount} tasted · ${portrait.posture.ghostCount} ghosts of ${portrait.posture.ownedCount} owned`
+    );
+    console.log(
+      `  lifetime ${portrait.lifetime.gamesCounted} games · ${hours(portrait.lifetime.distributedMinutes)}h · ${portrait.lifetime.gamesWithoutGenre} without genre`
+    );
+    for (const genre of portrait.lifetime.genres.slice(0, 5)) {
+      console.log(
+        `    ${(genre.share * 100).toFixed(1).padStart(5)}%  ${genre.tag}  (${genre.gameCount})`
+      );
+    }
+    if (portrait.recent === null) {
+      console.log("  recent   none — a delta needs two snapshot dates");
+    } else {
+      console.log(
+        `  recent   ${portrait.recent.window.days}d since ${portrait.recent.window.since.slice(0, 10)} · ${portrait.recent.fingerprint.gamesCounted} games · ${hours(portrait.recent.fingerprint.distributedMinutes)}h`
+      );
+      for (const genre of portrait.recent.fingerprint.genres.slice(0, 5)) {
+        console.log(
+          `    ${(genre.share * 100).toFixed(1).padStart(5)}%  ${genre.tag}  (${genre.gameCount})`
+        );
+      }
     }
   } finally {
     await app.close();

@@ -19,6 +19,7 @@ import type {
   SteamOwnedGames,
   SteamPlatformMix,
   SteamPlayerState,
+  SteamPortrait,
   SteamRecentUnlocks,
   SteamSummary,
   SteamTagCatalog,
@@ -33,6 +34,7 @@ import {
 import { SteamGameRecapService } from "./game-recap.service";
 import { SteamOwnedGamesService } from "./owned-games.service";
 import { SteamPlayerStateService } from "./player-state.service";
+import { SteamPortraitService } from "./portrait.service";
 import { SteamChronotypeService } from "./steam-chronotype.service";
 import { SteamService } from "./steam.service";
 import { SteamTagService } from "./tag.service";
@@ -48,7 +50,8 @@ export class SteamController {
     private readonly gameRecap: SteamGameRecapService,
     private readonly playerState: SteamPlayerStateService,
     private readonly chronotype: SteamChronotypeService,
-    private readonly wishlistHero: SteamWishlistHeroService
+    private readonly wishlistHero: SteamWishlistHeroService,
+    private readonly portrait: SteamPortraitService
   ) {}
 
   @Get("summary")
@@ -99,6 +102,11 @@ export class SteamController {
   @Get("platform-mix")
   async getPlatformMix(): Promise<SteamPlatformMix> {
     return this.ownedGames.getPlatformMix();
+  }
+
+  @Get("portrait")
+  async getPortrait(): Promise<SteamPortrait> {
+    return this.portrait.getPortrait();
   }
 
   @Get("owned-games")

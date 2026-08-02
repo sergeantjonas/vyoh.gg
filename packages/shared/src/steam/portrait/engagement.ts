@@ -79,6 +79,23 @@ export function excludeBarelyTouched<T extends EngagementInput>(games: Iterable<
 }
 
 /**
+ * The floor inside a recency window, applied to minutes accrued *within* the
+ * window rather than lifetime minutes. Lower than the lifetime floor because a
+ * 90-day slice holds less of everything — an hour inside one is a real
+ * commitment, where an hour of lifetime playtime is barely an opinion.
+ */
+export function isRecentlyEngaged(windowMinutes: number): boolean {
+  return windowMinutes >= RECENT_PLAYTIME_MINUTES;
+}
+
+/** The recency counterpart of `excludeBarelyTouched`. */
+export function excludeBarelyPlayedInWindow<T extends { windowMinutes: number }>(
+  games: Iterable<T>
+): T[] {
+  return [...games].filter((game) => isRecentlyEngaged(game.windowMinutes));
+}
+
+/**
  * The inverse selection the Anti-Portrait needs. Deliberately a separate call
  * rather than a `not` flag on the above, so a reader can never mistake one for
  * the other at a call site.
