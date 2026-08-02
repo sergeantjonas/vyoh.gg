@@ -61,6 +61,10 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    // The Steam *profile* page, not `/steam/library`. The handle predates that
+    // route existing and is kept so the historical baselines in
+    // progressive-paint-audit.md still line up; the virtualised library route
+    // has no scenario of its own.
     name: "steam-library",
     path: "/steam",
     screenshotMoments: [
