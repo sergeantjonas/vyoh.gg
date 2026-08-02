@@ -268,6 +268,36 @@ async function main() {
         );
       }
     }
+
+    const { anti } = portrait;
+    console.log(
+      `  tasted   ${anti.tasted.count} games · ${anti.tasted.totalMinutes} min · median ${anti.tasted.medianMinutes} min`
+    );
+    for (const game of anti.tasted.quickest) {
+      console.log(`    ${String(game.minutes).padStart(5)} min  ${game.name}`);
+    }
+    // Ranked by carriers, not minutes: inside a cohort capped at 59 minutes
+    // the minute spread is noise, and "tried 8, bounced off 7" is a count.
+    const bounced = [...anti.tasted.fingerprint.genres].sort(
+      (a, b) => b.gameCount - a.gameCount
+    );
+    for (const genre of bounced.slice(0, 5)) {
+      const tried = portrait.lifetime.genres.find((g) => g.tag === genre.tag);
+      console.log(
+        `    bounced ${genre.gameCount} of ${genre.gameCount + (tried?.gameCount ?? 0)}  ${genre.tag}`
+      );
+    }
+    console.log(
+      `  one-ach  ${anti.singleAchievement.games.length} games · ${anti.singleAchievement.withAnyUnlock} with any unlock of ${anti.singleAchievement.withSchema} with a schema`
+    );
+    for (const game of anti.singleAchievement.games.slice(0, 5)) {
+      console.log(`    ${String(game.minutes).padStart(5)} min  ${game.name}`);
+    }
+    console.log(
+      anti.coldest === null
+        ? "  coldest  none — no played game carries a plausible last-played date"
+        : `  coldest  ${anti.coldest.name} · last launched ${anti.coldest.lastPlayed.slice(0, 10)} · ${anti.coldest.minutes} min in it`
+    );
   } finally {
     await app.close();
   }

@@ -1,6 +1,11 @@
 import { useSteamPlatformMix } from "@/steam/use-platform-mix";
 import { render, screen } from "@testing-library/react";
-import type { GenreFingerprint, SteamPlatformMix, SteamPortrait } from "@vyoh/shared";
+import type {
+  GenreFingerprint,
+  SteamPlatformMix,
+  SteamPortrait,
+  SteamPortraitAnti,
+} from "@vyoh/shared";
 import { configureAxe } from "jest-axe";
 import { MotionConfig } from "motion/react";
 import type { ReactNode } from "react";
@@ -31,9 +36,50 @@ const LIFETIME: GenreFingerprint = {
   gamesWithoutGenre: 1,
 };
 
+// Measured 2026-08-02: eleven games the owner opened once, seven with a lone
+// achievement against them, and a 2012 last-launch at the bottom of the shelf.
+const ANTI: SteamPortraitAnti = {
+  tasted: {
+    count: 11,
+    totalMinutes: 265,
+    medianMinutes: 22,
+    quickest: [
+      { appid: 1113560, name: "NieR Replicant ver.1.22474487139...", minutes: 1 },
+      { appid: 25720, name: "Blades of Time", minutes: 3 },
+      { appid: 637650, name: "FINAL FANTASY XV WINDOWS EDITION", minutes: 5 },
+      { appid: 8190, name: "Just Cause 2", minutes: 15 },
+      { appid: 311340, name: "METAL GEAR SOLID V: GROUND ZEROES", minutes: 20 },
+    ],
+    fingerprint: {
+      genres: [
+        { tag: "Action", minutes: 44, share: 0.21, gameCount: 5 },
+        { tag: "Action RPG", minutes: 20, share: 0.1, gameCount: 2 },
+      ],
+      distributedMinutes: 210,
+      gamesCounted: 9,
+      gamesWithoutGenre: 2,
+    },
+  },
+  singleAchievement: {
+    games: [
+      { appid: 582010, name: "Monster Hunter: World", minutes: 1_240 },
+      { appid: 379720, name: "DOOM", minutes: 410 },
+    ],
+    withAnyUnlock: 54,
+    withSchema: 157,
+  },
+  coldest: {
+    appid: 17410,
+    name: "Mirror's Edge",
+    minutes: 297,
+    lastPlayed: "2012-07-18T00:00:00.000Z",
+  },
+};
+
 function portrait(overrides: Partial<SteamPortrait> = {}): SteamPortrait {
   return {
     lifetime: LIFETIME,
+    anti: ANTI,
     recent: null,
     posture: {
       ownedCount: 186,

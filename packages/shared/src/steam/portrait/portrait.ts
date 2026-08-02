@@ -43,11 +43,58 @@ export interface SteamPortraitPosture {
   meaningfulMinutes: number;
 }
 
+/** The cards that name titles rather than counting them. */
+export interface SteamPortraitGameRef {
+  appid: number;
+  name: string;
+  minutes: number;
+}
+
+export interface SteamPortraitTasted {
+  count: number;
+  totalMinutes: number;
+  medianMinutes: number;
+  /** Ascending by minutes, capped at `QUICKEST_ABANDON_LIMIT`. */
+  quickest: SteamPortraitGameRef[];
+  /**
+   * Genre weighting over the tasted cohort — what gets bounced off. Ranked by
+   * minutes like every fingerprint, but a reader wants `gameCount` here: inside
+   * a cohort capped at 59 minutes, the minute spread is noise.
+   */
+  fingerprint: GenreFingerprint;
+}
+
+export interface SteamPortraitColdest extends SteamPortraitGameRef {
+  /**
+   * ISO-8601 of Steam's `rtime_last_played`. Not an acquisition date — nothing
+   * we hold knows when a game was bought, since `SteamOwnedGame.firstSeenAt`
+   * records when our own poller first saw the row.
+   */
+  lastPlayed: string;
+}
+
+export interface SteamPortraitSingleAchievement {
+  games: SteamPortraitGameRef[];
+  /** Games carrying any unlock at all — the denominator that makes the count read as small. */
+  withAnyUnlock: number;
+  /** Games carrying an achievement schema at all. */
+  withSchema: number;
+}
+
+/** Who the owner is when they don't play — the inverse of every field above. */
+export interface SteamPortraitAnti {
+  tasted: SteamPortraitTasted;
+  singleAchievement: SteamPortraitSingleAchievement;
+  /** Null until some meaningfully-played game carries a plausible last-played date. */
+  coldest: SteamPortraitColdest | null;
+}
+
 export interface SteamPortrait {
   lifetime: GenreFingerprint;
   /** Null until two distinct snapshot dates exist to measure a delta between. */
   recent: SteamPortraitRecent | null;
   posture: SteamPortraitPosture;
+  anti: SteamPortraitAnti;
   /** Over games with an achievement schema and real time in them; see completion.ts. */
   completion: CompletionSummary;
   /** ISO-8601 timestamp of the snapshot the whole payload was computed from. */

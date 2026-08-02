@@ -1,6 +1,6 @@
 # Steam Player Portrait — design note
 
-**Status:** Active — **chunk 2 complete** (2026-08-02); chunks 0, 1, 2a, 2b and 2c all shipped, verified against the running api. Cards 1, 2, 3, 5 and 6 are live on `/steam` under a **Portrait** header, all five server-rendering their real claims. Card 4 is the one Portrait-half card not built: `SteamPlaySession` is poller-bound and holds 28 rows, so it and card 8 and the single-session cohort wait for hosting. **Chunk 3 (the Anti-Portrait half — cards 7, 9–13) is next.**
+**Status:** Active — **chunk 3a shipped** (2026-08-02); chunks 0, 1, 2 and 3a all landed and verified against the running api. Cards 1, 2, 3, 5 and 6 are live on `/steam` under a **Portrait** header, all five server-rendering their real claims, and `GET /api/steam/portrait` now also carries the `anti` block the Anti-Portrait cards read. Card 4 is the one Portrait-half card not built: `SteamPlaySession` is poller-bound and holds 28 rows, so it and card 8 and the single-session cohort wait for hosting. **Chunks 3b and 3c (the Anti-Portrait cards themselves) are next.**
 
 A new section on the Steam route that synthesises the existing data into a *characterisation* of the owner as a player — who they are when they play, and (just as honest) who they are when they don't. Promoted from the broader [self-portrait-surfaces](../cross-cutting/self-portrait-surfaces.md) direction into a tracked Steam-specific design.
 
@@ -152,7 +152,7 @@ Cards:
 9. **Quickest abandons.** Top 5 shortest non-zero playtimes. Will surface absurdities — *"Disco Elysium — 3 minutes."*
 10. **The Single-Achievement Club.** Games where you unlocked exactly one achievement (usually the launch-screen one, sometimes funnier). Achievement schema + your unlocks give us this for free.
 11. **Genres you bounce off.** Tag fingerprint of the Tasted cohort. The inverse of "Recently into" — *"You've tried 8 Soulslikes, bounced off 7."*
-12. **The longest cold streak.** Owned game with the largest gap between `firstSeenAt` and most recent activity (or never-launched + ancient `firstSeenAt`). *"Hollow Knight has been on your shelf since 2019."*
+12. **The longest cold streak.** ~~Owned game with the largest gap between `firstSeenAt` and most recent activity.~~ **Re-specced 2026-08-02** — `SteamOwnedGame.firstSeenAt` defaults to `now()` on insert, so it records when *our poller* first saw the row (May 2026), not when the game was acquired. Nothing we hold knows an acquisition date, and "on your shelf since 2019" built on `firstSeenAt` would be fabricated. The card reads `rtimeLastPlayed` instead, which is genuine Steam data: *"Deus Ex: Human Revolution — 24 hours in it, untouched since July 2012."* Stronger claim, real column.
 13. **Anti-Portrait one-liner.** A synthesised verdict combining the cohorts. *"You own 312 games, meaningfully played 47, finished 11. The gap is the hobby."* One card, one line.
 
 ---
@@ -215,6 +215,25 @@ Both superseded chips are deleted. `PlatformMixChip` fell to card 5 by spec; `Li
 **Card 2 has almost no data, and that is the finding.** Measured 2026-08-02 the recency window covers **80 days, 3 games, 29 hours** — every genre in it rests on a single game, at shares within 0.1 points of each other (Souls-like 17.3%, Stealth 17.3%, Survival 17.2%, Survival Horror 17.2%, Third-Person Shooter 17.2%). A "lifetime X, lately Y" claim built on that would be inventing a drift out of one weekend. Card 2 must gate on carrier count and say plainly that there has not been enough recent play, rather than rendering a confident ranking of noise. Re-measure once the window is genuinely 90 days of hosted history; the shape of the card can change then.
 
 **Chunk 3 — Anti-Portrait half cards (cards 7, 9–13).** New API computations for the bundle-ghost and tasted cohorts + web cards. The Anti-Portrait one-liner (card 13) is last because it synthesises numbers from earlier cards. **Cards 4 and 8 and the single-session cohort are out of scope** until the session table has hosted history behind it — building them against 28 rows would ship a confident wrong answer.
+
+- **3a — API.** ✅ Done 2026-08-02. `SteamPortrait` gained an `anti` block — the tasted cohort's count/total/median plus its quickest abandons and its genre fingerprint, the single-achievement cohort with the two denominators that make it read as small, and the coldest last-launch. The selections live in [abandonment.ts](../../../packages/shared/src/steam/portrait/abandonment.ts) beside the identity ones, each a separately-named call rather than a `not` flag on its twin. Card 11 needs no new API shape: `gameCount` on the tasted fingerprint and on the lifetime one are the two halves of "tried N, bounced off M". Card 13 needs none either — `posture` and `completion` already carry every number in it.
+- **3b — Web.** Cards 7 (`Tasted tier`), 9 (`Quickest abandons`) and 11 (`Genres you bounce off`) under an **Anti-Portrait** header.
+- **3c — Web.** Cards 10 (`Single-achievement club`), 12 (`Coldest shelf`) and 13 (the one-liner).
+
+**The Anti-Portrait's numbers, measured 2026-08-02** off the shipped `anti` block, so the cards can be written against them rather than against the catalog's illustrative copy:
+
+| Card | What it will say |
+|---|---|
+| 7 Tasted tier | **11 games, 265 minutes total, median 22 minutes.** The catalog's "47 games / 6h 12m" was illustrative; the real cohort is smaller and the total is absurd in the other direction — under four and a half hours across eleven games. |
+| 9 Quickest abandons | NieR Replicant **1 min**, Blades of Time 3, FINAL FANTASY XV 5, Just Cause 2 15, METAL GEAR SOLID V: GROUND ZEROES 20. |
+| 10 Single-achievement club | **6 games**, against 50 with any unlock at all and 152 carrying a schema. Apex Legends leads it at 147 minutes for one achievement. |
+| 11 Genres you bounce off | Ranked by carriers, the line is **JRPG: tried 2, bounced off both**. Then MMORPG 2 of 3, Hack and Slash 3 of 7, FPS 3 of 13, Action RPG 3 of 16. |
+| 12 Coldest shelf | **Deus Ex: Human Revolution**, last launched **2012-07-17**, with **1,462 minutes** in it. |
+| 13 One-liner | Own **186**, meaningfully played **55**, finished **18**. |
+
+**Steam answers an epoch sentinel for some pre-cloud titles.** `Call of Duty: Modern Warfare 2 (2009)` reports `rtime_last_played` of **1970-01-02** while carrying 410 recorded minutes. Card 12 ranks by oldest, so an unguarded version crowns the sentinel every single time and claims the shelf has been cold since before Steam existed. `isPlausibleLastPlayed()` floors it at Steam's 2003 launch. Worth remembering for any future surface that sorts on this column.
+
+**Card 11 needs the carrier counts from both fingerprints, not the tasted one alone.** "Bounced off 7" is only a claim next to "tried 8" — a genre with 3 tasted carriers reads completely differently at 3-of-3 than at 3-of-16. Both numbers are already on the wire (`anti.tasted.fingerprint` and `lifetime`, each carrying `gameCount`), so the card joins them by tag rather than the api computing a rate. Rank by carriers there too: inside a cohort capped at 59 minutes, the minute-weighted `share` a fingerprint sorts by is noise.
 
 **Chunk 4 — Backlog recommendations.** Scoring service in the API; three surfaces on the web side. Sits between the two halves visually.
 

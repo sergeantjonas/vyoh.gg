@@ -298,11 +298,32 @@ export type {
   CompletionInput,
   CompletionSummary,
 } from "./steam/portrait/completion.ts";
+export {
+  QUICKEST_ABANDON_LIMIT,
+  STEAM_LAUNCH_MS,
+  isPlausibleLastPlayed,
+  isSingleAchievement,
+  selectColdest,
+  selectQuickestAbandons,
+  selectSingleAchievement,
+  summariseTasted,
+} from "./steam/portrait/abandonment.ts";
+export type {
+  AbandonInput,
+  LastPlayedInput,
+  TastedSummary,
+  UnlockInput,
+} from "./steam/portrait/abandonment.ts";
 export { PORTRAIT_RECENT_WINDOW_DAYS } from "./steam/portrait/portrait.ts";
 export type {
   SteamPortrait,
+  SteamPortraitAnti,
+  SteamPortraitColdest,
+  SteamPortraitGameRef,
   SteamPortraitPosture,
   SteamPortraitRecent,
+  SteamPortraitSingleAchievement,
+  SteamPortraitTasted,
   SteamPortraitWindow,
 } from "./steam/portrait/portrait.ts";
 export type { HomeChronotype, HomeChronotypeHour } from "./home/chronotype.ts";

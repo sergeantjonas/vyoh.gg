@@ -46,6 +46,10 @@ function mockPrisma(options: {
   schemas?: Record<number, number>;
   /** appid → achievements unlocked. */
   unlocks?: Record<number, number>;
+  /** appid → display name; defaults to `Game <appid>`. */
+  names?: Record<number, string>;
+  /** appid → Steam's `rtime_last_played`; absent means never launched. */
+  lastPlayed?: Record<number, Date>;
 }): PrismaService {
   const appids = [...new Set(options.enrichment.map((row) => row.appid))];
   return {
@@ -57,7 +61,13 @@ function mockPrisma(options: {
       ),
     },
     steamOwnedGame: {
-      findMany: vi.fn(async () => appids.map((appid) => ({ appid }))),
+      findMany: vi.fn(async () =>
+        appids.map((appid) => ({
+          appid,
+          name: options.names?.[appid] ?? `Game ${appid}`,
+          rtimeLastPlayed: options.lastPlayed?.[appid] ?? null,
+        }))
+      ),
     },
     steamGameEnrichment: { findMany: vi.fn(async () => options.enrichment) },
     steamTag: {
@@ -230,6 +240,112 @@ describe("SteamPortraitService.getPortrait", () => {
       perfectCount: 1,
       medianCompletion: 0.6,
     });
+  });
+
+  it("names the tasted cohort the lifetime fingerprint threw away", async () => {
+    const prisma = mockPrisma({
+      dates: [LATEST],
+      snapshots: [
+        { appid: 1, snapshotDate: LATEST, playtimeForeverMinutes: 600 },
+        { appid: 2, snapshotDate: LATEST, playtimeForeverMinutes: 22 },
+        { appid: 3, snapshotDate: LATEST, playtimeForeverMinutes: 1 },
+        { appid: 4, snapshotDate: LATEST, playtimeForeverMinutes: 0 },
+      ],
+      enrichment: [
+        { appid: 1, appType: 0, tagIds: [1] },
+        { appid: 2, appType: 0, tagIds: [2] },
+        { appid: 3, appType: 0, tagIds: [2] },
+        { appid: 4, appType: 0, tagIds: [2] },
+      ],
+      names: { 2: "Path of Exile", 3: "NieR Replicant" },
+    });
+
+    const portrait = await new SteamPortraitService(prisma).getPortrait();
+
+    expect(portrait.anti.tasted.count).toBe(2);
+    expect(portrait.anti.tasted.totalMinutes).toBe(23);
+    expect(portrait.anti.tasted.medianMinutes).toBe(11.5);
+    // Shortest first, and the never-launched game stays out — a ghost was
+    // never abandoned, it was never opened.
+    expect(portrait.anti.tasted.quickest.map((g) => g.name)).toEqual([
+      "NieR Replicant",
+      "Path of Exile",
+    ]);
+    // The same two games, weighted by the genre they bounced off.
+    expect(portrait.anti.tasted.fingerprint.genres.map((g) => g.gameCount)).toEqual([2]);
+  });
+
+  it("counts a lone unlock but not a one-achievement schema", async () => {
+    const prisma = mockPrisma({
+      dates: [LATEST],
+      snapshots: [
+        { appid: 1, snapshotDate: LATEST, playtimeForeverMinutes: 3_000 },
+        { appid: 2, snapshotDate: LATEST, playtimeForeverMinutes: 600 },
+        { appid: 3, snapshotDate: LATEST, playtimeForeverMinutes: 600 },
+      ],
+      enrichment: [
+        { appid: 1, appType: 0, tagIds: [1] },
+        { appid: 2, appType: 0, tagIds: [1] },
+        { appid: 3, appType: 0, tagIds: [1] },
+      ],
+      // appid 2's single unlock is its whole schema — that is 100%, not the joke.
+      schemas: { 1: 54, 2: 1, 3: 12 },
+      unlocks: { 1: 1, 2: 1 },
+      names: { 1: "Monster Hunter: World" },
+    });
+
+    const portrait = await new SteamPortraitService(prisma).getPortrait();
+
+    expect(portrait.anti.singleAchievement).toEqual({
+      games: [{ appid: 1, name: "Monster Hunter: World", minutes: 3_000 }],
+      withAnyUnlock: 2,
+      withSchema: 3,
+    });
+  });
+
+  it("crowns the oldest real last-played date, not Steam's epoch sentinel", async () => {
+    const prisma = mockPrisma({
+      dates: [LATEST],
+      snapshots: [
+        { appid: 1, snapshotDate: LATEST, playtimeForeverMinutes: 410 },
+        { appid: 2, snapshotDate: LATEST, playtimeForeverMinutes: 297 },
+        { appid: 3, snapshotDate: LATEST, playtimeForeverMinutes: 30 },
+      ],
+      enrichment: [
+        { appid: 1, appType: 0, tagIds: [1] },
+        { appid: 2, appType: 0, tagIds: [1] },
+        { appid: 3, appType: 0, tagIds: [1] },
+      ],
+      names: { 1: "Modern Warfare 2", 2: "Mirror's Edge", 3: "BioShock" },
+      lastPlayed: {
+        1: new Date("1970-01-02T00:00:00.000Z"),
+        2: new Date("2012-07-18T00:00:00.000Z"),
+        3: new Date("2011-01-01T00:00:00.000Z"),
+      },
+    });
+
+    const portrait = await new SteamPortraitService(prisma).getPortrait();
+
+    // appid 3 is older still, but half an hour in it is an abandon rather
+    // than a cold streak, so the meaningful cohort has already dropped it.
+    expect(portrait.anti.coldest).toEqual({
+      appid: 2,
+      name: "Mirror's Edge",
+      minutes: 297,
+      lastPlayed: "2012-07-18T00:00:00.000Z",
+    });
+  });
+
+  it("reports no cold streak when nothing carries a usable last-played date", async () => {
+    const prisma = mockPrisma({
+      dates: [LATEST],
+      snapshots: [{ appid: 1, snapshotDate: LATEST, playtimeForeverMinutes: 600 }],
+      enrichment: [{ appid: 1, appType: 0, tagIds: [1] }],
+    });
+
+    const portrait = await new SteamPortraitService(prisma).getPortrait();
+
+    expect(portrait.anti.coldest).toBeNull();
   });
 
   it("reports no recency window when only one snapshot date exists", async () => {

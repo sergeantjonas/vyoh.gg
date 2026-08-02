@@ -12,6 +12,8 @@ import type {
   CompletionSummary,
   GenreFingerprint,
   SteamPortrait,
+  SteamPortraitAnti,
+  SteamPortraitGameRef,
   SteamPortraitRecent,
 } from "@vyoh/shared";
 import {
@@ -20,8 +22,13 @@ import {
   excludeBarelyPlayedInWindow,
   excludeBarelyTouched,
   isSteamGameAppType,
+  selectColdest,
+  selectEngagementCohort,
+  selectQuickestAbandons,
+  selectSingleAchievement,
   summariseCompletion,
   summariseEngagement,
+  summariseTasted,
 } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -41,11 +48,27 @@ const EMPTY_COMPLETION: CompletionSummary = {
   medianCompletion: 0,
 };
 
+const EMPTY_ANTI: SteamPortraitAnti = {
+  tasted: {
+    count: 0,
+    totalMinutes: 0,
+    medianMinutes: 0,
+    quickest: [],
+    fingerprint: EMPTY_FINGERPRINT,
+  },
+  singleAchievement: { games: [], withAnyUnlock: 0, withSchema: 0 },
+  coldest: null,
+};
+
 type PortraitGame = {
+  appid: number;
+  name: string;
   playtimeForeverMinutes: number;
   /** Minutes accrued between the baseline and latest snapshots. */
   windowMinutes: number;
   launchDayCount: number;
+  /** Steam's `rtime_last_played`; null when it has never been launched. */
+  lastPlayed: Date | null;
   tags: string[];
   /** Achievements in this game's schema; zero when it has none. */
   total: number;
@@ -105,6 +128,7 @@ export class SteamPortraitService {
           totalMinutes: 0,
           meaningfulMinutes: 0,
         },
+        anti: EMPTY_ANTI,
         completion: EMPTY_COMPLETION,
         lastSyncedAt: null,
       };
@@ -131,6 +155,7 @@ export class SteamPortraitService {
         totalMinutes: summary.totalMinutes,
         meaningfulMinutes: summary.meaningfulMinutes,
       },
+      anti: buildAnti(games, cohort),
       // Deliberately over the whole library rather than the cleaned cohort:
       // the cohort floor is an hour and this one is ten, so filtering twice
       // would only ever remove games this filter already excludes.
@@ -155,7 +180,7 @@ export class SteamPortraitService {
       await Promise.all([
         this.prisma.steamOwnedGame.findMany({
           where: { removedAt: null },
-          select: { appid: true },
+          select: { appid: true, name: true, rtimeLastPlayed: true },
         }),
         this.prisma.steamPlaytimeSnapshot.findMany({
           where: { snapshotDate: { in: dates }, game: { removedAt: null } },
@@ -213,15 +238,58 @@ export class SteamPortraitService {
         });
 
         return {
+          appid: game.appid,
+          name: game.name,
           playtimeForeverMinutes: minutes,
           windowMinutes: Math.max(0, minutes - before),
           launchDayCount: launchDays.get(game.appid)?.size ?? 0,
+          lastPlayed: game.rtimeLastPlayed,
           tags,
           total: schemaSize.get(game.appid) ?? 0,
           unlocked: unlockCount.get(game.appid) ?? 0,
         };
       });
   }
+}
+
+function gameRef(game: PortraitGame): SteamPortraitGameRef {
+  return { appid: game.appid, name: game.name, minutes: game.playtimeForeverMinutes };
+}
+
+/**
+ * The Anti-Portrait's three claims. `games` is the whole library and `cohort`
+ * is the meaningful slice of it — both are needed, because the tasted cards
+ * read what the cohort filter threw away while the cold streak reads what it
+ * kept.
+ */
+function buildAnti(games: PortraitGame[], cohort: PortraitGame[]): SteamPortraitAnti {
+  const tasted = selectEngagementCohort(games, "tasted");
+  const withSchema = games.filter((game) => game.total > 0);
+  const coldest = selectColdest(cohort);
+
+  return {
+    tasted: {
+      ...summariseTasted(tasted),
+      quickest: selectQuickestAbandons(tasted).map(gameRef),
+      // Weighted by lifetime minutes like every fingerprint, which inside a
+      // cohort capped at 59 minutes is close to unweighted. The card reads
+      // `gameCount` for exactly that reason.
+      fingerprint: buildGenreFingerprint(
+        tasted.map((game) => ({ minutes: game.playtimeForeverMinutes, tags: game.tags }))
+      ),
+    },
+    singleAchievement: {
+      games: selectSingleAchievement(withSchema)
+        .sort((a, b) => b.playtimeForeverMinutes - a.playtimeForeverMinutes)
+        .map(gameRef),
+      withAnyUnlock: withSchema.filter((game) => game.unlocked > 0).length,
+      withSchema: withSchema.length,
+    },
+    coldest:
+      coldest?.lastPlayed == null
+        ? null
+        : { ...gameRef(coldest), lastPlayed: coldest.lastPlayed.toISOString() },
+  };
 }
 
 function buildRecent(

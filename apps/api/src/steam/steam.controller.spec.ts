@@ -172,6 +172,22 @@ describe("SteamController", () => {
         totalMinutes: 143_100,
         meaningfulMinutes: 142_800,
       },
+      anti: {
+        tasted: {
+          count: 11,
+          totalMinutes: 265,
+          medianMinutes: 22,
+          quickest: [{ appid: 1113560, name: "NieR Replicant", minutes: 1 }],
+          fingerprint: {
+            genres: [],
+            distributedMinutes: 0,
+            gamesCounted: 0,
+            gamesWithoutGenre: 0,
+          },
+        },
+        singleAchievement: { games: [], withAnyUnlock: 54, withSchema: 157 },
+        coldest: null,
+      },
       completion: {
         cohortCount: 24,
         finishedCount: 3,

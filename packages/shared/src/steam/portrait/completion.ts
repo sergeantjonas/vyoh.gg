@@ -7,6 +7,7 @@
 // two hours, not the player: everyone is at 8% early on.
 
 import { COMPLETIONIST_PLAYTIME_MINUTES } from "./engagement.ts";
+import { medianOfSorted } from "./stats.ts";
 
 /** At or above this, a game reads as finished rather than sampled. */
 export const FINISHED_COMPLETION_SHARE = 0.8;
@@ -50,16 +51,6 @@ export function summariseCompletion(games: Iterable<CompletionInput>): Completio
     cohortCount: cohort.length,
     finishedCount: shares.filter((share) => share >= FINISHED_COMPLETION_SHARE).length,
     perfectCount: shares.filter((share) => share >= 1).length,
-    medianCompletion: median(shares),
+    medianCompletion: medianOfSorted(shares),
   };
-}
-
-function median(sorted: number[]): number {
-  if (sorted.length === 0) return 0;
-  const mid = Math.floor(sorted.length / 2);
-  const upper = sorted[mid];
-  if (upper === undefined) return 0;
-  if (sorted.length % 2 === 1) return upper;
-  const lower = sorted[mid - 1];
-  return lower === undefined ? upper : (lower + upper) / 2;
 }
