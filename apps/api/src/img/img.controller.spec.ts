@@ -325,6 +325,43 @@ describe("ImgController.rankEmblem", () => {
     await makeController().rankEmblem("GOLD", "2023", res as never);
     expect(upstream.fetchUpstreamChain).toHaveBeenCalled();
   });
+
+  // The segment reaches an upstream URL by string interpolation, and Express
+  // decodes `%2f` inside a segment — so an unvalidated tier picks the path we
+  // fetch from the wiki and CDragon rather than just the emblem.
+  it.each([
+    ["..%2f..%2f..%2fsome-path"],
+    ["../../../some-path"],
+    ["gold/../../evil"],
+    ["not-a-tier"],
+    [""],
+  ])("returns 400 and fetches nothing for tier %j", async (tier) => {
+    const res = makeRes();
+    await makeController().rankEmblem(tier, "2023", res as never);
+    expect(res._status).toBe(400);
+    expect(upstream.fetchUpstreamChain).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["IRON"],
+    ["EMERALD"],
+    ["MASTER"],
+    ["GRANDMASTER"],
+    ["CHALLENGER"],
+    // Not a Riot tier, but both upstreams serve an emblem and the profile
+    // hero requests it — a closed set that omitted it would 400 a live surface.
+    ["UNRANKED"],
+  ])("still serves the real tier %s", async (tier) => {
+    const res = makeRes();
+    await makeController().rankEmblem(tier, "2023", res as never);
+    expect(upstream.fetchUpstreamChain).toHaveBeenCalled();
+  });
+
+  it("accepts a lowercase tier, since only casing distinguishes it", async () => {
+    const res = makeRes();
+    await makeController().rankEmblem("emerald", "2023", res as never);
+    expect(upstream.fetchUpstreamChain).toHaveBeenCalled();
+  });
 });
 
 describe("ImgController.uiIcon", () => {

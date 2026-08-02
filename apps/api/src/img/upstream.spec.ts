@@ -273,3 +273,48 @@ describe("streamUpstream", () => {
     );
   });
 });
+
+// Following a redirect would hand whoever controls the hop the address we
+// fetch — including loopback and link-local. Both helpers must refuse.
+describe("redirect refusal", () => {
+  const REDIRECTS = [301, 302, 303, 307, 308];
+
+  it.each(REDIRECTS)("fetchUpstream refuses a %i", async (status) => {
+    mockFetchOnce(
+      () =>
+        new Response(null, { status, headers: { location: "http://169.254.169.254/" } })
+    );
+    await expect(fetchUpstream("https://cdn.example/a.png")).rejects.toBeInstanceOf(
+      UpstreamError
+    );
+  });
+
+  it.each(REDIRECTS)("streamUpstream refuses a %i", async (status) => {
+    mockFetchOnce(
+      () =>
+        new Response(null, { status, headers: { location: "http://127.0.0.1:5432/" } })
+    );
+    await expect(streamUpstream("https://cdn.example/a.webm")).rejects.toBeInstanceOf(
+      UpstreamError
+    );
+  });
+
+  it("asks fetch not to follow redirects in the first place", async () => {
+    const payload = new TextEncoder().encode("ok").buffer;
+    mockFetchOnce(() => okResponse(payload as ArrayBuffer));
+
+    await fetchUpstream("https://cdn.example/a.png");
+
+    expect(fetch).toHaveBeenCalledWith(
+      "https://cdn.example/a.png",
+      expect.objectContaining({ redirect: "manual" })
+    );
+  });
+
+  it("refuses a zero-status error response", async () => {
+    mockFetchOnce(() => Response.error());
+    await expect(fetchUpstream("https://cdn.example/a.png")).rejects.toBeInstanceOf(
+      UpstreamError
+    );
+  });
+});

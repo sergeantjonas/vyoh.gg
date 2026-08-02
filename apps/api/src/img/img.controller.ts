@@ -5,7 +5,9 @@ import {
   type ChampionClassSlug,
   type ChampionVariant,
   LolImageService,
+  RANK_TIER_SLUGS,
   ROLE_POSITION_SLUGS,
+  type RankTierSlug,
   type RolePositionSlug,
   UI_ICON_NAMES,
   type UiIconName,
@@ -82,6 +84,7 @@ const CHAMPION_VARIANTS = new Set<ChampionVariant>([
 const ROLE_POSITIONS = new Set<RolePositionSlug>(ROLE_POSITION_SLUGS);
 const UI_ICONS = new Set<UiIconName>(UI_ICON_NAMES);
 const CHAMPION_CLASSES = new Set<ChampionClassSlug>(CHAMPION_CLASS_SLUGS);
+const RANK_TIERS = new Set<RankTierSlug>(RANK_TIER_SLUGS);
 
 @Controller("img")
 export class ImgController {
@@ -281,7 +284,14 @@ export class ImgController {
       res.status(HttpStatus.BAD_REQUEST).send();
       return;
     }
-    const resolved = this.lol.rankEmblem(tier, yearNum);
+    // Riot sends the tier uppercase; normalise before the membership test so
+    // the closed set stays the single spelling of what a tier may be.
+    const normalized = tier.toUpperCase() as RankTierSlug;
+    if (!RANK_TIERS.has(normalized)) {
+      res.status(HttpStatus.BAD_REQUEST).send();
+      return;
+    }
+    const resolved = this.lol.rankEmblem(normalized, yearNum);
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 

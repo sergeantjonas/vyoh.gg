@@ -95,6 +95,25 @@ export const CHAMPION_CLASS_SLUGS = [
 ] as const;
 export type ChampionClassSlug = (typeof CHAMPION_CLASS_SLUGS)[number];
 
+// Ranked tiers, as Riot spells them — the web forwards `rank.tier` straight
+// from the api, so the segment arrives uppercase and must be matched that way.
+// `UNRANKED` is not a Riot tier but both upstreams serve an emblem for it and
+// the profile hero requests it, so it belongs in the set.
+export const RANK_TIER_SLUGS = [
+  "IRON",
+  "BRONZE",
+  "SILVER",
+  "GOLD",
+  "PLATINUM",
+  "EMERALD",
+  "DIAMOND",
+  "MASTER",
+  "GRANDMASTER",
+  "CHALLENGER",
+  "UNRANKED",
+] as const;
+export type RankTierSlug = (typeof RANK_TIER_SLUGS)[number];
+
 // CDragon's `npe-ft-role-icon-{slug}.png` set predates Riot's taxonomy
 // rename and still ships under the legacy slug names. Map the modern slug
 // to its closest legacy CDragon bucket for the proxy fallback; Specialist
@@ -353,7 +372,7 @@ export class LolImageService {
   // Wiki primary with CDragon `ranked-emblem/emblem-{tier}.png` fallback —
   // resolves for every tier including Emerald. `year` is the wiki-only cache
   // key; CDragon serves the current redesign under the same path regardless.
-  rankEmblem(tier: string, year: number): Resolved {
+  rankEmblem(tier: RankTierSlug, year: number): Resolved {
     const lowered = tier.toLowerCase();
     return {
       urls: [

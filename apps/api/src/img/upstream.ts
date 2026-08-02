@@ -17,11 +17,23 @@ export class UpstreamError extends Error {
   }
 }
 
+// Every upstream in this module is a known asset host serving a known path, so
+// a redirect is never part of a healthy response — and following one would let
+// whoever controls that hop choose the address we fetch, including loopback and
+// link-local. `redirect: "manual"` makes undici hand back the 3xx itself. The
+// `opaqueredirect` arm is the browser/spec shape for the same case; undici does
+// not produce it today, but it costs nothing and the alternative is a silently
+// followed redirect if that ever changes.
+function isRedirect(res: Response): boolean {
+  return res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400);
+}
+
 export async function fetchUpstream(url: string): Promise<Buffer> {
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), FETCH_TIMEOUT_MS);
   try {
-    const res = await fetch(url, { signal: ac.signal });
+    const res = await fetch(url, { signal: ac.signal, redirect: "manual" });
+    if (isRedirect(res)) throw new UpstreamError(url, `refused redirect ${res.status}`);
     if (!res.ok) throw new UpstreamError(url, `HTTP ${res.status}`);
     return Buffer.from(await res.arrayBuffer());
   } catch (err) {
@@ -152,7 +164,8 @@ export async function streamUpstream(
   try {
     const headers: Record<string, string> = {};
     if (range) headers.Range = range;
-    const res = await fetch(url, { signal: ac.signal, headers });
+    const res = await fetch(url, { signal: ac.signal, headers, redirect: "manual" });
+    if (isRedirect(res)) throw new UpstreamError(url, `refused redirect ${res.status}`);
     // 206 Partial Content is a success for `Range` requests; treat it like 200.
     if (!res.ok && res.status !== 206) {
       throw new UpstreamError(url, `HTTP ${res.status}`);

@@ -133,7 +133,12 @@ So an anonymous caller chooses the **path** fetched from four trusted upstreams 
 
 **This retracts the "hardcoded upstream URLs, no SSRF possible" claim** that an earlier summary asserted and this note already flagged as unverified. Most routes genuinely are safe — `wiki-file`/`wiki-splash` (charset regex excluding `/`), `rune`/`spell`/`map` (numeric), `ability` and `steam/achievement` (Prisma-gated), the `steam/*` capsule family (numeric appid, literal filenames) — which is why the generalisation held up until someone checked route by route.
 
-**Fix:** validate `tier` against the rank-tier set exactly as `role`/`champClass` already do, and reject `/`, `..` and `%` in `alias` and `patch`.
+**Partly fixed 2026-08-03.** `tier` now validates against `RANK_TIER_SLUGS` in `lol-image.service.ts` — the same closed-set shape its siblings use — and `LolImageService.rankEmblem` takes `RankTierSlug` rather than `string`, so the type system carries the guarantee instead of the controller remembering. Two things the fix had to get right, neither of which is obvious from the vulnerability:
+
+- The web forwards Riot's `rank.tier` verbatim, so the segment arrives **uppercase**; the set is matched case-insensitively via `toUpperCase()`.
+- **`UNRANKED` is a live value.** It is not a Riot tier, but both upstreams serve an emblem for it and the profile hero requests it, so a set built from the ten real tiers would have 400'd a working surface. Confirmed by probing every tier against the running api before writing the set.
+
+`alias` and `patch` still reach CDragon and DDragon the same way and are **not yet fixed** — they need the same treatment, and they are less mechanical because both are open-ended by design (a champion alias is not a closed set the api owns, and `patch` is a version string).
 
 ### F-8 — Outbound fetches follow redirects to anywhere · HIGH
 
@@ -141,7 +146,9 @@ So an anonymous caller chooses the **path** fetched from four trusted upstreams 
 
 Alone this is latent. Chained with F-7 it is the escalation path: an attacker who can select an arbitrary path on a trusted host only needs one open redirect anywhere in that host's path space to turn confined path-selection into **full SSRF** against `127.0.0.1:2010`, `127.0.0.1:5432`, or a cloud metadata endpoint. The guard that would have capped F-7's blast radius is the one that is missing.
 
-**Fix:** `redirect: "manual"` on both fetch paths in `upstream.ts`, treating any 3xx as an `UpstreamError`. If following is ever needed, resolve `Location` explicitly and check it against a host allowlist and a non-private-address rule first.
+**Fixed 2026-08-03.** Both `fetchUpstream` and `streamUpstream` now pass `redirect: "manual"` and refuse any 3xx through a shared `isRedirect` helper, raising `UpstreamError`. Every upstream here is a known host serving a known path, so a redirect is never part of a healthy response and refusing outright costs nothing. Tests cover all five redirect statuses on both helpers, plus an assertion that `redirect: "manual"` is actually passed — the failure mode of a silent regression is that the option is dropped and everything still passes.
+
+If following is ever genuinely needed, resolve `Location` explicitly and check it against a host allowlist and a non-private-address rule before re-fetching.
 
 ### F-9 — The nginx cache key includes inputs the app ignores, so the cache is free to bust · HIGH
 
