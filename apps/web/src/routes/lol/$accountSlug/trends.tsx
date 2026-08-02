@@ -3,6 +3,7 @@ import { EmptyMatchesIllustration, EmptyState } from "@/components/empty-state";
 import { ChartBoundary } from "@/components/error-boundary";
 import { SectionTitle } from "@/components/ui/section-title";
 import { routeMeta } from "@/lib/route-meta";
+import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { TrendChampionFocus } from "@/lol/trends/trend-champion-focus";
 import { TrendComebackResilience } from "@/lol/trends/trend-comeback-resilience";
@@ -54,7 +55,9 @@ function Cell({
   return (
     <m.div
       layout
-      className={span === 3 ? "md:col-span-3" : span === 2 ? "md:col-span-2" : undefined}
+      // `grid` makes the single child fill the cell. The dense flow wants each
+      // tile to fill its row, and CardShell no longer claims that height itself.
+      className={cn("grid", span === 3 && "md:col-span-3", span === 2 && "md:col-span-2")}
       initial={reduced ? {} : { opacity: 0, y: 16 }}
       whileInView={reduced ? {} : { opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.05 }}
@@ -321,6 +324,10 @@ function TrendsPage() {
           {sortedTiles.map((tile, index) => (
             <Cell key={tile.id} span={tile.span}>
               <DeferredMount
+                // `grid` for the same reason as Cell: this wrapper sits
+                // between the stretched cell and the tile, so the tile only
+                // fills its row if every link in the chain passes the height on.
+                className="grid"
                 eager={index < EAGER_TILE_COUNT}
                 minHeight={PLACEHOLDER_HEIGHT_BY_SPAN[tile.span]}
               >

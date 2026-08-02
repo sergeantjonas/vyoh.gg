@@ -4,9 +4,8 @@ import { useSteamPortrait } from "./use-portrait";
 
 const TITLE = "The gap";
 
-// The section's closing statement rather than another fact, so it takes the
-// full row. Every number in it was already earned by a card above; this one
-// only puts them in the same sentence.
+// The section's closing statement rather than another fact. Every number in it
+// was already earned by a card above; this one only puts them in one sentence.
 export function TheGapCard() {
   const query = useSteamPortrait();
 
@@ -22,7 +21,6 @@ export function TheGapCard() {
       {({ posture, completion }) => (
         <FactCard
           title={TITLE}
-          className="md:col-span-2"
           verdict={`You own ${posture.ownedCount} games, meaningfully played ${posture.meaningfulCount}, finished ${completion.finishedCount}. The gap is the hobby.`}
           // "Finished" is the narrowest word on the page, so it says which
           // games it was allowed to count rather than implying 18 of 186.

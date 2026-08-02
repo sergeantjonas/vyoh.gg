@@ -18,7 +18,7 @@ export function AntiPortraitSection() {
           The half Steam doesn't show you
         </p>
       </div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
         <TastedTierCard />
         <QuickestAbandonsCard />
         <BounceGenresCard />

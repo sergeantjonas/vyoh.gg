@@ -51,7 +51,11 @@ export function CardShell({
   return (
     <div
       className={cn(
-        "flex h-full flex-col gap-3 rounded-lg border px-4 py-4",
+        // No `h-full`: whether cards in a row share a height is the grid's
+        // decision, not the card's. A stretch grid (the default) fills the row
+        // without it, while `h-full` would override an `items-start` grid that
+        // wants each card sized to its own content.
+        "flex flex-col gap-3 rounded-lg border px-4 py-4",
         // `view-entry` is a scroll-driven opacity-0→1 entrance keyed on
         // `animation-timeline: view(block)`. It's a nice polish in
         // page-grounded contexts (LoL Trends tab, Steam profile chips) where
