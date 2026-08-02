@@ -135,7 +135,9 @@ describe("AntiPortraitSection", () => {
     expect(screen.getByText("Reading what didn't stick…")).toBeTruthy();
     expect(screen.getByText("Checking who stopped at one…")).toBeTruthy();
     expect(screen.getByText("Finding the bottom of the shelf…")).toBeTruthy();
-    expect(screen.getByText("Adding it up…")).toBeTruthy();
+    expect(
+      screen.getByText("Adding up what was bought against what was played…")
+    ).toBeTruthy();
   });
 
   it("renders an unavailable verdict for every card on error", () => {
@@ -294,9 +296,10 @@ describe("ColdestShelfCard", () => {
   });
 });
 
-describe("TheGapCard", () => {
-  it("closes the section with all three counts in one sentence", () => {
+describe("AntiPortraitHero", () => {
+  it("leads with the count that never got opened at all", () => {
     ready();
+    expect(screen.getByRole("heading", { name: "120 never opened" })).toBeTruthy();
     expect(
       screen.getByText(
         "You own 186 games, meaningfully played 55, finished 18. The gap is the hobby."
@@ -304,11 +307,19 @@ describe("TheGapCard", () => {
     ).toBeTruthy();
   });
 
+  it("draws the collapse against one denominator rather than re-basing each step", () => {
+    ready();
+    // 55 and 18 are both shares of the 186 owned, not of the step above them.
+    expect(screen.getByText("186 · 100%")).toBeTruthy();
+    expect(screen.getByText("55 · 30%")).toBeTruthy();
+    expect(screen.getByText("18 · 10%")).toBeTruthy();
+  });
+
   it("discloses which games 'finished' was allowed to count", () => {
     ready();
     expect(
       screen.getByText(
-        "Finished means past 80% of the achievements, counted over the 34 games with a schema and ten hours in them."
+        /Finished means past 80% of the achievements, counted over the\s+34 games with a schema and ten hours in them\./
       )
     ).toBeTruthy();
   });

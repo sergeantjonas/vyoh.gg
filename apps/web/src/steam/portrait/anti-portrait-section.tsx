@@ -1,11 +1,11 @@
 import { SectionTitle } from "@/components/ui/section-title";
+import { AntiPortraitHero } from "./anti-portrait-hero";
 import { BounceGenresCard } from "./bounce-genres-card";
 import { ChipBand } from "./chip-band";
 import { ColdestShelfCard } from "./coldest-shelf-card";
 import { QuickestAbandonsCard } from "./quickest-abandons-card";
 import { SingleAchievementCard } from "./single-achievement-card";
 import { TastedTierCard } from "./tasted-tier-card";
-import { TheGapCard } from "./the-gap-card";
 
 // The counterweight to PortraitSection, and the reason the page is worth
 // reading: Steam itself only ever surfaces what you played most. Same bare
@@ -19,13 +19,13 @@ export function AntiPortraitSection() {
           The half Steam doesn't show you
         </p>
       </div>
+      <AntiPortraitHero />
       <ChipBand>
         <TastedTierCard />
         <QuickestAbandonsCard />
         <BounceGenresCard />
         <SingleAchievementCard />
         <ColdestShelfCard />
-        <TheGapCard />
       </ChipBand>
     </section>
   );
