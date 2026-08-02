@@ -1,8 +1,10 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   Logger,
   type MessageEvent,
+  NotFoundException,
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import {
@@ -710,9 +712,9 @@ export class LolService {
         cached.detail as unknown as Parameters<typeof riotMatchToDetail>[0]
       );
 
-    const platform = matchId.split("_")[0]?.toLowerCase();
-    if (!platform) throw new Error(`Cannot derive region from matchId ${matchId}`);
-    const regional = platformToRegional(platform);
+    await this.assertTrackedMatch(matchId);
+
+    const regional = this.regionalForMatch(matchId);
     const raw = await this.riot.getMatchById(matchId, regional);
     const ownerPuuids = await this.resolveOwnerPuuids();
     const projected = projectMatchForStorage(raw, ownerPuuids);
@@ -732,15 +734,46 @@ export class LolService {
         cached.timeline as unknown as Parameters<typeof riotTimelineToProjection>[0]
       );
 
-    const platform = matchId.split("_")[0]?.toLowerCase();
-    if (!platform) throw new Error(`Cannot derive region from matchId ${matchId}`);
-    const regional = platformToRegional(platform);
+    await this.assertTrackedMatch(matchId);
+
+    const regional = this.regionalForMatch(matchId);
     const raw = await this.riot.getMatchTimelineById(matchId, regional);
 
     await this.prisma.matchTimelineCache.create({
       data: { matchId, timeline: raw as unknown as object },
     });
     return riotTimelineToProjection(raw);
+  }
+
+  // Serving a cached match to anyone is fine — it is the same data the site
+  // renders. Fetching an *uncached* one is not: the id shape is enumerable, so
+  // without this the endpoint is an unauthenticated proxy onto the whole Riot
+  // match API, paid for out of our rate-limit budget, writing a permanent cache
+  // row per request. A `Match` row exists only for matches a tracked account
+  // actually played, which makes it the right thing to gate on.
+  //
+  // The sync path does not come through here — it calls the Riot client
+  // directly — so a genuinely new match still gets fetched and stored by the
+  // match-list flow before anyone can open its detail page.
+  private async assertTrackedMatch(matchId: string): Promise<void> {
+    const known = await this.prisma.match.findFirst({
+      where: { matchId },
+      select: { matchId: true },
+    });
+    if (!known) throw new NotFoundException(`Unknown match ${matchId}`);
+  }
+
+  // `platformToRegional` throws a bare Error for an unrecognised prefix, which
+  // surfaces as a 500. The id shape passes DTO validation long before we know
+  // whether the platform is real, so map it to a 400 here.
+  private regionalForMatch(matchId: string): Regional {
+    const platform = matchId.split("_")[0]?.toLowerCase();
+    if (!platform) throw new BadRequestException(`Malformed match id ${matchId}`);
+    try {
+      return platformToRegional(platform);
+    } catch {
+      throw new BadRequestException(`Unknown platform in match id ${matchId}`);
+    }
   }
 
   // The allowlist lives here rather than only at the callers because this is

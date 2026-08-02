@@ -1,4 +1,8 @@
-import { ForbiddenException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import type { LolAccount } from "@vyoh/shared";
 import { EMPTY, Subject, firstValueFrom, take, toArray } from "rxjs";
@@ -1383,6 +1387,7 @@ describe("LolService.getMatchDetail", () => {
     cached?: unknown | null;
     raw?: RiotMatch;
     summoners?: { puuid: string }[];
+    tracked?: boolean;
   }) {
     const matchDetailCache = {
       findUnique: vi.fn().mockResolvedValue(opts.cached ?? null),
@@ -1392,6 +1397,13 @@ describe("LolService.getMatchDetail", () => {
     const prisma = {
       matchDetailCache,
       summoner: { findMany: summonerFindMany },
+      // An uncached match is only fetched when a tracked account played it, so
+      // every case here needs a `Match` row unless it is testing the refusal.
+      match: {
+        findFirst: vi
+          .fn()
+          .mockResolvedValue(opts.tracked === false ? null : { matchId: "known" }),
+      },
     };
     const riot = {
       getMatchById: vi.fn().mockResolvedValue(opts.raw ?? buildMatch("EUW1_1", 0)),
@@ -1433,11 +1445,39 @@ describe("LolService.getMatchDetail", () => {
     expect(result.matchId).toBe("EUW1_FRESH");
   });
 
-  it("throws when the matchId has no platform prefix", async () => {
-    const { service } = await makeDetailService({});
-    await expect(service.getMatchDetail("")).rejects.toThrow(
-      /Cannot derive region from matchId/
+  // Was a bare Error, which Nest turns into a 500. Bad input from a caller is
+  // a 400, and the id shape passes DTO validation long before we know whether
+  // the platform prefix is one Riot actually uses.
+  it("rejects a matchId whose platform prefix is not a real one", async () => {
+    const { service, riot } = await makeDetailService({});
+    await expect(service.getMatchDetail("ZZ1_123")).rejects.toBeInstanceOf(
+      BadRequestException
     );
+    expect(riot.getMatchById).not.toHaveBeenCalled();
+  });
+
+  // The exposure this closes: without it the route is an unauthenticated proxy
+  // onto Riot's whole match API, since the id shape is enumerable.
+  it("refuses an uncached match no tracked account played, without calling Riot", async () => {
+    const { service, prisma, riot } = await makeDetailService({ tracked: false });
+    await expect(service.getMatchDetail("EUW1_9999")).rejects.toBeInstanceOf(
+      NotFoundException
+    );
+    expect(riot.getMatchById).not.toHaveBeenCalled();
+    expect(prisma.matchDetailCache.create).not.toHaveBeenCalled();
+  });
+
+  // A cached row stays readable regardless — it is the same data the site
+  // renders, and serving it costs nothing upstream.
+  it("still serves a cached match without consulting the tracked-match gate", async () => {
+    const cachedRaw = buildMatch("EUW1_CACHED", 1_000_000);
+    const { service, prisma } = await makeDetailService({
+      cached: { detail: cachedRaw },
+      tracked: false,
+    });
+    const result = await service.getMatchDetail("EUW1_CACHED");
+    expect(result.matchId).toBe("EUW1_CACHED");
+    expect(prisma.match.findFirst).not.toHaveBeenCalled();
   });
 });
 
@@ -1445,12 +1485,20 @@ describe("LolService.getMatchTimeline", () => {
   async function makeTimelineService(opts: {
     cached?: unknown | null;
     raw?: unknown;
+    tracked?: boolean;
   }) {
     const matchTimelineCache = {
       findUnique: vi.fn().mockResolvedValue(opts.cached ?? null),
       create: vi.fn().mockResolvedValue(undefined),
     };
-    const prisma = { matchTimelineCache };
+    const prisma = {
+      matchTimelineCache,
+      match: {
+        findFirst: vi
+          .fn()
+          .mockResolvedValue(opts.tracked === false ? null : { matchId: "known" }),
+      },
+    };
     const rawTimeline = opts.raw ?? {
       metadata: { matchId: "EUW1_T", participants: ["puuid-vyoh"] },
       info: { frames: [], participants: [] },
@@ -1493,10 +1541,19 @@ describe("LolService.getMatchTimeline", () => {
     expect(prisma.matchTimelineCache.create).toHaveBeenCalled();
   });
 
-  it("throws when the matchId has no platform prefix", async () => {
-    const { service } = await makeTimelineService({});
-    await expect(service.getMatchTimeline("")).rejects.toThrow(
-      /Cannot derive region from matchId/
+  it("rejects a matchId whose platform prefix is not a real one", async () => {
+    const { service, riot } = await makeTimelineService({});
+    await expect(service.getMatchTimeline("ZZ1_123")).rejects.toBeInstanceOf(
+      BadRequestException
     );
+    expect(riot.getMatchTimelineById).not.toHaveBeenCalled();
+  });
+
+  it("refuses an uncached timeline no tracked account played", async () => {
+    const { service, riot } = await makeTimelineService({ tracked: false });
+    await expect(service.getMatchTimeline("EUW1_9999")).rejects.toBeInstanceOf(
+      NotFoundException
+    );
+    expect(riot.getMatchTimelineById).not.toHaveBeenCalled();
   });
 });

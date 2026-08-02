@@ -46,13 +46,17 @@ The existing 27 call-site checks stay. They are not redundant — several gate a
 
 Four tests cover the choke point, including the one that matters most: a rejected account triggers **no Riot call and no row write**, not merely an exception.
 
-### F-2 — The match endpoints are an open, unauthenticated Riot proxy · HIGH
+### F-2 — The match endpoints are an open, unauthenticated Riot proxy · HIGH · **fixed 2026-08-03**
 
 `GET /lol/matches/:matchId` and `GET /lol/matches/:matchId/timeline` ([match.controller.ts:10,15](../../../apps/api/src/lol/match.controller.ts#L10)) carry no allowlist check of any kind. On a cache miss, [lol.service.ts:704-744](../../../apps/api/src/lol/lol.service.ts#L704-L744) derives the region from the matchId string, fetches from Riot, and **permanently inserts a `matchDetailCache` / `matchTimelineCache` row**.
 
 Match IDs are structured and enumerable (`EUW1_<counter>`), so the cache never helps: every request is a miss, a live Riot call, and a new row. One loop is simultaneously a Riot-quota attack, an unbounded disk-growth attack, and a way to use `api.vyoh.gg` as a free public Riot API — which is squarely a Riot ToS problem given the DevRel contact already on record.
 
 **Fix:** clamp the miss path to owner data. Serve any cached row (cheap, harmless, keeps the public read story), but only fetch upstream for a matchId that appears in a tracked account's history. An unknown ID gets 404, not a Riot call.
+
+**Fixed** by gating the *miss* path on `Match.matchId` existing — a row that is written only for matches a tracked account actually played, which makes it the right thing to gate on. A cached row still serves to anyone, because it is the same data the site renders and costs nothing upstream; an uncached unknown id now 404s instead of reaching Riot.
+
+Checking the internal callers first is what made this safe rather than a guess: the sync path never comes through here — it calls `riot.getMatchTimelineById` directly — so a genuinely new match is still fetched and stored by the match-list flow before anyone can open its detail page. Only the two public routes and the OG match card reach these methods.
 
 **There is also no retention policy of any kind**, which is what makes the disk side of this permanent rather than merely large. A sweep for cleanup/prune/evict/TTL logic across all 13 `matchDetailCache`/`matchTimelineCache` call sites found zero deletes, no cron sweep and no row cap; both `matchId` columns are uncapped `text` and both payload columns are unbounded `Json`. Every row an attacker causes is kept forever. An eviction job is worth having regardless of the clamp, and it is already anticipated — the match-cache tiering work in [match-cache-storage.md](../lol/match-cache-storage.md) is the natural home, with the caveat from [pre-launch-sweep.md](pre-launch-sweep.md) that destructive cache transforms gate on verified backups.
 
@@ -291,9 +295,9 @@ HTTP 500
 
 `MatchIdParamDto` accepts `^[A-Z0-9]+_\d+$`, so `ZZ1_123` passes validation, and `platformToRegional` then throws a bare `Error` for the unknown prefix. The only registered filter is `@Catch(RiotError)`, so it reaches Nest's default handler. No information leaks — the message is correctly masked — but it is a 500 where a 400 belongs, and it is trivially reachable. Same path via `/og/match/…`.
 
-**Fix:** constrain the DTO regex to known platform prefixes, or make `platformToRegional` throw `BadRequestException`.
+**Fixed 2026-08-03** alongside F-2 — the shared `regionalForMatch` helper now maps an unrecognised prefix to `BadRequestException`, so it is a 400 rather than a 500. The ordering also means most junk ids never get that far: the tracked-match gate runs first and answers 404.
 
-### F-20 — `/steam/game/:appid/description` re-fetches from Steam forever for any appid we don't own · HIGH
+### F-20 — `/steam/game/:appid/description` re-fetches from Steam forever for any appid we don't own · HIGH · **fixed 2026-08-03**
 
 [owned-games.service.ts:524-556](../../../apps/api/src/steam/owned-games.service.ts#L524-L556). For an appid with no `steamGameEnrichment` row — i.e. any of the tens of millions of Steam appids the owner does not have — the flow is: lookup misses, live call to Steam's storefront `appdetails`, then `prisma.steamGameEnrichment.update({ where: { appid } })`, which throws P2025 because there is no row to update. The catch swallows it and sets `html = null`.
 
@@ -311,11 +315,17 @@ call 3: HTTP 200  0.193731s
 
 A DB-cached read is single-digit milliseconds; ~250 ms sustained is the upstream round-trip, every time.
 
-**Fix:** `upsert` rather than `update`, so a negative result is recorded once — or refuse the fetch outright for appids outside the library, which is the better answer since the route exists to serve our own game pages.
+**Fixed 2026-08-03** by refusing outright for appids outside the library rather than switching to `upsert`. The route exists to serve our own game pages, so ownership is the honest constraint, and it closes the exposure and the never-caches bug in one move. The lookup is a primary-key hit on `SteamOwnedGame` rather than the existing `getGameRecap` pattern, which loads the whole 664 kB owned-games payload to answer the same question.
+
+One test had to change intent rather than just gain a stub: it asserted that a missing enrichment row still fetched and swallowed the P2025. That *was* the bug, so it now asserts the refusal happens without calling Steam at all.
 
 ### F-21 — `/steam/wishlist/:appid/hero-meta` fans one request into three upstream calls plus a CPU pass · HIGH
 
-[wishlist-hero.service.ts:31-59](../../../apps/api/src/steam/wishlist-hero.service.ts#L31-L59), reachable with any integer appid and no ownership check. On a miss it makes a live `IStoreBrowseService/GetItems` call using our API key, then up to two more fetches against `shared.akamai.steamstatic.com`, then a Vibrant colour-extraction pass over the image. The memo is a plain `Map` with no eviction, so it is also unbounded memory keyed on attacker input.
+[wishlist-hero.service.ts](../../../apps/api/src/steam/wishlist-hero.service.ts), reachable with any integer appid and no ownership check. On a miss it makes a live `IStoreBrowseService/GetItems` call using our API key, then up to two more fetches against `shared.akamai.steamstatic.com`, then a Vibrant colour-extraction pass over the image. The memo is a plain `Map` with no eviction, so it is also unbounded memory keyed on attacker input.
+
+**Half fixed 2026-08-03.** The cache is now bounded (64 entries, expired-then-oldest eviction on write); real use needs exactly one, the single imminent hero. The TTL alone never evicted, because it is only consulted on a read of that same key, so an entry nobody asks for again was retained for the process lifetime.
+
+**The ownership clamp is deliberately still open.** Unlike every other Steam route this cannot gate on library membership — the game is unowned *by design*, that being the entire point of the surface. The obvious substitute is wishlist membership via `SteamWishlistAsset`, and it was not shipped because that table is populated by the wishlist enrichment pass, and it is not established that it is always populated *before* a hero is requested for a newly-added wishlist item. Gating on it could 404 a live surface — the same trap `UNRANKED` set in F-7, where a closed set built from the ten real tiers would have broken the profile hero. That needs a probe of the actual ordering, not an assumption. With F-4's rate limit now in place the residual exposure is bounded, which is why this was acceptable to defer rather than guess.
 
 ### F-22 — One shared Steam reservoir turns any of the above into a full-integration outage · HIGH (mechanism)
 

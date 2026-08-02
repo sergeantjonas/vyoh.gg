@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import type {
   SteamGameRating,
   SteamGameScreenshots,
@@ -531,6 +531,21 @@ export class SteamOwnedGamesService {
     const bbcode = row?.fullDescriptionBbcode ?? null;
     if (row?.aboutTheGameHtml != null) {
       return { appid, bbcode, html: row.aboutTheGameHtml };
+    }
+
+    // Only fetch for a game we actually own. Without this the endpoint is an
+    // unauthenticated proxy onto Steam's storefront for any of its millions of
+    // appids — and a uniquely wasteful one, because the write below is an
+    // `update` against an enrichment row that does not exist for an unowned
+    // app, so the P2025 is swallowed, nothing is persisted, and every repeat
+    // request pays the upstream call again. Gating on ownership fixes the
+    // exposure and the never-caches bug in one move.
+    const owned = await this.prisma.steamOwnedGame.findUnique({
+      where: { appid },
+      select: { appid: true },
+    });
+    if (!owned) {
+      throw new NotFoundException(`Steam app ${appid} is not in the tracked library.`);
     }
 
     let html: string | null = null;

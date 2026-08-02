@@ -1,3 +1,4 @@
+import { NotFoundException } from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service";
 import type { SteamAchievementSchemaService } from "./achievement-schema.service";
@@ -17,7 +18,10 @@ function game(appid: number, name = `Game ${appid}`): SteamOwnedGameRaw {
 }
 
 interface PrismaStubs {
-  steamOwnedGame: { count: ReturnType<typeof vi.fn> };
+  steamOwnedGame: {
+    count: ReturnType<typeof vi.fn>;
+    findUnique?: ReturnType<typeof vi.fn>;
+  };
   steamPlaytimeSnapshot: {
     findFirst: ReturnType<typeof vi.fn>;
     count: ReturnType<typeof vi.fn>;
@@ -536,14 +540,23 @@ describe("SteamOwnedGamesService.getOwnedGames", () => {
 });
 
 describe("SteamOwnedGamesService.getGameDescription", () => {
-  function makeStubs(row: {
-    fullDescriptionBbcode: string | null;
-    aboutTheGameHtml: string | null;
-  }) {
+  function makeStubs(
+    row: {
+      fullDescriptionBbcode: string | null;
+      aboutTheGameHtml: string | null;
+    },
+    opts: { owned?: boolean } = {}
+  ) {
     const findUnique = vi.fn().mockResolvedValue(row);
     const update = vi.fn().mockResolvedValue({});
     const prisma: PrismaStubs = {
-      steamOwnedGame: { count: vi.fn() },
+      steamOwnedGame: {
+        count: vi.fn(),
+        // Every case below is a game we own; the unowned case is its own test.
+        findUnique: vi
+          .fn()
+          .mockResolvedValue(opts.owned === false ? null : { appid: 42 }),
+      },
       steamPlaytimeSnapshot: {
         findFirst: vi.fn(),
         count: vi.fn(),
@@ -610,25 +623,20 @@ describe("SteamOwnedGamesService.getGameDescription", () => {
     expect(result).toEqual({ appid: 42, bbcode: "[b]bb[/b]", html: null });
   });
 
-  it("missing enrichment row: lazy-fetches and surfaces P2025 as a logged warning", async () => {
-    const findUnique = vi.fn().mockResolvedValue(null);
-    const update = vi
-      .fn()
-      .mockRejectedValue(
-        Object.assign(new Error("Record to update not found."), { code: "P2025" })
-      );
-    const prisma: PrismaStubs = {
-      steamOwnedGame: { count: vi.fn() },
-      steamPlaytimeSnapshot: {
-        findFirst: vi.fn(),
-        count: vi.fn(),
-        aggregate: vi.fn(),
-        findMany: vi.fn(),
-      },
-      steamGameEnrichment: { findUnique, update },
-    };
+  // This previously asserted that a missing enrichment row still fetched from
+  // Steam and swallowed the resulting P2025. That was the bug, not the
+  // contract: the fetch was paid for and then discarded, so every repeat
+  // request hit Steam again, for any of its millions of appids.
+  it("unowned appid: refuses without calling Steam at all", async () => {
+    const { prisma } = makeStubs(
+      { fullDescriptionBbcode: null, aboutTheGameHtml: null },
+      { owned: false }
+    );
     const client = { getAboutTheGameHtml: vi.fn().mockResolvedValue("<p>x</p>") };
-    const result = await makeService(prisma, client).getGameDescription(42);
-    expect(result).toEqual({ appid: 42, bbcode: null, html: null });
+
+    await expect(
+      makeService(prisma, client).getGameDescription(999999999)
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(client.getAboutTheGameHtml).not.toHaveBeenCalled();
   });
 });
