@@ -49,8 +49,20 @@ const ANTI: SteamPortraitAnti = {
       gamesWithoutGenre: 2,
     },
   },
-  singleAchievement: { games: [], withAnyUnlock: 50, withSchema: 152 },
-  coldest: null,
+  singleAchievement: {
+    games: [
+      { appid: 1172470, name: "Apex Legends", minutes: 147 },
+      { appid: 2358720, name: "Black Myth: Wukong", minutes: 97 },
+    ],
+    withAnyUnlock: 50,
+    withSchema: 152,
+  },
+  coldest: {
+    appid: 28050,
+    name: "Deus Ex: Human Revolution",
+    minutes: 1_462,
+    lastPlayed: "2012-07-17T00:00:00.000Z",
+  },
 };
 
 function portrait(anti: SteamPortraitAnti = ANTI): SteamPortrait {
@@ -121,6 +133,9 @@ describe("AntiPortraitSection", () => {
     expect(screen.getByText("Counting the half-tries…")).toBeTruthy();
     expect(screen.getByText("Finding the shortest sittings…")).toBeTruthy();
     expect(screen.getByText("Reading what didn't stick…")).toBeTruthy();
+    expect(screen.getByText("Checking who stopped at one…")).toBeTruthy();
+    expect(screen.getByText("Finding the bottom of the shelf…")).toBeTruthy();
+    expect(screen.getByText("Adding it up…")).toBeTruthy();
   });
 
   it("renders an unavailable verdict for every card on error", () => {
@@ -131,6 +146,11 @@ describe("AntiPortraitSection", () => {
       screen.getByText("The shortest sittings are unavailable right now.")
     ).toBeTruthy();
     expect(screen.getByText("The bounce rates are unavailable right now.")).toBeTruthy();
+    expect(
+      screen.getByText("The single-achievement club is unavailable right now.")
+    ).toBeTruthy();
+    expect(screen.getByText("The coldest shelf is unavailable right now.")).toBeTruthy();
+    expect(screen.getByText("The verdict is unavailable right now.")).toBeTruthy();
   });
 });
 
@@ -217,8 +237,78 @@ describe("BounceGenresCard", () => {
       },
     });
     expect(
+      screen.getByText("No genre has been abandoned often enough to call it a pattern.")
+    ).toBeTruthy();
+  });
+});
+
+describe("SingleAchievementCard", () => {
+  it("gives the count the denominators that make it read as small", () => {
+    ready();
+    expect(
+      screen.getByText("2 games are sitting on exactly one unlocked achievement.")
+    ).toBeTruthy();
+    expect(
       screen.getByText(
-        "Nothing abandoned carries a genre the rest of the library shares."
+        "50 of the 152 games that ship achievements have earned any at all."
+      )
+    ).toBeTruthy();
+  });
+
+  it("shows how long each one took to earn its single achievement", () => {
+    ready();
+    expect(screen.getByText("Apex Legends").getAttribute("to")).toBe(
+      "/steam/library/$appid"
+    );
+    // Whole hours would render both of these as "2h".
+    expect(screen.getByText("2h 27m")).toBeTruthy();
+    expect(screen.getByText("1h 37m")).toBeTruthy();
+  });
+
+  it("says the club is empty rather than rendering a zero", () => {
+    ready({ ...ANTI, singleAchievement: { ...ANTI.singleAchievement, games: [] } });
+    expect(
+      screen.getByText("No game is sitting on exactly one unlocked achievement.")
+    ).toBeTruthy();
+  });
+});
+
+describe("ColdestShelfCard", () => {
+  it("dates the last launch and shows the hours already sunk into it", () => {
+    ready();
+    expect(
+      screen.getByText("Deus Ex: Human Revolution hasn't been launched since July 2012.")
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        "24h are already in it — this is a shelf that went cold, not one that was never opened."
+      )
+    ).toBeTruthy();
+  });
+
+  it("says nothing has gone cold when no date is usable", () => {
+    ready({ ...ANTI, coldest: null });
+    expect(
+      screen.getByText("Nothing played is old enough to have gone cold.")
+    ).toBeTruthy();
+  });
+});
+
+describe("TheGapCard", () => {
+  it("closes the section with all three counts in one sentence", () => {
+    ready();
+    expect(
+      screen.getByText(
+        "You own 186 games, meaningfully played 55, finished 18. The gap is the hobby."
+      )
+    ).toBeTruthy();
+  });
+
+  it("discloses which games 'finished' was allowed to count", () => {
+    ready();
+    expect(
+      screen.getByText(
+        "Finished means past 80% of the achievements, counted over the 34 games with a schema and ten hours in them."
       )
     ).toBeTruthy();
   });

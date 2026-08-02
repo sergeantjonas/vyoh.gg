@@ -39,10 +39,16 @@ describe("bounceRates", () => {
     expect(rates.map((rate) => rate.tag)).toEqual(["JRPG", "Action RPG"]);
   });
 
-  it("drops a genre carried by a single game, where a rate means nothing", () => {
+  it("drops a genre resting on one abandoned game, where a rate is an anecdote", () => {
+    // Roguelite is a true 100% and Psychological Horror a true 50%; both rest
+    // on a single abandonment, and neither is a pattern.
     const rates = bounceRates(
-      fingerprint([genre("Roguelite", 1), genre("JRPG", 2)]),
-      fingerprint([])
+      fingerprint([
+        genre("Roguelite", 1),
+        genre("Psychological Horror", 1),
+        genre("JRPG", 2),
+      ]),
+      fingerprint([genre("Psychological Horror", 1)])
     );
 
     expect(rates.map((rate) => rate.tag)).toEqual(["JRPG"]);

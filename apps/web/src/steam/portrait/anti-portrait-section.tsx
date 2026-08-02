@@ -1,7 +1,10 @@
 import { SectionTitle } from "@/components/ui/section-title";
 import { BounceGenresCard } from "./bounce-genres-card";
+import { ColdestShelfCard } from "./coldest-shelf-card";
 import { QuickestAbandonsCard } from "./quickest-abandons-card";
+import { SingleAchievementCard } from "./single-achievement-card";
 import { TastedTierCard } from "./tasted-tier-card";
+import { TheGapCard } from "./the-gap-card";
 
 // The counterweight to PortraitSection, and the reason the page is worth
 // reading: Steam itself only ever surfaces what you played most. Same bare
@@ -19,6 +22,9 @@ export function AntiPortraitSection() {
         <TastedTierCard />
         <QuickestAbandonsCard />
         <BounceGenresCard />
+        <SingleAchievementCard />
+        <ColdestShelfCard />
+        <TheGapCard />
       </div>
     </section>
   );

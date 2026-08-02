@@ -19,8 +19,8 @@ export function BounceGenresCard() {
       title={TITLE}
       pendingLabel="Reading what didn't stick…"
       errorLabel="The bounce rates are unavailable right now."
-      emptyLabel="Nothing abandoned carries a genre the rest of the library shares."
-      emptyPrescription="A bounce rate needs at least two games in the genre to mean anything."
+      emptyLabel="No genre has been abandoned often enough to call it a pattern."
+      emptyPrescription="One dropped game is a true rate and still an anecdote, so a genre needs at least two."
       isEmpty={(data) =>
         bounceRates(data.anti.tasted.fingerprint, data.lifetime).length === 0
       }

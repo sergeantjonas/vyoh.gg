@@ -8,8 +8,13 @@ export type BounceRate = {
   tried: number;
 };
 
-/** Below this, a bounce rate is one bad evening rather than a pattern. */
-const MIN_TRIED = 2;
+/**
+ * Below this a rate is an anecdote, not a pattern: one abandoned game out of
+ * two opened is a true 50% and still says nothing. Gating on abandonments
+ * rather than on attempts also covers the denominator, since a genre cannot
+ * have been tried fewer times than it was dropped.
+ */
+const MIN_BOUNCED = 2;
 
 const LEADING_BOUNCES = 3;
 
@@ -35,7 +40,7 @@ export function bounceRates(
       bounced: genre.gameCount,
       tried: genre.gameCount + (stuckWith.get(genre.tag) ?? 0),
     }))
-    .filter((rate) => rate.tried >= MIN_TRIED)
+    .filter((rate) => rate.bounced >= MIN_BOUNCED)
     .sort((a, b) => bounceShare(b) - bounceShare(a) || b.bounced - a.bounced)
     .slice(0, LEADING_BOUNCES);
 }
