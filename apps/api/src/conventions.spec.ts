@@ -50,6 +50,18 @@ function collect(
   return hits;
 }
 
+// Body of one class method, from its declaration to the next sibling at the
+// same indent. Scoping matters for the allowlist lint below: a plain
+// `text.includes()` would be satisfied by the guard living in a neighbouring
+// method, which is the exact shape of the defect that lint exists to catch.
+function methodBody(text: string, name: string): string | null {
+  const start = text.indexOf(`async ${name}(`);
+  if (start === -1) return null;
+  const rest = text.slice(start);
+  const next = rest.slice(1).search(/\n {2}(?:async |private |public |\/\*\*|\/\/ )/);
+  return next === -1 ? rest : rest.slice(0, next + 1);
+}
+
 function matchLines(text: string, test: (line: string) => string | null): string[] {
   const out: string[] = [];
   const lines = text.split("\n");
@@ -362,5 +374,53 @@ describe("project conventions (structural lints)", () => {
     for (const src of mustNotFlag) {
       expect(scanForHardcodedOrigin(src).length, `should NOT flag: ${src}`).toBe(0);
     }
+  });
+
+  // repo-conventions.md: "Centralise domain invariants" — the same rule the
+  // remake lint above enforces, applied to the owner allowlist.
+  //
+  // `resolveSummoner` is the only path to Riot's Account-V1 and the only writer
+  // of a `Summoner` row, so it is where the allowlist has to hold. Enforcing it
+  // at each caller instead is what produced the defect this lint exists for: 27
+  // call sites checked, 3 did not, and the two services responsible never
+  // injected IdentityService at all — so an anonymous request could name any
+  // Riot ID and have it resolved upstream and persisted.
+  //
+  // Deliberately narrow. It pins one guard in one method rather than trying to
+  // infer which methods "should" be gated, because the general version is the
+  // kind of fuzzy rule that gets disabled the first time it misfires.
+  it("resolveSummoner enforces the owner allowlist", () => {
+    const text = readFileSync(
+      path.join(WORKSPACE_ROOT, "apps/api/src/lol/lol.service.ts"),
+      "utf8"
+    );
+    const body = methodBody(text, "resolveSummoner");
+    expect(body, "resolveSummoner not found in lol.service.ts").not.toBeNull();
+    expect(
+      body?.includes("isLolAccountAllowed"),
+      "resolveSummoner must call isLolAccountAllowed before reaching Riot or writing a Summoner row"
+    ).toBe(true);
+  });
+
+  it("the allowlist lint reads the right method body", () => {
+    const guarded = [
+      "  async resolveSummoner(a: string): Promise<void> {\n    if (!this.identity.isLolAccountAllowed(a)) throw new ForbiddenException();\n  }\n",
+    ];
+    for (const src of guarded) {
+      expect(methodBody(src, "resolveSummoner")?.includes("isLolAccountAllowed")).toBe(
+        true
+      );
+    }
+
+    // The guard sitting in a *neighbouring* method must not count — that is
+    // precisely the shape of the bug (checked at the caller, not the choke
+    // point), so a lint that accepted it would pass against the defect.
+    const unguarded =
+      "  async other(): Promise<void> {\n    this.identity.isLolAccountAllowed(x);\n  }\n\n  async resolveSummoner(a: string): Promise<void> {\n    return this.prisma.summoner.upsert(a);\n  }\n";
+    expect(
+      methodBody(unguarded, "resolveSummoner")?.includes("isLolAccountAllowed")
+    ).toBe(false);
+
+    expect(methodBody("class X {}", "resolveSummoner")).toBeNull();
   });
 });

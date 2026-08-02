@@ -24,7 +24,7 @@ Worth stating plainly, because it is more than nothing and it shapes which findi
 
 Severity is "once public", not today.
 
-### F-1 — Three LoL routes bypass the owner allowlist and fetch arbitrary Riot accounts · HIGH
+### F-1 — Three LoL routes bypass the owner allowlist and fetch arbitrary Riot accounts · HIGH · **fixed 2026-08-03**
 
 `LolService.resolveSummoner()` ([lol.service.ts:746](../../../apps/api/src/lol/lol.service.ts#L746)) resolves *any* `gameName#tagLine` through Riot Account-V1 on a cache miss and **upserts a `Summoner` row**. It has 8 callers. Five sit behind an `isLolAccountAllowed()` check; three do not:
 
@@ -38,7 +38,13 @@ Neither service imports `IdentityService` at all. An attacker walks a list of re
 
 **This is the exact failure mode [repo-conventions.md § "Centralise domain invariants"](../../repo-conventions.md) already describes for `excludeRemakes`:** an invariant that must hold for every route, enforced by 27 hand-written call sites, silently omitted when two newer services were added. The durable fix is structural, not another inlined check.
 
-**Fix:** move the allowlist to the boundary rather than the call site — a guard or interceptor bound to the `AccountParamsDto`-shaped routes, so a new route inherits it by default. Add a lint to [conventions.spec.ts](../../../apps/api/src/conventions.spec.ts) asserting every `resolveSummoner` caller is allowlist-gated, with fixtures for what it must not flag (that file's established pattern).
+**Fixed** by moving the check **inside `resolveSummoner` itself** rather than adding a route guard, which the original note proposed. The choke point turned out to be the better boundary for three reasons: it is the only path to Account-V1 *and* the only writer of a `Summoner` row, so nothing can reach either without passing it; it fixes both offending services without touching their constructors, neither of which injects `IdentityService`; and the cron path is unaffected because `syncAccountMatches` passes accounts read from the same `accounts.json` the allowlist is built from. A route guard would have covered the three known routes while leaving the next direct caller exposed.
+
+The existing 27 call-site checks stay. They are not redundant — several gate analytics that read the database by puuid without resolving anything, so removing them would open a different hole. The duplicate check on the paths that do both is an in-memory string compare.
+
+**Lint added**, and this is the part that outlasts the fix: `conventions.spec.ts` now asserts `resolveSummoner`'s own body contains `isLolAccountAllowed`, scoped via a `methodBody` helper so the guard living in a *neighbouring* method cannot satisfy it — that being the exact shape of the original defect, a lint accepting it would pass against the bug it exists to catch. Verified by deleting the guard and confirming the lint goes red, then restoring; a structural lint that has never been seen to fail is not evidence of anything.
+
+Four tests cover the choke point, including the one that matters most: a rejected account triggers **no Riot call and no row write**, not merely an exception.
 
 ### F-2 — The match endpoints are an open, unauthenticated Riot proxy · HIGH
 

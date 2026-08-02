@@ -350,3 +350,66 @@ describe("LolService.captureRankSnapshot", () => {
     expect(prisma.summoner.update).not.toHaveBeenCalled();
   });
 });
+
+// This is the choke point for reaching Riot's Account-V1 and for writing a
+// `Summoner` row. The allowlist has to hold here rather than only at the
+// callers, because two services call it directly without injecting
+// IdentityService at all.
+describe("LolService.resolveSummoner", () => {
+  function makeResolver(opts: { allowed: boolean; cached?: unknown }) {
+    const prisma = {
+      summoner: {
+        findUnique: vi.fn().mockResolvedValue(opts.cached ?? null),
+        upsert: vi.fn().mockResolvedValue({ puuid: "fetched-puuid" }),
+      },
+    };
+    const riot = {
+      getAccountByRiotId: vi
+        .fn()
+        .mockResolvedValue({ puuid: "fetched-puuid", gameName: "X", tagLine: "Y" }),
+    };
+    const identity = { isLolAccountAllowed: vi.fn().mockReturnValue(opts.allowed) };
+    const service = new LolService(
+      prisma as unknown as PrismaService,
+      riot as unknown as RiotService,
+      identity as unknown as IdentityService,
+      {} as MatchEventsService,
+      {} as LiveGamePollerService
+    );
+    return { service, prisma, riot };
+  }
+
+  it("rejects an account outside the whitelist", async () => {
+    const { service } = makeResolver({ allowed: false });
+    await expect(
+      service.resolveSummoner("euw1", "Stranger", "EUW")
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  // The exception alone is not the point — the point is that neither the
+  // upstream quota nor the table is touched on the way to it.
+  it("neither calls Riot nor writes a row for a rejected account", async () => {
+    const { service, prisma, riot } = makeResolver({ allowed: false });
+    await service.resolveSummoner("euw1", "Stranger", "EUW").catch(() => undefined);
+    expect(riot.getAccountByRiotId).not.toHaveBeenCalled();
+    expect(prisma.summoner.upsert).not.toHaveBeenCalled();
+    expect(prisma.summoner.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("returns the cached row for an allowed account without calling Riot", async () => {
+    const { service, riot } = makeResolver({
+      allowed: true,
+      cached: { puuid: "cached-puuid" },
+    });
+    const result = await service.resolveSummoner("euw1", "Vyoh", "EUW");
+    expect(result.puuid).toBe("cached-puuid");
+    expect(riot.getAccountByRiotId).not.toHaveBeenCalled();
+  });
+
+  it("resolves and persists an allowed account on a cache miss", async () => {
+    const { service, prisma, riot } = makeResolver({ allowed: true });
+    await service.resolveSummoner("euw1", "Vyoh", "EUW");
+    expect(riot.getAccountByRiotId).toHaveBeenCalled();
+    expect(prisma.summoner.upsert).toHaveBeenCalled();
+  });
+});

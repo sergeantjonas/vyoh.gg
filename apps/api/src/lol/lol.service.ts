@@ -743,11 +743,24 @@ export class LolService {
     return riotTimelineToProjection(raw);
   }
 
+  // The allowlist lives here rather than only at the callers because this is
+  // the choke point: every path that reaches Riot's Account-V1 or writes a
+  // `Summoner` row goes through it. Enforcing it at each caller is what let
+  // `MatchBaselineService` and `MatchNarrativeService` ship without the check
+  // — they call this directly and never inject `IdentityService` — which made
+  // three public routes resolve and persist any Riot ID an anonymous caller
+  // named. Callers may still check first to fail before doing other work; the
+  // duplicate costs an in-memory compare. `conventions.spec.ts` pins the check
+  // being here so a future edit cannot quietly move it back out.
   async resolveSummoner(
     region: string,
     gameName: string,
     tagLine: string
   ): Promise<{ puuid: string }> {
+    if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
+      throw new ForbiddenException("Account not in whitelist");
+    }
+
     const cached = await this.prisma.summoner.findUnique({
       where: { gameName_tagLine_region: { gameName, tagLine, region } },
     });
