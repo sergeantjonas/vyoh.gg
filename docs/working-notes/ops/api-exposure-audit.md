@@ -58,13 +58,24 @@ Every `/og` route ([og.controller.ts](../../../apps/api/src/og/og.controller.ts)
 
 **Fix:** an `location /og/` cache block mirroring `/img/`, including `proxy_cache_lock` so a cold key does not admit a stampede of concurrent renders.
 
-### F-4 — No inbound rate limiting at any layer · HIGH (as an amplifier)
+### F-4 — No inbound rate limiting at any layer · HIGH (as an amplifier) · **fixed 2026-08-03**
 
 No `@nestjs/throttler` in the api, and no `limit_req` / `limit_conn` in either vhost ([api.vyoh.gg.conf](../../../deploy/nginx/api.vyoh.gg.conf)). The Bottleneck limiter in `riot/` and the Steam rate limiter are **outbound** quota managers for upstream calls — they shape our traffic to Riot, they do nothing about traffic arriving at us, and they must not be counted as inbound protection.
 
 On its own this is a modest finding for a low-traffic personal site. It matters because it is the multiplier on every other finding here: each of F-1, F-2 and F-3 is "one cheap request causes expensive work", and rate limiting is what bounds the number of those requests. [security.md](security.md) currently lists rate limiting under "explicitly out of scope … not justified at portfolio-site scale" — **that line was written before this exposure surface was mapped and should be revised**, not silently contradicted.
 
-Note also `proxy_read_timeout 1h` with `proxy_buffering off` applied to the *whole* api vhost (necessary for the SSE routes, [api.vyoh.gg.conf:45-54](../../../deploy/nginx/api.vyoh.gg.conf#L45-L54)) — that is a generous connection-holding budget for every route, not just the streams.
+Note also `proxy_read_timeout 1h` with `proxy_buffering off` applied to the *whole* api vhost (necessary for the SSE routes) — that is a generous connection-holding budget for every route, not just the streams.
+
+**Fixed.** `limit_req_zone`/`limit_conn_zone` now live in [vyoh-cache.conf](../../../deploy/nginx/vyoh-cache.conf) (http context, same reason `proxy_cache_path` does), applied per-location in [api.vyoh.gg.conf](../../../deploy/nginx/api.vyoh.gg.conf): 10 r/s with `burst=30 nodelay` plus `limit_conn 20` on `location /`, and 20 r/s with `burst=100` plus `limit_conn 40` on `/img/`, which one image-heavy document legitimately needs. `limit_conn` — not `limit_req` — is what answers the hour-long read timeout, since it caps how many such connections one address may hold. Status is 429 rather than nginx's 503 default, because it is the client's rate and a crawler backs off correctly on 429.
+
+Verified behaviourally against the real config, not just parsed: nginx 1.27 running the actual files with `--network host` in front of the dev api.
+
+```
+25 rapid requests (a page-load fan-out) →  25× 200      ← not throttled
+150 rapid requests (a script)           →  10× 200, 140× 429
+```
+
+That is the property that matters in both directions: a genuine visitor's burst passes untouched, a loop does not.
 
 ### F-5 — The Steam API key is written to our own logs in cleartext on any fetch error · MEDIUM · **fixed 2026-08-03**
 
@@ -161,13 +172,31 @@ Either way an attacker forces unlimited full upstream-fetch-plus-sharp-transcode
 
 Compounding it, only `200` and `404` are cached ([api.vyoh.gg.conf:68-69](../../../deploy/nginx/api.vyoh.gg.conf#L68-L69)); the `502` returned when an upstream chain fails is never cached, so requests engineered to fail cost full backend work every single time.
 
-**Fix:** `proxy_cache_key "$scheme$proxy_host$uri";` — one line, no behaviour change, since the app never read the query string. Then constrain the ignored segments to a fixed pattern so garbage 400s at the controller.
+**Fixed (the query-string half).** `proxy_cache_key "$scheme$proxy_host$uri"` now drops the query string and nothing else. Proven by A/B against the real config on identical fresh assets:
+
+```
+without proxy_cache_key   MISS  MISS  MISS   ← every query string its own entry
+with proxy_cache_key      MISS  HIT   HIT
+```
+
+A first attempt at that A/B produced a false negative worth recording: both nginx containers ran with `--network host` on the same port, so the second never bound and the "before" requests were silently answered by the still-running "after" container. Port-conflict-as-silent-fallback is easy to miss when the response looks plausible — check the container actually holds the port.
+
+**The ignored path segments are deliberately left in the key.** `:patch`, `:assetTimestamp` and `:schemaVersion` exist so a redeploy can invalidate a browser's copy; folding them out of the cache key would break that invalidation to close a hole the rate limit already covers. A lane recommended stripping them — that would have traded a working feature for redundant protection.
 
 ### F-10 — `location /img/` silently loses its security header · MEDIUM
 
 nginx inherits `add_header` from the parent level **only if the current level declares none**. `api.vyoh.gg.conf` sets `X-Content-Type-Options: nosniff` at server level ([:29](../../../deploy/nginx/api.vyoh.gg.conf#L29)) and then declares `X-Cache-Status` inside `location /img/` ([:75](../../../deploy/nginx/api.vyoh.gg.conf#L75)) — which replaces the inherited set entirely. So the one location that serves untrusted third-party bytes through a transcoder is the one location serving them without `nosniff`, while `location /` (declaring no header of its own) correctly inherits it.
 
-Reading the file suggests the opposite; line 29 looks global. Worth fixing by making each location's header set explicit via an `include`, so the trap cannot recur when a future location adds its first `add_header`.
+Reading the file suggests the opposite; the server-level line looks global.
+
+**Fixed 2026-08-03** by re-stating `nosniff` inside `location /img/`, with a comment at *both* ends explaining the inheritance rule — the server-level one warns that any header added there needs the same treatment in `/img/`, which is the part a future reader would otherwise miss. Confirmed served:
+
+```
+$ curl -D - .../img/lol/rank/SILVER/2023.webp
+X-Content-Type-Options: nosniff
+```
+
+`server_tokens off` landed in the same pass.
 
 ### F-11 — No response-size cap and no sharp resource limits · MEDIUM
 
