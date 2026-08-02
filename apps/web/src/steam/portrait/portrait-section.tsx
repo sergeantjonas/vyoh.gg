@@ -1,3 +1,4 @@
+import { CardDensityProvider } from "@/components/card-density";
 import { SectionTitle } from "@/components/ui/section-title";
 import { CompletionistCard } from "./completionist-card";
 import { GenreAnchorCard } from "./genre-anchor-card";
@@ -24,13 +25,15 @@ export function PortraitSection() {
       {/* `items-start` because these cards carry wildly different amounts of
           prose — stretching each to its row partner's height opens a void
           under the short ones. */}
-      <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
-        <GenreAnchorCard />
-        <RecentDriftCard />
-        <CompletionistCard />
-        <PlatformIdentityCard />
-        <LibraryPostureCard />
-      </div>
+      <CardDensityProvider value="compact">
+        <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <GenreAnchorCard />
+          <RecentDriftCard />
+          <CompletionistCard />
+          <PlatformIdentityCard />
+          <LibraryPostureCard />
+        </div>
+      </CardDensityProvider>
     </section>
   );
 }

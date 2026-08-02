@@ -1,3 +1,4 @@
+import { CardDensityProvider } from "@/components/card-density";
 import { SectionTitle } from "@/components/ui/section-title";
 import { BounceGenresCard } from "./bounce-genres-card";
 import { ColdestShelfCard } from "./coldest-shelf-card";
@@ -18,14 +19,16 @@ export function AntiPortraitSection() {
           The half Steam doesn't show you
         </p>
       </div>
-      <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
-        <TastedTierCard />
-        <QuickestAbandonsCard />
-        <BounceGenresCard />
-        <SingleAchievementCard />
-        <ColdestShelfCard />
-        <TheGapCard />
-      </div>
+      <CardDensityProvider value="compact">
+        <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <TastedTierCard />
+          <QuickestAbandonsCard />
+          <BounceGenresCard />
+          <SingleAchievementCard />
+          <ColdestShelfCard />
+          <TheGapCard />
+        </div>
+      </CardDensityProvider>
     </section>
   );
 }
