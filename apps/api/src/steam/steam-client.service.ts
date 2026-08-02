@@ -289,7 +289,12 @@ export class SteamClientService {
     const url = pathOrUrl.startsWith("http")
       ? pathOrUrl
       : `${STEAM_API_BASE}${pathOrUrl}`;
-    const path = pathOrUrl.startsWith("http") ? new URL(pathOrUrl).pathname : pathOrUrl;
+    // Valve's Web API takes the key as a query parameter, so `pathOrUrl` carries
+    // the secret. `path` is the redacted form and the only one that may reach a
+    // log line or an error — `url` is for the fetch and nothing else.
+    const path = pathOrUrl.startsWith("http")
+      ? new URL(pathOrUrl).pathname
+      : (pathOrUrl.split("?")[0] ?? pathOrUrl);
     const start = performance.now();
 
     // Same hard-timeout race as the Riot client: Node's undici fetch occasionally
@@ -327,7 +332,7 @@ export class SteamClientService {
     }
 
     const duration = Math.round(performance.now() - start);
-    this.logger.log(`steam ${path.split("?")[0]} → ${res.status} (${duration}ms)`);
+    this.logger.log(`steam ${path} → ${res.status} (${duration}ms)`);
 
     if (!res.ok) {
       throw new SteamClientError(

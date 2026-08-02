@@ -1,3 +1,4 @@
+import { Logger } from "@nestjs/common";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SteamRateLimiterService } from "./rate-limiter.service";
 import { SteamClientError, SteamClientService } from "./steam-client.service";
@@ -236,6 +237,80 @@ describe("SteamClientService.getSteamLevelDistribution", () => {
     expect(pct).toBe(94.66);
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining("player_level=14"),
+      expect.anything()
+    );
+  });
+});
+
+// Valve has no header form for the key, so it necessarily rides in the request
+// URL. Nothing derived from that URL may reach a log line or an error object.
+describe("SteamClientService key redaction", () => {
+  const KEY = "test-key";
+
+  it("keeps the key out of the log when the fetch fails", async () => {
+    const warn = vi.spyOn(Logger.prototype, "warn").mockImplementation(() => {});
+    vi.mocked(fetch).mockRejectedValue(new Error("ECONNRESET"));
+
+    const service = new SteamClientService(passThroughLimiter);
+    await expect(service.getPlayerSummary("76561198020053778")).rejects.toThrow();
+
+    expect(warn).toHaveBeenCalled();
+    for (const call of warn.mock.calls) {
+      expect(String(call[0])).not.toContain(KEY);
+    }
+  });
+
+  it("keeps the key out of the log on a successful call", async () => {
+    const log = vi.spyOn(Logger.prototype, "log").mockImplementation(() => {});
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ response: { players: [] } }), { status: 200 })
+    );
+
+    const service = new SteamClientService(passThroughLimiter);
+    await service.getPlayerSummary("76561198020053778");
+
+    expect(log).toHaveBeenCalled();
+    for (const call of log.mock.calls) {
+      expect(String(call[0])).not.toContain(KEY);
+    }
+  });
+
+  it("keeps the key off SteamClientError.path on a non-ok response", async () => {
+    vi.spyOn(Logger.prototype, "log").mockImplementation(() => {});
+    vi.mocked(fetch).mockResolvedValue(new Response("nope", { status: 403 }));
+
+    const service = new SteamClientService(passThroughLimiter);
+    const err = await service.getPlayerSummary("76561198020053778").catch((e) => e);
+
+    expect(err).toBeInstanceOf(SteamClientError);
+    expect((err as SteamClientError).path).not.toContain(KEY);
+    expect((err as SteamClientError).message).not.toContain(KEY);
+  });
+
+  it("keeps the key off SteamClientError.path when the fetch times out", async () => {
+    vi.spyOn(Logger.prototype, "warn").mockImplementation(() => {});
+    const timeout = new Error("fetch timeout");
+    timeout.name = "TimeoutError";
+    vi.mocked(fetch).mockRejectedValue(timeout);
+
+    const service = new SteamClientService(passThroughLimiter);
+    const err = await service.getPlayerSummary("76561198020053778").catch((e) => e);
+
+    expect(err).toBeInstanceOf(SteamClientError);
+    expect((err as SteamClientError).path).not.toContain(KEY);
+  });
+
+  it("still sends the key on the actual request", async () => {
+    vi.spyOn(Logger.prototype, "log").mockImplementation(() => {});
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ response: { players: [] } }), { status: 200 })
+    );
+
+    const service = new SteamClientService(passThroughLimiter);
+    await service.getPlayerSummary("76561198020053778");
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining(`key=${KEY}`),
       expect.anything()
     );
   });

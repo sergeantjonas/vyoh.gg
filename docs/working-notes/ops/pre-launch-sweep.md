@@ -9,6 +9,11 @@ Several notes reference "the pre-launch sweep" as one deliberate arc; this file 
 | Gate | Why it can't wait | Owner |
 |---|---|---|
 | Owner-auth chunks 1–2 | The three status POSTs (sync-now / pause / resume) are ungated; public means anyone can burn the dev-tier Riot budget or pause syncs. | [owner-auth.md](owner-auth.md) |
+| Owner allowlist on the three ungated LoL routes | `baselines`, `narrative` and `narrative/lifetime` reach `resolveSummoner` without the check 27 other call sites make, so any Riot ID can be resolved upstream and written to `Summoner`. Owner-auth does not cover this — these are public GETs that stay public. | [api-exposure-audit.md § F-1](api-exposure-audit.md) |
+| Clamp the match miss-path to owner data | `GET /lol/matches/:matchId` fetches Riot live and inserts a cache row for any enumerable id, which is both a quota/disk attack and an open Riot proxy under Riot's terms. | [api-exposure-audit.md § F-2](api-exposure-audit.md) |
+| Rate limiting at the edge | The multiplier on every expensive-GET finding; `limit_req` + `limit_conn` calibrated so a real page-load fan-out never trips it. Supersedes security.md's "out of scope" line. | [api-exposure-audit.md § F-4](api-exposure-audit.md) |
+| Validate `tier`, cap redirects, key the `/img` cache | Path traversal into four trusted upstreams, unrestricted redirect-following, and a cache key that includes inputs the app ignores. | [api-exposure-audit.md § F-7–F-9](api-exposure-audit.md) |
+| Generic error text in `/status` | Raw exception messages are served in a 200 body and over SSE, publishing internal DB host/port on any transient failure. | [api-exposure-audit.md § F-13](api-exposure-audit.md) |
 | ValidationPipe V3 (POST/PUT/PATCH bodies) | Unvalidated write bodies on a public API; sequences with owner-auth. | [project-hygiene-2026-05-18.md § Chunked plan](../cross-cutting/project-hygiene-2026-05-18.md) |
 | Backups live + one restore drill | The Postgres volume is the only irreplaceable artefact in the stack — LP-history snapshots, Steam playtime snapshots, and matches beyond Riot's retention window cannot be re-fetched. | [hosting.md § 6](hosting.md) |
 | DNS + `VITE_API_URL`; CORS/env re-verified on the real box | hosting checklist item 4; items 2–3 shipped in code but their values get set for real here. | [hosting.md](hosting.md) |
@@ -16,6 +21,8 @@ Several notes reference "the pre-launch sweep" as one deliberate arc; this file 
 | Branch protection on `main` | Decided 2026-07-26: enable as part of this sweep, at which point direct-push stops being appropriate anyway. | [open-work.md § Pre-deploy](../open-work.md) |
 
 Same sweep window, but needs the live box rather than the repo: verify SSE in production ([hosting.md § 5](hosting.md)).
+
+~~**Not a launch gate — already live.** The Steam API key is written to the api's own logs in cleartext whenever a Steam fetch fails.~~ **Fixed 2026-08-03** — `fetchJson` now redacts the query string for every log line and both error constructions. → [api-exposure-audit.md § F-5](api-exposure-audit.md)
 
 ## Cheaper before launch than against live data
 

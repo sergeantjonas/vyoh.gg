@@ -1,6 +1,6 @@
 # Security baseline
 
-**Status:** Active — baseline shipped 2026-05-14 (`pnpm audit` in CI, Dependabot alerts + malware alerts + security updates, secret scanning + push protection). Dependency refresh + override re-derivation swept 2026-07-25, taking `pnpm audit` from 41 advisories to 1 (see below). CodeQL SAST deferred as a freelance-signal layer; revisit when bandwidth allows or auth surface lands. Tracked under "Adjacent maintenance" in [open-work.md](../open-work.md).
+**Status:** Active — baseline shipped 2026-05-14. **An endpoint-exposure audit on 2026-08-03 ([api-exposure-audit.md](api-exposure-audit.md)) revised the "rate limiting out of scope" call below into a launch gate**, and CodeQL's stated trigger ("when the project grows an auth surface") now fires alongside owner-auth in the same sweep. Baseline shipped 2026-05-14 (`pnpm audit` in CI, Dependabot alerts + malware alerts + security updates, secret scanning + push protection). Dependency refresh + override re-derivation swept 2026-07-25, taking `pnpm audit` from 41 advisories to 1 (see below). CodeQL SAST deferred as a freelance-signal layer; revisit when bandwidth allows or auth surface lands. Tracked under "Adjacent maintenance" in [open-work.md](../open-work.md).
 
 Captures the supply-chain / credentials layer for this repo and what's deliberately deferred. Right-sized for a solo-dev, no-auth, no-PII, no-payments portfolio project — not a SaaS posture.
 
@@ -44,4 +44,5 @@ What moved, in order:
 
 - **Socket.dev** — supply-chain behavioural analysis, complementary to Dependabot. Considered and skipped: Dependabot malware alerts already covers the highest-probability gap, and a third vendor in the PR-review loop is diminishing returns at this scale. Reconsider if Dependabot misses a real incident.
 - **Grouped security updates** — Dependabot UX nicety. Enable later if security PRs start piling up.
-- **CSP, rate limiting, runtime hardening** — defensive depth for production SaaS. Not justified at portfolio-site scale.
+- **CSP** — defensive depth for production SaaS. Not justified at portfolio-site scale.
+- ~~**Rate limiting, runtime hardening**~~ — **revised 2026-08-03: rate limiting is now a launch gate, not out of scope.** This line was written against a threat model that assumed a read-mostly api with nothing expensive behind it. The [API exposure audit](api-exposure-audit.md) measured the actual surface and found the opposite: several public GETs each turn one cheap request into a live upstream call, a permanent database row, or ~70 ms of blocking CPU, and inbound rate limiting is the control that bounds all of them at once. Scoping it out was a reasonable call on the information available at the time; it is not one now. → [api-exposure-audit.md](api-exposure-audit.md)
