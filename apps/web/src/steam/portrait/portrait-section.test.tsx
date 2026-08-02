@@ -160,10 +160,12 @@ describe("PortraitSection", () => {
     expect((await axe(container)).violations).toEqual([]);
   });
 
-  it("renders a loading verdict for every card while the query is pending", () => {
+  it("renders a loading verdict for the hero and every card while the query is pending", () => {
     mockHook({ data: undefined, isPending: true, isError: false });
     renderSection();
-    expect(screen.getByText("Reading the genre fingerprint…")).toBeTruthy();
+    expect(
+      screen.getByText("Weighing every played hour against the tags behind it…")
+    ).toBeTruthy();
     expect(screen.getByText("Reading the recent window…")).toBeTruthy();
     expect(screen.getByText("Counting the shelf…")).toBeTruthy();
   });
@@ -178,20 +180,20 @@ describe("PortraitSection", () => {
   });
 });
 
-describe("GenreAnchorCard", () => {
-  it("names only the genres carried by enough games, and shows the counts", () => {
+describe("PortraitHero", () => {
+  it("leads with the anchor genre and names only the ones carried by enough games", () => {
     mockHook({ data: portrait(), isPending: false, isError: false });
     renderSection();
 
+    expect(screen.getByRole("heading", { name: "Souls-like" })).toBeTruthy();
     // Roguelite is ranked fourth and rests on one game, so it is not named.
     expect(
       screen.getByText(
-        "59% of your 2,356h sit in Souls-like, Action RPG and Third-Person Shooter."
+        "59% of your 2,356h sit in Souls-like, Action RPG and Third-Person Shooter — and Souls-like alone is 15 games and 703h of it."
       )
     ).toBeTruthy();
-    expect(screen.getByText("Souls-like alone is 15 games and 703h.")).toBeTruthy();
     expect(screen.queryByText(/Roguelite/)).toBeNull();
-    // The evidence row carries the carrier count next to every named genre.
+    // Each named genre keeps the carrier count that lets a reader disagree.
     expect(screen.getByText(/30% · 15 games/)).toBeTruthy();
     expect(screen.getByText(/7% · 10 games/)).toBeTruthy();
   });
@@ -210,7 +212,11 @@ describe("GenreAnchorCard", () => {
       isError: false,
     });
     renderSection();
-    expect(screen.getByText("No played game carries a genre tag yet.")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "No played game carries a genre tag yet — community tags arrive with the enrichment poller."
+      )
+    ).toBeTruthy();
   });
 });
 

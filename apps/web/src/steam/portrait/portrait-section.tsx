@@ -1,9 +1,9 @@
-import { CardDensityProvider } from "@/components/card-density";
 import { SectionTitle } from "@/components/ui/section-title";
+import { ChipBand } from "./chip-band";
 import { CompletionistCard } from "./completionist-card";
-import { GenreAnchorCard } from "./genre-anchor-card";
 import { LibraryPostureCard } from "./library-posture-card";
 import { PlatformIdentityCard } from "./platform-identity-card";
+import { PortraitHero } from "./portrait-hero";
 import { RecentDriftCard } from "./recent-drift-card";
 
 // Bare wrapper, chromed children: each card carries its own frosted shell, so
@@ -22,18 +22,13 @@ export function PortraitSection() {
           Genres derived from community tags
         </p>
       </div>
-      {/* `items-start` because these cards carry wildly different amounts of
-          prose — stretching each to its row partner's height opens a void
-          under the short ones. */}
-      <CardDensityProvider value="compact">
-        <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
-          <GenreAnchorCard />
-          <RecentDriftCard />
-          <CompletionistCard />
-          <PlatformIdentityCard />
-          <LibraryPostureCard />
-        </div>
-      </CardDensityProvider>
+      <PortraitHero />
+      <ChipBand>
+        <RecentDriftCard />
+        <CompletionistCard />
+        <PlatformIdentityCard />
+        <LibraryPostureCard />
+      </ChipBand>
     </section>
   );
 }

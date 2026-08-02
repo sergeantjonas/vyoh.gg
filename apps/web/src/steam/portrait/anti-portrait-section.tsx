@@ -1,6 +1,6 @@
-import { CardDensityProvider } from "@/components/card-density";
 import { SectionTitle } from "@/components/ui/section-title";
 import { BounceGenresCard } from "./bounce-genres-card";
+import { ChipBand } from "./chip-band";
 import { ColdestShelfCard } from "./coldest-shelf-card";
 import { QuickestAbandonsCard } from "./quickest-abandons-card";
 import { SingleAchievementCard } from "./single-achievement-card";
@@ -19,16 +19,14 @@ export function AntiPortraitSection() {
           The half Steam doesn't show you
         </p>
       </div>
-      <CardDensityProvider value="compact">
-        <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
-          <TastedTierCard />
-          <QuickestAbandonsCard />
-          <BounceGenresCard />
-          <SingleAchievementCard />
-          <ColdestShelfCard />
-          <TheGapCard />
-        </div>
-      </CardDensityProvider>
+      <ChipBand>
+        <TastedTierCard />
+        <QuickestAbandonsCard />
+        <BounceGenresCard />
+        <SingleAchievementCard />
+        <ColdestShelfCard />
+        <TheGapCard />
+      </ChipBand>
     </section>
   );
 }
