@@ -38,7 +38,9 @@ export const Route = createFileRoute("/steam/")({
 
 function SteamPage() {
   return (
-    <div className="flex flex-col gap-6">
+    // Sections need more air between them than their own parts need inside
+    // them, or the band header reads as belonging to the band above it.
+    <div className="flex flex-col gap-12">
       <SteamIdentityHero />
       <PortraitSection />
       <AntiPortraitSection />

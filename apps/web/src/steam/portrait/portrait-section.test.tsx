@@ -1,4 +1,5 @@
 import { useSteamPlatformMix } from "@/steam/use-platform-mix";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { render, screen } from "@testing-library/react";
 import type {
   GenreFingerprint,
@@ -130,10 +131,14 @@ function mockHook(value: {
   );
 }
 
+// The provider lives in __root.tsx in the app, so the section itself renders
+// without one — every StatRow tooltip throws if the test omits it.
 function renderSection() {
   return render(
     <MotionConfig reducedMotion="always">
-      <PortraitSection />
+      <TooltipPrimitive.Provider>
+        <PortraitSection />
+      </TooltipPrimitive.Provider>
     </MotionConfig>
   );
 }

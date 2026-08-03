@@ -7,13 +7,13 @@ import {
 } from "@/components/ui/section-variants";
 import type { SteamPortrait } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
+import { StatRow } from "./stat-row";
 import { useSteamPortrait } from "./use-portrait";
-
-const EYEBROW = "The gap";
 
 // The Anti-Portrait's opening statement, and the page's sharpest number: the
 // shelf collapses from owned to played to finished, and the funnel below draws
 // the collapse rather than asking the reader to hold three counts in their head.
+// No eyebrow, for the reason its twin in portrait-hero.tsx spells out.
 export function AntiPortraitHero() {
   const { data, isPending, isError } = useSteamPortrait();
   const reducedMotion = useReducedMotion();
@@ -21,35 +21,26 @@ export function AntiPortraitHero() {
 
   return (
     <m.div
-      className="flex flex-col gap-5"
+      className="flex flex-col gap-4"
       variants={
         reducedMotion ? sectionReducedContainerVariants : sectionContainerVariants
       }
       initial="hidden"
       animate="visible"
     >
-      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-        <m.span
-          variants={sectionChildVariants.eyebrow}
-          style={{ willChange: SECTION_CHILD_WILL_CHANGE }}
-          className="font-medium text-[10px] text-muted-foreground/70 uppercase tracking-[0.3em]"
-        >
-          {EYEBROW}
-        </m.span>
-        <EditorialHeading
-          delegated
-          as="h3"
-          magnitude="medium"
-          className="font-[680] text-[clamp(2rem,5vw,3.5rem)] leading-[1.05] -tracking-[0.02em]"
-        >
-          {headlineFor(data, { isPending, isError })}
-        </EditorialHeading>
-      </div>
+      <EditorialHeading
+        delegated
+        as="h3"
+        magnitude="medium"
+        className="font-[680] text-[clamp(2rem,5vw,3.5rem)] leading-[1.05] -tracking-[0.02em]"
+      >
+        {headlineFor(data, { isPending, isError })}
+      </EditorialHeading>
 
       <m.p
         variants={sectionChildVariants.body}
         style={{ willChange: SECTION_CHILD_WILL_CHANGE }}
-        className="max-w-prose text-pretty text-foreground/80 text-sm leading-relaxed sm:text-base"
+        className="text-pretty text-foreground/80 text-base leading-relaxed sm:text-lg"
       >
         {data === undefined || data.posture.ownedCount === 0
           ? proseFor({ isPending, isError })
@@ -64,7 +55,7 @@ export function AntiPortraitHero() {
         >
           <ul className="flex flex-col gap-2">
             {steps.map((step) => (
-              <FunnelRow key={step.label} step={step} />
+              <FunnelRow key={step.label} step={step} owned={data.posture.ownedCount} />
             ))}
           </ul>
           {/* "Finished" is the narrowest word on the page, so it says which
@@ -119,24 +110,21 @@ function proseFor({ isPending, isError }: { isPending: boolean; isError: boolean
   return "Nothing to add up until the library syncs.";
 }
 
-function FunnelRow({ step }: { step: FunnelStep }) {
+function FunnelRow({ step, owned }: { step: FunnelStep; owned: number }) {
   return (
-    <li className="flex items-center gap-3 text-sm">
-      <span className="w-32 shrink-0 truncate text-foreground/80 sm:w-44">
-        {step.label}
-      </span>
-      <span
-        aria-hidden="true"
-        className="h-1 min-w-8 flex-1 overflow-hidden rounded-full bg-foreground/10"
-      >
-        <span
-          className="block h-full rounded-full bg-foreground/40"
-          style={{ width: `${Math.max(step.share * 100, 1)}%` }}
-        />
-      </span>
-      <span className="w-28 shrink-0 text-right text-muted-foreground/80 text-xs tabular-nums">
-        {step.count} · {Math.round(step.share * 100)}%
-      </span>
-    </li>
+    <StatRow
+      label={step.label}
+      fill={step.share}
+      trailing={`${step.count} · ${Math.round(step.share * 100)}%`}
+      tooltip={
+        <>
+          <p className="font-medium text-foreground">{step.label}</p>
+          <p className="mt-1 text-muted-foreground text-xs leading-relaxed">
+            {step.count} of the {owned} games you own — {owned - step.count} did not get
+            this far.
+          </p>
+        </>
+      }
+    />
   );
 }

@@ -1,3 +1,4 @@
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { render, screen } from "@testing-library/react";
 import type { GenreFingerprint, SteamPortrait, SteamPortraitAnti } from "@vyoh/shared";
 import { configureAxe } from "jest-axe";
@@ -98,10 +99,14 @@ function mockHook(value: {
   );
 }
 
+// The provider lives in __root.tsx in the app, so the section itself renders
+// without one — every StatRow tooltip throws if the test omits it.
 function renderSection() {
   return render(
     <MotionConfig reducedMotion="always">
-      <AntiPortraitSection />
+      <TooltipPrimitive.Provider>
+        <AntiPortraitSection />
+      </TooltipPrimitive.Provider>
     </MotionConfig>
   );
 }

@@ -41,11 +41,19 @@ export interface CardShellProps {
 // The two recipes differ only in how much room the card takes for the same
 // content — the chrome, the entrance and the type roles are identical, so a
 // band can switch density without any card reading differently.
+//
+// `mt-auto` on the prescription is the one real behavioural difference. In a
+// roomy card it pins the footnote to the bottom edge, which is what the LoL
+// trends tiles want. In a dense band it opens a hole in the middle of every
+// card shorter than its row: the verdict sits at the top, the footnote at the
+// bottom, and the gap between them reads as missing content rather than as
+// breathing room. Top-aligned, the same slack collects below the last line and
+// reads as padding.
 const DENSITY = {
   comfortable: {
     shell: "gap-3 px-4 py-4",
     verdict: "text-base",
-    prescription: "pt-2.5 text-xs",
+    prescription: "mt-auto pt-2.5 text-xs",
   },
   compact: {
     shell: "gap-2 px-3.5 py-3",
@@ -114,7 +122,7 @@ export function CardShell({
       {prescription !== undefined && (
         <p
           className={cn(
-            "mt-auto border-t border-border/40 text-muted-foreground",
+            "border-border/40 border-t text-muted-foreground",
             density.prescription
           )}
         >

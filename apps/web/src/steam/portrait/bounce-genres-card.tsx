@@ -6,6 +6,7 @@ import {
   bounceShare,
   describeBounce,
 } from "./bounce-rates";
+import { StatRow } from "./stat-row";
 import { useSteamPortrait } from "./use-portrait";
 
 const TITLE = "Genres you bounce off";
@@ -51,23 +52,27 @@ export function BounceGenresCard() {
 // two games at 2-of-16 read as a rounding error, and the number alone hides it.
 function BounceList({ rates }: { rates: BounceRate[] }) {
   return (
-    <ul className="flex flex-col gap-1.5 text-xs">
+    <ul className="flex flex-col gap-1.5">
       {rates.map((rate) => (
-        <li key={rate.tag} className="flex items-center gap-2">
-          <span className="w-28 shrink-0 truncate text-foreground/70">{rate.tag}</span>
-          <span
-            aria-hidden="true"
-            className="h-1 flex-1 overflow-hidden rounded-full bg-foreground/10"
-          >
-            <span
-              className="block h-full rounded-full bg-foreground/40"
-              style={{ width: `${bounceShare(rate) * 100}%` }}
-            />
-          </span>
-          <span className="shrink-0 tabular-nums text-muted-foreground/80">
-            {rate.bounced}/{rate.tried}
-          </span>
-        </li>
+        <StatRow
+          key={rate.tag}
+          size="chip"
+          label={rate.tag}
+          fill={bounceShare(rate)}
+          trailing={`${rate.bounced}/${rate.tried}`}
+          tooltip={
+            <>
+              <p className="font-medium text-foreground">{rate.tag}</p>
+              <p className="mt-1 text-muted-foreground text-xs leading-relaxed">
+                {rate.tried} opened, {rate.bounced} dropped inside the hour —{" "}
+                {Math.round(bounceShare(rate) * 100)}%.{" "}
+                {rate.tried - rate.bounced === 0
+                  ? "None of them stuck."
+                  : `${rate.tried - rate.bounced} stuck.`}
+              </p>
+            </>
+          }
+        />
       ))}
     </ul>
   );

@@ -12,7 +12,7 @@ import { RecentDriftCard } from "./recent-drift-card";
 // docs/repo-conventions.md.
 export function PortraitSection() {
   return (
-    <section className="flex flex-col gap-4">
+    <section className="flex flex-col gap-6">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <SectionTitle as="h2">Portrait</SectionTitle>
         {/* Steam's Web API exposes no publisher genre, so the whole genre half
@@ -23,7 +23,7 @@ export function PortraitSection() {
         </p>
       </div>
       <PortraitHero />
-      <ChipBand>
+      <ChipBand columns={2}>
         <RecentDriftCard />
         <CompletionistCard />
         <PlatformIdentityCard />

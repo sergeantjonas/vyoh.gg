@@ -12,7 +12,7 @@ import { TastedTierCard } from "./tasted-tier-card";
 // wrapper and chromed children as its twin.
 export function AntiPortraitSection() {
   return (
-    <section className="flex flex-col gap-4">
+    <section className="flex flex-col gap-6">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <SectionTitle as="h2">Anti-Portrait</SectionTitle>
         <p className="text-muted-foreground/70 text-xs">
@@ -20,12 +20,16 @@ export function AntiPortraitSection() {
         </p>
       </div>
       <AntiPortraitHero />
+      {/* Ordered so a row isn't set by one outlier: the three cards that carry
+          a claim share the first row, the two that carry a four-row list share
+          the second. Mixed, the list cards make their neighbours twice as tall
+          as their own content needs. */}
       <ChipBand>
         <TastedTierCard />
-        <QuickestAbandonsCard />
-        <BounceGenresCard />
-        <SingleAchievementCard />
         <ColdestShelfCard />
+        <BounceGenresCard />
+        <QuickestAbandonsCard />
+        <SingleAchievementCard />
       </ChipBand>
     </section>
   );
