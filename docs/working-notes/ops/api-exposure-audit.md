@@ -1,6 +1,12 @@
 # API exposure audit — what an anonymous caller can do
 
-**Status:** Active — audit complete 2026-08-03; remediation underway the same day. **16 of 22 findings fixed** (F-1 through F-5, F-7 partly, F-8, F-9, F-10, F-13, F-15, F-16, F-17, F-18, F-19, F-20, plus half of F-21), **each verified against the running api or a real nginx rather than the suite alone**. Remaining: the `/status/stream` per-connection timer (F-14), `alias`/`patch` reaching their upstreams the way `tier` did, F-11's size caps, and F-12's pool/statement timeout. Opened after the owner asked what protects the backend from unauthorized access; a ten-lane sweep followed. **22 findings, all code-verified against `main` and several confirmed live against the running api**; one reported finding was refuted by probe and is recorded as such. Remediation is a launch gate, mirrored in [pre-launch-sweep.md](pre-launch-sweep.md). Nothing here is reachable today because the api is not public — every item except F-5 becomes live the moment `api.vyoh.gg` resolves.
+**Status:** Active — audit complete 2026-08-03, remediation underway the same day.
+
+Opened after the owner asked what protects the backend from unauthorized access; a ten-lane sweep followed, producing 22 findings all code-verified against `main`. One reported finding was refuted by probe and is recorded as such rather than dropped.
+
+**17 of 22 are now fixed** (F-1 through F-5, F-7 partly, F-8, F-9, F-10, F-13 through F-20, plus half of F-21), **each verified against the running api or a real nginx rather than the test suite alone**. Remaining: `alias`/`patch` reaching their upstreams the way `tier` did, F-11's response-size caps and sharp limits, F-12's pool sizing plus `statement_timeout`, and the two deferrals recorded in F-2 and F-21.
+
+Remediation is a launch gate, mirrored in [pre-launch-sweep.md](pre-launch-sweep.md). Nothing here was ever reachable in the wild — the api is not public — but every item becomes live the moment `api.vyoh.gg` resolves, and F-5 was leaking into local logs before it was fixed.
 
 [owner-auth.md](owner-auth.md) covers the *identity* question (who may call the mutating routes). This note covers the rest of the exposure surface: what an anonymous caller can make the api **do** — upstream quota, database growth, CPU, memory — regardless of whether they can log in. The two are complementary, and owner-auth alone does not close what is listed here.
 
@@ -251,13 +257,31 @@ Error("connect ECONNREFUSED 10.0.0.5:5432 …")
   → "sync failed",     and not containing "10.0.0.5"
 ```
 
-### F-14 — Every `/status/stream` subscriber gets its own 2-second polling timer · HIGH
+### F-14 — Every `/status/stream` subscriber gets its own 2-second polling timer · HIGH · **fixed 2026-08-03**
 
 [status.controller.ts:47-64](../../../apps/api/src/status/status.controller.ts#L47-L64) builds the stream inside the handler with no multicast operator. RxJS observables are cold, so each connection constructs **its own** `interval(2_000)` and its own `switchMap(() => from(this.snapshot()))` — and `snapshot()` awaits `rateLimiter.getSnapshot()`, which loops every regional and per-method Bottleneck limiter awaiting `currentReservoir()` on each.
 
 One thousand held connections is therefore ~500 full snapshots per second, each fanning out to a dozen-plus awaited limiter calls. The route takes no parameters and has no allowlist check, and nginx's `proxy_read_timeout 1h` means each connection is welcome to stay for an hour. No connection cap exists at any layer.
 
-**Fix:** build one shared snapshot observable at module scope and `shareReplay(1)` it to all subscribers, so cost is constant rather than per-connection. The per-connection cap from F-4 is the second half.
+**Fixed** by building the snapshot and heartbeat pipeline once in the constructor and sharing it with `shareReplay({ bufferSize: 1, refCount: true })`. Cost is now constant in the number of connections rather than linear.
+
+`refCount: true` is doing as much work as the sharing itself, and for two reasons worth stating:
+
+- **It stops the timer when the last client disconnects**, so an idle box polls nothing at all. The previous shape polled for as long as any connection was held, and the naive fix — a module-scope observable without refCount — would have polled forever from boot.
+- **It resets the replay buffer on the way down**, so a new connection cannot be handed the snapshot captured for a previous one. `startWith(0)` then gives it a current reading immediately instead of a two-second wait, preserving the behaviour the original `startWith` was there for.
+
+Sync ticks stay per-subscriber deliberately: `forSyncTick()` is already a multicast `Subject`, so subscribing costs an observer entry rather than a timer or a query.
+
+Three tests, and the first is the one that would have failed before:
+
+```
+5 concurrent subscribers      → getSnapshot called 1×   (was 5×)
++2s                           → 2×
+last subscriber disconnects   → no further calls
+reconnect after disconnect    → fresh snapshot, not the replayed one
+```
+
+Verified live as well: two concurrent SSE clients each received their events normally.
 
 ### F-15 — An unvalidated `queue` param grows an in-memory Map forever · MEDIUM · **fixed 2026-08-03**
 
@@ -464,7 +488,9 @@ F-1, F-2, F-4, F-7/8/9, F-13 and the F-20/F-21/F-22 cluster are launch gates, mi
 
 ~~6. **Error hygiene (F-13, F-16, F-19)**~~ — **shipped:** classified sync errors, `X-Powered-By` gone, unknown platform mapped to a 400.
 ~~7. **Bounded pagination (F-18, F-15)**~~ — **shipped:** one `BoundedIntPipe` across all 24 numeric query params, plus a bounded match-id cache.
-8. **`/status/stream` multicast (F-14)** — one shared snapshot observable instead of one timer per subscriber. **Now the largest item left.**
+~~8. **`/status/stream` multicast (F-14)**~~ — **shipped:** one shared, ref-counted pipeline.
+
+**Remaining, unordered:** `alias`/`patch` validation (F-7's tail), F-11's response-size cap and `sharp.limitInputPixels`, F-12's pool sizing and `statement_timeout`, plus the two deferrals recorded in F-2 and F-21.
 
 ~~**Not gated on launch: F-5.**~~ **Shipped 2026-08-03** — the Steam key no longer reaches any log line or error object.
 
