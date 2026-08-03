@@ -18,6 +18,7 @@ import { Route as LolAccountSlugRouteImport } from './routes/lol/$accountSlug'
 import { Route as SteamIndexRouteImport } from './routes/steam/index'
 import { Route as SteamAchievementsRouteImport } from './routes/steam/achievements'
 import { Route as SteamLibraryRouteImport } from './routes/steam/library'
+import { Route as SteamPortraitRouteImport } from './routes/steam/portrait'
 import { Route as SteamWishlistRouteImport } from './routes/steam/wishlist'
 import { Route as LolAccountSlugIndexRouteImport } from './routes/lol/$accountSlug/index'
 import { Route as LolAccountSlugChampionsRouteImport } from './routes/lol/$accountSlug/champions'
@@ -82,6 +83,11 @@ const SteamAchievementsRoute = SteamAchievementsRouteImport.update({
 const SteamLibraryRoute = SteamLibraryRouteImport.update({
   id: '/library',
   path: '/library',
+  getParentRoute: () => SteamRoute,
+} as any)
+const SteamPortraitRoute = SteamPortraitRouteImport.update({
+  id: '/portrait',
+  path: '/portrait',
   getParentRoute: () => SteamRoute,
 } as any)
 const SteamWishlistRoute = SteamWishlistRouteImport.update({
@@ -203,6 +209,7 @@ export interface FileRoutesByFullPath {
   '/lol/$accountSlug': typeof LolAccountSlugRouteWithChildren
   '/steam/achievements': typeof SteamAchievementsRoute
   '/steam/library': typeof SteamLibraryRouteWithChildren
+  '/steam/portrait': typeof SteamPortraitRoute
   '/steam/wishlist': typeof SteamWishlistRoute
   '/lol/': typeof LolIndexRoute
   '/steam/': typeof SteamIndexRoute
@@ -232,6 +239,7 @@ export interface FileRoutesByTo {
   '/status': typeof StatusRoute
   '/steam/achievements': typeof SteamAchievementsRoute
   '/steam/library': typeof SteamLibraryRouteWithChildren
+  '/steam/portrait': typeof SteamPortraitRoute
   '/steam/wishlist': typeof SteamWishlistRoute
   '/lol': typeof LolIndexRoute
   '/steam': typeof SteamIndexRoute
@@ -261,6 +269,7 @@ export interface FileRoutesById {
   '/lol/$accountSlug': typeof LolAccountSlugRouteWithChildren
   '/steam/achievements': typeof SteamAchievementsRoute
   '/steam/library': typeof SteamLibraryRouteWithChildren
+  '/steam/portrait': typeof SteamPortraitRoute
   '/steam/wishlist': typeof SteamWishlistRoute
   '/lol/': typeof LolIndexRoute
   '/steam/': typeof SteamIndexRoute
@@ -294,6 +303,7 @@ export interface FileRouteTypes {
     | '/lol/$accountSlug'
     | '/steam/achievements'
     | '/steam/library'
+    | '/steam/portrait'
     | '/steam/wishlist'
     | '/lol/'
     | '/steam/'
@@ -323,6 +333,7 @@ export interface FileRouteTypes {
     | '/status'
     | '/steam/achievements'
     | '/steam/library'
+    | '/steam/portrait'
     | '/steam/wishlist'
     | '/lol'
     | '/steam'
@@ -351,6 +362,7 @@ export interface FileRouteTypes {
     | '/lol/$accountSlug'
     | '/steam/achievements'
     | '/steam/library'
+    | '/steam/portrait'
     | '/steam/wishlist'
     | '/lol/'
     | '/steam/'
@@ -449,6 +461,13 @@ declare module '@tanstack/react-router' {
       path: '/library'
       fullPath: '/steam/library'
       preLoaderRoute: typeof SteamLibraryRouteImport
+      parentRoute: typeof SteamRoute
+    }
+    '/steam/portrait': {
+      id: '/steam/portrait'
+      path: '/portrait'
+      fullPath: '/steam/portrait'
+      preLoaderRoute: typeof SteamPortraitRouteImport
       parentRoute: typeof SteamRoute
     }
     '/steam/wishlist': {
@@ -609,6 +628,7 @@ const SteamLibraryRouteWithChildren = SteamLibraryRoute._addFileChildren(
 interface SteamRouteChildren {
   SteamAchievementsRoute: typeof SteamAchievementsRoute
   SteamLibraryRoute: typeof SteamLibraryRouteWithChildren
+  SteamPortraitRoute: typeof SteamPortraitRoute
   SteamWishlistRoute: typeof SteamWishlistRoute
   SteamIndexRoute: typeof SteamIndexRoute
   SteamAchievementsSignatureRoute: typeof SteamAchievementsSignatureRoute
@@ -617,6 +637,7 @@ interface SteamRouteChildren {
 const SteamRouteChildren: SteamRouteChildren = {
   SteamAchievementsRoute: SteamAchievementsRoute,
   SteamLibraryRoute: SteamLibraryRouteWithChildren,
+  SteamPortraitRoute: SteamPortraitRoute,
   SteamWishlistRoute: SteamWishlistRoute,
   SteamIndexRoute: SteamIndexRoute,
   SteamAchievementsSignatureRoute: SteamAchievementsSignatureRoute,

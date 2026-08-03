@@ -1,20 +1,6 @@
 import { isWebKit } from "@/lib/is-webkit";
+import { steamTabIndex } from "@/steam/tabs";
 import { useState } from "react";
-
-// Steam tab order mirrors the TABS array in apps/web/src/routes/steam.tsx.
-// Kept local because this hook is only used by Steam and pulling the source
-// of truth back through a shared module is more indirection than the
-// duplication is worth (same call as navigation-type.ts's local copy).
-const STEAM_TAB_ORDER = ["", "library", "wishlist", "achievements"] as const;
-
-function steamTabIndex(pathname: string): number {
-  if (pathname === "/steam" || pathname === "/steam/") return 0;
-  if (!pathname.startsWith("/steam/")) return -1;
-  const rest = pathname.slice("/steam/".length);
-  const seg = rest.split("/")[0] ?? "";
-  const idx = STEAM_TAB_ORDER.indexOf(seg as (typeof STEAM_TAB_ORDER)[number]);
-  return idx === -1 ? -1 : idx;
-}
 
 export type SlideDirection = "left" | "right" | null;
 

@@ -44,6 +44,7 @@ import {
 } from "@vyoh/shared";
 import {
   Crown,
+  Fingerprint,
   Gamepad2,
   History,
   Home,
@@ -483,6 +484,14 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
       ].filter((t) => passesFreeText(t.value))
     : isSteamScope
       ? [
+          {
+            // "genres" and "backlog" because the page is more often looked for
+            // by what it says than by its name.
+            value: "steam portrait genres backlog anti-portrait",
+            icon: <Fingerprint />,
+            label: "Portrait",
+            path: "/steam/portrait",
+          },
           {
             value: "steam library games",
             icon: <Library />,

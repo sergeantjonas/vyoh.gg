@@ -13,7 +13,7 @@ import {
   STEAM_IDENTITY_NAME_MORPH_ID,
 } from "@/steam/profile/identity-layout";
 import { runSteamIdentityMorphNav } from "@/steam/profile/identity-morph-nav";
-import { isSteamTabActive } from "@/steam/tabs";
+import { STEAM_TAB_SEGMENTS, type SteamTabSegment, isSteamTabActive } from "@/steam/tabs";
 import { useSafariSlideDirection } from "@/steam/use-safari-slide-direction";
 import { useSteamSummary } from "@/steam/use-steam-summary";
 import {
@@ -22,7 +22,14 @@ import {
   useNavigate,
   useRouterState,
 } from "@tanstack/react-router";
-import { LayoutDashboard, Library, ListChecks, Trophy } from "lucide-react";
+import {
+  Fingerprint,
+  LayoutDashboard,
+  Library,
+  ListChecks,
+  type LucideIcon,
+  Trophy,
+} from "lucide-react";
 import { m, useReducedMotion } from "motion/react";
 import { useCallback, useEffect } from "react";
 
@@ -36,17 +43,26 @@ export const Route = createFileRoute("/steam")({
     }),
 });
 
-const TABS = [
-  { to: "/steam", label: "Profile", Icon: LayoutDashboard, exact: true },
-  {
-    to: "/steam/library",
-    label: "Library",
-    Icon: Library,
+// Keyed by segment and `satisfies Record<SteamTabSegment, …>`, so a segment
+// added to STEAM_TAB_SEGMENTS without chrome here is a type error rather than
+// a tab the router knows about and the strip never renders.
+const TAB_CHROME = {
+  "": { to: "/steam", label: "Profile", Icon: LayoutDashboard, exact: true },
+  portrait: { to: "/steam/portrait", label: "Portrait", Icon: Fingerprint, exact: false },
+  library: { to: "/steam/library", label: "Library", Icon: Library, exact: false },
+  wishlist: { to: "/steam/wishlist", label: "Wishlist", Icon: ListChecks, exact: false },
+  achievements: {
+    to: "/steam/achievements",
+    label: "Achievements",
+    Icon: Trophy,
     exact: false,
   },
-  { to: "/steam/wishlist", label: "Wishlist", Icon: ListChecks, exact: false },
-  { to: "/steam/achievements", label: "Achievements", Icon: Trophy, exact: false },
-] as const;
+} as const satisfies Record<
+  SteamTabSegment,
+  { to: string; label: string; Icon: LucideIcon; exact: boolean }
+>;
+
+const TABS = STEAM_TAB_SEGMENTS.map((segment) => TAB_CHROME[segment]);
 
 function SteamLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });

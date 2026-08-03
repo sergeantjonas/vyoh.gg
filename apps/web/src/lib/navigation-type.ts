@@ -1,17 +1,15 @@
 import { isWebKit } from "@/lib/is-webkit";
 import { topLevelScope } from "@/lib/top-level-scope";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
+import { steamTabIndex } from "@/steam/tabs";
 
-// Tab order mirrors the TABS arrays in
-//   apps/web/src/routes/lol/$accountSlug.tsx
-//   apps/web/src/routes/steam.tsx
-// Local to this classifier so the slide-direction lookup is self-contained.
-// If a third surface (e.g. TFT) needs the same ordering, fold the source-of-
-// truth into a shared per-section module and import it here instead of
-// duplicating — but until then, the duplication is cheaper than the cross-
-// file indirection.
+// LoL's tab order mirrors the TABS array in
+// apps/web/src/routes/lol/$accountSlug.tsx, and is still local: two copies,
+// and nothing has needed to add a tab to both. Steam's used to be local too
+// until a fifth tab had to land in three separate literals — it now lives in
+// @/steam/tabs beside the strip that renders it. Fold this one the same way
+// when LoL next grows a tab.
 const LOL_TAB_ORDER = ["", "matches", "trends", "champions", "live"] as const;
-const STEAM_TAB_ORDER = ["", "library", "wishlist", "achievements"] as const;
 
 type ParsedLocationLike = { pathname: string };
 
@@ -29,15 +27,6 @@ function lolTabIndex(pathname: string, slug: string): number {
   const rest = pathname.slice(base.length + 1);
   const seg = rest.split("/")[0] ?? "";
   const idx = LOL_TAB_ORDER.indexOf(seg as (typeof LOL_TAB_ORDER)[number]);
-  return idx === -1 ? -1 : idx;
-}
-
-function steamTabIndex(pathname: string): number {
-  if (pathname === "/steam" || pathname === "/steam/") return 0;
-  if (!pathname.startsWith("/steam/")) return -1;
-  const rest = pathname.slice("/steam/".length);
-  const seg = rest.split("/")[0] ?? "";
-  const idx = STEAM_TAB_ORDER.indexOf(seg as (typeof STEAM_TAB_ORDER)[number]);
   return idx === -1 ? -1 : idx;
 }
 

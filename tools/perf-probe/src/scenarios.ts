@@ -61,6 +61,16 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    // The two editorial hero bands plus nine frosted chips, all primed in the
+    // route loader. The heaviest reading surface in the Steam section.
+    name: "steam-portrait",
+    path: "/steam/portrait",
+    screenshotMoments: [
+      { name: "01-load", phase: "load", settleMs: 750 },
+      { name: "02-scroll-bottom", phase: "scroll-bottom", settleMs: 500 },
+    ],
+  },
+  {
     // The Steam *profile* page, not `/steam/library`. The handle predates that
     // route existing and is kept so the historical baselines in
     // progressive-paint-audit.md still line up; the virtualised library route
