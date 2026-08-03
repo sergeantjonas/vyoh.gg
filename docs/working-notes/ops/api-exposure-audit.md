@@ -1,6 +1,6 @@
 # API exposure audit — what an anonymous caller can do
 
-**Status:** Active — audit complete 2026-08-03; remediation underway the same day. **10 of 22 findings fixed** (F-1, F-2, F-4, F-5, F-7 partly, F-8, F-9, F-10, F-19, F-20, plus half of F-21); `/og` (F-3/F-17) is the largest item left and the cheapest outage lever in the audit. Opened after the owner asked what protects the backend from unauthorized access; a ten-lane sweep followed. **22 findings, all code-verified against `main` and several confirmed live against the running api**; one reported finding was refuted by probe and is recorded as such. Remediation is a launch gate, mirrored in [pre-launch-sweep.md](pre-launch-sweep.md). Nothing here is reachable today because the api is not public — every item except F-5 becomes live the moment `api.vyoh.gg` resolves.
+**Status:** Active — audit complete 2026-08-03; remediation underway the same day. **10 of 22 findings fixed** (F-1, F-2, F-4, F-5, F-7 partly, F-8, F-9, F-10, F-19, F-20, plus half of F-21), **each verified against the running api rather than the suite alone**. `/og` (F-3/F-17) is the largest item left and the cheapest outage lever in the audit. Opened after the owner asked what protects the backend from unauthorized access; a ten-lane sweep followed. **22 findings, all code-verified against `main` and several confirmed live against the running api**; one reported finding was refuted by probe and is recorded as such. Remediation is a launch gate, mirrored in [pre-launch-sweep.md](pre-launch-sweep.md). Nothing here is reachable today because the api is not public — every item except F-5 becomes live the moment `api.vyoh.gg` resolves.
 
 [owner-auth.md](owner-auth.md) covers the *identity* question (who may call the mutating routes). This note covers the rest of the exposure surface: what an anonymous caller can make the api **do** — upstream quota, database growth, CPU, memory — regardless of whether they can log in. The two are complementary, and owner-auth alone does not close what is listed here.
 
@@ -46,6 +46,16 @@ The existing 27 call-site checks stay. They are not redundant — several gate a
 
 Four tests cover the choke point, including the one that matters most: a rejected account triggers **no Riot call and no row write**, not merely an exception.
 
+Confirmed live on all three routes, with the owner's own account unaffected:
+
+```
+GET  …/euw1/Stranger/EUW1/baselines/Ahri/MIDDLE  → 403
+GET  …/euw1/Stranger/EUW1/narrative/lifetime     → 403
+POST …/euw1/Stranger/EUW1/narrative              → 403
+GET  …/euw1/Vyoh/Ahri/narrative/lifetime         → 200
+GET  …/euw1/Vyoh/Ahri/baselines/Ahri/MIDDLE      → 200
+```
+
 ### F-2 — The match endpoints are an open, unauthenticated Riot proxy · HIGH · **fixed 2026-08-03**
 
 `GET /lol/matches/:matchId` and `GET /lol/matches/:matchId/timeline` ([match.controller.ts:10,15](../../../apps/api/src/lol/match.controller.ts#L10)) carry no allowlist check of any kind. On a cache miss, [lol.service.ts:704-744](../../../apps/api/src/lol/lol.service.ts#L704-L744) derives the region from the matchId string, fetches from Riot, and **permanently inserts a `matchDetailCache` / `matchTimelineCache` row**.
@@ -57,6 +67,8 @@ Match IDs are structured and enumerable (`EUW1_<counter>`), so the cache never h
 **Fixed** by gating the *miss* path on `Match.matchId` existing — a row that is written only for matches a tracked account actually played, which makes it the right thing to gate on. A cached row still serves to anyone, because it is the same data the site renders and costs nothing upstream; an uncached unknown id now 404s instead of reaching Riot.
 
 Checking the internal callers first is what made this safe rather than a guess: the sync path never comes through here — it calls `riot.getMatchTimelineById` directly — so a genuinely new match is still fetched and stored by the match-list flow before anyone can open its detail page. Only the two public routes and the OG match card reach these methods.
+
+Confirmed live after a dev-server restart: `GET /lol/matches/ZZ1_123` answers **404**, where before the clamp it was a 500.
 
 **There is also no retention policy of any kind**, which is what makes the disk side of this permanent rather than merely large. A sweep for cleanup/prune/evict/TTL logic across all 13 `matchDetailCache`/`matchTimelineCache` call sites found zero deletes, no cron sweep and no row cap; both `matchId` columns are uncapped `text` and both payload columns are unbounded `Json`. Every row an attacker causes is kept forever. An eviction job is worth having regardless of the clamp, and it is already anticipated — the match-cache tiering work in [match-cache-storage.md](../lol/match-cache-storage.md) is the natural home, with the caveat from [pre-launch-sweep.md](pre-launch-sweep.md) that destructive cache transforms gate on verified backups.
 
@@ -141,14 +153,15 @@ interpolated : https://wiki.leagueoflegends.com/en-us/images/Season_2023_-_../..
 fetch resolves: https://wiki.leagueoflegends.com/some-path.png
 ```
 
-Confirmed against the running api, not just by construction — the traversal reaches the fetch layer rather than being rejected at the boundary:
+Confirmed against the running api, not just by construction — the traversal reached the fetch layer rather than being rejected at the boundary:
 
 ```
 $ curl -o /dev/null -w 'HTTP %{http_code}\n' "localhost:2010/img/lol/rank/..%2f..%2f..%2fsome-path/2023.webp"
-HTTP 502
+HTTP 502     ← before the fix
+HTTP 400     ← after, verified post-restart
 ```
 
-502 is `UpstreamError` — the handler accepted the input, built the traversed URL, and actually attempted the upstream fetch (which 404s, since `/some-path.png` does not exist). A validated route would have answered 400.
+502 is `UpstreamError` — the handler accepted the input, built the traversed URL, and actually attempted the upstream fetch (which 404s, since `/some-path.png` does not exist). The 400 is the closed set refusing it before any URL is built, with `EMERALD`, `UNRANKED`, `CHALLENGER` and `IRON` all still serving their real bytes.
 
 So an anonymous caller chooses the **path** fetched from four trusted upstreams (`wiki.leagueoflegends.com`, `cdn.communitydragon.org`, `raw.communitydragon.org`, `ddragon.leagueoflegends.com`). The host is a literal prefix, so this is not internal-network SSRF on its own — it is arbitrary-path selection against third parties, from our IP, uncached and unrated. The same shape reaches CDragon via `champion`'s `alias` (whenever the alias matches no champion, the CDragon URL becomes the only candidate) and DDragon via `item`/`profileIcon`'s `patch`.
 
@@ -295,7 +308,9 @@ HTTP 500
 
 `MatchIdParamDto` accepts `^[A-Z0-9]+_\d+$`, so `ZZ1_123` passes validation, and `platformToRegional` then throws a bare `Error` for the unknown prefix. The only registered filter is `@Catch(RiotError)`, so it reaches Nest's default handler. No information leaks — the message is correctly masked — but it is a 500 where a 400 belongs, and it is trivially reachable. Same path via `/og/match/…`.
 
-**Fixed 2026-08-03** alongside F-2 — the shared `regionalForMatch` helper now maps an unrecognised prefix to `BadRequestException`, so it is a 400 rather than a 500. The ordering also means most junk ids never get that far: the tracked-match gate runs first and answers 404.
+**Fixed 2026-08-03** alongside F-2 — the shared `regionalForMatch` helper now maps an unrecognised prefix to `BadRequestException` rather than letting a bare `Error` become a 500.
+
+**In practice the 400 branch is nearly unreachable, which is worth knowing before anyone "fixes" it again.** The tracked-match gate runs first, so `ZZ1_123` answers 404 and never reaches the platform parse — verified live. The 400 only fires for a match that *is* in our `Match` table yet carries an unparseable platform prefix, and rows there come from real Riot responses. So this is defensive, not load-bearing; the 500 it was written to remove is already gone by way of F-2's ordering.
 
 ### F-20 — `/steam/game/:appid/description` re-fetches from Steam forever for any appid we don't own · HIGH · **fixed 2026-08-03**
 
@@ -318,6 +333,13 @@ A DB-cached read is single-digit milliseconds; ~250 ms sustained is the upstream
 **Fixed 2026-08-03** by refusing outright for appids outside the library rather than switching to `upsert`. The route exists to serve our own game pages, so ownership is the honest constraint, and it closes the exposure and the never-caches bug in one move. The lookup is a primary-key hit on `SteamOwnedGame` rather than the existing `getGameRecap` pattern, which loads the whole 664 kB owned-games payload to answer the same question.
 
 One test had to change intent rather than just gain a stub: it asserted that a missing enrichment row still fetched and swallowed the P2025. That *was* the bug, so it now asserts the refusal happens without calling Steam at all.
+
+Confirmed live, and the latency is the evidence rather than the status code — an unowned appid is refused in single-digit milliseconds where it previously spent a Steam round-trip on every call:
+
+```
+unowned 999999999   404 in 0.005s, 404 in 0.003s   (was 200 in ~0.25s, every time)
+owned   2622380     200 in 0.002s, 200 in 0.002s
+```
 
 ### F-21 — `/steam/wishlist/:appid/hero-meta` fans one request into three upstream calls plus a CPU pass · HIGH
 
