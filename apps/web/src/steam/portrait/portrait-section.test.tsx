@@ -27,10 +27,34 @@ const axe = configureAxe({ rules: { "color-contrast": { enabled: false } } });
 // in Souls-likes, and a recency window with almost nothing in it.
 const LIFETIME: GenreFingerprint = {
   genres: [
-    { tag: "Souls-like", minutes: 42_180, share: 0.298, gameCount: 15 },
-    { tag: "Action RPG", minutes: 32_220, share: 0.228, gameCount: 13 },
-    { tag: "Third-Person Shooter", minutes: 9_180, share: 0.065, gameCount: 10 },
-    { tag: "Roguelite", minutes: 8_700, share: 0.061, gameCount: 1 },
+    {
+      tag: "Souls-like",
+      minutes: 42_180,
+      share: 0.298,
+      gameCount: 15,
+      examples: [{ appid: 648851, name: "A Souls-like game", minutes: 42_180 }],
+    },
+    {
+      tag: "Action RPG",
+      minutes: 32_220,
+      share: 0.228,
+      gameCount: 13,
+      examples: [{ appid: 621849, name: "A Action RPG game", minutes: 32_220 }],
+    },
+    {
+      tag: "Third-Person Shooter",
+      minutes: 9_180,
+      share: 0.065,
+      gameCount: 10,
+      examples: [{ appid: 697428, name: "A Third-Person Shooter game", minutes: 9_180 }],
+    },
+    {
+      tag: "Roguelite",
+      minutes: 8_700,
+      share: 0.061,
+      gameCount: 1,
+      examples: [{ appid: 347485, name: "A Roguelite game", minutes: 8_700 }],
+    },
   ],
   distributedMinutes: 141_360,
   gamesCounted: 54,
@@ -53,8 +77,20 @@ const ANTI: SteamPortraitAnti = {
     ],
     fingerprint: {
       genres: [
-        { tag: "Action", minutes: 44, share: 0.21, gameCount: 5 },
-        { tag: "Action RPG", minutes: 20, share: 0.1, gameCount: 2 },
+        {
+          tag: "Action",
+          minutes: 44,
+          share: 0.21,
+          gameCount: 5,
+          examples: [{ appid: 66537, name: "A Action game", minutes: 44 }],
+        },
+        {
+          tag: "Action RPG",
+          minutes: 20,
+          share: 0.1,
+          gameCount: 2,
+          examples: [{ appid: 621849, name: "A Action RPG game", minutes: 20 }],
+        },
       ],
       distributedMinutes: 210,
       gamesCounted: 9,
@@ -243,8 +279,20 @@ describe("RecentDriftCard", () => {
           },
           fingerprint: {
             genres: [
-              { tag: "Souls-like", minutes: 300, share: 0.173, gameCount: 1 },
-              { tag: "Stealth", minutes: 300, share: 0.173, gameCount: 1 },
+              {
+                tag: "Souls-like",
+                minutes: 300,
+                share: 0.173,
+                gameCount: 1,
+                examples: [{ appid: 648851, name: "A Souls-like game", minutes: 300 }],
+              },
+              {
+                tag: "Stealth",
+                minutes: 300,
+                share: 0.173,
+                gameCount: 1,
+                examples: [{ appid: 507896, name: "A Stealth game", minutes: 300 }],
+              },
             ],
             distributedMinutes: 1_740,
             gamesCounted: 3,
@@ -276,8 +324,22 @@ describe("RecentDriftCard", () => {
           },
           fingerprint: {
             genres: [
-              { tag: "Roguelike Deckbuilder", minutes: 1_200, share: 0.6, gameCount: 4 },
-              { tag: "Souls-like", minutes: 800, share: 0.4, gameCount: 3 },
+              {
+                tag: "Roguelike Deckbuilder",
+                minutes: 1_200,
+                share: 0.6,
+                gameCount: 4,
+                examples: [
+                  { appid: 874394, name: "A Roguelike Deckbuilder game", minutes: 1_200 },
+                ],
+              },
+              {
+                tag: "Souls-like",
+                minutes: 800,
+                share: 0.4,
+                gameCount: 3,
+                examples: [{ appid: 648851, name: "A Souls-like game", minutes: 800 }],
+              },
             ],
             distributedMinutes: 2_000,
             gamesCounted: 7,
@@ -307,7 +369,15 @@ describe("RecentDriftCard", () => {
             until: "2026-08-02T00:00:00.000Z",
           },
           fingerprint: {
-            genres: [{ tag: "Souls-like", minutes: 2_000, share: 1, gameCount: 5 }],
+            genres: [
+              {
+                tag: "Souls-like",
+                minutes: 2_000,
+                share: 1,
+                gameCount: 5,
+                examples: [{ appid: 648851, name: "A Souls-like game", minutes: 2_000 }],
+              },
+            ],
             distributedMinutes: 2_000,
             gamesCounted: 5,
             gamesWithoutGenre: 0,

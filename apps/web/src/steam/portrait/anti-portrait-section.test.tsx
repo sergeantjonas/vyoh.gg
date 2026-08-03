@@ -20,9 +20,27 @@ const axe = configureAxe({ rules: { "color-contrast": { enabled: false } } });
 // and two JRPGs neither of which survived the hour.
 const LIFETIME: GenreFingerprint = {
   genres: [
-    { tag: "Souls-like", minutes: 42_180, share: 0.298, gameCount: 15 },
-    { tag: "Action RPG", minutes: 32_220, share: 0.228, gameCount: 13 },
-    { tag: "FPS", minutes: 7_500, share: 0.053, gameCount: 10 },
+    {
+      tag: "Souls-like",
+      minutes: 42_180,
+      share: 0.298,
+      gameCount: 15,
+      examples: [{ appid: 648851, name: "A Souls-like game", minutes: 42_180 }],
+    },
+    {
+      tag: "Action RPG",
+      minutes: 32_220,
+      share: 0.228,
+      gameCount: 13,
+      examples: [{ appid: 621849, name: "A Action RPG game", minutes: 32_220 }],
+    },
+    {
+      tag: "FPS",
+      minutes: 7_500,
+      share: 0.053,
+      gameCount: 10,
+      examples: [{ appid: 748997, name: "A FPS game", minutes: 7_500 }],
+    },
   ],
   distributedMinutes: 141_360,
   gamesCounted: 54,
@@ -41,9 +59,27 @@ const ANTI: SteamPortraitAnti = {
     ],
     fingerprint: {
       genres: [
-        { tag: "FPS", minutes: 40, share: 0.2, gameCount: 3 },
-        { tag: "Action RPG", minutes: 35, share: 0.17, gameCount: 3 },
-        { tag: "JRPG", minutes: 6, share: 0.03, gameCount: 2 },
+        {
+          tag: "FPS",
+          minutes: 40,
+          share: 0.2,
+          gameCount: 3,
+          examples: [{ appid: 748997, name: "A FPS game", minutes: 40 }],
+        },
+        {
+          tag: "Action RPG",
+          minutes: 35,
+          share: 0.17,
+          gameCount: 3,
+          examples: [{ appid: 621849, name: "A Action RPG game", minutes: 35 }],
+        },
+        {
+          tag: "JRPG",
+          minutes: 6,
+          share: 0.03,
+          gameCount: 2,
+          examples: [{ appid: 868280, name: "A JRPG game", minutes: 6 }],
+        },
       ],
       distributedMinutes: 200,
       gamesCounted: 9,
@@ -236,7 +272,15 @@ describe("BounceGenresCard", () => {
       tasted: {
         ...ANTI.tasted,
         fingerprint: {
-          genres: [{ tag: "Roguelite", minutes: 10, share: 1, gameCount: 1 }],
+          genres: [
+            {
+              tag: "Roguelite",
+              minutes: 10,
+              share: 1,
+              gameCount: 1,
+              examples: [{ appid: 347485, name: "A Roguelite game", minutes: 10 }],
+            },
+          ],
           distributedMinutes: 10,
           gamesCounted: 1,
           gamesWithoutGenre: 0,

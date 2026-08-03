@@ -7,6 +7,7 @@ const genre = (tag: string, gameCount: number): GenreShare => ({
   gameCount,
   minutes: gameCount * 10,
   share: 0,
+  examples: [{ appid: gameCount, name: `A ${tag}`, minutes: 10 }],
 });
 
 const fingerprint = (genres: GenreShare[]): GenreFingerprint => ({
@@ -25,7 +26,16 @@ describe("bounceRates", () => {
       fingerprint([genre("Action RPG", 13)])
     );
 
-    expect(rates).toEqual([{ tag: "Action RPG", bounced: 3, tried: 16 }]);
+    expect(rates).toEqual([
+      {
+        tag: "Action RPG",
+        bounced: 3,
+        tried: 16,
+        // The dropped games come off the tasted fingerprint, which is the one
+        // whose carriers are by definition the abandonments.
+        dropped: [{ appid: 3, name: "A Action RPG", minutes: 10 }],
+      },
+    ]);
   });
 
   it("ranks by rate rather than by volume", () => {
@@ -69,15 +79,19 @@ describe("bounceRates", () => {
 
 describe("describeBounce", () => {
   it("says 'both' when a pair was tried and a pair was dropped", () => {
-    expect(describeBounce({ tag: "JRPG", bounced: 2, tried: 2 })).toBe("both");
-    expect(describeBounce({ tag: "MOBA", bounced: 3, tried: 3 })).toBe("every one");
-    expect(describeBounce({ tag: "FPS", bounced: 3, tried: 13 })).toBe("3");
+    expect(describeBounce({ tag: "JRPG", bounced: 2, tried: 2, dropped: [] })).toBe(
+      "both"
+    );
+    expect(describeBounce({ tag: "MOBA", bounced: 3, tried: 3, dropped: [] })).toBe(
+      "every one"
+    );
+    expect(describeBounce({ tag: "FPS", bounced: 3, tried: 13, dropped: [] })).toBe("3");
   });
 });
 
 describe("bounceShare", () => {
   it("does not divide by zero", () => {
-    expect(bounceShare({ tag: "None", bounced: 0, tried: 0 })).toBe(0);
-    expect(bounceShare({ tag: "JRPG", bounced: 2, tried: 2 })).toBe(1);
+    expect(bounceShare({ tag: "None", bounced: 0, tried: 0, dropped: [] })).toBe(0);
+    expect(bounceShare({ tag: "JRPG", bounced: 2, tried: 2, dropped: [] })).toBe(1);
   });
 });

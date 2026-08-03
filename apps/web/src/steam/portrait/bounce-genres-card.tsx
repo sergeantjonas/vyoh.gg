@@ -6,7 +6,7 @@ import {
   bounceShare,
   describeBounce,
 } from "./bounce-rates";
-import { StatRow } from "./stat-row";
+import { ExampleGames, StatRow } from "./stat-row";
 import { useSteamPortrait } from "./use-portrait";
 
 const TITLE = "Genres you bounce off";
@@ -70,6 +70,10 @@ function BounceList({ rates }: { rates: BounceRate[] }) {
                   ? "None of them stuck."
                   : `${rate.tried - rate.bounced} stuck.`}
               </p>
+              <ExampleGames
+                examples={rate.dropped}
+                trailing={rate.bounced - rate.dropped.length}
+              />
             </>
           }
         />

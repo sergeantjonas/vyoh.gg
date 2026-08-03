@@ -191,7 +191,15 @@ describe("SteamPortraitService.getPortrait", () => {
     const portrait = await new SteamPortraitService(prisma).getPortrait();
 
     expect(portrait.recent?.fingerprint.genres).toEqual([
-      { tag: "Roguelite", minutes: 900, share: 1, gameCount: 1 },
+      {
+        tag: "Roguelite",
+        minutes: 900,
+        share: 1,
+        gameCount: 1,
+        // The example's minutes are the weighting the fingerprint was built
+        // with — in-window here, lifetime for the other two fingerprints.
+        examples: [{ appid: 2, name: "Game 2", minutes: 900 }],
+      },
     ]);
   });
 

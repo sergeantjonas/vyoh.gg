@@ -8,7 +8,7 @@ import {
 import { type GenreShare, formatPlaytime } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { joinGenres, leadingGenres, shareOf } from "./leading-genres";
-import { StatRow } from "./stat-row";
+import { ExampleGames, StatRow } from "./stat-row";
 import { useSteamPortrait } from "./use-portrait";
 
 // The section's opening statement rather than the first of five equal tiles:
@@ -110,6 +110,10 @@ function GenreRow({
             {formatPlaytime(genre.minutes)} across {games}, out of{" "}
             {formatPlaytime(trackedMinutes)} that carry any genre.
           </p>
+          <ExampleGames
+            examples={genre.examples}
+            trailing={genre.gameCount - genre.examples.length}
+          />
           {/* Playtime is split across a game's matched tags rather than repeated
               per tag, which is the only reason the shares can be added up. */}
           <p className="mt-1.5 text-muted-foreground/70 text-[0.6875rem] leading-relaxed">

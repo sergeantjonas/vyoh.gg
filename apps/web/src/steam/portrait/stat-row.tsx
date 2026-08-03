@@ -1,6 +1,7 @@
 import { TOOLTIP_CONTENT_RICH } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import { type GenreExample, formatPlaytime } from "@vyoh/shared";
 import type { ReactNode } from "react";
 
 // Label · bar · trailing figure. The bar is the claim rather than decoration:
@@ -32,6 +33,36 @@ export interface StatRowProps {
   /** Shown on hover and on keyboard focus. */
   tooltip: ReactNode;
   size?: keyof typeof SIZES;
+}
+
+// The games behind a bar, for tooltips whose row is otherwise a percentage the
+// reader has to take on faith. Named rather than linked: a tooltip closes the
+// moment the pointer leaves the row it is anchored to, so a link inside one is
+// a target that moves away as you reach for it.
+export function ExampleGames({
+  examples,
+  trailing,
+}: {
+  examples: readonly GenreExample[];
+  /** How many carriers are not named. Rendered as "+N more"; ignored at zero. */
+  trailing?: number;
+}) {
+  if (examples.length === 0) return null;
+  return (
+    <ul className="mt-2 flex flex-col gap-0.5 border-border/40 border-t pt-1.5">
+      {examples.map((game) => (
+        <li key={game.appid} className="flex items-baseline gap-2 text-[0.6875rem]">
+          <span className="min-w-0 flex-1 truncate text-foreground/80">{game.name}</span>
+          <span className="shrink-0 text-muted-foreground/70 tabular-nums">
+            {formatPlaytime(game.minutes)}
+          </span>
+        </li>
+      ))}
+      {trailing !== undefined && trailing > 0 && (
+        <li className="text-[0.6875rem] text-muted-foreground/60">+{trailing} more</li>
+      )}
+    </ul>
+  );
 }
 
 export function StatRow({ label, fill, trailing, tooltip, size = "hero" }: StatRowProps) {

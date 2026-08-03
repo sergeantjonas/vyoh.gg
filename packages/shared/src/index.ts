@@ -279,12 +279,14 @@ export type {
   EngagementSummary,
 } from "./steam/portrait/engagement.ts";
 export {
+  GENRE_EXAMPLE_LIMIT,
   THIN_GENRE_CARRIERS,
   buildGenreFingerprint,
   isThinGenre,
 } from "./steam/portrait/fingerprint.ts";
 export type {
   FingerprintGame,
+  GenreExample,
   GenreFingerprint,
   GenreShare,
 } from "./steam/portrait/fingerprint.ts";

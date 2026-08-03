@@ -7,6 +7,7 @@ const genre = (tag: string, share: number, gameCount: number): GenreShare => ({
   share,
   gameCount,
   minutes: Math.round(share * 100_000),
+  examples: [],
 });
 
 describe("leadingGenres", () => {

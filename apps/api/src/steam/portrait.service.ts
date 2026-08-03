@@ -144,7 +144,7 @@ export class SteamPortraitService {
 
     return {
       lifetime: buildGenreFingerprint(
-        cohort.map((game) => ({ minutes: game.playtimeForeverMinutes, tags: game.tags }))
+        cohort.map((game) => fingerprintInput(game, game.playtimeForeverMinutes))
       ),
       recent: baselineDate === null ? null : buildRecent(games, baselineDate, latestDate),
       posture: {
@@ -256,6 +256,15 @@ function gameRef(game: PortraitGame): SteamPortraitGameRef {
   return { appid: game.appid, name: game.name, minutes: game.playtimeForeverMinutes };
 }
 
+// The weighting minutes differ per fingerprint (lifetime vs in-window), so the
+// caller passes them; identity and tags always come off the game.
+function fingerprintInput(
+  game: PortraitGame,
+  minutes: number
+): { appid: number; name: string; minutes: number; tags: string[] } {
+  return { appid: game.appid, name: game.name, minutes, tags: game.tags };
+}
+
 /**
  * The Anti-Portrait's three claims. `games` is the whole library and `cohort`
  * is the meaningful slice of it — both are needed, because the tasted cards
@@ -275,7 +284,7 @@ function buildAnti(games: PortraitGame[], cohort: PortraitGame[]): SteamPortrait
       // cohort capped at 59 minutes is close to unweighted. The card reads
       // `gameCount` for exactly that reason.
       fingerprint: buildGenreFingerprint(
-        tasted.map((game) => ({ minutes: game.playtimeForeverMinutes, tags: game.tags }))
+        tasted.map((game) => fingerprintInput(game, game.playtimeForeverMinutes))
       ),
     },
     singleAchievement: {
@@ -307,7 +316,7 @@ function buildRecent(
     // Weighted by in-window minutes, not lifetime — otherwise a 400-hour game
     // played for an hour last week outranks the thing actually being played.
     fingerprint: buildGenreFingerprint(
-      recent.map((game) => ({ minutes: game.windowMinutes, tags: game.tags }))
+      recent.map((game) => fingerprintInput(game, game.windowMinutes))
     ),
   };
 }

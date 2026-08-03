@@ -158,7 +158,15 @@ describe("SteamController", () => {
   it("delegates to SteamPortraitService.getPortrait", async () => {
     const portrait: SteamPortrait = {
       lifetime: {
-        genres: [{ tag: "Souls-like", minutes: 42_000, share: 0.3, gameCount: 15 }],
+        genres: [
+          {
+            tag: "Souls-like",
+            minutes: 42_000,
+            share: 0.3,
+            gameCount: 15,
+            examples: [{ appid: 1245620, name: "ELDEN RING", minutes: 26_040 }],
+          },
+        ],
         distributedMinutes: 141_000,
         gamesCounted: 54,
         gamesWithoutGenre: 1,

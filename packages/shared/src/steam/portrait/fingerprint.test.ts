@@ -1,7 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { THIN_GENRE_CARRIERS, buildGenreFingerprint, isThinGenre } from "./fingerprint";
 
-const game = (minutes: number, ...tags: string[]) => ({ minutes, tags });
+let nextAppid = 1;
+const game = (minutes: number, ...tags: string[]) => ({
+  appid: nextAppid++,
+  name: `Game ${nextAppid}`,
+  minutes,
+  tags,
+});
+
+const named = (appid: number, name: string, minutes: number, ...tags: string[]) => ({
+  appid,
+  name,
+  minutes,
+  tags,
+});
 
 describe("buildGenreFingerprint", () => {
   it("divides a game's minutes across the genres it matched", () => {
@@ -92,14 +105,52 @@ describe("buildGenreFingerprint", () => {
   });
 });
 
+describe("genre examples", () => {
+  it("names the genre's biggest carriers, longest-played first", () => {
+    const { genres } = buildGenreFingerprint([
+      named(1245620, "ELDEN RING", 30_000, "Souls-like"),
+      named(374320, "DARK SOULS III", 12_000, "Souls-like"),
+      named(814380, "Sekiro", 6_000, "Souls-like"),
+      named(1113560, "NieR Replicant", 1, "Souls-like"),
+    ]);
+
+    expect(genres[0]?.examples.map((e) => e.name)).toEqual([
+      "ELDEN RING",
+      "DARK SOULS III",
+      "Sekiro",
+    ]);
+  });
+
+  it("reports each example's own playtime, not the slice this genre was given", () => {
+    // 600 minutes split across two genres leaves 300 on each share, and the
+    // example still says 600 — the row answers "which game", not "how much of
+    // the total came from here".
+    const { genres } = buildGenreFingerprint([
+      named(1245620, "ELDEN RING", 600, "Souls-like", "Action RPG"),
+    ]);
+
+    expect(genres[0]?.minutes).toBe(300);
+    expect(genres[0]?.examples).toEqual([
+      { appid: 1245620, name: "ELDEN RING", minutes: 600 },
+    ]);
+  });
+});
+
 describe("isThinGenre", () => {
   it("flags a genre carried by fewer games than the threshold", () => {
-    const thin = { tag: "Roguelite", minutes: 100, share: 0.5, gameCount: 1 };
+    const thin = {
+      tag: "Roguelite",
+      minutes: 100,
+      share: 0.5,
+      gameCount: 1,
+      examples: [],
+    };
     const solid = {
       tag: "Souls-like",
       minutes: 100,
       share: 0.5,
       gameCount: THIN_GENRE_CARRIERS,
+      examples: [],
     };
 
     expect(isThinGenre(thin)).toBe(true);

@@ -1,4 +1,4 @@
-import type { GenreFingerprint } from "@vyoh/shared";
+import type { GenreExample, GenreFingerprint } from "@vyoh/shared";
 
 export type BounceRate = {
   tag: string;
@@ -6,6 +6,8 @@ export type BounceRate = {
   bounced: number;
   /** Every game in this genre they ever opened, bounced or not. */
   tried: number;
+  /** A few of the abandoned ones, longest-played first. */
+  dropped: GenreExample[];
 };
 
 /**
@@ -39,6 +41,9 @@ export function bounceRates(
       tag: genre.tag,
       bounced: genre.gameCount,
       tried: genre.gameCount + (stuckWith.get(genre.tag) ?? 0),
+      // The tasted fingerprint's carriers *are* the abandoned games, so naming
+      // them costs nothing beyond reading the examples already on the wire.
+      dropped: genre.examples,
     }))
     .filter((rate) => rate.bounced >= MIN_BOUNCED)
     .sort((a, b) => bounceShare(b) - bounceShare(a) || b.bounced - a.bounced)
