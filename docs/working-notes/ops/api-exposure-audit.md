@@ -1,6 +1,6 @@
 # API exposure audit — what an anonymous caller can do
 
-**Status:** Active — audit complete 2026-08-03; remediation underway the same day. **14 of 22 findings fixed** (F-1 through F-5, F-7 partly, F-8, F-9, F-10, F-13, F-16, F-17, F-19, F-20, plus half of F-21), **each verified against the running api or a real nginx rather than the suite alone**. Remaining: bounded pagination (F-18/F-15), the `/status/stream` per-connection timer (F-14), `alias`/`patch` reaching their upstreams the way `tier` did, F-11's size caps, and F-12's pool/statement timeout. Opened after the owner asked what protects the backend from unauthorized access; a ten-lane sweep followed. **22 findings, all code-verified against `main` and several confirmed live against the running api**; one reported finding was refuted by probe and is recorded as such. Remediation is a launch gate, mirrored in [pre-launch-sweep.md](pre-launch-sweep.md). Nothing here is reachable today because the api is not public — every item except F-5 becomes live the moment `api.vyoh.gg` resolves.
+**Status:** Active — audit complete 2026-08-03; remediation underway the same day. **16 of 22 findings fixed** (F-1 through F-5, F-7 partly, F-8, F-9, F-10, F-13, F-15, F-16, F-17, F-18, F-19, F-20, plus half of F-21), **each verified against the running api or a real nginx rather than the suite alone**. Remaining: the `/status/stream` per-connection timer (F-14), `alias`/`patch` reaching their upstreams the way `tier` did, F-11's size caps, and F-12's pool/statement timeout. Opened after the owner asked what protects the backend from unauthorized access; a ten-lane sweep followed. **22 findings, all code-verified against `main` and several confirmed live against the running api**; one reported finding was refuted by probe and is recorded as such. Remediation is a launch gate, mirrored in [pre-launch-sweep.md](pre-launch-sweep.md). Nothing here is reachable today because the api is not public — every item except F-5 becomes live the moment `api.vyoh.gg` resolves.
 
 [owner-auth.md](owner-auth.md) covers the *identity* question (who may call the mutating routes). This note covers the rest of the exposure surface: what an anonymous caller can make the api **do** — upstream quota, database growth, CPU, memory — regardless of whether they can log in. The two are complementary, and owner-auth alone does not close what is listed here.
 
@@ -259,11 +259,13 @@ One thousand held connections is therefore ~500 full snapshots per second, each 
 
 **Fix:** build one shared snapshot observable at module scope and `shareReplay(1)` it to all subscribers, so cost is constant rather than per-connection. The per-connection cap from F-4 is the second half.
 
-### F-15 — An unvalidated `queue` param grows an in-memory Map forever · MEDIUM
+### F-15 — An unvalidated `queue` param grows an in-memory Map forever · MEDIUM · **fixed 2026-08-03**
 
 `LolService.matchIdsCache` ([lol.service.ts:54](../../../apps/api/src/lol/lol.service.ts#L54)) is keyed `${puuid}:${regional}:${queue}` with a 30-second TTL checked **only on read** — there is no sweep, so an entry never read again is retained for the process lifetime. `queue` arrives from `@Query("queue", new ParseIntPipe({ optional: true }))` with no `@IsIn` against the known queue IDs, so every distinct integer mints a permanent entry. The account still has to be allowlisted, and the shared Riot limiter throttles the fill rate, so this is slow growth rather than a fast OOM — but it is monotonic and has no eviction path.
 
-**Fix:** validate `queue` against the real queue-ID set (the repo has one — the queue-id migration landed numeric IDs), and give the cache a bounded LRU with an active sweep.
+**Fixed on both halves, but not the way the note first proposed.** An `@IsIn` against a queue-ID allowlist would be wrong: the param filters matches by whatever queue they were played in, and Riot adds queues every season, so a closed set would reject legitimate values the moment one appears. The shared sets that exist (`RANKED_QUEUE_IDS`, `SR_LANE_QUEUE_IDS`, `NON_LANED_QUEUE_IDS`) are purpose-specific, not an inventory of what is valid.
+
+So `queue` gets a range bound instead, which shrinks the key space, and — the part that actually closes it — the cache itself is now bounded and swept. A bound on the key space is not a bound on the map: the 30-second TTL is only consulted on a read of the same key, so an entry nobody asks for again was held for the process lifetime regardless of how small the key space was.
 
 ### F-16 — `X-Powered-By: Express` on every response · LOW · **fixed 2026-08-03**
 
@@ -309,13 +311,31 @@ one request       0.106s
 
 Eight renders in roughly twice the time of one. Were the raster still occupying the main thread, eight would serialise to half a second at minimum — so the threadpool path is genuinely live. A test also asserts `renderAsync` is the function called, since reverting to `new Resvg(svg).render()` would pass every behavioural test while quietly serialising the process again.
 
-### F-18 — Analytics windows are attacker-sized and recomputed from scratch every call · MEDIUM
+### F-18 — Analytics windows are attacker-sized and recomputed from scratch every call · MEDIUM · **bounds fixed 2026-08-03**
 
 Roughly twenty analytics endpoints take `count` / `start` / `limit` as `ParseIntPipe` with no bounds, feeding `take:` and `skip:` directly. `getCachedMatches` ([lol.service.ts:190-191](../../../apps/api/src/lol/lol.service.ts#L190-L191)) is the clearest: `skip: start, take: count` on a row shape carrying time-series JSON columns — the API counterpart of the 350 kB window the priming convention already refuses to server-render. `loadOwnerMatchCache` then issues a **second** unbounded query pulling full raw-match JSON for every match in the window, and `getChampionBuildFlow` does the same against the timeline cache, the largest blob in the schema. A repo-wide check found **zero** `@Max`/`@Min`/`@IsPositive` decorators in `apps/api/src`; nothing is memoized, so every call recomputes from Postgres.
 
 Two qualifications keep this at MEDIUM rather than higher. The allowlist scopes every one of these to the owner's own accounts, so `count=999999999` returns that account's rows and not a table scan — but **the allowlist is not a real barrier here**, because those account names are exactly what the public profile URLs display. Anyone who has looked at the site once has valid parameters. Negative values are the sharper edge: Prisma reads a negative `take` as "take the last N", silently reversing pagination rather than erroring.
 
-The right pattern already exists next door — [achievements.service.ts:92](../../../apps/api/src/steam/achievements.service.ts#L92) clamps with `Math.min(Math.max(1, Math.floor(limit)), MAX)`. Adopt it via one shared bounded pipe rather than twenty call sites.
+**Fixed** with one shared `BoundedIntPipe` ([bounded-int.pipe.ts](../../../apps/api/src/bounded-int.pipe.ts)) applied at all 24 `count`/`start`/`limit`/`days`/`queue` sites across the LoL, home and Steam controllers.
+
+**It rejects rather than clamps.** These values size aggregation windows, so a silent clamp would answer with a different dataset than was asked for and the wrong number would look like a real result; a 400 is visible the first time it happens.
+
+**Both bounds are pinned by real callers, not chosen for neatness** — and checking that first is what kept this from breaking three live surfaces. The champion table, champion detail and activity window each request **`count=2000`**, so a tidy-looking cap of 500 would not have errored: it would have aggregated a truncated window and reported a confidently wrong win rate. Two web call sites also send **`count=0`**, so the floor is 0 rather than 1. The ceiling is 5000, which clears real use with room to grow.
+
+**A behaviour worth knowing before someone re-derives it.** The global `ValidationPipe({ transform: true })` runs *before* any param-level pipe, so a query param typed `number` is already coerced by the time the pipe sees it. Measured against the running api:
+
+```
+?count=abc    → 20 rows   (unparseable → undefined → DefaultValuePipe's 20)
+?count=0x10   → 16 rows   (coerced to 16 before the pipe)
+?count=-1     → 400
+?count=5001   → 400 "count must be between 0 and 5000"
+?count=2000   → 200
+```
+
+So malformed input resolves to the default rather than a 400, while out-of-range input fails — which is the half that carries the security property. The pipe's strict digit parse is kept as defence in depth for if that global config ever changes, and its unit tests exercise it directly.
+
+Writing the test first paid for itself here: it caught that `Number("")` is `0` and `Number("0x10")` is `16`, so the original `Number.isInteger` check would have accepted both.
 
 Related and uncached: `GET /steam/summary` makes three-to-four live Steam Web API calls per request (one of them dependent, so it cannot parallelise) at the ~900 ms the priming convention already measured, while the same service caches wishlist and name lookups. Hammering it risks Valve rate-limiting our key, which breaks the integration for real visitors — collateral denial rather than local load.
 
@@ -443,8 +463,8 @@ F-1, F-2, F-4, F-7/8/9, F-13 and the F-20/F-21/F-22 cluster are launch gates, mi
 ~~5. **`/og` (F-3, F-17)**~~ — **shipped:** cache block, `renderAsync`, fetch timeout and redirect refusal.
 
 ~~6. **Error hygiene (F-13, F-16, F-19)**~~ — **shipped:** classified sync errors, `X-Powered-By` gone, unknown platform mapped to a 400.
-7. **Bounded pagination (F-18, F-15)** — one shared clamp pipe, applied everywhere `count`/`limit`/`start`/`queue` appears. **Now the largest item left.**
-8. **`/status/stream` multicast (F-14)** — one shared snapshot observable instead of one timer per subscriber.
+~~7. **Bounded pagination (F-18, F-15)**~~ — **shipped:** one `BoundedIntPipe` across all 24 numeric query params, plus a bounded match-id cache.
+8. **`/status/stream` multicast (F-14)** — one shared snapshot observable instead of one timer per subscriber. **Now the largest item left.**
 
 ~~**Not gated on launch: F-5.**~~ **Shipped 2026-08-03** — the Steam key no longer reaches any log line or error object.
 

@@ -26,6 +26,7 @@ import type {
   SteamWishlist,
   SteamWishlistHeroMeta,
 } from "@vyoh/shared";
+import { COUNT_PIPE, LIMIT_PIPE } from "../bounded-int.pipe";
 import {
   RAREST_UNLOCKS_DEFAULT_LIMIT,
   RECENT_UNLOCKS_DEFAULT_LIMIT,
@@ -149,7 +150,7 @@ export class SteamController {
 
   @Get("achievements/recent")
   async getRecentUnlocks(
-    @Query("limit", new DefaultValuePipe(RECENT_UNLOCKS_DEFAULT_LIMIT), ParseIntPipe)
+    @Query("limit", new DefaultValuePipe(RECENT_UNLOCKS_DEFAULT_LIMIT), LIMIT_PIPE)
     limit: number
   ): Promise<SteamRecentUnlocks> {
     return this.achievements.getRecentUnlocks(limit);
@@ -160,7 +161,7 @@ export class SteamController {
   // distinct route since the sort is different and the caps differ.
   @Get("achievements/rarest")
   async getCrossGameRarest(
-    @Query("limit", new DefaultValuePipe(RAREST_UNLOCKS_DEFAULT_LIMIT), ParseIntPipe)
+    @Query("limit", new DefaultValuePipe(RAREST_UNLOCKS_DEFAULT_LIMIT), LIMIT_PIPE)
     limit: number
   ): Promise<SteamRecentUnlocks> {
     return this.achievements.getCrossGameRarest(limit);
@@ -196,7 +197,7 @@ export class SteamController {
 
   @Get("chronotype")
   async getChronotype(
-    @Query("count", new DefaultValuePipe(500), ParseIntPipe) count: number
+    @Query("count", new DefaultValuePipe(500), COUNT_PIPE) count: number
   ): Promise<SteamChronotype> {
     return this.chronotype.getChronotype(count);
   }

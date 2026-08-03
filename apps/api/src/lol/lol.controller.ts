@@ -38,6 +38,12 @@ import type {
 } from "@vyoh/shared";
 import type { Observable } from "rxjs";
 import {
+  COUNT_PIPE,
+  DAYS_PIPE_OPTIONAL,
+  QUEUE_PIPE_OPTIONAL,
+  START_PIPE,
+} from "../bounded-int.pipe";
+import {
   AccountParamsDto,
   BaselineParamsDto,
   ChampionAccountParamsDto,
@@ -62,9 +68,9 @@ export class LolController {
   @Get("matches")
   async getMatches(
     @Param() { region, gameName, tagLine }: AccountParamsDto,
-    @Query("start", new DefaultValuePipe(0), ParseIntPipe) start: number,
-    @Query("count", new DefaultValuePipe(20), ParseIntPipe) count: number,
-    @Query("queue", new ParseIntPipe({ optional: true })) queue?: number
+    @Query("start", new DefaultValuePipe(0), START_PIPE) start: number,
+    @Query("count", new DefaultValuePipe(20), COUNT_PIPE) count: number,
+    @Query("queue", QUEUE_PIPE_OPTIONAL) queue?: number
   ): Promise<MatchSummary[]> {
     return this.lol.getMatchesForSummoner(region, gameName, tagLine, start, count, queue);
   }
@@ -72,9 +78,9 @@ export class LolController {
   @Get("matches/cached")
   async getCachedMatches(
     @Param() { region, gameName, tagLine }: AccountParamsDto,
-    @Query("start", new DefaultValuePipe(0), ParseIntPipe) start: number,
-    @Query("count", new DefaultValuePipe(20), ParseIntPipe) count: number,
-    @Query("queue", new ParseIntPipe({ optional: true })) queue?: number
+    @Query("start", new DefaultValuePipe(0), START_PIPE) start: number,
+    @Query("count", new DefaultValuePipe(20), COUNT_PIPE) count: number,
+    @Query("queue", QUEUE_PIPE_OPTIONAL) queue?: number
   ): Promise<CachedMatchesResult> {
     return this.lol.getCachedMatches(region, gameName, tagLine, start, count, queue);
   }
@@ -97,7 +103,7 @@ export class LolController {
   @Get("duos")
   async getDuos(
     @Param() { region, gameName, tagLine }: AccountParamsDto,
-    @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
+    @Query("count", new DefaultValuePipe(100), COUNT_PIPE) count: number
   ): Promise<Duo[]> {
     return this.analytics.getDuos(region, gameName, tagLine, count);
   }
@@ -105,7 +111,7 @@ export class LolController {
   @Get("squads")
   async getSquads(
     @Param() { region, gameName, tagLine }: AccountParamsDto,
-    @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
+    @Query("count", new DefaultValuePipe(100), COUNT_PIPE) count: number
   ): Promise<Squad[]> {
     return this.analytics.getSquads(region, gameName, tagLine, count);
   }
@@ -127,7 +133,7 @@ export class LolController {
   @Get("chronotype")
   async getChronotype(
     @Param() { region, gameName, tagLine }: AccountParamsDto,
-    @Query("count", new DefaultValuePipe(500), ParseIntPipe) count: number
+    @Query("count", new DefaultValuePipe(500), COUNT_PIPE) count: number
   ): Promise<Chronotype> {
     return this.analytics.getChronotype(region, gameName, tagLine, count);
   }
@@ -135,7 +141,7 @@ export class LolController {
   @Get("champion-pairs")
   async getChampionPairs(
     @Param() { region, gameName, tagLine }: AccountParamsDto,
-    @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
+    @Query("count", new DefaultValuePipe(100), COUNT_PIPE) count: number
   ): Promise<ChampionPair[]> {
     return this.analytics.getChampionPairs(region, gameName, tagLine, count);
   }
@@ -143,7 +149,7 @@ export class LolController {
   @Get("carry-profile")
   async getCarryProfile(
     @Param() { region, gameName, tagLine }: AccountParamsDto,
-    @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
+    @Query("count", new DefaultValuePipe(100), COUNT_PIPE) count: number
   ): Promise<CarryProfile> {
     return this.analytics.getCarryProfile(region, gameName, tagLine, count);
   }
@@ -151,7 +157,7 @@ export class LolController {
   @Get("objective-firsts")
   async getObjectiveFirsts(
     @Param() { region, gameName, tagLine }: AccountParamsDto,
-    @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
+    @Query("count", new DefaultValuePipe(100), COUNT_PIPE) count: number
   ): Promise<ObjectiveFirsts> {
     return this.analytics.getObjectiveFirsts(region, gameName, tagLine, count);
   }
@@ -159,7 +165,7 @@ export class LolController {
   @Get("objective-participation")
   async getObjectiveParticipation(
     @Param() { region, gameName, tagLine }: AccountParamsDto,
-    @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
+    @Query("count", new DefaultValuePipe(100), COUNT_PIPE) count: number
   ): Promise<ObjectiveParticipation> {
     return this.analytics.getObjectiveParticipation(region, gameName, tagLine, count);
   }
@@ -167,7 +173,7 @@ export class LolController {
   @Get("aram-profile")
   async getAramProfile(
     @Param() { region, gameName, tagLine }: AccountParamsDto,
-    @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
+    @Query("count", new DefaultValuePipe(100), COUNT_PIPE) count: number
   ): Promise<AramProfile> {
     return this.analytics.getAramProfile(region, gameName, tagLine, count);
   }
@@ -175,7 +181,7 @@ export class LolController {
   @Get("damage-profile")
   async getDamageProfile(
     @Param() { region, gameName, tagLine }: AccountParamsDto,
-    @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
+    @Query("count", new DefaultValuePipe(100), COUNT_PIPE) count: number
   ): Promise<DamageProfile> {
     return this.analytics.getDamageProfile(region, gameName, tagLine, undefined, count);
   }
@@ -183,7 +189,7 @@ export class LolController {
   @Get("champions/:championKey/build-flow")
   async getChampionBuildFlow(
     @Param() { region, gameName, tagLine, championKey }: ChampionAccountParamsDto,
-    @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
+    @Query("count", new DefaultValuePipe(100), COUNT_PIPE) count: number
   ): Promise<ChampionBuildFlowEntry[]> {
     return this.championAnalytics.getChampionBuildFlow(
       region,
@@ -197,7 +203,7 @@ export class LolController {
   @Get("champions/:championKey/rune-diversity")
   async getChampionRuneDiversity(
     @Param() { region, gameName, tagLine, championKey }: ChampionAccountParamsDto,
-    @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
+    @Query("count", new DefaultValuePipe(100), COUNT_PIPE) count: number
   ): Promise<ChampionRuneDiversityEntry[]> {
     return this.championAnalytics.getChampionRuneDiversity(
       region,
@@ -211,7 +217,7 @@ export class LolController {
   @Get("champions/:championKey/lane-phase")
   async getChampionLanePhase(
     @Param() { region, gameName, tagLine, championKey }: ChampionAccountParamsDto,
-    @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
+    @Query("count", new DefaultValuePipe(100), COUNT_PIPE) count: number
   ): Promise<ChampionLanePhase> {
     return this.championAnalytics.getChampionLanePhase(
       region,
@@ -225,7 +231,7 @@ export class LolController {
   @Get("champions/:championKey/damage-profile")
   async getChampionDamageProfile(
     @Param() { region, gameName, tagLine, championKey }: ChampionAccountParamsDto,
-    @Query("count", new DefaultValuePipe(100), ParseIntPipe) count: number
+    @Query("count", new DefaultValuePipe(100), COUNT_PIPE) count: number
   ): Promise<DamageProfile> {
     return this.analytics.getDamageProfile(region, gameName, tagLine, championKey, count);
   }
@@ -233,7 +239,7 @@ export class LolController {
   @Get("rank/history")
   async getRankHistory(
     @Param() { region, gameName, tagLine }: AccountParamsDto,
-    @Query("days", new ParseIntPipe({ optional: true })) days?: number
+    @Query("days", DAYS_PIPE_OPTIONAL) days?: number
   ): Promise<RankHistoryResponse> {
     return this.lol.getRankHistory(region, gameName, tagLine, days);
   }

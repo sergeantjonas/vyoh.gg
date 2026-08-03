@@ -9,6 +9,7 @@ import type {
   HomeToday,
   HomeWeeklyTotals,
 } from "@vyoh/shared";
+import { COUNT_PIPE } from "../bounded-int.pipe";
 import { HomeActivityIntensityService } from "./home-activity-intensity.service";
 import { HomeChronotypeService } from "./home-chronotype.service";
 import { HomeDaySplitService } from "./home-day-split.service";
@@ -33,7 +34,7 @@ export class HomeController {
 
   @Get("chronotype")
   async getChronotype(
-    @Query("count", new DefaultValuePipe(500), ParseIntPipe) count: number
+    @Query("count", new DefaultValuePipe(500), COUNT_PIPE) count: number
   ): Promise<HomeChronotype> {
     return this.chronotype.getChronotype(count);
   }

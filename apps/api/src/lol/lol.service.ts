@@ -45,6 +45,7 @@ import {
 
 const DEFAULT_MATCH_COUNT = 20;
 const MATCH_IDS_TTL_MS = 30_000;
+const MATCH_IDS_CACHE_MAX = 256;
 const HISTORICAL_PAGE_SIZE = 20;
 const SSE_HEARTBEAT_MS = 30_000;
 
@@ -856,8 +857,28 @@ export class LolService {
         coveredCount: Math.max(options.count, cached?.coveredCount ?? 0),
         expiry: Date.now() + MATCH_IDS_TTL_MS,
       });
+      this.pruneMatchIdsCache();
     }
     return ids;
+  }
+
+  // The TTL above is only consulted on a read of the same key, so an entry
+  // nobody asks for again is held for the process lifetime. The key includes
+  // the caller-supplied `queue`, so distinct queue values mint distinct
+  // permanent entries — bounded now at the param (see BoundedIntPipe) and here,
+  // because a bound on the key space is not the same as a bound on the map.
+  private pruneMatchIdsCache(): void {
+    const now = Date.now();
+    for (const [key, entry] of this.matchIdsCache) {
+      if (entry.expiry <= now) this.matchIdsCache.delete(key);
+    }
+    // Map iterates in insertion order, so its own key order is the eviction
+    // order. Real use is a handful of keys per tracked account.
+    while (this.matchIdsCache.size > MATCH_IDS_CACHE_MAX) {
+      const oldest = this.matchIdsCache.keys().next();
+      if (oldest.done) break;
+      this.matchIdsCache.delete(oldest.value);
+    }
   }
 
   private async backfillMissingMatches(
