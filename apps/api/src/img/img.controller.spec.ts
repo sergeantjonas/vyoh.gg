@@ -1,3 +1,4 @@
+import { BadRequestException } from "@nestjs/common";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ImgController } from "./img.controller";
 import { LolImageService } from "./lol-image.service";
@@ -362,6 +363,58 @@ describe("ImgController.rankEmblem", () => {
     await makeController().rankEmblem("emerald", "2023", res as never);
     expect(upstream.fetchUpstreamChain).toHaveBeenCalled();
   });
+});
+
+// `alias` and `patch` reach CDragon and DDragon by the same interpolation that
+// made `tier` exploitable. Neither is a closed set this api owns, so they get a
+// charset — which means the bounds have to admit every real value.
+describe("LolImageService segment validation", () => {
+  // Empty lookup tables are fine here: with no display-name row the resolver
+  // falls back to the CDragon-only URL, which is exactly the branch where the
+  // caller's alias reaches the upstream unmediated.
+  const prisma = {
+    lolChampion: { findMany: vi.fn().mockResolvedValue([]) },
+    lolItem: { findMany: vi.fn().mockResolvedValue([]) },
+    lolChampionAbility: { findUnique: vi.fn().mockResolvedValue(null) },
+  };
+  const service = new LolImageService(prisma as never);
+
+  it.each([["Ahri"], ["JarvanIV"], ["MonkeyKing"], ["Strawberry_Ahri"], ["Chogath"]])(
+    "accepts the real champion alias %s",
+    async (alias) => {
+      await expect(service.champion(alias, "square")).resolves.toBeDefined();
+    }
+  );
+
+  it.each([
+    ["..%2f..%2fevil"],
+    ["../../evil"],
+    ["Ahri/../../x"],
+    ["Ahri Ahri"],
+    ["Ahri'"],
+    [""],
+    ["A".repeat(33)],
+  ])("rejects the alias %j", async (alias) => {
+    await expect(service.champion(alias, "square")).rejects.toBeInstanceOf(
+      BadRequestException
+    );
+  });
+
+  it.each([["26.15"], ["25.1"], ["15.13.1"], ["16.15.801.3452"], ["latest"]])(
+    "accepts the real patch %s",
+    async (patch) => {
+      await expect(service.item(1001, patch)).resolves.toBeDefined();
+    }
+  );
+
+  // `..` survives the charset on its own, since dots are legal in a version —
+  // so it is rejected explicitly and that has to stay tested.
+  it.each([["../../x"], [".."], ["15/../../x"], ["a".repeat(33)], [""]])(
+    "rejects the patch %j",
+    async (patch) => {
+      await expect(service.item(1001, patch)).rejects.toBeInstanceOf(BadRequestException);
+    }
+  );
 });
 
 describe("ImgController.uiIcon", () => {

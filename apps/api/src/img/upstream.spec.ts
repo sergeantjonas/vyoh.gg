@@ -318,3 +318,56 @@ describe("redirect refusal", () => {
     );
   });
 });
+
+// The timeout bounds how long an upstream may take, not how much it may send,
+// and the whole body is buffered before sharp sees it.
+describe("response size cap", () => {
+  const OVER = 24 * 1024 * 1024 + 1;
+
+  it("refuses on the declared content-length without downloading the body", async () => {
+    const arrayBuffer = vi.fn();
+    mockFetchOnce(
+      () =>
+        ({
+          ok: true,
+          status: 200,
+          type: "basic",
+          headers: new Headers({ "content-length": String(OVER) }),
+          arrayBuffer,
+        }) as unknown as Response
+    );
+
+    await expect(fetchUpstream("https://cdn.example/huge.png")).rejects.toMatchObject({
+      message: expect.stringContaining("body too large"),
+    });
+    // The point of checking the header first: the body is never read.
+    expect(arrayBuffer).not.toHaveBeenCalled();
+  });
+
+  // content-length is optional and a chunked response omits it, so the header
+  // check is the cheap path rather than the guarantee.
+  it("still refuses an oversized body that declared no length", async () => {
+    mockFetchOnce(
+      () =>
+        ({
+          ok: true,
+          status: 200,
+          type: "basic",
+          headers: new Headers(),
+          arrayBuffer: async () => new ArrayBuffer(OVER),
+        }) as unknown as Response
+    );
+
+    await expect(fetchUpstream("https://cdn.example/chunked.png")).rejects.toMatchObject({
+      message: expect.stringContaining("body too large"),
+    });
+  });
+
+  it("passes a normal asset through untouched", async () => {
+    const payload = new TextEncoder().encode("small").buffer;
+    mockFetchOnce(() => okResponse(payload as ArrayBuffer));
+    await expect(fetchUpstream("https://cdn.example/ok.png")).resolves.toBeInstanceOf(
+      Buffer
+    );
+  });
+});

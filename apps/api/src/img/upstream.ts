@@ -8,6 +8,21 @@ import sharp from "sharp";
 // stale`) react instead of waiting.
 const FETCH_TIMEOUT_MS = 5_000;
 
+// The timeout bounds how long an upstream may take, not how much it may send,
+// and the whole body is buffered into memory before sharp ever sees it. The
+// largest asset we legitimately proxy is a 1920-wide splash in the low
+// hundreds of kilobytes, so 24 MB is far above real use while still refusing
+// to buffer something pathological.
+const MAX_UPSTREAM_BYTES = 24 * 1024 * 1024;
+
+// A byte cap is not a pixel cap: image formats compress, so a small file can
+// still decode to something enormous. sharp's default ceiling is ~268
+// megapixels, which is roughly a gigabyte of decoded RGBA and far past
+// anything this proxy serves — the widest output it produces is 2560px. 40 MP
+// leaves generous headroom over any real source asset (a 4K splash is ~8 MP)
+// while refusing a decompression bomb outright.
+const SHARP_INPUT_LIMITS = { limitInputPixels: 40_000_000 } as const;
+
 export class UpstreamError extends Error {
   constructor(
     public readonly url: string,
@@ -35,7 +50,22 @@ export async function fetchUpstream(url: string): Promise<Buffer> {
     const res = await fetch(url, { signal: ac.signal, redirect: "manual" });
     if (isRedirect(res)) throw new UpstreamError(url, `refused redirect ${res.status}`);
     if (!res.ok) throw new UpstreamError(url, `HTTP ${res.status}`);
-    return Buffer.from(await res.arrayBuffer());
+
+    // Refuse on the declared length when there is one, so an oversized asset
+    // costs a header round-trip rather than a full download.
+    const declared = Number(res.headers.get("content-length"));
+    if (Number.isFinite(declared) && declared > MAX_UPSTREAM_BYTES) {
+      throw new UpstreamError(url, `body too large (${declared} bytes)`);
+    }
+
+    const body = Buffer.from(await res.arrayBuffer());
+    // Checked again after the fact because `content-length` is optional and a
+    // chunked response simply omits it — the header check is the cheap path,
+    // not the guarantee.
+    if (body.byteLength > MAX_UPSTREAM_BYTES) {
+      throw new UpstreamError(url, `body too large (${body.byteLength} bytes)`);
+    }
+    return body;
   } catch (err) {
     if (err instanceof UpstreamError) throw err;
     throw new UpstreamError(url, err);
@@ -106,7 +136,7 @@ export async function transcodeToWebp(
     enlarge,
     sharpen,
   } = params;
-  let pipeline = sharp(input);
+  let pipeline = sharp(input, SHARP_INPUT_LIMITS);
   if (extractTopHalf) {
     // Crop only when the source is clearly a vertical sprite (height
     // notably larger than width — e.g. CDragon's 52×112 `icon_minions.png`).
@@ -115,7 +145,7 @@ export async function transcodeToWebp(
     // wiki one mangles the icon to a horizontal slice, so gate on shape.
     const meta = await pipeline.metadata();
     if (meta.width && meta.height && meta.height > meta.width * 1.5) {
-      pipeline = sharp(input).extract({
+      pipeline = sharp(input, SHARP_INPUT_LIMITS).extract({
         left: 0,
         top: 0,
         width: meta.width,

@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import type { TranscodeParams } from "./upstream";
 import {
@@ -62,6 +62,36 @@ function gameDataUrlFromIconPath(iconPath: string): string {
 const SWARM_PREFIX = "Strawberry_";
 function normalizeChampionAlias(alias: string): string {
   return alias.startsWith(SWARM_PREFIX) ? alias.slice(SWARM_PREFIX.length) : alias;
+}
+
+// `alias` and `patch` reach CDragon and DDragon by string interpolation, the
+// same way `tier` reached the wiki before it was given a closed set. Neither is
+// a closed set this api owns — a champion alias is Riot's to define and `patch`
+// is a version string — so they get a charset instead. Express decodes `%2f`
+// inside a path segment, so a literal `/` is the thing that must not survive,
+// and the WHATWG URL parser resolves `..` away, so that must not survive
+// either.
+//
+// Checked against the live data rather than assumed: all 173 champion aliases
+// are `[A-Za-z0-9_]` with a longest of 12 characters, and `Strawberry_`-
+// prefixed Swarm aliases stay inside the same class.
+const SAFE_ALIAS = /^[A-Za-z0-9_]{1,32}$/;
+// Covers every version shape in use — `26.15`, `25.1`, DDragon's `15.13.1`,
+// the four-part game version `16.15.801.3452` — plus a literal `latest`.
+const SAFE_PATCH = /^[A-Za-z0-9._-]{1,32}$/;
+
+function assertSafeAlias(alias: string): void {
+  if (!SAFE_ALIAS.test(alias)) {
+    throw new BadRequestException("Invalid champion alias");
+  }
+}
+
+function assertSafePatch(patch: string): void {
+  // The charset admits `..` on its own (dots are legal in a version), so the
+  // traversal sequence is rejected explicitly rather than by the class.
+  if (!SAFE_PATCH.test(patch) || patch.includes("..")) {
+    throw new BadRequestException("Invalid patch version");
+  }
 }
 
 export type ChampionVariant = "square" | "card" | "backdrop" | "splash" | "hd";
@@ -156,6 +186,7 @@ export class LolImageService {
   constructor(private readonly prisma: PrismaService) {}
 
   async champion(alias: string, variant: ChampionVariant): Promise<Resolved> {
+    assertSafeAlias(alias);
     const slug = normalizeChampionAlias(alias).toLowerCase();
     const cdragonSquare = `${CDRAGON_CDN}/champion/${slug}/square`;
     switch (variant) {
@@ -266,6 +297,7 @@ export class LolImageService {
   // item shipped between cron ticks, in which case DDragon's id-keyed image
   // is still served as a single-element fallback so cold-start is graceful.
   async item(itemId: number, patch: string): Promise<Resolved> {
+    assertSafePatch(patch);
     const ddragonUrl = `${DDRAGON_CDN}/${patch}/img/item/${itemId}.png`;
     const names = await this.loadItemIconNames();
     const name = names.get(itemId);
@@ -280,6 +312,7 @@ export class LolImageService {
   // Riot but not yet synced from wiki — sync cadence is 6h). Cold-start
   // before the first static sync also lands cleanly on DDragon.
   async profileIcon(iconId: number, patch: string): Promise<Resolved> {
+    assertSafePatch(patch);
     const ddragonUrl = `${DDRAGON_CDN}/${patch}/img/profileicon/${iconId}.png`;
     const titles = await this.loadProfileIconTitles();
     const title = titles.get(iconId);
@@ -305,6 +338,9 @@ export class LolImageService {
     abilityIndex: number,
     patch: string
   ): Promise<Resolved> {
+    assertSafePatch(patch);
+    // `slug` and `slot` come off the Prisma row rather than the request, so
+    // only `patch` is caller-controlled on this path.
     const row = await this.prisma.lolChampionAbility.findUnique({
       where: { championId_slot_abilityIndex: { championId, slot, abilityIndex } },
       include: { champion: { select: { name: true, alias: true } } },

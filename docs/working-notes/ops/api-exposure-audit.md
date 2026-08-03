@@ -4,7 +4,7 @@
 
 Opened after the owner asked what protects the backend from unauthorized access; a ten-lane sweep followed, producing 22 findings all code-verified against `main`. One reported finding was refuted by probe and is recorded as such rather than dropped.
 
-**17 of 22 are now fixed** (F-1 through F-5, F-7 partly, F-8, F-9, F-10, F-13 through F-20, plus half of F-21), **each verified against the running api or a real nginx rather than the test suite alone**. Remaining: `alias`/`patch` reaching their upstreams the way `tier` did, F-11's response-size caps and sharp limits, F-12's pool sizing plus `statement_timeout`, and the two deferrals recorded in F-2 and F-21.
+**20 of 22 are now fixed** — everything except the two deliberate deferrals recorded in F-2 (match-cache eviction, which gates on verified backups) and F-21 (the wishlist-hero ownership clamp, which needs the wishlist-asset population ordering confirmed before it can gate on anything without 404-ing a live surface). **Each was verified against the running api or a real nginx rather than the test suite alone.**
 
 Remediation is a launch gate, mirrored in [pre-launch-sweep.md](pre-launch-sweep.md). Nothing here was ever reachable in the wild — the api is not public — but every item becomes live the moment `api.vyoh.gg` resolves, and F-5 was leaking into local logs before it was fixed.
 
@@ -178,7 +178,9 @@ So an anonymous caller chooses the **path** fetched from four trusted upstreams 
 - The web forwards Riot's `rank.tier` verbatim, so the segment arrives **uppercase**; the set is matched case-insensitively via `toUpperCase()`.
 - **`UNRANKED` is a live value.** It is not a Riot tier, but both upstreams serve an emblem for it and the profile hero requests it, so a set built from the ten real tiers would have 400'd a working surface. Confirmed by probing every tier against the running api before writing the set.
 
-`alias` and `patch` still reach CDragon and DDragon the same way and are **not yet fixed** — they need the same treatment, and they are less mechanical because both are open-ended by design (a champion alias is not a closed set the api owns, and `patch` is a version string).
+**`alias` and `patch` fixed 2026-08-03.** Neither is a closed set this api owns, so they get a charset rather than an allowlist: `^[A-Za-z0-9_]{1,32}$` for alias and `^[A-Za-z0-9._-]{1,32}$` for patch, with `..` rejected explicitly on the latter because dots are legal in a version and the class alone would admit the traversal sequence. Both throw `BadRequestException` from the service — the choke point where the URL is built — rather than from each controller, so a new caller inherits the guard.
+
+The bounds were taken from the live data instead of guessed: **all 173 champion aliases are `[A-Za-z0-9_]`, longest 12 characters**, and `Strawberry_`-prefixed Swarm aliases stay inside the same class. The patch class covers every shape in use — `26.15`, `25.1`, DDragon's `15.13.1`, the four-part game version `16.15.801.3452` — plus a literal `latest`.
 
 ### F-8 — Outbound fetches follow redirects to anywhere · HIGH
 
@@ -227,13 +229,17 @@ X-Content-Type-Options: nosniff
 
 `server_tokens off` landed in the same pass.
 
-### F-11 — No response-size cap and no sharp resource limits · MEDIUM
+### F-11 — No response-size cap and no sharp resource limits · MEDIUM · **fixed 2026-08-03**
 
 [upstream.ts:26](../../../apps/api/src/img/upstream.ts#L26) buffers whole responses with `Buffer.from(await res.arrayBuffer())` — no `Content-Length` pre-check, no ceiling. The 5 s timeout bounds wall-clock, not bytes. Nothing sets `sharp.limitInputPixels()`, `sharp.concurrency()` or `sharp.cache()` at bootstrap, so sharp's ~268 Mpx default applies, which still admits images expanding past a gigabyte in memory before its own guard trips. Harmless while every fetched byte comes from a Riot CDN; it is the amplifier that makes F-7 and F-8 expensive rather than merely wrong.
 
-### F-12 — One connection pool, no statement timeout, shared with the cron pollers · MEDIUM
+**Fixed** with a 24 MB response cap and `limitInputPixels: 40_000_000` on both sharp entry points. The two are not the same guard and both are needed: image formats compress, so a small file can still decode to something enormous — sharp's ~268 MP default is roughly a gigabyte of decoded RGBA, against a widest output of 2560px and a 4K source of ~8 MP. The byte cap checks `content-length` first so an oversized asset costs a header round-trip rather than a full download, then re-checks the buffered body, because `content-length` is optional and a chunked response simply omits it. A test asserts the body is never read when the header already disqualifies it.
+
+### F-12 — One connection pool, no statement timeout, shared with the cron pollers · MEDIUM · **fixed 2026-08-03**
 
 [prisma.service.ts:9](../../../apps/api/src/prisma/prisma.service.ts#L9) constructs `PrismaPg({ connectionString })` with no pool sizing and no `statement_timeout`; neither `DATABASE_URL` nor the Postgres service sets one, so the server default (disabled) stands. `PrismaModule` is app-wide, so every controller **and** every `@Cron` poller share one `pg.Pool` at its default `max: 10`. A burst against the F-2 match endpoints holds connections for the duration of each Riot round-trip plus cache write, which starves unrelated routes and the sync cron on the same ten slots.
+
+**Fixed:** `max: 20` and `statement_timeout: 10_000` on the adapter. The timeout is the load-bearing half — Postgres defaults it to 0, meaning never, so a hung query held its connection indefinitely and the pool is the shared resource. Ten seconds sits far above the heaviest analytics window (tens of milliseconds) and well below the point a caller has given up. The pool stays deliberately modest at 20: Postgres shares the box with the api and web tiers, so a much larger pool trades api queueing for database contention. Verified the api still serves DB-backed routes after the change.
 
 ### F-13 — `/status` serves raw exception messages publicly, in a 200 body · HIGH · **fixed 2026-08-03**
 
@@ -490,7 +496,9 @@ F-1, F-2, F-4, F-7/8/9, F-13 and the F-20/F-21/F-22 cluster are launch gates, mi
 ~~7. **Bounded pagination (F-18, F-15)**~~ — **shipped:** one `BoundedIntPipe` across all 24 numeric query params, plus a bounded match-id cache.
 ~~8. **`/status/stream` multicast (F-14)**~~ — **shipped:** one shared, ref-counted pipeline.
 
-**Remaining, unordered:** `alias`/`patch` validation (F-7's tail), F-11's response-size cap and `sharp.limitInputPixels`, F-12's pool sizing and `statement_timeout`, plus the two deferrals recorded in F-2 and F-21.
+~~9. **The tail** — `alias`/`patch` validation, F-11's size caps, F-12's pool and statement timeout.~~ **All shipped 2026-08-03.**
+
+**What remains is only the two deferrals**, both blocked on something real rather than on effort: match-cache eviction gates on verified backups (F-2), and the wishlist-hero ownership clamp needs the wishlist-asset population ordering established before it can gate on anything (F-21).
 
 ~~**Not gated on launch: F-5.**~~ **Shipped 2026-08-03** — the Steam key no longer reaches any log line or error object.
 
