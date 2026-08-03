@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import type { LolAccount } from "@vyoh/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { IdentityService } from "../identity/identity.service";
+import { RiotError } from "../riot/riot.error";
 import { LolService } from "./lol.service";
 import { MatchEventsService } from "./match-events.service";
 import { MatchSyncService } from "./match-sync.service";
@@ -158,6 +159,51 @@ describe("MatchSyncService.syncAll", () => {
     await service.syncAll();
 
     expect(lol.syncAccountMatches).not.toHaveBeenCalled();
+  });
+});
+
+// Whatever lands on a tick result is published: `GET /status` serves it in a
+// 200 body and the SSE stream re-emits it every two seconds. That path never
+// passes Nest's exception filter, which is what masks internals everywhere
+// else, so the classification here is the only thing standing between a
+// caught error's message and the public internet.
+describe("MatchSyncService error classification", () => {
+  async function headErrorFor(err: unknown): Promise<string> {
+    const { service } = await makeService(async () => {
+      throw err;
+    });
+    await service.syncAll();
+    const head = service.getStatus().lastTick?.accounts[0]?.head;
+    return head && "error" in head ? head.error : "";
+  }
+
+  it("never publishes a Prisma message, which names the database host", async () => {
+    const prismaErr = Object.assign(
+      new Error("Can't reach database server at `postgres`:`5432`"),
+      { code: "P1001" }
+    );
+    const published = await headErrorFor(prismaErr);
+
+    expect(published).toBe("database P1001");
+    expect(published).not.toContain("postgres");
+    expect(published).not.toContain("5432");
+  });
+
+  // Riot's HTTP status is the useful half and carries nothing private, so it
+  // survives classification — a status page that said "sync failed" for every
+  // failure would not be worth reading.
+  it("keeps the Riot status code", async () => {
+    expect(await headErrorFor(new RiotError("upstream said no", 429, "/lol/x"))).toBe(
+      "riot 429"
+    );
+  });
+
+  it("falls back to a fixed label for anything unrecognised", async () => {
+    const leaky = new Error("connect ECONNREFUSED 10.0.0.5:5432 while loading /srv/app");
+    const published = await headErrorFor(leaky);
+
+    expect(published).toBe("sync failed");
+    expect(published).not.toContain("10.0.0.5");
   });
 });
 

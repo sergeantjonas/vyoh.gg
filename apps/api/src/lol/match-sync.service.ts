@@ -1,4 +1,9 @@
-import { Injectable, Logger, type OnApplicationBootstrap } from "@nestjs/common";
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  type OnApplicationBootstrap,
+} from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import type {
   SyncStatus,
@@ -7,6 +12,7 @@ import type {
   SyncTriggerResult,
 } from "@vyoh/shared";
 import { IdentityService } from "../identity/identity.service";
+import { RiotError } from "../riot/riot.error";
 import { LolService } from "./lol.service";
 import { MatchEventsService } from "./match-events.service";
 
@@ -124,7 +130,7 @@ export class MatchSyncService implements OnApplicationBootstrap {
           result.head = head;
           this.logger.log(`${label}: ${head.backfilled} new of ${head.idCount} ids`);
         } catch (err) {
-          result.head = { error: errMsg(err) };
+          result.head = { error: safeSyncError(err) };
           this.logger.warn(`${label} head sync failed: ${errMsg(err)}`);
           // Skip the historical step when head failed — the summoner row may
           // not exist yet, and we don't want to compound rate-limit pressure.
@@ -167,7 +173,7 @@ export class MatchSyncService implements OnApplicationBootstrap {
             );
           }
         } catch (err) {
-          result.historical = { error: errMsg(err) };
+          result.historical = { error: safeSyncError(err) };
           this.logger.warn(`${label} historical step failed: ${errMsg(err)}`);
         }
 
@@ -195,4 +201,26 @@ export class MatchSyncService implements OnApplicationBootstrap {
 
 function errMsg(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+// `/status` is public and re-emitted over SSE every two seconds, so anything
+// stored on a tick result is published — and unlike a thrown error, it never
+// passes Nest's exception filter, which is what masks internals everywhere
+// else. A Prisma connection failure spells out the database host and port in
+// its message; that would have been served in a 200 body.
+//
+// Classified rather than blanked, because the status page is the owner's own
+// diagnostic surface and "sync failed" for everything would make it useless.
+// Riot's HTTP status is the genuinely useful part and carries nothing private
+// (its key travels in a header, not the path). The real message still reaches
+// the logs at every call site below.
+function safeSyncError(err: unknown): string {
+  if (err instanceof RiotError) return `riot ${err.status}`;
+  if (err instanceof ForbiddenException) return "account not whitelisted";
+  if (err instanceof Error && err.name === "TimeoutError") return "timeout";
+  // Prisma's known-request errors are `P` followed by four digits. The code
+  // identifies the failure class without quoting the connection string.
+  const code = (err as { code?: unknown } | null)?.code;
+  if (typeof code === "string" && /^P\d{4}$/.test(code)) return `database ${code}`;
+  return "sync failed";
 }

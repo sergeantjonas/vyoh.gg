@@ -1,6 +1,6 @@
 # API exposure audit — what an anonymous caller can do
 
-**Status:** Active — audit complete 2026-08-03; remediation underway the same day. **12 of 22 findings fixed** (F-1, F-2, F-3, F-4, F-5, F-7 partly, F-8, F-9, F-10, F-17, F-19, F-20, plus half of F-21), **each verified against the running api or a real nginx rather than the suite alone**. Largest remaining: `/status` publishing raw exception text (F-13), bounded pagination (F-18/F-15), and the `/status/stream` per-connection timer (F-14). Opened after the owner asked what protects the backend from unauthorized access; a ten-lane sweep followed. **22 findings, all code-verified against `main` and several confirmed live against the running api**; one reported finding was refuted by probe and is recorded as such. Remediation is a launch gate, mirrored in [pre-launch-sweep.md](pre-launch-sweep.md). Nothing here is reachable today because the api is not public — every item except F-5 becomes live the moment `api.vyoh.gg` resolves.
+**Status:** Active — audit complete 2026-08-03; remediation underway the same day. **14 of 22 findings fixed** (F-1 through F-5, F-7 partly, F-8, F-9, F-10, F-13, F-16, F-17, F-19, F-20, plus half of F-21), **each verified against the running api or a real nginx rather than the suite alone**. Remaining: bounded pagination (F-18/F-15), the `/status/stream` per-connection timer (F-14), `alias`/`patch` reaching their upstreams the way `tier` did, F-11's size caps, and F-12's pool/statement timeout. Opened after the owner asked what protects the backend from unauthorized access; a ten-lane sweep followed. **22 findings, all code-verified against `main` and several confirmed live against the running api**; one reported finding was refuted by probe and is recorded as such. Remediation is a launch gate, mirrored in [pre-launch-sweep.md](pre-launch-sweep.md). Nothing here is reachable today because the api is not public — every item except F-5 becomes live the moment `api.vyoh.gg` resolves.
 
 [owner-auth.md](owner-auth.md) covers the *identity* question (who may call the mutating routes). This note covers the rest of the exposure surface: what an anonymous caller can make the api **do** — upstream quota, database growth, CPU, memory — regardless of whether they can log in. The two are complementary, and owner-auth alone does not close what is listed here.
 
@@ -229,7 +229,7 @@ X-Content-Type-Options: nosniff
 
 [prisma.service.ts:9](../../../apps/api/src/prisma/prisma.service.ts#L9) constructs `PrismaPg({ connectionString })` with no pool sizing and no `statement_timeout`; neither `DATABASE_URL` nor the Postgres service sets one, so the server default (disabled) stands. `PrismaModule` is app-wide, so every controller **and** every `@Cron` poller share one `pg.Pool` at its default `max: 10`. A burst against the F-2 match endpoints holds connections for the duration of each Riot round-trip plus cache write, which starves unrelated routes and the sync cron on the same ten slots.
 
-### F-13 — `/status` serves raw exception messages publicly, in a 200 body · HIGH
+### F-13 — `/status` serves raw exception messages publicly, in a 200 body · HIGH · **fixed 2026-08-03**
 
 When a sync step throws, [match-sync.service.ts:127](../../../apps/api/src/lol/match-sync.service.ts#L127) (and :170 for the historical step) stores the message verbatim: `result.head = { error: errMsg(err) }`, where `errMsg` is `err.message` with no mapping ([:196-198](../../../apps/api/src/lol/match-sync.service.ts#L196-L198)). That value is returned by `getStatus()` straight out of `GET /status` ([status.controller.ts:22](../../../apps/api/src/status/status.controller.ts#L22)) and re-emitted to every SSE subscriber every two seconds.
 
@@ -237,7 +237,19 @@ The sync path calls into Prisma with no inner catch, so a database error arrives
 
 What makes this worse than an ordinary unhandled exception is that it **routes around the protection that already works**. Nest's `BaseExceptionFilter` was verified to emit a fixed `{"statusCode":500,"message":"Internal server error"}` for non-`HttpException` errors regardless of `NODE_ENV`, so genuinely thrown errors are safe. This path captures the message *before* the filter can ever see it and serves it as normal, successful output. And because `POST /status/sync` is unguarded, an attacker can trigger sync ticks on demand to fish for a transient failure to read back.
 
-**Fix:** map caught errors to a generic label at the capture site in `match-sync.service.ts`, logging the real message server-side only.
+**Fixed** with a `safeSyncError` classifier at both capture sites; the real message still goes to the logs, which already had it.
+
+**Classified rather than blanked, deliberately.** The status page is the owner's own diagnostic surface, and "sync failed" for every failure would make it useless — so the fixed vocabulary keeps the half that is both useful and safe: `riot <status>` (Riot's key travels in a header, not the path, so its status and path carry nothing private), `database P1001` (the Prisma *code* identifies the failure class without quoting the connection string), `timeout`, `account not whitelisted`, and `sync failed` for anything unrecognised. Unrecognised defaults to the opaque label rather than passing the message through, which is the right way round for a default.
+
+Three tests pin it, and the assertions are about what must *not* appear rather than only what must:
+
+```
+Prisma P1001 "Can't reach database server at `postgres`:`5432`"
+  → "database P1001",  and not containing "postgres" or "5432"
+RiotError(429)                     → "riot 429"
+Error("connect ECONNREFUSED 10.0.0.5:5432 …")
+  → "sync failed",     and not containing "10.0.0.5"
+```
 
 ### F-14 — Every `/status/stream` subscriber gets its own 2-second polling timer · HIGH
 
@@ -253,7 +265,7 @@ One thousand held connections is therefore ~500 full snapshots per second, each 
 
 **Fix:** validate `queue` against the real queue-ID set (the repo has one — the queue-id migration landed numeric IDs), and give the cache a bounded LRU with an active sweep.
 
-### F-16 — `X-Powered-By: Express` on every response · LOW
+### F-16 — `X-Powered-By: Express` on every response · LOW · **fixed 2026-08-03**
 
 Confirmed live against the running api rather than inferred from a missing call:
 
@@ -263,7 +275,9 @@ HTTP/1.1 200 OK
 X-Powered-By: Express
 ```
 
-No `helmet`, and no `.disable("x-powered-by")` in `main.ts`. Pure fingerprinting aid; one line to remove.
+**Fixed** with `app.disable("x-powered-by")`, confirmed gone from the live response.
+
+`app.set("trust proxy", 1)` landed in the same change — the item the nginx work left open. It is a no-op today because nothing reads `req.ip`, but Express otherwise resolves every visitor to nginx's loopback address, so a future app-level limiter would bucket the whole internet as one client. It is `1`, not `true`: `true` trusts the entire `X-Forwarded-For` chain, whose client-supplied prefix is attacker-controlled.
 
 ### F-17 — `/og/home.png` is the cheapest way to pin the box · HIGH · **fixed 2026-08-03**
 
@@ -418,7 +432,7 @@ Three patterns account for nearly every finding, and they are more useful than t
 
 F-1, F-2, F-4, F-7/8/9, F-13 and the F-20/F-21/F-22 cluster are launch gates, mirrored into [pre-launch-sweep.md](pre-launch-sweep.md). Ordered by value per unit of work:
 
-~~1. **Edge rate limiting (F-4)**~~ — **shipped.** Zones in `vyoh-cache.conf`, applied per-location. Still to do: `app.set("trust proxy", 1)`, without which a future *app-level* limiter would bucket every visitor as one client. The nginx limiter is unaffected, since it sees the real address directly.
+~~1. **Edge rate limiting (F-4)**~~ — **shipped**, including the `trust proxy` follow-up.
 
 ~~2. **The allowlist hoist + lint (F-1)**~~ — **shipped**, at the choke point rather than as a route guard.
 
@@ -428,8 +442,8 @@ F-1, F-2, F-4, F-7/8/9, F-13 and the F-20/F-21/F-22 cluster are launch gates, mi
 
 ~~5. **`/og` (F-3, F-17)**~~ — **shipped:** cache block, `renderAsync`, fetch timeout and redirect refusal.
 
-6. **Error hygiene (F-13, F-16)** — generic error text in the status snapshot, drop `X-Powered-By`. F-19 shipped with the match clamp. **Now the most valuable item left**, since F-13 publishes internal DB topology on any transient failure.
-7. **Bounded pagination (F-18, F-15)** — one shared clamp pipe, applied everywhere `count`/`limit`/`start`/`queue` appears.
+~~6. **Error hygiene (F-13, F-16, F-19)**~~ — **shipped:** classified sync errors, `X-Powered-By` gone, unknown platform mapped to a 400.
+7. **Bounded pagination (F-18, F-15)** — one shared clamp pipe, applied everywhere `count`/`limit`/`start`/`queue` appears. **Now the largest item left.**
 8. **`/status/stream` multicast (F-14)** — one shared snapshot observable instead of one timer per subscriber.
 
 ~~**Not gated on launch: F-5.**~~ **Shipped 2026-08-03** — the Steam key no longer reaches any log line or error object.
