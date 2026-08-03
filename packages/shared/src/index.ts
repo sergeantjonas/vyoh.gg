@@ -292,6 +292,7 @@ export type {
 } from "./steam/portrait/fingerprint.ts";
 export {
   FINISHED_COMPLETION_SHARE,
+  FINISHED_EXAMPLE_LIMIT,
   completionShare,
   selectCompletionCohort,
   summariseCompletion,
@@ -299,6 +300,7 @@ export {
 export type {
   CompletionInput,
   CompletionSummary,
+  FinishedGame,
 } from "./steam/portrait/completion.ts";
 export {
   QUICKEST_ABANDON_LIMIT,

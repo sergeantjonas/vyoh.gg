@@ -131,6 +131,14 @@ function portrait(overrides: Partial<SteamPortrait> = {}): SteamPortrait {
       finishedCount: 18,
       perfectCount: 17,
       medianCompletion: 0.95,
+      finished: [
+        {
+          appid: 1245620,
+          name: "ELDEN RING",
+          playtimeForeverMinutes: 22_664,
+          completion: 1,
+        },
+      ],
     },
     lastSyncedAt: "2026-08-02T00:00:00.000Z",
     ...overrides,
@@ -412,6 +420,7 @@ describe("CompletionistCard", () => {
           finishedCount: 0,
           perfectCount: 0,
           medianCompletion: 0,
+          finished: [],
         },
       }),
       isPending: false,

@@ -259,6 +259,8 @@ Both superseded chips are deleted. `PlatformMixChip` fell to card 5 by spec; `Li
 
 The ⌘K palette carries a `Portrait` entry in the Steam scope, matching on *genres* and *backlog* as well as the name.
 
+**The funnel's `Finished` row names its games too.** `CompletionSummary` gained `finished` — up to three, longest-played first, since every game there is already past the finished bar so completion no longer separates them. Only that step names anything: `Owned` and `Played past an hour` would each list whatever has the most hours, which the profile page already shows and which says nothing about the step. Live it reads *ELDEN RING NIGHTREIGN 434h · ELDEN RING 378h · DARK SOULS III 117h · +15 more*, which is the first time "finished 18" is a picture rather than a number.
+
 **Chunk 4 — Backlog recommendations.** Scoring service in the API; three surfaces on the web side. Sits between the two halves visually.
 
 **Chunk 5 — Copy + footnote polish.** "Based on N of M owned games" affordance, `← from community tags` footnote, deterministic templating sweep. Plus the threshold-tuning pass once we've looked at real numbers.

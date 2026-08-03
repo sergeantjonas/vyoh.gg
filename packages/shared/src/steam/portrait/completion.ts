@@ -12,11 +12,24 @@ import { medianOfSorted } from "./stats.ts";
 /** At or above this, a game reads as finished rather than sampled. */
 export const FINISHED_COMPLETION_SHARE = 0.8;
 
+/** How many finished games the summary names. Enough to recognise, short enough to read. */
+export const FINISHED_EXAMPLE_LIMIT = 3;
+
 export type CompletionInput = {
+  appid: number;
+  name: string;
   /** Achievements in the game's schema. Zero means the game has none. */
   total: number;
   unlocked: number;
   playtimeForeverMinutes: number;
+};
+
+export type FinishedGame = {
+  appid: number;
+  name: string;
+  playtimeForeverMinutes: number;
+  /** 0..1; at or past `FINISHED_COMPLETION_SHARE` by construction. */
+  completion: number;
 };
 
 export type CompletionSummary = {
@@ -27,6 +40,12 @@ export type CompletionSummary = {
   perfectCount: number;
   /** Median completion across the cohort, 0..1. */
   medianCompletion: number;
+  /**
+   * A few of the finished games, longest-played first — the counterweight to a
+   * bare "finished 18", which is otherwise the one number on the page a reader
+   * has no way to picture.
+   */
+  finished: FinishedGame[];
 };
 
 export function completionShare(game: CompletionInput): number {
@@ -52,5 +71,26 @@ export function summariseCompletion(games: Iterable<CompletionInput>): Completio
     finishedCount: shares.filter((share) => share >= FINISHED_COMPLETION_SHARE).length,
     perfectCount: shares.filter((share) => share >= 1).length,
     medianCompletion: medianOfSorted(shares),
+    finished: selectFinishedExamples(cohort),
   };
+}
+
+// Longest-played first rather than most-complete: every game here is already
+// past the finished bar, so completion no longer separates them, and the hours
+// are what make one recognisable as the thing that actually got finished.
+function selectFinishedExamples(cohort: readonly CompletionInput[]): FinishedGame[] {
+  return cohort
+    .filter((game) => completionShare(game) >= FINISHED_COMPLETION_SHARE)
+    .sort(
+      (a, b) =>
+        b.playtimeForeverMinutes - a.playtimeForeverMinutes ||
+        a.name.localeCompare(b.name)
+    )
+    .slice(0, FINISHED_EXAMPLE_LIMIT)
+    .map((game) => ({
+      appid: game.appid,
+      name: game.name,
+      playtimeForeverMinutes: game.playtimeForeverMinutes,
+      completion: completionShare(game),
+    }));
 }

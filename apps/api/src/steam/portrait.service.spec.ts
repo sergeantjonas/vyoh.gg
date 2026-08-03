@@ -247,6 +247,11 @@ describe("SteamPortraitService.getPortrait", () => {
       finishedCount: 1,
       perfectCount: 1,
       medianCompletion: 0.6,
+      // Only appid 1 clears the finished bar; appid 3 is perfect but two hours
+      // long, so it is not in the cohort and cannot be named here either.
+      finished: [
+        { appid: 1, name: "Game 1", playtimeForeverMinutes: 3_000, completion: 1 },
+      ],
     });
   });
 

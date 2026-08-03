@@ -46,6 +46,7 @@ const EMPTY_COMPLETION: CompletionSummary = {
   finishedCount: 0,
   perfectCount: 0,
   medianCompletion: 0,
+  finished: [],
 };
 
 const EMPTY_ANTI: SteamPortraitAnti = {

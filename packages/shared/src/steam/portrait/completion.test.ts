@@ -6,11 +6,24 @@ import {
   summariseCompletion,
 } from "./completion";
 
+// Identity derived from the arguments rather than a counter: two of these
+// tests compare a returned game against a freshly built one, and a counter
+// would hand them different appids for the same game.
 const game = (total: number, unlocked: number, playtimeForeverMinutes: number) => ({
+  appid: total * 1_000_000 + unlocked * 1_000 + playtimeForeverMinutes,
+  name: `Game ${total}/${unlocked} @${playtimeForeverMinutes}`,
   total,
   unlocked,
   playtimeForeverMinutes,
 });
+
+const named = (
+  appid: number,
+  name: string,
+  total: number,
+  unlocked: number,
+  playtimeForeverMinutes: number
+) => ({ appid, name, total, unlocked, playtimeForeverMinutes });
 
 describe("selectCompletionCohort", () => {
   it("drops games that have no achievements to complete", () => {
@@ -38,7 +51,7 @@ describe("summariseCompletion", () => {
       game(0, 0, 6_000), // no schema
     ]);
 
-    expect(summary).toEqual({
+    expect(summary).toMatchObject({
       cohortCount: 3,
       finishedCount: 2,
       perfectCount: 1,
@@ -63,6 +76,7 @@ describe("summariseCompletion", () => {
       finishedCount: 0,
       perfectCount: 0,
       medianCompletion: 0,
+      finished: [],
     });
   });
 
@@ -72,6 +86,22 @@ describe("summariseCompletion", () => {
     ]);
 
     expect(summary.finishedCount).toBe(1);
+  });
+
+  it("names the finished games longest-played first, and only the finished ones", () => {
+    const summary = summariseCompletion([
+      named(1, "Hollow Knight", 10, 10, 3_000),
+      named(2, "Sekiro", 10, 9, 9_000),
+      named(3, "Hades", 10, 8, 1_200),
+      // Past the cohort floor, nowhere near the finished bar.
+      named(4, "Rimworld", 10, 2, 40_000),
+    ]);
+
+    expect(summary.finished).toEqual([
+      { appid: 2, name: "Sekiro", playtimeForeverMinutes: 9_000, completion: 0.9 },
+      { appid: 1, name: "Hollow Knight", playtimeForeverMinutes: 3_000, completion: 1 },
+      { appid: 3, name: "Hades", playtimeForeverMinutes: 1_200, completion: 0.8 },
+    ]);
   });
 });
 

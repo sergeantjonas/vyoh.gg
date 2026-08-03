@@ -5,9 +5,9 @@ import {
   sectionContainerVariants,
   sectionReducedContainerVariants,
 } from "@/components/ui/section-variants";
-import type { SteamPortrait } from "@vyoh/shared";
+import type { GenreExample, SteamPortrait } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
-import { StatRow } from "./stat-row";
+import { ExampleGames, StatRow } from "./stat-row";
 import { useSteamPortrait } from "./use-portrait";
 
 // The Anti-Portrait's opening statement, and the page's sharpest number: the
@@ -74,22 +74,38 @@ interface FunnelStep {
   label: string;
   count: number;
   share: number;
+  /** Named survivors of this step, where naming any is meaningful. */
+  examples: GenreExample[];
 }
 
 // Every step is a share of the same denominator — the owned library — so the
 // bars shorten against one another instead of each re-basing on its parent.
+//
+// Only the last step names games. "Owned" and "Played past an hour" would each
+// name whatever happens to have the most hours, which the profile page already
+// shows and which says nothing about the step; "Finished" is the one number on
+// the page a reader otherwise has no way to picture.
 function funnelSteps(data: SteamPortrait): FunnelStep[] {
   const owned = data.posture.ownedCount;
   if (owned === 0) return [];
-  const step = (label: string, count: number): FunnelStep => ({
-    label,
-    count,
-    share: count / owned,
-  });
+  const step = (
+    label: string,
+    count: number,
+    examples: GenreExample[] = []
+  ): FunnelStep => ({ label, count, share: count / owned, examples });
+
   return [
     step("Owned", owned),
     step("Played past an hour", data.posture.meaningfulCount),
-    step("Finished", data.completion.finishedCount),
+    step(
+      "Finished",
+      data.completion.finishedCount,
+      data.completion.finished.map((game) => ({
+        appid: game.appid,
+        name: game.name,
+        minutes: game.playtimeForeverMinutes,
+      }))
+    ),
   ];
 }
 
@@ -123,6 +139,10 @@ function FunnelRow({ step, owned }: { step: FunnelStep; owned: number }) {
             {step.count} of the {owned} games you own — {owned - step.count} did not get
             this far.
           </p>
+          <ExampleGames
+            examples={step.examples}
+            trailing={step.count - step.examples.length}
+          />
         </>
       }
     />

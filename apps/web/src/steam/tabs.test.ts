@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { type SteamTabDescriptor, isSteamTabActive, steamTabIndexOf } from "./tabs";
+import {
+  STEAM_TAB_SEGMENTS,
+  type SteamTabDescriptor,
+  isSteamTabActive,
+  steamTabIndex,
+  steamTabIndexOf,
+} from "./tabs";
 
 const PROFILE: SteamTabDescriptor = { to: "/steam", label: "Profile", exact: true };
 const LIBRARY: SteamTabDescriptor = {
@@ -48,6 +54,43 @@ describe("isSteamTabActive", () => {
 
   it("returns false on prefix near-misses (path is parent of the prefix)", () => {
     expect(isSteamTabActive(LIBRARY, "/steam/libraryz")).toBe(false);
+  });
+});
+
+// This is the ordering three call sites used to keep by hand — the strip, the
+// router's slide classifier and the WebKit substitute animation. A wrong index
+// here does not throw, it slides the wrong way, so the ordering itself is what
+// the test pins.
+describe("steamTabIndex", () => {
+  it("orders the tabs the way the strip renders them", () => {
+    expect(STEAM_TAB_SEGMENTS).toEqual([
+      "",
+      "portrait",
+      "library",
+      "wishlist",
+      "achievements",
+    ]);
+    expect(steamTabIndex("/steam")).toBe(0);
+    expect(steamTabIndex("/steam/portrait")).toBe(1);
+    expect(steamTabIndex("/steam/library")).toBe(2);
+    expect(steamTabIndex("/steam/wishlist")).toBe(3);
+    expect(steamTabIndex("/steam/achievements")).toBe(4);
+  });
+
+  it("treats the trailing-slash index as the index", () => {
+    expect(steamTabIndex("/steam/")).toBe(0);
+  });
+
+  it("resolves a drill-in to the tab that owns it", () => {
+    expect(steamTabIndex("/steam/library/1245620")).toBe(2);
+    expect(steamTabIndex("/steam/achievements/signature")).toBe(4);
+  });
+
+  it("returns -1 outside the section, so a cross-section nav gets no slide", () => {
+    expect(steamTabIndex("/lol/ahri")).toBe(-1);
+    expect(steamTabIndex("/")).toBe(-1);
+    // A path under /steam that is not a tab: still no direction to compute.
+    expect(steamTabIndex("/steam/nonsense")).toBe(-1);
   });
 });
 

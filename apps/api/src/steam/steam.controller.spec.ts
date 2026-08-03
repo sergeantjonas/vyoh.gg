@@ -201,6 +201,7 @@ describe("SteamController", () => {
         finishedCount: 3,
         perfectCount: 2,
         medianCompletion: 0.42,
+        finished: [],
       },
       lastSyncedAt: "2026-08-02T00:00:00.000Z",
     };
