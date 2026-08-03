@@ -1,3 +1,4 @@
+import { renderAsync } from "@resvg/resvg-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("satori", () => ({
@@ -8,12 +9,12 @@ vi.mock("satori", () => ({
     ),
 }));
 
+// `renderAsync`, not the `Resvg` class — the synchronous `render()` blocks the
+// event loop for the whole rasterisation.
 vi.mock("@resvg/resvg-js", () => ({
-  Resvg: class {
-    render() {
-      return { asPng: () => Buffer.from([0x89, 0x50, 0x4e, 0x47]) };
-    }
-  },
+  renderAsync: vi.fn().mockResolvedValue({
+    asPng: () => Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+  }),
 }));
 
 vi.mock("./og-fonts", () => ({
@@ -110,6 +111,53 @@ describe("renderMatchCard", () => {
       vi.fn().mockResolvedValue(new Response("nope", { status: 500 }))
     );
     await expect(renderMatchCard(baseData)).rejects.toThrow(/HTTP 500/);
+  });
+
+  // This was the only fetch in the api with neither a timeout nor a redirect
+  // guard, and nginx lets a stalled request hold the connection for an hour.
+  it("fetches splash art with a timeout and without following redirects", async () => {
+    const mock = vi.fn().mockResolvedValue(
+      new Response(Buffer.from([1, 2, 3]), {
+        status: 200,
+        headers: { "content-type": "image/jpeg" },
+      })
+    );
+    vi.stubGlobal("fetch", mock);
+    await renderMatchCard(baseData);
+
+    expect(mock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        redirect: "manual",
+        signal: expect.any(AbortSignal),
+      })
+    );
+  });
+
+  it("treats a redirect as a failed candidate rather than following it", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(null, { status: 302, headers: { location: "http://127.0.0.1/" } })
+        )
+    );
+    await expect(renderMatchCard(baseData)).rejects.toThrow(/refused redirect 302/);
+  });
+
+  // The sync `render()` occupies the main thread for the whole rasterisation,
+  // so reverting to it would be invisible in tests but would serialise every
+  // concurrent request behind each card.
+  it("rasterises off the main thread via renderAsync", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(Buffer.from([1, 2, 3]), {
+        status: 200,
+        headers: { "content-type": "image/jpeg" },
+      })
+    );
+    await renderMatchCard(baseData);
+    expect(vi.mocked(renderAsync)).toHaveBeenCalled();
   });
 
   it("falls back to image/jpeg when content-type is missing", async () => {

@@ -1,6 +1,6 @@
 # API exposure audit — what an anonymous caller can do
 
-**Status:** Active — audit complete 2026-08-03; remediation underway the same day. **10 of 22 findings fixed** (F-1, F-2, F-4, F-5, F-7 partly, F-8, F-9, F-10, F-19, F-20, plus half of F-21), **each verified against the running api rather than the suite alone**. `/og` (F-3/F-17) is the largest item left and the cheapest outage lever in the audit. Opened after the owner asked what protects the backend from unauthorized access; a ten-lane sweep followed. **22 findings, all code-verified against `main` and several confirmed live against the running api**; one reported finding was refuted by probe and is recorded as such. Remediation is a launch gate, mirrored in [pre-launch-sweep.md](pre-launch-sweep.md). Nothing here is reachable today because the api is not public — every item except F-5 becomes live the moment `api.vyoh.gg` resolves.
+**Status:** Active — audit complete 2026-08-03; remediation underway the same day. **12 of 22 findings fixed** (F-1, F-2, F-3, F-4, F-5, F-7 partly, F-8, F-9, F-10, F-17, F-19, F-20, plus half of F-21), **each verified against the running api or a real nginx rather than the suite alone**. Largest remaining: `/status` publishing raw exception text (F-13), bounded pagination (F-18/F-15), and the `/status/stream` per-connection timer (F-14). Opened after the owner asked what protects the backend from unauthorized access; a ten-lane sweep followed. **22 findings, all code-verified against `main` and several confirmed live against the running api**; one reported finding was refuted by probe and is recorded as such. Remediation is a launch gate, mirrored in [pre-launch-sweep.md](pre-launch-sweep.md). Nothing here is reachable today because the api is not public — every item except F-5 becomes live the moment `api.vyoh.gg` resolves.
 
 [owner-auth.md](owner-auth.md) covers the *identity* question (who may call the mutating routes). This note covers the rest of the exposure surface: what an anonymous caller can make the api **do** — upstream quota, database growth, CPU, memory — regardless of whether they can log in. The two are complementary, and owner-auth alone does not close what is listed here.
 
@@ -72,13 +72,13 @@ Confirmed live after a dev-server restart: `GET /lol/matches/ZZ1_123` answers **
 
 **There is also no retention policy of any kind**, which is what makes the disk side of this permanent rather than merely large. A sweep for cleanup/prune/evict/TTL logic across all 13 `matchDetailCache`/`matchTimelineCache` call sites found zero deletes, no cron sweep and no row cap; both `matchId` columns are uncapped `text` and both payload columns are unbounded `Json`. Every row an attacker causes is kept forever. An eviction job is worth having regardless of the clamp, and it is already anticipated — the match-cache tiering work in [match-cache-storage.md](../lol/match-cache-storage.md) is the natural home, with the caveat from [pre-launch-sweep.md](pre-launch-sweep.md) that destructive cache transforms gate on verified backups.
 
-### F-3 — `/og` renders a PNG per request with no cache in front of it · MEDIUM
+### F-3 — `/og` renders a PNG per request with no cache in front of it · MEDIUM · **fixed 2026-08-03**
 
 Every `/og` route ([og.controller.ts](../../../apps/api/src/og/og.controller.ts)) runs a Satori SVG→PNG render per request. The handlers set `s-maxage=2592000` ([og.controller.ts:16](../../../apps/api/src/og/og.controller.ts#L16)) — but that header is addressed to a shared cache that does not exist. nginx has a `proxy_cache` block for `/img/` only ([api.vyoh.gg.conf:60-76](../../../deploy/nginx/api.vyoh.gg.conf#L60-L76)); `/og/` falls through to the catch-all `location /` with `proxy_buffering off`. The cache-control header is therefore load-bearing for nobody, and reads as protection while providing none.
 
 `/og/match/:slug/:matchId.png` additionally inherits F-2: the slug is correctly clamped to a tracked account via `findBySlug` (404 otherwise), but the matchId flows into the same unguarded live-fetch path.
 
-**Fix:** an `location /og/` cache block mirroring `/img/`, including `proxy_cache_lock` so a cold key does not admit a stampede of concurrent renders.
+**Fixed** with a `location /og/` block sharing the `vyoh_img` zone — both are immutable-per-URL bytes, and one zone is easier to reason about than two. `proxy_cache_lock` keeps a cold key from admitting a stampede of identical renders when a link is first shared. Validity is **1 day rather than `/img/`'s 30**, because a card embeds profile state that legitimately moves (rank, recent form) where an image-proxy URL resolves to bytes that never change. Verified through nginx against the real config: `MISS`, then `HIT`, `HIT`.
 
 ### F-4 — No inbound rate limiting at any layer · HIGH (as an amplifier) · **fixed 2026-08-03**
 
@@ -265,7 +265,7 @@ X-Powered-By: Express
 
 No `helmet`, and no `.disable("x-powered-by")` in `main.ts`. Pure fingerprinting aid; one line to remove.
 
-### F-17 — `/og/home.png` is the cheapest way to pin the box · HIGH
+### F-17 — `/og/home.png` is the cheapest way to pin the box · HIGH · **fixed 2026-08-03**
 
 Three properties compound on the OG routes:
 
@@ -284,7 +284,16 @@ $ for i in 1 2 3; do curl -o /dev/null -w '%{http_code} %{size_download}B %{time
 
 ~70 ms of blocking main-thread work per request, repeatable at will. Arrival rate above service rate turns into an unbounded backlog rather than fast failures, because nothing sheds load.
 
-**Fix:** an `/og/` cache block (F-3) removes the repeat cost; `renderAsync` or a worker thread removes the head-of-line blocking; `AbortSignal.timeout()` on the fetch closes the hang.
+**Fixed**, all three: the `/og/` cache block (F-3) removes the repeat cost, `renderAsync` moves the raster onto the libuv threadpool, and the art fetch now carries `AbortSignal.timeout(10s)` plus `redirect: "manual"` — matching the image proxy, and closing the last fetch in the api that had neither guard.
+
+The concurrency claim is measured rather than assumed, because "it runs off-thread now" is exactly the kind of change that can silently not take effect:
+
+```
+one request       0.106s
+8 concurrent      0.229s total
+```
+
+Eight renders in roughly twice the time of one. Were the raster still occupying the main thread, eight would serialise to half a second at minimum — so the threadpool path is genuinely live. A test also asserts `renderAsync` is the function called, since reverting to `new Resvg(svg).render()` would pass every behavioural test while quietly serialising the process again.
 
 ### F-18 — Analytics windows are attacker-sized and recomputed from scratch every call · MEDIUM
 
@@ -417,8 +426,9 @@ F-1, F-2, F-4, F-7/8/9, F-13 and the F-20/F-21/F-22 cluster are launch gates, mi
 
 ~~4. **Image proxy hardening (F-7 `tier`, F-8, F-9, F-10)**~~ — **shipped.** Remaining in this group: `alias` and `patch` reach CDragon and DDragon by the same interpolation as `tier` did, and F-11's response-size cap plus `sharp.limitInputPixels` are untouched.
 
-5. **`/og` (F-3, F-17)** — a cache block, `renderAsync`, and a fetch timeout. **Now the largest single item left**, and the cheapest outage lever in the audit.
-6. **Error hygiene (F-13, F-16)** — generic error text in the status snapshot, drop `X-Powered-By`. F-19 shipped with the match clamp.
+~~5. **`/og` (F-3, F-17)**~~ — **shipped:** cache block, `renderAsync`, fetch timeout and redirect refusal.
+
+6. **Error hygiene (F-13, F-16)** — generic error text in the status snapshot, drop `X-Powered-By`. F-19 shipped with the match clamp. **Now the most valuable item left**, since F-13 publishes internal DB topology on any transient failure.
 7. **Bounded pagination (F-18, F-15)** — one shared clamp pipe, applied everywhere `count`/`limit`/`start`/`queue` appears.
 8. **`/status/stream` multicast (F-14)** — one shared snapshot observable instead of one timer per subscriber.
 

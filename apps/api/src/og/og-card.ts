@@ -1,4 +1,4 @@
-import { Resvg } from "@resvg/resvg-js";
+import { renderAsync } from "@resvg/resvg-js";
 import satori from "satori";
 import { ORB_MARK_DATA_URL } from "./og-assets";
 import { fonts } from "./og-fonts";
@@ -8,6 +8,10 @@ import { fonts } from "./og-fonts";
 // stay in lockstep with the `<div>` root that Satori measures against.
 const OG_WIDTH = 1200;
 const OG_HEIGHT = 630;
+
+// Matches the Riot and Steam clients. A card whose art never arrives should
+// fail fast and render without it, not hold the connection open.
+const OG_FETCH_TIMEOUT_MS = 10_000;
 
 // Card data shapes — one per template. Each generator returns a Buffer of the
 // finished PNG; the upstream OgService composes the data, the card knows only
@@ -94,7 +98,18 @@ async function fetchAsDataUrl(urls: readonly string[]): Promise<string> {
   let lastError: unknown = null;
   for (const url of urls) {
     try {
-      const res = await fetch(url);
+      // Timed, and refusing redirects, for the same reasons as the image proxy
+      // (see upstream.ts). Without a timeout a stalled CDN holds the request
+      // for as long as nginx's hour-long read timeout allows, and this was the
+      // only fetch in the api with neither guard.
+      const res = await fetch(url, {
+        signal: AbortSignal.timeout(OG_FETCH_TIMEOUT_MS),
+        redirect: "manual",
+      });
+      if (res.status >= 300 && res.status < 400) {
+        lastError = new Error(`fetch ${url} → refused redirect ${res.status}`);
+        continue;
+      }
       if (!res.ok) {
         lastError = new Error(`fetch ${url} → HTTP ${res.status}`);
         continue;
@@ -152,7 +167,14 @@ async function svgToPng(card: Element): Promise<Buffer> {
       style: f.style,
     })),
   });
-  return new Resvg(svg).render().asPng();
+  // `renderAsync`, not `new Resvg(svg).render()`. The synchronous form is a
+  // native call that occupies the main thread for the whole rasterisation, so
+  // every other request on this single-threaded process waits behind it —
+  // measured at ~70 ms for the parameterless home card, which is also the one
+  // an anonymous caller can request in a loop with no upstream cost of their
+  // own. The async form runs on the libuv threadpool instead.
+  const rendered = await renderAsync(svg);
+  return rendered.asPng();
 }
 
 // -----------------------------------------------------------------------------
