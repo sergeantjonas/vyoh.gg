@@ -55,6 +55,13 @@ All eleven have overlap protection. The eight Steam pollers pin `Europe/Brussels
 
 ## Remaining
 
-**Convert the weekly and monthly pollers from schedule-driven to staleness-driven** — "on boot, and every N, process rows older than X" rather than "fire at time T". Same Steam budget, but a missed window self-corrects at the next boot or tick instead of waiting a full period. Applies to `steam-achievement-schema`, `steam-global-rarity` and `steam-enrichment`; `steam-tag-catalog` already got the boot half of this.
+**Convert the weekly and monthly pollers from schedule-driven to staleness-driven** — "on boot, and every N, process rows older than X" rather than "fire at time T". Same Steam budget, but a missed window self-corrects at the next boot or tick instead of waiting a full period.
+
+- ✅ `steam-achievement-schema` — converted 2026-08-06. Daily tick and an identical boot pass both take never-checked rows first, then the oldest `lastSchemaCheckedAt` past 7 days, capped at 40 per pass. Verified end-to-end rather than against mocks: a backdated row was selected on boot, refreshed and restamped, and a run with nothing due exits silently.
+- ⬜ `steam-global-rarity` — same shape against `lastRarityCheckedAt`.
+- ⬜ `steam-enrichment` — against `enrichedAt` past 30 days, OR'd with the existing `logoPath IS NULL` predicate.
+- ✅ `steam-tag-catalog` — already got the boot half of this on 2026-08-05.
+
+Two details worth carrying to the remaining two. The batch cap must stay above the steady-state arrival rate (~195/7 ≈ 28/day) or the oldest rows never drain. And `orderBy` needs `nulls: "first"` explicitly — the columns are nullable and Postgres sorts NULLS LAST on ASC, which would park a never-stamped row permanently behind the cap.
 
 This matters more, not less, once hosting lands: the process will be up continuously, but deploys land exactly the kind of short downtime that eats a single fire. The portrait arc's chunk 0 already recorded the same underlying constraint from the other side — `SteamPlaySession` misses launches because the poller only runs on the dev box (see [player-portrait.md](../steam/player-portrait.md)).

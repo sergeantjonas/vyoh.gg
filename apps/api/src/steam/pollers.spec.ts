@@ -126,10 +126,15 @@ describe("SteamGlobalRarityPoller", () => {
 });
 
 describe("SteamAchievementSchemaPoller", () => {
-  function setup(opts: { candidates?: { appid: number }[] } = {}) {
+  function setup(
+    opts: { unchecked?: { appid: number }[]; stale?: { appid: number }[] } = {}
+  ) {
     const prisma = {
       steamOwnedGame: {
-        findMany: vi.fn().mockResolvedValue(opts.candidates ?? []),
+        findMany: vi.fn().mockResolvedValue(opts.unchecked ?? []),
+      },
+      steamGameAchievementMeta: {
+        findMany: vi.fn().mockResolvedValue(opts.stale ?? []),
       },
     };
     const service = { refreshSchemas: vi.fn().mockResolvedValue(undefined) };
@@ -138,52 +143,89 @@ describe("SteamAchievementSchemaPoller", () => {
         prisma as unknown as PrismaService,
         service as unknown as SteamAchievementSchemaService
       ),
+      prisma,
       service,
     };
   }
 
-  it("onModuleInit no-ops when no apps are unchecked", async () => {
+  it("onModuleInit no-ops when nothing is due", async () => {
     const { poller, service } = setup();
     await poller.onModuleInit();
     expect(service.refreshSchemas).not.toHaveBeenCalled();
   });
 
-  it("onModuleInit calls refreshSchemas with unchecked appids", async () => {
-    const { poller, service } = setup({ candidates: [{ appid: 42 }] });
+  it("onModuleInit refreshes never-checked appids ahead of stale ones", async () => {
+    const { poller, service } = setup({
+      unchecked: [{ appid: 42 }],
+      stale: [{ appid: 7 }, { appid: 9 }],
+    });
     await poller.onModuleInit();
-    expect(service.refreshSchemas).toHaveBeenCalledWith([42]);
+    expect(service.refreshSchemas).toHaveBeenCalledWith([42, 7, 9]);
+  });
+
+  // The point of the conversion: boot is the pass that actually runs on a
+  // machine that is not up at 05:00, so it has to reach stale rows rather
+  // than only rows with no meta at all.
+  it("onModuleInit picks up stale rows, not only never-checked ones", async () => {
+    const { poller, service } = setup({ stale: [{ appid: 7 }] });
+    await poller.onModuleInit();
+    expect(service.refreshSchemas).toHaveBeenCalledWith([7]);
+  });
+
+  it("selects stale rows oldest-first with nulls ahead of them", async () => {
+    const { poller, prisma } = setup({ stale: [{ appid: 7 }] });
+    await poller.tick();
+    const args = prisma.steamGameAchievementMeta.findMany.mock.calls[0]?.[0];
+    expect(args.orderBy).toEqual({
+      lastSchemaCheckedAt: { sort: "asc", nulls: "first" },
+    });
+    const cutoff = args.where.OR[1].lastSchemaCheckedAt.lt as Date;
+    expect(Date.now() - cutoff.getTime()).toBeGreaterThanOrEqual(7 * 24 * 60 * 60 * 1000);
+  });
+
+  it("spends the remainder of the batch cap on stale rows", async () => {
+    const unchecked = Array.from({ length: 12 }, (_, i) => ({ appid: i }));
+    const { poller, prisma } = setup({ unchecked });
+    await poller.tick();
+    expect(prisma.steamOwnedGame.findMany.mock.calls[0]?.[0]?.take).toBe(40);
+    expect(prisma.steamGameAchievementMeta.findMany.mock.calls[0]?.[0]?.take).toBe(28);
+  });
+
+  it("skips the stale query when never-checked rows already fill the cap", async () => {
+    const unchecked = Array.from({ length: 40 }, (_, i) => ({ appid: i }));
+    const { poller, prisma, service } = setup({ unchecked });
+    await poller.tick();
+    expect(prisma.steamGameAchievementMeta.findMany).not.toHaveBeenCalled();
+    expect(service.refreshSchemas).toHaveBeenCalledWith(unchecked.map((g) => g.appid));
   });
 
   it("onModuleInit swallows errors from refreshSchemas", async () => {
-    const prisma = {
-      steamOwnedGame: { findMany: vi.fn().mockResolvedValue([{ appid: 42 }]) },
-    };
-    const service = {
-      refreshSchemas: vi.fn().mockRejectedValue(new Error("steam down")),
-    };
-    const poller = new SteamAchievementSchemaPoller(
-      prisma as unknown as PrismaService,
-      service as unknown as SteamAchievementSchemaService
-    );
+    const { poller, service } = setup({ unchecked: [{ appid: 42 }] });
+    service.refreshSchemas.mockRejectedValue(new Error("steam down"));
     await expect(poller.onModuleInit()).resolves.toBeUndefined();
   });
 
-  it("tick refreshes the schema for every owned appid", async () => {
-    const { poller, service } = setup({ candidates: [{ appid: 1 }, { appid: 2 }] });
-    await poller.tick();
-    expect(service.refreshSchemas).toHaveBeenCalledWith([1, 2]);
+  it("tick swallows errors from refreshSchemas", async () => {
+    const { poller, service } = setup({ unchecked: [{ appid: 42 }] });
+    service.refreshSchemas.mockRejectedValue(new Error("steam down"));
+    await expect(poller.tick()).resolves.toBeUndefined();
   });
 
-  it("tick swallows errors from refreshSchemas", async () => {
-    const prisma = { steamOwnedGame: { findMany: vi.fn().mockResolvedValue([]) } };
-    const service = {
-      refreshSchemas: vi.fn().mockRejectedValue(new Error("steam down")),
-    };
-    const poller = new SteamAchievementSchemaPoller(
-      prisma as unknown as PrismaService,
-      service as unknown as SteamAchievementSchemaService
+  it("skips an overlapping tick when a previous one is still mid-flight", async () => {
+    const { poller, service } = setup({ unchecked: [{ appid: 42 }] });
+    const release: { fn: (() => void) | null } = { fn: null };
+    service.refreshSchemas.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          release.fn = () => resolve();
+        })
     );
-    await expect(poller.tick()).resolves.toBeUndefined();
+    const first = poller.tick();
+    await new Promise((r) => setImmediate(r));
+    await poller.tick();
+    expect(service.refreshSchemas).toHaveBeenCalledTimes(1);
+    release.fn?.();
+    await first;
   });
 });
 
