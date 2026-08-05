@@ -4,10 +4,21 @@ import { PrismaService } from "../prisma/prisma.service";
 import { SteamGlobalRarityService } from "./global-rarity.service";
 
 // Global achievement rarity shifts slowly — Steam aggregates across the
-// entire player base, so weekly refresh is plenty and keeps the daily budget
-// reserved for the per-owner unlocks poll. Anchored to 05:30 Sunday
-// Europe/Brussels so the weekly window doesn't overlap any of the
-// daily/monthly crons.
+// entire player base, so each row wants refreshing about weekly, and the
+// daily budget stays reserved for the per-owner unlocks poll.
+//
+// That week is expressed as an age rather than a Sunday wall-clock fire, for
+// the reason spelled out in achievement-schema.poller.ts: `@nestjs/schedule`
+// does not replay a fire the process was down for. Boot runs the same
+// selection as the tick, so a restart reconciles whatever the missed windows
+// left behind.
+const RARITY_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Bounds one pass. Steady state is ~158 games with a schema / 7 ≈ 23 a day,
+// so the cap only engages after downtime — and it has to stay above that
+// arrival rate or the oldest rows never drain.
+const RARITY_BATCH_CAP = 40;
+
 @Injectable()
 export class SteamGlobalRarityPoller implements OnModuleInit {
   private readonly logger = new Logger(SteamGlobalRarityPoller.name);
@@ -19,29 +30,18 @@ export class SteamGlobalRarityPoller implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
-    // Boot backfill: games with achievements that haven't had a rarity poll
-    // yet. First-deploy populates the badge data immediately so the per-game
-    // panel doesn't sit empty until the first Sunday.
-    const candidates = await this.prisma.steamOwnedGame.findMany({
-      where: {
-        removedAt: null,
-        achievementMeta: {
-          achievementCount: { gt: 0 },
-          lastRarityCheckedAt: null,
-        },
-      },
-      select: { appid: true },
-    });
-    if (candidates.length === 0) return;
-    this.logger.log(`backfilling rarity for ${candidates.length} apps at boot`);
     try {
-      await this.service.refreshRarity(candidates.map((g) => g.appid));
+      await this.refreshDue("boot");
     } catch (err) {
+      // Boot must not block on Steam. The daily tick, or the next restart,
+      // picks up whatever this pass missed.
       this.logger.warn(`boot backfill failed: ${err}`);
     }
   }
 
-  @Cron("30 5 * * 0", { name: "steam-global-rarity", timeZone: "Europe/Brussels" })
+  // Daily at 05:30 Europe/Brussels, 30 min after the schema tick so the two
+  // never overlap. Was Sunday-only until 2026-08-06.
+  @Cron("30 5 * * *", { name: "steam-global-rarity", timeZone: "Europe/Brussels" })
   async tick(): Promise<void> {
     if (this.running) {
       this.logger.warn("previous tick still running — skipping");
@@ -49,18 +49,40 @@ export class SteamGlobalRarityPoller implements OnModuleInit {
     }
     this.running = true;
     try {
-      const candidates = await this.prisma.steamOwnedGame.findMany({
-        where: {
-          removedAt: null,
-          achievementMeta: { achievementCount: { gt: 0 } },
-        },
-        select: { appid: true },
-      });
-      await this.service.refreshRarity(candidates.map((g) => g.appid));
+      await this.refreshDue("tick");
     } catch (err) {
       this.logger.warn(`rarity sync failed: ${err}`);
     } finally {
       this.running = false;
     }
+  }
+
+  private async refreshDue(source: string): Promise<void> {
+    const appids = await this.dueAppids();
+    if (appids.length === 0) return;
+    this.logger.log(`refreshing rarity for ${appids.length} due apps (${source})`);
+    await this.service.refreshRarity(appids);
+  }
+
+  // Only games with a known schema have rarity to fetch, so unlike the schema
+  // poller this needs no separate never-seen pass — a game with no meta row
+  // has nothing to ask Steam about yet. `nulls: "first"` is still load-bearing:
+  // Postgres sorts NULLS LAST on ASC, which would park a never-checked row
+  // permanently behind the batch cap.
+  private async dueAppids(): Promise<number[]> {
+    const due = await this.prisma.steamGameAchievementMeta.findMany({
+      where: {
+        game: { removedAt: null },
+        achievementCount: { gt: 0 },
+        OR: [
+          { lastRarityCheckedAt: null },
+          { lastRarityCheckedAt: { lt: new Date(Date.now() - RARITY_MAX_AGE_MS) } },
+        ],
+      },
+      orderBy: { lastRarityCheckedAt: { sort: "asc", nulls: "first" } },
+      select: { appid: true },
+      take: RARITY_BATCH_CAP,
+    });
+    return due.map((r) => r.appid);
   }
 }

@@ -58,7 +58,7 @@ All eleven have overlap protection. The eight Steam pollers pin `Europe/Brussels
 **Convert the weekly and monthly pollers from schedule-driven to staleness-driven** — "on boot, and every N, process rows older than X" rather than "fire at time T". Same Steam budget, but a missed window self-corrects at the next boot or tick instead of waiting a full period.
 
 - ✅ `steam-achievement-schema` — converted 2026-08-06. Daily tick and an identical boot pass both take never-checked rows first, then the oldest `lastSchemaCheckedAt` past 7 days, capped at 40 per pass. Verified end-to-end rather than against mocks: a backdated row was selected on boot, refreshed and restamped, and a run with nothing due exits silently.
-- ⬜ `steam-global-rarity` — same shape against `lastRarityCheckedAt`.
+- ✅ `steam-global-rarity` — converted 2026-08-06, same shape against `lastRarityCheckedAt`, gated on `achievementCount > 0`. Needs no never-checked pass of its own: a game with no meta row has nothing to ask Steam about yet. Its first real run drained 40 of the 95 rows the never-fired Sunday crons had left past the window, and reported 55 still due — bounded catch-up working as intended rather than one 158-call burst.
 - ⬜ `steam-enrichment` — against `enrichedAt` past 30 days, OR'd with the existing `logoPath IS NULL` predicate.
 - ✅ `steam-tag-catalog` — already got the boot half of this on 2026-08-05.
 

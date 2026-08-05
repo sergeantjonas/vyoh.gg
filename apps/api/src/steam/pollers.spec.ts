@@ -78,10 +78,10 @@ describe("SteamPlayerUnlocksPoller", () => {
 });
 
 describe("SteamGlobalRarityPoller", () => {
-  function setup(opts: { candidates?: { appid: number }[] } = {}) {
+  function setup(opts: { due?: { appid: number }[] } = {}) {
     const prisma = {
-      steamOwnedGame: {
-        findMany: vi.fn().mockResolvedValue(opts.candidates ?? []),
+      steamGameAchievementMeta: {
+        findMany: vi.fn().mockResolvedValue(opts.due ?? []),
       },
     };
     const service = { refreshRarity: vi.fn().mockResolvedValue(undefined) };
@@ -90,38 +90,73 @@ describe("SteamGlobalRarityPoller", () => {
         prisma as unknown as PrismaService,
         service as unknown as SteamGlobalRarityService
       ),
+      prisma,
       service,
     };
   }
 
-  it("onModuleInit no-ops when nothing is unchecked", async () => {
+  it("onModuleInit no-ops when nothing is due", async () => {
     const { poller, service } = setup();
     await poller.onModuleInit();
     expect(service.refreshRarity).not.toHaveBeenCalled();
   });
 
-  it("onModuleInit kicks off a backfill when candidates exist", async () => {
-    const { poller, service } = setup({ candidates: [{ appid: 42 }] });
+  it("onModuleInit refreshes due appids", async () => {
+    const { poller, service } = setup({ due: [{ appid: 42 }] });
     await poller.onModuleInit();
     expect(service.refreshRarity).toHaveBeenCalledWith([42]);
   });
 
-  it("tick refreshes rarity for every eligible appid", async () => {
-    const { poller, service } = setup({ candidates: [{ appid: 42 }, { appid: 99 }] });
+  it("tick refreshes rarity for every due appid", async () => {
+    const { poller, service } = setup({ due: [{ appid: 42 }, { appid: 99 }] });
     await poller.tick();
     expect(service.refreshRarity).toHaveBeenCalledWith([42, 99]);
   });
 
+  // Boot used to see only rows with no rarity check at all, so a row that had
+  // been checked once and then gone stale was unreachable on a machine that
+  // misses the Sunday fire.
+  it("selects stale rows oldest-first, nulls ahead, bounded and schema-gated", async () => {
+    const { poller, prisma } = setup({ due: [{ appid: 42 }] });
+    await poller.onModuleInit();
+    const args = prisma.steamGameAchievementMeta.findMany.mock.calls[0]?.[0];
+    expect(args.where.achievementCount).toEqual({ gt: 0 });
+    expect(args.where.game).toEqual({ removedAt: null });
+    expect(args.orderBy).toEqual({
+      lastRarityCheckedAt: { sort: "asc", nulls: "first" },
+    });
+    expect(args.take).toBe(40);
+    const cutoff = args.where.OR[1].lastRarityCheckedAt.lt as Date;
+    expect(Date.now() - cutoff.getTime()).toBeGreaterThanOrEqual(7 * 24 * 60 * 60 * 1000);
+  });
+
+  it("onModuleInit swallows errors raised by refreshRarity", async () => {
+    const { poller, service } = setup({ due: [{ appid: 42 }] });
+    service.refreshRarity.mockRejectedValue(new Error("steam down"));
+    await expect(poller.onModuleInit()).resolves.toBeUndefined();
+  });
+
   it("tick swallows errors raised by refreshRarity", async () => {
-    const prisma = { steamOwnedGame: { findMany: vi.fn().mockResolvedValue([]) } };
-    const service = {
-      refreshRarity: vi.fn().mockRejectedValue(new Error("steam down")),
-    };
-    const poller = new SteamGlobalRarityPoller(
-      prisma as unknown as PrismaService,
-      service as unknown as SteamGlobalRarityService
-    );
+    const { poller, service } = setup({ due: [{ appid: 42 }] });
+    service.refreshRarity.mockRejectedValue(new Error("steam down"));
     await expect(poller.tick()).resolves.toBeUndefined();
+  });
+
+  it("skips an overlapping tick when a previous one is still mid-flight", async () => {
+    const { poller, service } = setup({ due: [{ appid: 42 }] });
+    const release: { fn: (() => void) | null } = { fn: null };
+    service.refreshRarity.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          release.fn = () => resolve();
+        })
+    );
+    const first = poller.tick();
+    await new Promise((r) => setImmediate(r));
+    await poller.tick();
+    expect(service.refreshRarity).toHaveBeenCalledTimes(1);
+    release.fn?.();
+    await first;
   });
 });
 
