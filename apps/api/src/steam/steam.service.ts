@@ -143,6 +143,17 @@ export class SteamService {
     };
   }
 
+  // Membership check for routes that take an attacker-supplied appid and do
+  // real work on it. Reads through the same TTL cache the wishlist endpoint
+  // uses, so a warm process answers from memory and a cold one pays the single
+  // upstream call it was going to make anyway. The owner's wishlist is the only
+  // appid set these routes may act on — library membership can't stand in,
+  // because a wishlisted game is unowned by definition.
+  async isWishlisted(appid: number): Promise<boolean> {
+    const items = await this.loadWishlist(Date.now());
+    return items.some((item) => item.appid === appid);
+  }
+
   private async loadWishlist(now: number): Promise<SteamWishlistItemRaw[]> {
     if (this.wishlistCache && now - this.wishlistCache.fetchedAt < this.wishlistTtlMs) {
       return this.wishlistCache.items;

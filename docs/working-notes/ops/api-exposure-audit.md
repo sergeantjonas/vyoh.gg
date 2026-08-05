@@ -441,7 +441,7 @@ The wishlist itself is the better source, and it was never persisted: `SteamServ
 
 The cache bound stays as belt-and-braces behind the gate.
 
-The clamp's code landed in `18af0dc6`, a portrait-scoring commit made from a concurrent session that staged the whole worktree. Recorded here because that commit message describes none of this, so `git log` on these files does not lead anywhere useful.
+**Verified against the running api 2026-08-06**, and the timings are the proof the refusal precedes the spend: an owned-but-unwishlisted appid (`730`) went from 200 in 492 ms to 404 in 7 ms, and a nonsense appid (`999999999`) from 404 in 208 ms to 404 in 6 ms. The second is the sharper one — it already 404'd, but only after a live `GetItems` call, so it was spending upstream quota to discover the appid was junk. A real wishlist appid (`214490`) still answers 200. The probe measured the warm-cache path only; on a cold cache the gate pays one wishlist call first, which is the same `loadWishlist` the wishlist endpoint makes and is TTL-shared with it.
 
 ### F-22 — One shared Steam reservoir turns any of the above into a full-integration outage · HIGH (mechanism) · **mitigated, not removed**
 

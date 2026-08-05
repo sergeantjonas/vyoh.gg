@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UpstreamError } from "../img/upstream";
 import type { EnrichmentUpsert } from "./enrichment.service";
 import type { SteamClientService } from "./steam-client.service";
+import type { SteamService } from "./steam.service";
 import { SteamWishlistHeroService } from "./wishlist-hero.service";
 
 const fetchUpstreamChain = vi.hoisted(() => vi.fn());
@@ -48,7 +49,13 @@ function projection(overrides: Partial<EnrichmentUpsert> = {}): EnrichmentUpsert
 function makeService() {
   const getStoreItemsFull = vi.fn().mockResolvedValue([{ appid: 1, success: 1 }]);
   const client = { getStoreItemsFull } as unknown as SteamClientService;
-  return { service: new SteamWishlistHeroService(client), getStoreItemsFull };
+  const isWishlisted = vi.fn().mockResolvedValue(true);
+  const steam = { isWishlisted } as unknown as SteamService;
+  return {
+    service: new SteamWishlistHeroService(client, steam),
+    getStoreItemsFull,
+    isWishlisted,
+  };
 }
 
 beforeEach(() => {
@@ -90,6 +97,23 @@ describe("SteamWishlistHeroService", () => {
   it("throws NotFound when the store page is unresolvable (success !== 1)", async () => {
     projectEnrichment.mockReturnValue(null);
     const { service } = makeService();
+    await expect(service.getHeroMeta(1)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("refuses an appid that is not on the wishlist before doing any work", async () => {
+    const { service, getStoreItemsFull, isWishlisted } = makeService();
+    isWishlisted.mockResolvedValue(false);
+    await expect(service.getHeroMeta(999_999)).rejects.toBeInstanceOf(NotFoundException);
+    // The refusal is worth nothing if it lands after the spend it exists to
+    // prevent — the store call and the art fetch are the cost, not the map write.
+    expect(getStoreItemsFull).not.toHaveBeenCalled();
+    expect(fetchUpstreamChain).not.toHaveBeenCalled();
+  });
+
+  it("re-checks membership on a cache hit", async () => {
+    const { service, isWishlisted } = makeService();
+    await service.getHeroMeta(1);
+    isWishlisted.mockResolvedValue(false);
     await expect(service.getHeroMeta(1)).rejects.toBeInstanceOf(NotFoundException);
   });
 

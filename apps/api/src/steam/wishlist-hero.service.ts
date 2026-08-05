@@ -3,6 +3,7 @@ import type { SteamWishlistHeroMeta } from "@vyoh/shared";
 import { UpstreamError, fetchUpstreamChain } from "../img/upstream";
 import { type EnrichmentUpsert, projectEnrichment } from "./enrichment.service";
 import { SteamClientService } from "./steam-client.service";
+import { SteamService } from "./steam.service";
 import { composeHeroUrls, extractDominantHex } from "./subject-anchor.service";
 
 // On-read enrichment for the Upcoming view's imminent hero (chunk 4). The
@@ -18,11 +19,9 @@ import { composeHeroUrls, extractDominantHex } from "./subject-anchor.service";
 // TTL — matching the wishlist name cache — is ample.
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
-// The appid is attacker-controlled and unowned by design, so this route cannot
-// gate on library membership the way the rest of the Steam surface does. Until
-// it gates on wishlist membership, the entry count is bounded instead: the TTL
-// alone never evicts, because it is only consulted on a read for that same key,
-// so an entry nobody asks for again is retained for the process lifetime. Real
+// Belt and braces behind the wishlist-membership gate below: the TTL alone
+// never evicts, because it is only consulted on a read for that same key, so an
+// entry nobody asks for again would be retained for the process lifetime. Real
 // use needs exactly one entry — the single imminent hero.
 const CACHE_MAX_ENTRIES = 64;
 
@@ -34,9 +33,20 @@ export class SteamWishlistHeroService {
     { value: SteamWishlistHeroMeta; expiresAt: number }
   >();
 
-  constructor(private readonly client: SteamClientService) {}
+  constructor(
+    private readonly client: SteamClientService,
+    private readonly steam: SteamService
+  ) {}
 
   async getHeroMeta(appid: number): Promise<SteamWishlistHeroMeta> {
+    // Ahead of the cache read, not after it, so an off-wishlist appid never
+    // reaches the store call, the art fetch, the Vibrant pass, or the map. The
+    // web only ever asks about an appid it read out of the wishlist response,
+    // so this can't refuse a request the surface actually makes.
+    if (!(await this.steam.isWishlisted(appid))) {
+      throw new NotFoundException(`Appid ${appid} is not on the wishlist.`);
+    }
+
     const now = Date.now();
     const cached = this.cache.get(appid);
     if (cached && cached.expiresAt > now) return cached.value;
