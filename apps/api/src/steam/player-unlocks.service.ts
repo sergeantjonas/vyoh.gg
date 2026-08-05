@@ -47,7 +47,10 @@ export class SteamPlayerUnlocksService {
       where: { appid },
       select: { achievementCount: true },
     });
-    if (!meta || meta.achievementCount === 0) {
+    // Positive assertion rather than `=== 0`: `achievementCount` is nullable,
+    // and a null would otherwise pass the guard and reach `syncUnlocks`,
+    // where the FK to `SteamGameAchievement` rejects the insert.
+    if (!meta || !(meta.achievementCount && meta.achievementCount > 0)) {
       return { checked: 0, newUnlocks: 0, failed: 0 };
     }
     return this.syncUnlocks([appid]);

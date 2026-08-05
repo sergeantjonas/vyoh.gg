@@ -52,6 +52,20 @@ describe("SteamPlayerUnlocksService.refreshUnlocksForGame", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  // `achievementCount` is nullable; a null passed the old `=== 0` guard and
+  // reached syncUnlocks, where the FK to SteamGameAchievement rejects.
+  it("short-circuits when the achievement count is null", async () => {
+    const prisma = makePrisma();
+    prisma.steamGameAchievementMeta.findUnique.mockResolvedValue({
+      achievementCount: null,
+    });
+    const fetch = vi.fn();
+
+    const result = await makeService(prisma, fetch).refreshUnlocksForGame(730);
+    expect(result).toEqual({ checked: 0, newUnlocks: 0, failed: 0 });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it("delegates to syncUnlocks when the game has a non-empty schema", async () => {
     const prisma = makePrisma();
     prisma.steamGameAchievementMeta.findUnique.mockResolvedValue({

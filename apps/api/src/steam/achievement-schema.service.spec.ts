@@ -96,4 +96,21 @@ describe("SteamAchievementSchemaService.refreshSchemas", () => {
     expect(prisma.steamGameAchievement.upsert).toHaveBeenCalledTimes(1);
     expect(prisma.steamGameAchievementMeta.upsert).toHaveBeenCalledOnce();
   });
+
+  // A write failure used to throw out of the loop, so every appid queued
+  // behind it kept its existing count — a stale zero among them gates that
+  // game's unlock ingestion indefinitely.
+  it("counts a failed write and still processes the remaining appids", async () => {
+    const prisma = makePrisma();
+    prisma.$transaction
+      .mockRejectedValueOnce(new Error("deadlock"))
+      .mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma));
+    const fetch = vi.fn().mockResolvedValue([ach("A1")]);
+
+    const result = await makeService(prisma, fetch).refreshSchemas([404, 367520]);
+
+    expect(result).toEqual({ fetched: 1, withAchievements: 1, failed: 1 });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(prisma.steamGameAchievementMeta.upsert).toHaveBeenCalledOnce();
+  });
 });

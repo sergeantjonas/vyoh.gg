@@ -48,44 +48,55 @@ export class SteamAchievementSchemaService {
       }
 
       const now = new Date();
-      await this.prisma.$transaction(async (tx) => {
-        for (const a of achievements) {
-          await tx.steamGameAchievement.upsert({
-            where: { appid_apiName: { appid, apiName: a.apiName } },
+      // Guarded per-appid for the same reason the fetch above is: one bad id
+      // must never abort the rest of the batch. A write failure here used to
+      // throw out of `refreshSchemas` entirely, so every appid after it in
+      // the list silently kept whatever count it already had — including a
+      // stale zero, which gates all unlock ingestion for that game.
+      try {
+        await this.prisma.$transaction(async (tx) => {
+          for (const a of achievements) {
+            await tx.steamGameAchievement.upsert({
+              where: { appid_apiName: { appid, apiName: a.apiName } },
+              create: {
+                appid,
+                apiName: a.apiName,
+                displayName: a.displayName,
+                description: a.description,
+                iconUrl: a.iconUrl,
+                iconGrayUrl: a.iconGrayUrl,
+                hidden: a.hidden,
+                schemaFetchedAt: now,
+              },
+              update: {
+                displayName: a.displayName,
+                description: a.description,
+                iconUrl: a.iconUrl,
+                iconGrayUrl: a.iconGrayUrl,
+                hidden: a.hidden,
+                schemaFetchedAt: now,
+              },
+            });
+          }
+
+          await tx.steamGameAchievementMeta.upsert({
+            where: { appid },
             create: {
               appid,
-              apiName: a.apiName,
-              displayName: a.displayName,
-              description: a.description,
-              iconUrl: a.iconUrl,
-              iconGrayUrl: a.iconGrayUrl,
-              hidden: a.hidden,
-              schemaFetchedAt: now,
+              achievementCount: achievements.length,
+              lastSchemaCheckedAt: now,
             },
             update: {
-              displayName: a.displayName,
-              description: a.description,
-              iconUrl: a.iconUrl,
-              iconGrayUrl: a.iconGrayUrl,
-              hidden: a.hidden,
-              schemaFetchedAt: now,
+              achievementCount: achievements.length,
+              lastSchemaCheckedAt: now,
             },
           });
-        }
-
-        await tx.steamGameAchievementMeta.upsert({
-          where: { appid },
-          create: {
-            appid,
-            achievementCount: achievements.length,
-            lastSchemaCheckedAt: now,
-          },
-          update: {
-            achievementCount: achievements.length,
-            lastSchemaCheckedAt: now,
-          },
         });
-      });
+      } catch (err) {
+        failed += 1;
+        this.logger.warn(`schema write for appid=${appid} failed: ${err}`);
+        continue;
+      }
 
       fetched += 1;
       if (achievements.length > 0) withAchievements += 1;
