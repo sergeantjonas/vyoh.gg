@@ -1,5 +1,6 @@
 import { routeMeta } from "@/lib/route-meta";
 import { AntiPortraitSection } from "@/steam/portrait/anti-portrait-section";
+import { BacklogBand } from "@/steam/portrait/backlog-band";
 import { PortraitSection } from "@/steam/portrait/portrait-section";
 import { portraitQueryOptions } from "@/steam/portrait/use-portrait";
 import { platformMixQueryOptions } from "@/steam/use-platform-mix";
@@ -32,11 +33,14 @@ export const Route = createFileRoute("/steam/portrait")({
 // Two halves of one argument, which is why they share a route rather than a
 // band on the profile page: the Portrait says who the player is, the
 // Anti-Portrait says what that leaves out, and neither reads as a verdict when
-// it is one section among five.
+// it is one section among five. The bridge between them turns both readings
+// into something to do, which only works from the middle — after the taste is
+// established and before the shelf is indicted.
 function SteamPortraitPage() {
   return (
     <div className="flex flex-col gap-12">
       <PortraitSection />
+      <BacklogBand />
       <AntiPortraitSection />
     </div>
   );

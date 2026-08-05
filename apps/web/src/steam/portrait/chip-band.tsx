@@ -18,13 +18,19 @@ import type { ReactNode } from "react";
 const COLUMNS = {
   2: "md:grid-cols-2",
   3: "md:grid-cols-2 xl:grid-cols-3",
+  // Exactly three cards, which the two-column step would strand one of for the
+  // whole md–xl range. Three-up from `md` costs 225 px columns at that
+  // breakpoint against the 275 px every other band settles at — measured, that
+  // is 37 px of extra card height and 223 px less band, because the alternative
+  // is three full-width cards carrying a chip's worth of text each.
+  "3-up": "md:grid-cols-3",
 } as const;
 
 export function ChipBand({
   columns = 3,
   children,
 }: {
-  columns?: 2 | 3;
+  columns?: keyof typeof COLUMNS;
   children: ReactNode;
 }) {
   return (
