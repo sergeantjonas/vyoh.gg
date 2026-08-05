@@ -1,13 +1,14 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { PrismaService } from "../prisma/prisma.service";
+import { SteamAchievementSchemaService } from "./achievement-schema.service";
 import { SteamOwnedGamesService } from "./owned-games.service";
 import { SteamPlayerUnlocksService } from "./player-unlocks.service";
 import { SteamClientService } from "./steam-client.service";
 import { STEAM_OWNER_ID } from "./steam.config";
 
 // Hourly backstop using `GetRecentlyPlayedGames` (≤10 rows, one Steam
-// call). Covers two gaps:
+// call). Covers three gaps:
 //   1. Offline-play sessions the session-close hook missed entirely
 //      (owner played offline; `personastate` never flipped to in-game).
 //   2. Newly-owned games. If an appid appears here that we don't have in
@@ -15,9 +16,17 @@ import { STEAM_OWNER_ID } from "./steam.config";
 //      daily owned-syncs — trigger a full `syncOwnedGames` proactively
 //      so the on-add hooks (enrichment, schema, unlocks, rarity)
 //      bootstrap immediately instead of waiting up to 24h.
+//   3. Games whose achievement schema was empty when we first checked and
+//      has since been published (see the re-check below).
 //
 // The session-close hook stays the primary realtime signal; this poller
 // is a 1-hour reconciliation pass for the cases it doesn't catch.
+
+// How long a recorded `achievementCount` of zero is trusted for a game the
+// owner is actively playing. One day keeps permanently schema-less titles
+// (CS2, demos, Dota 2) at one wasted call per day rather than one per tick.
+const ZERO_SCHEMA_RECHECK_MS = 24 * 60 * 60 * 1000;
+
 @Injectable()
 export class SteamRecentlyPlayedUnlocksPoller {
   private readonly logger = new Logger(SteamRecentlyPlayedUnlocksPoller.name);
@@ -27,7 +36,8 @@ export class SteamRecentlyPlayedUnlocksPoller {
     private readonly prisma: PrismaService,
     private readonly client: SteamClientService,
     private readonly ownedGames: SteamOwnedGamesService,
-    private readonly playerUnlocks: SteamPlayerUnlocksService
+    private readonly playerUnlocks: SteamPlayerUnlocksService,
+    private readonly achievementSchema: SteamAchievementSchemaService
   ) {}
 
   @Cron("15 * * * *", {
@@ -68,6 +78,39 @@ export class SteamRecentlyPlayedUnlocksPoller {
           await this.ownedGames.syncOwnedGames();
         } catch (err) {
           this.logger.warn(`proactive owned-games resync failed: ${err}`);
+        }
+      }
+
+      // A zero `achievementCount` is a self-sealing dead end: every unlock
+      // path gates on `> 0`, so once we record a zero nothing fetches
+      // unlocks for that game again, and the boot backfill skips it because
+      // a meta row exists. Only the weekly schema cron re-evaluates it. That
+      // is too slow for the case that produces it — a game bought before
+      // release publishes its achievements days after we recorded the zero,
+      // and by then the owner is already earning them. Re-check the ones
+      // showing up in recently-played, so the refresh below sees the real
+      // count in this same tick.
+      const cutoff = new Date(Date.now() - ZERO_SCHEMA_RECHECK_MS);
+      const stale = await this.prisma.steamGameAchievementMeta.findMany({
+        where: {
+          appid: { in: appids },
+          AND: [
+            { OR: [{ achievementCount: 0 }, { achievementCount: null }] },
+            {
+              OR: [
+                { lastSchemaCheckedAt: null },
+                { lastSchemaCheckedAt: { lt: cutoff } },
+              ],
+            },
+          ],
+        },
+        select: { appid: true },
+      });
+      if (stale.length > 0) {
+        try {
+          await this.achievementSchema.refreshSchemas(stale.map((r) => r.appid));
+        } catch (err) {
+          this.logger.warn(`empty-schema re-check failed: ${err}`);
         }
       }
 
