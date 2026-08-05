@@ -1,10 +1,10 @@
 // The bridge between the two halves of the Portrait: what the library says the
 // owner should play next, scored from local data only — no Steam call.
 //
-// The catalog specced this against the *recent* fingerprint ("what you've been
-// playing the last 6 weeks"). Chunk 2a measured that window at three games and
-// 29 hours, every genre in it resting on a single title, so a recommendation
-// built on it would be recommending one purchase back at itself. These score
+// The obvious thing to match against is what the owner has been playing
+// lately, and it is wrong here: the recency window holds three games and 29
+// hours, every genre in it resting on a single title, so a recommendation
+// built on it recommends one recent purchase back at itself. These score
 // against whichever fingerprint the caller hands over, and the service hands
 // over the lifetime one until the recency window holds a shape worth matching.
 
