@@ -1,6 +1,6 @@
 # Ingestion cron reliability
 
-**Status:** Active — three self-sealing gates fixed 2026-08-05; converting the weekly/monthly pollers from schedule-driven to staleness-driven is the remaining work.
+**Status:** Shipped — three self-sealing gates fixed 2026-08-05; all four long-interval pollers converted from schedule-driven to staleness-driven 2026-08-06.
 
 Opened 2026-08-05 after a reported symptom: Beast of Reincarnation (appid 2001760) had nine achievements unlocked on Steam over the preceding 24 hours and none of them in our database.
 
@@ -36,14 +36,14 @@ The exposure scales with the interval. A missed `*/15 min` tick costs 15 minutes
 | `steam-recently-played-unlocks` | `:15 hourly` | — | 1 h |
 | `steam-player-unlocks` | `*/4h :05` | never-checked only | 4 h |
 | lol patch + static sync | `*/6h` | — | 6 h |
-| `steam-achievement-schema` | `Sun 05:00` | never-checked only | 1 week |
-| `steam-global-rarity` | `Sun 05:30` | never-checked only | 1 week |
-| `steam-enrichment` | `1st 04:30` | incomplete-row predicate | 1 month |
-| `steam-tag-catalog` | `1st 04:45` | empty-table only | 1 month |
+| `steam-achievement-schema` | `Sun 05:00` → **daily 05:00** | never-checked only → **age-based** | 1 week → **1 day** |
+| `steam-global-rarity` | `Sun 05:30` → **daily 05:30** | never-checked only → **age-based** | 1 week → **1 day** |
+| `steam-enrichment` | `1st 04:30` → **daily 04:30** | incomplete-row predicate → **+ age-based** | 1 month → **1 day** |
+| `steam-tag-catalog` | `1st 04:45` | empty-table only → **age-based** | 1 month → **1 restart** |
 
 All eleven have overlap protection. The eight Steam pollers pin `Europe/Brussels`; the three LoL crons don't, which only affects hour-anchoring since they're interval-based.
 
-`steam-enrichment` is the counter-example done right: it backfills on an incompleteness *predicate* (`logoPath IS NULL`), retried every boot, with the expected residue documented. 15 of 227 rows sit there by design.
+`steam-enrichment` was the closest to right before any of this: it already backfilled on an incompleteness *predicate* (`logoPath IS NULL`) retried every boot, with the expected residue documented — 15 of 227 rows sit there because PICS cannot resolve those titles. What it lacked was the age half, so a *complete* row that had gone stale was invisible to boot and reachable only from the monthly fire.
 
 ## Shipped 2026-08-05
 
@@ -53,15 +53,27 @@ All eleven have overlap protection. The eight Steam pollers pin `Europe/Brussels
 - **`SteamAchievementSchemaService.refreshSchemas`** guards its write per appid. The `$transaction` sat outside the per-appid `try` that already wrapped the fetch, so one write failure aborted every appid queued behind it — each keeping whatever count it had, stale zeros included.
 - **`refreshUnlocksForGame`** asserts `achievementCount > 0` rather than `!== 0`. The column is nullable and a null passed the old guard into `syncUnlocks`, where the FK rejects.
 
+## The conversion, shipped 2026-08-06
+
+**Every long-interval poller now selects on age, not on a wall-clock fire** — "on boot, and every day, process rows older than X" rather than "fire at time T, process everything". Budget is unchanged; it just spreads. The daily tick is what makes this work in production; **the boot pass is what makes it work here**, and it is the load-bearing half, since a daily cron at 05:00 on a machine that is off at 05:00 still never fires.
+
+- `steam-achievement-schema` — never-checked games first, then the oldest `lastSchemaCheckedAt` past 7 days, capped at 40. Two queries, because a game with no meta row cannot be found by ordering on a column it doesn't have.
+- `steam-global-rarity` — one query against `lastRarityCheckedAt` past 7 days, gated on `achievementCount > 0`, capped at 40. No never-checked pass: a game with no meta row has nothing to ask Steam about yet.
+- `steam-enrichment` — no row, **or** `logoPath IS NULL`, **or** `enrichedAt` past 30 days; never-enriched first, then oldest, capped at 25. The always-due incomplete rows don't starve the queue behind them, because `enrichApps` restamps `enrichedAt` whether or not PICS resolved, sorting them to the back until everything else has had a turn.
+- `steam-tag-catalog` — got the boot half on 2026-08-05; its monthly tick is unchanged, since one restart is now enough to reconcile it.
+
+**Each was verified against the live database, not just mocks.** A backdated schema row was selected on boot, refreshed and restamped; a pass with nothing due exits silently. Rarity's first real run found the backlog the never-fired Sunday crons had left and drained it 40 at a time across successive passes rather than in one 158-call burst. Enrichment picked up 16 due (15 missing-logo, 2 past 30 days, one row both).
+
+Three details worth keeping:
+
+- **The batch cap must stay above the steady-state arrival rate** (~195/7 ≈ 28/day for schema) or the oldest rows never drain.
+- **`orderBy` needs `nulls: "first"` explicitly.** The columns are nullable and Postgres sorts NULLS LAST on ASC, which would park a never-stamped row permanently behind the cap — the exact failure this arc exists to remove, reintroduced one layer down.
+- **The three selections were deliberately not extracted into a shared helper.** They share a concept, not a shape: schema needs two queries across two tables, rarity needs one with a relation gate, enrichment computes in memory over a candidate list that includes wishlist appids with no row. A generic `dueForRefresh()` would take more arguments than each call site has lines.
+
 ## Remaining
 
-**Convert the weekly and monthly pollers from schedule-driven to staleness-driven** — "on boot, and every N, process rows older than X" rather than "fire at time T". Same Steam budget, but a missed window self-corrects at the next boot or tick instead of waiting a full period.
+Nothing in this arc. The residual risk is now a full day rather than a week or a month, and it self-corrects on restart.
 
-- ✅ `steam-achievement-schema` — converted 2026-08-06. Daily tick and an identical boot pass both take never-checked rows first, then the oldest `lastSchemaCheckedAt` past 7 days, capped at 40 per pass. Verified end-to-end rather than against mocks: a backdated row was selected on boot, refreshed and restamped, and a run with nothing due exits silently.
-- ✅ `steam-global-rarity` — converted 2026-08-06, same shape against `lastRarityCheckedAt`, gated on `achievementCount > 0`. Needs no never-checked pass of its own: a game with no meta row has nothing to ask Steam about yet. Its first real run drained 40 of the 95 rows the never-fired Sunday crons had left past the window, and reported 55 still due — bounded catch-up working as intended rather than one 158-call burst.
-- ⬜ `steam-enrichment` — against `enrichedAt` past 30 days, OR'd with the existing `logoPath IS NULL` predicate.
-- ✅ `steam-tag-catalog` — already got the boot half of this on 2026-08-05.
-
-Two details worth carrying to the remaining two. The batch cap must stay above the steady-state arrival rate (~195/7 ≈ 28/day) or the oldest rows never drain. And `orderBy` needs `nulls: "first"` explicitly — the columns are nullable and Postgres sorts NULLS LAST on ASC, which would park a never-stamped row permanently behind the cap.
+The one thing to re-check when hosting lands: with the process up continuously, the daily ticks carry the load and the boot passes become the deploy-time safety net they were designed to be. If the Steam budget ever tightens, the caps and windows in each poller are the knobs — they were set to preserve the previous effective cadence, not to a measured limit.
 
 This matters more, not less, once hosting lands: the process will be up continuously, but deploys land exactly the kind of short downtime that eats a single fire. The portrait arc's chunk 0 already recorded the same underlying constraint from the other side — `SteamPlaySession` misses launches because the poller only runs on the dev box (see [player-portrait.md](../steam/player-portrait.md)).

@@ -16,6 +16,17 @@ function makeService() {
   return { enrichApps: vi.fn().mockResolvedValue(undefined) };
 }
 
+function row(
+  appid: number,
+  opts: { logoPath?: string | null; ageDays: number }
+): { appid: number; logoPath: string | null; enrichedAt: Date } {
+  return {
+    appid,
+    logoPath: opts.logoPath === undefined ? "abc" : opts.logoPath,
+    enrichedAt: new Date(Date.now() - opts.ageDays * 86_400_000),
+  };
+}
+
 function makeSteam() {
   return { getOwnerWishlist: vi.fn().mockResolvedValue({ items: [] }) };
 }
@@ -55,12 +66,10 @@ describe("SteamEnrichmentPoller.onModuleInit", () => {
     expect(service.enrichApps).not.toHaveBeenCalled();
   });
 
-  it("returns early when every candidate already has logoPath set", async () => {
+  it("returns early when every candidate is complete and inside the window", async () => {
     const prisma = makePrisma();
     prisma.steamOwnedGame.findMany.mockResolvedValue([{ appid: 42 }]);
-    prisma.steamGameEnrichment.findMany.mockResolvedValue([
-      { appid: 42, logoPath: "abc" },
-    ]);
+    prisma.steamGameEnrichment.findMany.mockResolvedValue([row(42, { ageDays: 3 })]);
     const { poller, service } = makePoller(prisma);
     await poller.onModuleInit();
     expect(service.enrichApps).not.toHaveBeenCalled();
@@ -70,11 +79,41 @@ describe("SteamEnrichmentPoller.onModuleInit", () => {
     const prisma = makePrisma();
     prisma.steamOwnedGame.findMany.mockResolvedValue([{ appid: 42 }, { appid: 99 }]);
     prisma.steamGameEnrichment.findMany.mockResolvedValue([
-      { appid: 42, logoPath: null },
+      row(42, { logoPath: null, ageDays: 1 }),
     ]);
     const { poller, service } = makePoller(prisma);
     await poller.onModuleInit();
-    expect(service.enrichApps).toHaveBeenCalledWith([42, 99]);
+    // 99 has no row at all, so it sorts ahead of the freshly-stamped 42.
+    expect(service.enrichApps).toHaveBeenCalledWith([99, 42]);
+  });
+
+  // Boot used to reach incomplete rows only, so a complete row that had aged
+  // past the refresh interval was invisible to it — and the monthly cron that
+  // would have caught it is the one most likely to be missed.
+  it("enriches a complete row that has aged past the window", async () => {
+    const prisma = makePrisma();
+    prisma.steamOwnedGame.findMany.mockResolvedValue([{ appid: 42 }]);
+    prisma.steamGameEnrichment.findMany.mockResolvedValue([row(42, { ageDays: 45 })]);
+    const { poller, service } = makePoller(prisma);
+    await poller.onModuleInit();
+    expect(service.enrichApps).toHaveBeenCalledWith([42]);
+  });
+
+  it("orders never-enriched first, then oldest, and caps the pass", async () => {
+    const prisma = makePrisma();
+    const owned = Array.from({ length: 40 }, (_, i) => ({ appid: i + 1 }));
+    prisma.steamOwnedGame.findMany.mockResolvedValue(owned);
+    // Every row stale, ages ascending with appid — so appid 40 is the oldest
+    // of the enriched ones, and appid 1 has no row at all.
+    prisma.steamGameEnrichment.findMany.mockResolvedValue(
+      owned.slice(1).map((g) => row(g.appid, { ageDays: 30 + g.appid }))
+    );
+    const { poller, service } = makePoller(prisma);
+    await poller.onModuleInit();
+    const sent = service.enrichApps.mock.calls[0]?.[0] as number[];
+    expect(sent).toHaveLength(25);
+    expect(sent[0]).toBe(1);
+    expect(sent[1]).toBe(40);
   });
 
   it("logs and swallows errors from the enrichApps backfill so boot stays unblocked", async () => {
