@@ -41,7 +41,7 @@ export function RecentDriftCard() {
               metric={window.days}
               metricLabel={{ singular: "day", plural: "days" }}
               verdict="Not enough recent play to call a drift."
-              prescription={`${fingerprint.gamesCounted} ${fingerprint.gamesCounted === 1 ? "game" : "games"} and ${formatPlaytime(fingerprint.distributedMinutes)} in the last ${window.days} days — every genre in that rests on a single title.`}
+              prescription={`${fingerprint.gamesCounted} ${fingerprint.gamesCounted === 1 ? "game" : "games"} and ${formatPlaytime(fingerprint.distributedMinutes)} in the last ${window.days} days — every genre in it rests on a single title.`}
               empty
             />
           );

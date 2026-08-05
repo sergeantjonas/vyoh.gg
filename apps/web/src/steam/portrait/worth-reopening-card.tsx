@@ -22,7 +22,7 @@ export function WorthReopeningCard() {
       emptyPrescription="Which is its own answer: the games that didn't stick weren't your genres to begin with."
       isEmpty={(data) => data.backlog.regret === null}
     >
-      {({ backlog }) => {
+      {({ backlog, anti }) => {
         const regret = backlog.regret;
         if (regret === null) return null;
 
@@ -34,7 +34,7 @@ export function WorthReopeningCard() {
             // live, both games match on all of theirs, so the two cards would
             // otherwise begin with the same sentence side by side. The contrast
             // is this card's point anyway — the arithmetic is the pick's.
-            prescription={`Whatever stopped you, it wasn't the genre: ${describeGenres(regret)}.`}
+            prescription={`Best match of the ${anti.tasted.count} you dropped inside the hour: ${describeGenres(regret)}. Whatever stopped you, it wasn't the genre.`}
             evidence={<OpenGameLink appid={regret.appid} name={regret.name} />}
           />
         );

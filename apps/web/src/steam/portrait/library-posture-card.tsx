@@ -30,7 +30,10 @@ export function LibraryPostureCard() {
             metric={posture.meaningfulCount}
             metricLabel={{ singular: "game", plural: "games" }}
             verdict={`${posture.meaningfulCount} of ${posture.ownedCount} owned games have had more than an hour.`}
-            prescription={`Those ${posture.meaningfulCount} hold ${share.toFixed(1)}% of your ${formatPlaytime(posture.totalMinutes)}. ${posture.ghostCount} have never been launched at all.`}
+            // The never-launched count belongs to the Anti-Portrait's masthead
+            // and is the page's sharpest number; restating it here spent this
+            // card's second line saying something the reader meets twice more.
+            prescription={`Those ${posture.meaningfulCount} hold ${share.toFixed(1)}% of your ${formatPlaytime(posture.totalMinutes)}.`}
             evidence={
               <Link
                 to="/steam/library"

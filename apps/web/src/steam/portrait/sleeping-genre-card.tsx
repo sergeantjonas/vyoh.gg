@@ -20,9 +20,13 @@ export function SleepingGenreCard() {
       emptyPrescription="A single untouched title is a recommendation, not a pattern — that one is the card beside this."
       isEmpty={(data) => data.backlog.sleeping === null}
     >
-      {({ backlog }) => {
+      {({ backlog, lifetime }) => {
         const sleeping = backlog.sleeping;
         if (sleeping === null) return null;
+        // The hours mean nothing without the shelf they came off: 706h could be
+        // one obsession or sixteen games, and which one it is decides whether
+        // eleven more waiting reads as a queue or as a hoard.
+        const played = lifetime.genres.find((genre) => genre.tag === sleeping.tag);
 
         return (
           <FactCard
@@ -30,7 +34,16 @@ export function SleepingGenreCard() {
             // No count indicator: the verdict already says how many are
             // waiting, and a 275 px chip repeating its own number spends the
             // title's width to say nothing.
-            verdict={`You've put ${formatPlaytime(sleeping.minutes)} into ${sleeping.tag} and own ${sleeping.untouchedCount} you've never launched.`}
+            // Untouched count first, played count second. The Portrait hero
+            // already states the anchor genre's hours and carriers, and the
+            // sleeping genre is usually that same anchor — leading with the
+            // hours would restate the masthead two bands later. The ratio is
+            // this card's own claim either way.
+            verdict={
+              played === undefined
+                ? `${sleeping.untouchedCount} ${sleeping.tag} games you've never launched, against ${formatPlaytime(sleeping.minutes)} already in the genre.`
+                : `${sleeping.untouchedCount} ${sleeping.tag} games you've never launched, against ${played.gameCount} you've put ${formatPlaytime(sleeping.minutes)} into.`
+            }
             // Both halves of the ranking are worth stating: by queue length
             // alone this card would always name an umbrella tag every bundle
             // carries, which is the opposite of a genre worth waking.

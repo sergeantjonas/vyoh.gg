@@ -238,7 +238,7 @@ describe("TastedTierCard", () => {
     ).toBeTruthy();
     expect(
       screen.getByText(
-        "The median one lasted 22 minutes. 120 more were never opened at all."
+        "The median one lasted 22 minutes, and not one of them reached an hour."
       )
     ).toBeTruthy();
   });

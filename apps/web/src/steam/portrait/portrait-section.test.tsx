@@ -341,7 +341,7 @@ describe("RecentDriftCard", () => {
     expect(screen.getByText("Not enough recent play to call a drift.")).toBeTruthy();
     expect(
       screen.getByText(
-        "3 games and 29h in the last 80 days — every genre in that rests on a single title."
+        "3 games and 29h in the last 80 days — every genre in it rests on a single title."
       )
     ).toBeTruthy();
   });
@@ -504,11 +504,7 @@ describe("LibraryPostureCard", () => {
     expect(
       screen.getByText("55 of 186 owned games have had more than an hour.")
     ).toBeTruthy();
-    expect(
-      screen.getByText(
-        "Those 55 hold 99.8% of your 2,385h. 120 have never been launched at all."
-      )
-    ).toBeTruthy();
+    expect(screen.getByText("Those 55 hold 99.8% of your 2,385h.")).toBeTruthy();
   });
 
   it("links into the full library", () => {

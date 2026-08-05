@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import type {
+  GenreFingerprint,
   SteamPortrait,
   SteamPortraitBacklog,
   SteamPortraitSuggestion,
@@ -41,6 +42,18 @@ const REGRET: SteamPortraitSuggestion = {
   minutes: 49,
 };
 
+// The sleeping card reaches back into the lifetime fingerprint for the count of
+// games the owner *did* play in that genre — the denominator its hours need.
+const LIFETIME_GENRES: GenreFingerprint["genres"] = [
+  {
+    tag: "Souls-like",
+    minutes: 42_300,
+    share: 0.299,
+    gameCount: 16,
+    examples: [{ appid: 1245620, name: "ELDEN RING", minutes: 22_664 }],
+  },
+];
+
 const BACKLOG: SteamPortraitBacklog = {
   pick: PICK,
   sleeping: {
@@ -57,12 +70,16 @@ const BACKLOG: SteamPortraitBacklog = {
   candidateCount: 117,
 };
 
-function portrait(backlog: SteamPortraitBacklog = BACKLOG): SteamPortrait {
-  // Only `backlog` is read by this band, so the rest is shaped rather than
-  // measured — a fuller payload would go stale against the cards that do read it.
+function portrait(
+  backlog: SteamPortraitBacklog = BACKLOG,
+  lifetimeGenres: GenreFingerprint["genres"] = LIFETIME_GENRES
+): SteamPortrait {
+  // The band reads `backlog`, the tasted count, and the lifetime share of
+  // whichever genre is asleep. The rest is shaped rather than measured — a
+  // fuller payload would go stale against the cards that do read it.
   return {
     lifetime: {
-      genres: [],
+      genres: lifetimeGenres,
       distributedMinutes: 141_360,
       gamesCounted: 54,
       gamesWithoutGenre: 1,
@@ -114,8 +131,11 @@ function mockHook(value: {
   );
 }
 
-function mockData(backlog?: SteamPortraitBacklog): void {
-  mockHook({ data: portrait(backlog), isPending: false, isError: false });
+function mockData(
+  backlog?: SteamPortraitBacklog,
+  lifetimeGenres?: GenreFingerprint["genres"]
+): void {
+  mockHook({ data: portrait(backlog, lifetimeGenres), isPending: false, isError: false });
 }
 
 afterEach(() => {
@@ -174,13 +194,38 @@ describe("BacklogBand", () => {
     mockData();
     render(<BacklogBand />);
 
+    // Untouched count first: the Portrait hero already states the anchor
+    // genre's hours and carriers, and the sleeping genre is usually that same
+    // anchor, so leading with the hours restates the masthead two bands later.
     expect(
-      screen.getByText(/705h into Souls-like and own 11 you've never launched/)
+      screen.getByText(
+        /11 Souls-like games you've never launched, against 16 you've put 705h into/
+      )
     ).toBeTruthy();
     expect(screen.getByText("Mortal Shell II")).toBeTruthy();
     // Eleven waiting, three named — the remainder has to be stated or the list
     // reads as the whole queue.
     expect(screen.getByText("+8 more")).toBeTruthy();
+  });
+
+  it("drops the played count when the genre is not in the fingerprint", () => {
+    mockData(BACKLOG, []);
+    render(<BacklogBand />);
+
+    expect(
+      screen.getByText(
+        /11 Souls-like games you've never launched, against 705h already in the genre/
+      )
+    ).toBeTruthy();
+  });
+
+  it("states the pool the reopen candidate was chosen from", () => {
+    mockData();
+    render(<BacklogBand />);
+
+    expect(
+      screen.getByText(/Best match of the 11 you dropped inside the hour/)
+    ).toBeTruthy();
   });
 
   it("links every named game into the library", () => {
