@@ -180,6 +180,19 @@ describe("SteamController", () => {
         totalMinutes: 143_100,
         meaningfulMinutes: 142_800,
       },
+      backlog: {
+        pick: {
+          appid: 1627720,
+          name: "Lies of P",
+          matched: ["Souls-like"],
+          genreCount: 2,
+          score: 0.3,
+          minutes: 0,
+        },
+        sleeping: null,
+        regret: null,
+        candidateCount: 4,
+      },
       anti: {
         tasted: {
           count: 11,

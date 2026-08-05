@@ -263,6 +263,18 @@ The ⌘K palette carries a `Portrait` entry in the Steam scope, matching on *gen
 
 **Chunk 4 — Backlog recommendations.** Scoring service in the API; three surfaces on the web side. Sits between the two halves visually.
 
+- **4a — Shared scoring + API.** ✅ Done 2026-08-05. [backlog.ts](../../../packages/shared/src/steam/portrait/backlog.ts) scores every never-launched owned game against the portrait, and `SteamPortrait` gained a `backlog` block carrying the three picks with their arithmetic. **Scored against the lifetime fingerprint, not the recency window the catalog specced** — that window holds three games and 29 hours, so matching against it would recommend one recent purchase back at itself. Swapping the argument is the only change needed when the window fills.
+  A candidate's score is the **share of the portrait its genres account for**, not a count of tag hits: matching two genres worth 3% between them must not beat matching one worth 30%. The age penalty counts back from the library's newest release rather than from the clock, because the score ships to the browser and is re-read at hydration — `Date.now()` on both sides of that boundary is the bug the SSR convention is about.
+  **The measured lines, 2026-08-05, against 117 candidates:**
+
+| Card | What it says |
+|---|---|
+| Pick up next | **Nioh 3** — 3 of its 3 genres match (Souls-like, Action RPG, Hack and Slash), scoring 55%. Runners-up: Nioh Complete 55%, Lords of the Fallen / Mortal Shell II / CODE VEIN 53%. |
+| Sleeping on this genre | **Souls-like** — 705h played, **11 untouched** (Mortal Shell II, Ghost of Tsushima, Lords of the Fallen). |
+| Tasted but never returned | **Where Winds Meet** — 49 minutes in it, matching Souls-like + Action RPG + Action-Adventure at 58%, the highest score on the page. |
+
+- **The sleeping-genre ranking took a measurement to get right.** Ranked by waiting count alone — the obvious reading of the spec — it crowns `Action` (112 waiting, **1%** of the portrait) and `Adventure` (101 waiting, 1%): umbrella genres that every bundle leftover carries, which is the opposite of a genre the owner loves. Ranked by share alone it crowns the anchor genre, which is where "Pick up next" already draws from, so the two cards say the same thing twice. **Share × waiting count** is what shipped — "how much of the portrait is sitting unplayed here". The pick is also excluded from the named sample but not from the count, since both cards draw from the same pool and the strongest match in the strongest genre otherwise appears in both.
+
 **Chunk 5 — Copy + footnote polish.** "Based on N of M owned games" affordance, `← from community tags` footnote, deterministic templating sweep. Plus the threshold-tuning pass once we've looked at real numbers.
 
 Tests required in the same commit as the components (per `docs/repo-conventions.md` — every Portrait card has routing/interactive elements, so the same-commit testing rule applies; axe scan included).

@@ -11,10 +11,13 @@ import { Injectable } from "@nestjs/common";
 import type {
   CompletionSummary,
   GenreFingerprint,
+  ScoredCandidate,
   SteamPortrait,
   SteamPortraitAnti,
+  SteamPortraitBacklog,
   SteamPortraitGameRef,
   SteamPortraitRecent,
+  SteamPortraitSuggestion,
 } from "@vyoh/shared";
 import {
   PORTRAIT_RECENT_WINDOW_DAYS,
@@ -22,10 +25,14 @@ import {
   excludeBarelyPlayedInWindow,
   excludeBarelyTouched,
   isSteamGameAppType,
+  selectBacklogCandidates,
   selectColdest,
   selectEngagementCohort,
+  selectHighestRegret,
+  selectPickUpNext,
   selectQuickestAbandons,
   selectSingleAchievement,
+  selectSleepingGenre,
   summariseCompletion,
   summariseEngagement,
   summariseTasted,
@@ -49,6 +56,13 @@ const EMPTY_COMPLETION: CompletionSummary = {
   finished: [],
 };
 
+const EMPTY_BACKLOG: SteamPortraitBacklog = {
+  pick: null,
+  sleeping: null,
+  regret: null,
+  candidateCount: 0,
+};
+
 const EMPTY_ANTI: SteamPortraitAnti = {
   tasted: {
     count: 0,
@@ -70,6 +84,8 @@ type PortraitGame = {
   launchDayCount: number;
   /** Steam's `rtime_last_played`; null when it has never been launched. */
   lastPlayed: Date | null;
+  /** Store release date; null when enrichment has not resolved one. */
+  releaseDate: Date | null;
   tags: string[];
   /** Achievements in this game's schema; zero when it has none. */
   total: number;
@@ -130,6 +146,7 @@ export class SteamPortraitService {
           meaningfulMinutes: 0,
         },
         anti: EMPTY_ANTI,
+        backlog: EMPTY_BACKLOG,
         completion: EMPTY_COMPLETION,
         lastSyncedAt: null,
       };
@@ -142,11 +159,12 @@ export class SteamPortraitService {
     const games = await this.loadGames(latestDate, baselineDate);
     const cohort = excludeBarelyTouched(games);
     const summary = summariseEngagement(games);
+    const lifetime = buildGenreFingerprint(
+      cohort.map((game) => fingerprintInput(game, game.playtimeForeverMinutes))
+    );
 
     return {
-      lifetime: buildGenreFingerprint(
-        cohort.map((game) => fingerprintInput(game, game.playtimeForeverMinutes))
-      ),
+      lifetime,
       recent: baselineDate === null ? null : buildRecent(games, baselineDate, latestDate),
       posture: {
         ownedCount: summary.owned,
@@ -157,6 +175,7 @@ export class SteamPortraitService {
         meaningfulMinutes: summary.meaningfulMinutes,
       },
       anti: buildAnti(games, cohort),
+      backlog: buildBacklog(games, lifetime),
       // Deliberately over the whole library rather than the cleaned cohort:
       // the cohort floor is an hour and this one is ten, so filtering twice
       // would only ever remove games this filter already excludes.
@@ -188,7 +207,7 @@ export class SteamPortraitService {
           select: { appid: true, snapshotDate: true, playtimeForeverMinutes: true },
         }),
         this.prisma.steamGameEnrichment.findMany({
-          select: { appid: true, appType: true, tagIds: true },
+          select: { appid: true, appType: true, tagIds: true, releaseDate: true },
         }),
         this.prisma.steamTag.findMany({ select: { id: true, name: true } }),
         this.prisma.steamPlaySession.findMany({
@@ -245,6 +264,7 @@ export class SteamPortraitService {
           windowMinutes: Math.max(0, minutes - before),
           launchDayCount: launchDays.get(game.appid)?.size ?? 0,
           lastPlayed: game.rtimeLastPlayed,
+          releaseDate: enrichmentByAppid.get(game.appid)?.releaseDate ?? null,
           tags,
           total: schemaSize.get(game.appid) ?? 0,
           unlocked: unlockCount.get(game.appid) ?? 0,
@@ -255,6 +275,62 @@ export class SteamPortraitService {
 
 function gameRef(game: PortraitGame): SteamPortraitGameRef {
   return { appid: game.appid, name: game.name, minutes: game.playtimeForeverMinutes };
+}
+
+function suggestion(scored: ScoredCandidate): SteamPortraitSuggestion {
+  return {
+    appid: scored.candidate.appid,
+    name: scored.candidate.name,
+    matched: scored.matched,
+    genreCount: scored.genreCount,
+    score: scored.score,
+    minutes: scored.candidate.playtimeForeverMinutes,
+  };
+}
+
+/**
+ * Scored against the **lifetime** fingerprint rather than the recency window
+ * the catalog specced. Measured 2026-08-02 that window held three games and 29
+ * hours, every genre in it resting on one title, so matching against it would
+ * recommend a single recent purchase back at itself. Swap the argument once the
+ * window holds a shape worth matching — nothing else here changes.
+ */
+function buildBacklog(
+  games: PortraitGame[],
+  lifetime: GenreFingerprint
+): SteamPortraitBacklog {
+  // "Ancient" counts back from the newest release the library holds, not from
+  // the clock: this value ships to the browser and is re-read at hydration.
+  const referenceYear = games.reduce<number | null>((newest, game) => {
+    const year = game.releaseDate?.getUTCFullYear() ?? null;
+    if (year === null) return newest;
+    return newest === null || year > newest ? year : newest;
+  }, null);
+
+  const context = { fingerprint: lifetime, referenceYear };
+  const candidates = selectBacklogCandidates(games);
+  const pick = selectPickUpNext(candidates, context);
+  const sleeping = selectSleepingGenre(candidates, context, pick?.candidate.appid);
+  const regret = selectHighestRegret(selectEngagementCohort(games, "tasted"), context);
+
+  return {
+    pick: pick === null ? null : suggestion(pick),
+    sleeping:
+      sleeping === null
+        ? null
+        : {
+            tag: sleeping.tag,
+            minutes: sleeping.minutes,
+            games: sleeping.games.map((game) => ({
+              appid: game.appid,
+              name: game.name,
+              minutes: game.playtimeForeverMinutes,
+            })),
+            untouchedCount: sleeping.untouchedCount,
+          },
+    regret: regret === null ? null : suggestion(regret),
+    candidateCount: candidates.length,
+  };
 }
 
 // The weighting minutes differ per fingerprint (lifetime vs in-window), so the

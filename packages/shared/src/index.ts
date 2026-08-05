@@ -279,6 +279,22 @@ export type {
   EngagementSummary,
 } from "./steam/portrait/engagement.ts";
 export {
+  ANCIENT_PENALTY,
+  ANCIENT_RELEASE_YEARS,
+  SLEEPING_GAME_LIMIT,
+  scoreCandidate,
+  selectBacklogCandidates,
+  selectHighestRegret,
+  selectPickUpNext,
+  selectSleepingGenre,
+} from "./steam/portrait/backlog.ts";
+export type {
+  BacklogCandidate,
+  BacklogContext,
+  ScoredCandidate,
+  SleepingGenre,
+} from "./steam/portrait/backlog.ts";
+export {
   GENRE_EXAMPLE_LIMIT,
   THIN_GENRE_CARRIERS,
   buildGenreFingerprint,
@@ -322,6 +338,9 @@ export { PORTRAIT_RECENT_WINDOW_DAYS } from "./steam/portrait/portrait.ts";
 export type {
   SteamPortrait,
   SteamPortraitAnti,
+  SteamPortraitBacklog,
+  SteamPortraitSleeping,
+  SteamPortraitSuggestion,
   SteamPortraitColdest,
   SteamPortraitGameRef,
   SteamPortraitPosture,

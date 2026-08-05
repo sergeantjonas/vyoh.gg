@@ -106,6 +106,31 @@ function portrait(anti: SteamPortraitAnti = ANTI): SteamPortrait {
   return {
     lifetime: LIFETIME,
     anti,
+    backlog: {
+      pick: {
+        appid: 1627720,
+        name: "Lies of P",
+        matched: ["Souls-like"],
+        genreCount: 2,
+        score: 0.3,
+        minutes: 0,
+      },
+      sleeping: {
+        tag: "Souls-like",
+        minutes: 42_180,
+        games: [{ appid: 1627720, name: "Lies of P", minutes: 0 }],
+        untouchedCount: 4,
+      },
+      regret: {
+        appid: 1281930,
+        name: "Mortal Shell",
+        matched: ["Souls-like"],
+        genreCount: 1,
+        score: 0.3,
+        minutes: 22,
+      },
+      candidateCount: 37,
+    },
     recent: null,
     posture: {
       ownedCount: 186,
