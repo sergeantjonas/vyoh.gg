@@ -1,12 +1,11 @@
 # API exposure audit — what an anonymous caller can do
 
-**Status:** Active — audit complete 2026-08-03, remediation complete 2026-08-05 apart from two deferrals.
+**Status:** Active — audit complete 2026-08-03, remediation complete 2026-08-05 apart from one deferral.
 
 Opened after the owner asked what protects the backend from unauthorized access; a ten-lane sweep followed, producing 22 findings all code-verified against `main`. One reported finding was refuted by probe and is recorded as such rather than dropped.
 
-**F-1 through F-20 are fixed**, each verified against the running api or a real nginx rather than the test suite alone. Two remain, both blocked on a precondition rather than on effort:
+**F-1 through F-21 are fixed**, each verified against the running api or a real nginx rather than the test suite alone. One remains:
 
-- **F-21** is half done — its cache is bounded, but the ownership clamp needs the wishlist-asset population ordering established, or it 404s a live surface.
 - **F-22** is *mitigated rather than removed*, and it is worth being precise about that. The shared 100k/day Steam reservoir is still a single bucket; what changed is that the routes which drained it fastest now refuse work they should never have done, and the edge rate limit bounds the arrival rate. The structural fix — per-family reservoirs, or shedding instead of queueing — was not attempted and is not needed at this scale.
 
 Also open, and tracked in F-2 rather than here: cache-table eviction, which gates on verified backups per the standing rule in [pre-launch-sweep.md](pre-launch-sweep.md).
@@ -425,13 +424,24 @@ unowned 999999999   404 in 0.005s, 404 in 0.003s   (was 200 in ~0.25s, every tim
 owned   2622380     200 in 0.002s, 200 in 0.002s
 ```
 
-### F-21 — `/steam/wishlist/:appid/hero-meta` fans one request into three upstream calls plus a CPU pass · HIGH · **half fixed 2026-08-03**
+### F-21 — `/steam/wishlist/:appid/hero-meta` fans one request into three upstream calls plus a CPU pass · HIGH · **fixed 2026-08-05**
 
 [wishlist-hero.service.ts](../../../apps/api/src/steam/wishlist-hero.service.ts), reachable with any integer appid and no ownership check. On a miss it makes a live `IStoreBrowseService/GetItems` call using our API key, then up to two more fetches against `shared.akamai.steamstatic.com`, then a Vibrant colour-extraction pass over the image. The memo is a plain `Map` with no eviction, so it is also unbounded memory keyed on attacker input.
 
 **Half fixed 2026-08-03.** The cache is now bounded (64 entries, expired-then-oldest eviction on write); real use needs exactly one, the single imminent hero. The TTL alone never evicted, because it is only consulted on a read of that same key, so an entry nobody asks for again was retained for the process lifetime.
 
-**The ownership clamp is deliberately still open.** Unlike every other Steam route this cannot gate on library membership — the game is unowned *by design*, that being the entire point of the surface. The obvious substitute is wishlist membership via `SteamWishlistAsset`, and it was not shipped because that table is populated by the wishlist enrichment pass, and it is not established that it is always populated *before* a hero is requested for a newly-added wishlist item. Gating on it could 404 a live surface — the same trap `UNRANKED` set in F-7, where a closed set built from the ten real tiers would have broken the profile hero. That needs a probe of the actual ordering, not an assumption. With F-4's rate limit now in place the residual exposure is bounded, which is why this was acceptable to defer rather than guess.
+**The ownership clamp landed 2026-08-05, against a different table than planned.** Unlike every other Steam route this cannot gate on library membership — the game is unowned *by design*, that being the entire point of the surface. The substitute originally proposed was `SteamWishlistAsset`, deferred because it was not established that the table is populated *before* a hero is first requested for a newly-added wishlist item; gating on an unproven ordering could 404 a live surface, the same trap `UNRANKED` set in F-7.
+
+Reading the flow answered the ordering question and retired the table as the right gate at the same time. `SteamWishlistAsset` is written by `upsertWishlistAsset` inside `resolveNames`, which only runs for appids **stale in the in-memory `nameCache`** — so a warm process serving a wishlist request writes nothing, and the DB row and the cache can only be re-synced by a restart. Correct in practice, but the gate would have depended on a write that is skipped on most requests.
+
+The wishlist itself is the better source, and it was never persisted: `SteamService.loadWishlist` holds it in memory on a 1 h TTL. `isWishlisted(appid)` now reads through that same cache, so a warm process answers from memory and a cold one pays the single upstream call it was about to make anyway. Two properties make this safe where the table was not:
+
+1. **The ordering is structural, not incidental.** `ImminentHero` is mounted with an appid taken from the wishlist response (`wishlist-upcoming-panel.tsx`), so the web cannot ask about an appid the server's own list does not contain.
+2. **The check runs ahead of the cache read**, not after it, so an off-wishlist appid never reaches the store call, the art fetch, the Vibrant pass, or the map — the refusal is worth nothing if it lands after the spend it exists to prevent. Two tests pin this: one asserts neither `getStoreItemsFull` nor `fetchUpstreamChain` is called on a refusal, the other that a cached entry is re-checked rather than served blind.
+
+The cache bound stays as belt-and-braces behind the gate.
+
+The clamp's code landed in `18af0dc6`, a portrait-scoring commit made from a concurrent session that staged the whole worktree. Recorded here because that commit message describes none of this, so `git log` on these files does not lead anywhere useful.
 
 ### F-22 — One shared Steam reservoir turns any of the above into a full-integration outage · HIGH (mechanism) · **mitigated, not removed**
 
@@ -497,7 +507,7 @@ F-1, F-2, F-4, F-7/8/9, F-13 and the F-20/F-21/F-22 cluster are launch gates, mi
 
 ~~2. **The allowlist hoist + lint (F-1)**~~ — **shipped**, at the choke point rather than as a route guard.
 
-~~3. **Clamp the upstream miss-paths (F-2, F-20)**~~ — **shipped.** F-21's cache is bounded but its ownership clamp is still open, for the reason recorded in that finding. Cache-table eviction for F-2 remains, and still gates on verified backups.
+~~3. **Clamp the upstream miss-paths (F-2, F-20, F-21)**~~ — **shipped.** F-21's ownership clamp closed 2026-08-05 against the in-memory wishlist rather than the asset table, for the reason recorded in that finding. Cache-table eviction for F-2 remains, and still gates on verified backups.
 
 ~~4. **Image proxy hardening (F-7 `tier`, F-8, F-9, F-10)**~~ — **shipped.** Remaining in this group: `alias` and `patch` reach CDragon and DDragon by the same interpolation as `tier` did, and F-11's response-size cap plus `sharp.limitInputPixels` are untouched.
 
@@ -509,7 +519,7 @@ F-1, F-2, F-4, F-7/8/9, F-13 and the F-20/F-21/F-22 cluster are launch gates, mi
 
 ~~9. **The tail** — `alias`/`patch` validation, F-11's size caps, F-12's pool and statement timeout.~~ **All shipped 2026-08-03.**
 
-**What remains is only the two deferrals**, both blocked on something real rather than on effort: match-cache eviction gates on verified backups (F-2), and the wishlist-hero ownership clamp needs the wishlist-asset population ordering established before it can gate on anything (F-21).
+**What remains is one deferral**: match-cache eviction (F-2), which gates on verified backups rather than on effort.
 
 ~~**Not gated on launch: F-5.**~~ **Shipped 2026-08-03** — the Steam key no longer reaches any log line or error object.
 
