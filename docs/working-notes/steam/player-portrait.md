@@ -283,6 +283,8 @@ The ⌘K palette carries a `Portrait` entry in the Steam scope, matching on *gen
 
   Rhythm measured at 1440: 48 px above the band and 48 px below, matching the `gap-12` the two halves already sit at. All four claims are in the served HTML, console clean, no response ≥ 400.
 
+- **4c — Re-probe.** ✅ Done 2026-08-06. **26 layers / 61–67 ms raster median ~63 / 0–1 long tasks / dropped=0** across a 3-run bracket, against a ≤ 30 / ≤ 100 ms budget — three more frosted chips cost ~2 layers and ~10 ms over the route's first baseline. The budget row in [repo-conventions.md](../../repo-conventions.md) records the new floor rather than widening the ceiling, so the next reader doesn't read the delta as drift.
+
 - **The sleeping-genre ranking took a measurement to get right.** Ranked by waiting count alone — the obvious reading of the spec — it crowns `Action` (112 waiting, **1%** of the portrait) and `Adventure` (101 waiting, 1%): umbrella genres that every bundle leftover carries, which is the opposite of a genre the owner loves. Ranked by share alone it crowns the anchor genre, which is where "Pick up next" already draws from, so the two cards say the same thing twice. **Share × waiting count** is what shipped — "how much of the portrait is sitting unplayed here". The pick is also excluded from the named sample but not from the count, since both cards draw from the same pool and the strongest match in the strongest genre otherwise appears in both.
 
 **Chunk 5 — Copy + footnote polish.** "Based on N of M owned games" affordance, `← from community tags` footnote, deterministic templating sweep. Plus the threshold-tuning pass once we've looked at real numbers.
