@@ -41,16 +41,28 @@ Plan assumes option 1 unless overridden. `IdentityModule` stays as-is; the new m
 
 ```prisma
 model Session {
-  id           String   @id            // opaque random — cookie value
+  // SHA-256 of the cookie value, hex. NOT the token itself — see below.
+  tokenHash    String   @id
   githubUserId Int                     // GitHub numeric ID, not login
   githubLogin  String                  // cached display only — never trusted
   createdAt    DateTime @default(now())
   expiresAt    DateTime                // sliding 30-day expiry
+  absoluteExpiresAt DateTime           // hard ceiling, ignores activity
   @@index([expiresAt])
 }
 ```
 
 No `User` table. A single GitHub user ID is the entire authorization model — owning the matching session row *is* the proof. If the owner ever wants multiple identities (a second device with its own session), they share the same `githubUserId`; expiry / revocation is per-row.
+
+**Three details that are free to get right now and expensive to migrate later.** Raised by the [API exposure audit](api-exposure-audit.md) § F-6, which reviewed this plan as a design rather than waiting to review the implementation.
+
+1. **Store a hash, never the token.** The first draft used the cookie value itself as the primary key, which makes the table a list of working credentials: anything that can read it — a backup, a stray Prisma Studio window, a query log, an errant `SELECT` in a future admin surface — yields usable sessions rather than evidence that sessions existed. Generate the raw token, send it as the cookie, persist only `sha256(token)`, and look up by hashing the incoming cookie. The table does not exist yet, so this costs one line today.
+
+   Plain SHA-256 is right here, not bcrypt/argon2: those exist to slow brute force against *low-entropy* human passwords, and a 256-bit random token has nothing to brute-force. A slow hash on every guarded request would only cost latency.
+
+2. **Name the generator explicitly.** "Opaque random" does not pin a mechanism, and the failure mode is silent — a session minted from `Math.random()` or a v1 UUID looks identical to a good one. Use `crypto.randomBytes(32).toString("base64url")`.
+
+3. **Give expiry an absolute ceiling.** A sliding 30-day window that extends on every check means a session used once a month never expires, which is indefinite access from a single successful login. Keep the sliding window for convenience, and add `absoluteExpiresAt = createdAt + 90 days` that `OwnerGuard` checks alongside it. This closes the open question at the bottom of this note rather than carrying it into implementation.
 
 ### New `AuthModule` (apps/api/src/auth/)
 
@@ -60,7 +72,7 @@ No `User` table. A single GitHub user ID is the entire authorization model — o
   - `POST /auth/logout` — deletes session row, clears cookie. Idempotent.
   - `GET /auth/viewer` — returns `{ isOwner: true, login: string } | null`. Cheap, cacheable in React Query for 30 s.
 - `auth.service.ts` — GitHub token exchange, session create/lookup/revoke.
-- `owner.guard.ts` — NestJS guard. Reads session cookie, looks up row, checks `expiresAt > now` and `githubUserId === OWNER_GITHUB_USER_ID`. On success extends `expiresAt` (sliding window). On failure: 401.
+- `owner.guard.ts` — NestJS guard. Reads the session cookie, hashes it, looks up the row by `tokenHash`, and checks `expiresAt > now`, `absoluteExpiresAt > now`, and `githubUserId === OWNER_GITHUB_USER_ID`. On success extends `expiresAt` only — never `absoluteExpiresAt`, which is the whole point of having it. On failure: 401.
 
 ### Env vars
 
@@ -196,5 +208,5 @@ Files touched: docs only + env config on hosting platform. Lands once a hosting 
 ## Open questions for owner
 
 1. **Naming.** Confirm option 1 (`Viewer` for visitor identity, `Me` stays as content identity). Picking option 2 changes chunk 1's file list.
-2. **Sliding vs absolute session expiry.** Plan assumes sliding 30-day. Absolute (re-auth weekly regardless of activity) is more conservative — preference?
+2. ~~**Sliding vs absolute session expiry.**~~ **Resolved 2026-08-05: both.** Sliding 30-day for convenience, with a hard 90-day `absoluteExpiresAt` that activity never extends — see the Prisma model above. Sliding-only was the quiet problem: a session touched once a month never expires, so one successful login grants indefinite access. Purely absolute re-auth would be more conservative still, but weekly re-auth to press a sync button is friction with no matching threat at this scale. Reopen only if the guarded surface grows past owner-only admin actions.
 3. **Should the `/login` route be linked from public nav?** Plan assumes no — owner bookmarks it. The "Log out" affordance only appears once authenticated.

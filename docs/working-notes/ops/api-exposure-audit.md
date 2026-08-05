@@ -1,10 +1,15 @@
 # API exposure audit — what an anonymous caller can do
 
-**Status:** Active — audit complete 2026-08-03, remediation underway the same day.
+**Status:** Active — audit complete 2026-08-03, remediation complete 2026-08-05 apart from two deferrals.
 
 Opened after the owner asked what protects the backend from unauthorized access; a ten-lane sweep followed, producing 22 findings all code-verified against `main`. One reported finding was refuted by probe and is recorded as such rather than dropped.
 
-**20 of 22 are now fixed** — everything except the two deliberate deferrals recorded in F-2 (match-cache eviction, which gates on verified backups) and F-21 (the wishlist-hero ownership clamp, which needs the wishlist-asset population ordering confirmed before it can gate on anything without 404-ing a live surface). **Each was verified against the running api or a real nginx rather than the test suite alone.**
+**F-1 through F-20 are fixed**, each verified against the running api or a real nginx rather than the test suite alone. Two remain, both blocked on a precondition rather than on effort:
+
+- **F-21** is half done — its cache is bounded, but the ownership clamp needs the wishlist-asset population ordering established, or it 404s a live surface.
+- **F-22** is *mitigated rather than removed*, and it is worth being precise about that. The shared 100k/day Steam reservoir is still a single bucket; what changed is that the routes which drained it fastest now refuse work they should never have done, and the edge rate limit bounds the arrival rate. The structural fix — per-family reservoirs, or shedding instead of queueing — was not attempted and is not needed at this scale.
+
+Also open, and tracked in F-2 rather than here: cache-table eviction, which gates on verified backups per the standing rule in [pre-launch-sweep.md](pre-launch-sweep.md).
 
 Remediation is a launch gate, mirrored in [pre-launch-sweep.md](pre-launch-sweep.md). Nothing here was ever reachable in the wild — the api is not public — but every item becomes live the moment `api.vyoh.gg` resolves, and F-5 was leaking into local logs before it was fixed.
 
@@ -117,14 +122,20 @@ Riot is unaffected and shows the right pattern: its key travels in the `X-Riot-T
 
 **Fixed.** `fetchJson` now derives `path` as the always-redacted form (the absolute-URL branch already did this; the relative branch, which is the one carrying the key, did not), so the error log, the success log and both `SteamClientError` constructions inherit it. `url` remains the only unredacted value and is used solely for the `fetch()` call. Five tests in `steam-client.service.spec.ts` pin it, including one asserting the request still *sends* the key — the failure mode of an over-eager redaction would be a silently unauthenticated Steam client.
 
-### F-6 — Two defects in the owner-auth plan, free to fix before it is written · MEDIUM (design)
+### F-6 — Two defects in the owner-auth plan, free to fix before it is written · MEDIUM (design) · **fixed 2026-08-05**
 
 Reviewed [owner-auth.md](owner-auth.md) as a design rather than waiting to review the implementation. The plan is strong — OAuth `state` is HMAC-signed, cookie flags are explicit (`SameSite=Lax; HttpOnly; Secure`), the `?next=` open-redirect is whitelisted, and the CSRF deferral is reasoned rather than overlooked. Two gaps:
 
 - **Session tokens are planned to be stored raw.** The `Session` model uses the cookie value itself as the primary key ([owner-auth.md:42-50](owner-auth.md)), so the table holds directly usable tokens. Anything that can read it — a backup, a stray Prisma Studio session, a query log — yields working sessions rather than just evidence that sessions existed. Persist a SHA-256 of the token and look up by hashing the incoming cookie. The table does not exist yet, so this costs nothing now and a migration later.
 - **"Opaque random" does not pin a generation mechanism.** Name the call explicitly in the note before chunk 1 (`crypto.randomBytes(32).toString("base64url")` or equivalent CSPRNG), so the implementation session cannot reach for `Math.random()` or a UUID.
 
-Also worth closing rather than carrying: the sliding-vs-absolute expiry question left open at [owner-auth.md:199](owner-auth.md) currently defaults to sliding-only, meaning a session used monthly never expires. Recommend sliding 30-day with a hard 90-day ceiling checked in `OwnerGuard`.
+Also worth closing rather than carrying: the sliding-vs-absolute expiry question left open at the bottom of owner-auth.md defaulted to sliding-only, meaning a session used monthly never expires.
+
+**Fixed 2026-08-05 in the plan itself**, which is the only place a design defect *can* be fixed before implementation. [owner-auth.md](owner-auth.md) now specifies `tokenHash` as the primary key rather than the token, names `crypto.randomBytes(32).toString("base64url")` explicitly, adds `absoluteExpiresAt` with a 90-day ceiling, and updates `OwnerGuard` to check it and to extend only the sliding half. The expiry open question is marked resolved rather than left for the implementation session to rediscover.
+
+One judgement recorded there so it is not "corrected" later: the token hash is plain SHA-256, not bcrypt or argon2. Those exist to slow brute force against low-entropy human passwords; a 256-bit random token has nothing to brute-force, so a slow hash on every guarded request would buy latency and no security.
+
+This was the last unactioned finding — worth noting it nearly slipped, because a finding whose fix is a documentation change reads as already-done once it is written up.
 
 ## Corrections to earlier readings
 
@@ -139,7 +150,7 @@ A ten-lane sweep was run on 2026-08-03 to find what the ad-hoc pass missed, on t
 
 Findings are recorded here only after being re-verified against the source in the main session; a lane's say-so is not enough. Where a claim was checkable empirically it was, and the probe is quoted.
 
-### F-7 — Path traversal through the image proxy's unvalidated `tier` param · HIGH, empirically confirmed
+### F-7 — Path traversal through the image proxy's unvalidated `tier` param · HIGH, empirically confirmed · **fixed 2026-08-03**
 
 `GET /img/lol/rank/:tier/:year.webp` ([img.controller.ts:271-286](../../../apps/api/src/img/img.controller.ts#L271-L286)) validates `year` (must parse as finite) and **does not validate `tier` at all**. Sibling routes do it right — `role`, `champClass` and `uiIcon` each check a closed `Set` before use — so this one route is the outlier. The raw string flows into two template-string URLs at [wiki-url-helpers.ts:123-126](../../../apps/api/src/img/wiki-url-helpers.ts#L123-L126) and [lol-image.service.ts:356-365](../../../apps/api/src/img/lol-image.service.ts#L356-L365).
 
@@ -182,7 +193,7 @@ So an anonymous caller chooses the **path** fetched from four trusted upstreams 
 
 The bounds were taken from the live data instead of guessed: **all 173 champion aliases are `[A-Za-z0-9_]`, longest 12 characters**, and `Strawberry_`-prefixed Swarm aliases stay inside the same class. The patch class covers every shape in use — `26.15`, `25.1`, DDragon's `15.13.1`, the four-part game version `16.15.801.3452` — plus a literal `latest`.
 
-### F-8 — Outbound fetches follow redirects to anywhere · HIGH
+### F-8 — Outbound fetches follow redirects to anywhere · HIGH · **fixed 2026-08-03**
 
 [upstream.ts:24](../../../apps/api/src/img/upstream.ts#L24) is `fetch(url, { signal: ac.signal })` — no `redirect` option, so undici's default `follow` applies for up to 20 hops, to any host, scheme or port. Nothing validates where it lands.
 
@@ -192,7 +203,7 @@ Alone this is latent. Chained with F-7 it is the escalation path: an attacker wh
 
 If following is ever genuinely needed, resolve `Location` explicitly and check it against a host allowlist and a non-private-address rule before re-fetching.
 
-### F-9 — The nginx cache key includes inputs the app ignores, so the cache is free to bust · HIGH
+### F-9 — The nginx cache key includes inputs the app ignores, so the cache is free to bust · HIGH · **fixed 2026-08-03**
 
 Found independently by two lanes, which is why it is stated with confidence. `api.vyoh.gg.conf` sets no `proxy_cache_key`, so nginx uses the default `$scheme$proxy_host$request_uri` — the full raw URI, query string included. Two consequences:
 
@@ -214,7 +225,7 @@ A first attempt at that A/B produced a false negative worth recording: both ngin
 
 **The ignored path segments are deliberately left in the key.** `:patch`, `:assetTimestamp` and `:schemaVersion` exist so a redeploy can invalidate a browser's copy; folding them out of the cache key would break that invalidation to close a hole the rate limit already covers. A lane recommended stripping them — that would have traded a working feature for redundant protection.
 
-### F-10 — `location /img/` silently loses its security header · MEDIUM
+### F-10 — `location /img/` silently loses its security header · MEDIUM · **fixed 2026-08-03**
 
 nginx inherits `add_header` from the parent level **only if the current level declares none**. `api.vyoh.gg.conf` sets `X-Content-Type-Options: nosniff` at server level ([:29](../../../deploy/nginx/api.vyoh.gg.conf#L29)) and then declares `X-Cache-Status` inside `location /img/` ([:75](../../../deploy/nginx/api.vyoh.gg.conf#L75)) — which replaces the inherited set entirely. So the one location that serves untrusted third-party bytes through a transcoder is the one location serving them without `nosniff`, while `location /` (declaring no header of its own) correctly inherits it.
 
@@ -369,7 +380,7 @@ Writing the test first paid for itself here: it caught that `Number("")` is `0` 
 
 Related and uncached: `GET /steam/summary` makes three-to-four live Steam Web API calls per request (one of them dependent, so it cannot parallelise) at the ~900 ms the priming convention already measured, while the same service caches wishlist and name lookups. Hammering it risks Valve rate-limiting our key, which breaks the integration for real visitors — collateral denial rather than local load.
 
-### F-19 — A DTO-valid matchId with an unknown platform prefix returns 500 · LOW
+### F-19 — A DTO-valid matchId with an unknown platform prefix returns 500 · LOW · **fixed 2026-08-03**
 
 Confirmed live:
 
@@ -414,7 +425,7 @@ unowned 999999999   404 in 0.005s, 404 in 0.003s   (was 200 in ~0.25s, every tim
 owned   2622380     200 in 0.002s, 200 in 0.002s
 ```
 
-### F-21 — `/steam/wishlist/:appid/hero-meta` fans one request into three upstream calls plus a CPU pass · HIGH
+### F-21 — `/steam/wishlist/:appid/hero-meta` fans one request into three upstream calls plus a CPU pass · HIGH · **half fixed 2026-08-03**
 
 [wishlist-hero.service.ts](../../../apps/api/src/steam/wishlist-hero.service.ts), reachable with any integer appid and no ownership check. On a miss it makes a live `IStoreBrowseService/GetItems` call using our API key, then up to two more fetches against `shared.akamai.steamstatic.com`, then a Vibrant colour-extraction pass over the image. The memo is a plain `Map` with no eviction, so it is also unbounded memory keyed on attacker input.
 
@@ -422,7 +433,7 @@ owned   2622380     200 in 0.002s, 200 in 0.002s
 
 **The ownership clamp is deliberately still open.** Unlike every other Steam route this cannot gate on library membership — the game is unowned *by design*, that being the entire point of the surface. The obvious substitute is wishlist membership via `SteamWishlistAsset`, and it was not shipped because that table is populated by the wishlist enrichment pass, and it is not established that it is always populated *before* a hero is requested for a newly-added wishlist item. Gating on it could 404 a live surface — the same trap `UNRANKED` set in F-7, where a closed set built from the ten real tiers would have broken the profile hero. That needs a probe of the actual ordering, not an assumption. With F-4's rate limit now in place the residual exposure is bounded, which is why this was acceptable to defer rather than guess.
 
-### F-22 — One shared Steam reservoir turns any of the above into a full-integration outage · HIGH (mechanism)
+### F-22 — One shared Steam reservoir turns any of the above into a full-integration outage · HIGH (mechanism) · **mitigated, not removed**
 
 This is the finding that ties F-20, F-21 and `/steam/summary` together, and it is the reason they rank above their individual costs. [steam/rate-limiter.service.ts](../../../apps/api/src/steam/rate-limiter.service.ts) runs **a single Bottleneck instance for the entire Steam Web API surface** — 100,000 calls per 24 h, 5 req/s, 4 concurrent. The `family` labels (`store-items`, `appdetails`, `player-summaries`) are log tags, not separate reservoirs.
 
