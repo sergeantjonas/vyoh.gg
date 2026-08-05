@@ -74,6 +74,6 @@ Three details worth keeping:
 
 Nothing in this arc. The residual risk is now a full day rather than a week or a month, and it self-corrects on restart.
 
-The one thing to re-check when hosting lands: with the process up continuously, the daily ticks carry the load and the boot passes become the deploy-time safety net they were designed to be. If the Steam budget ever tightens, the caps and windows in each poller are the knobs — they were set to preserve the previous effective cadence, not to a measured limit.
+The one thing to re-check when hosting lands: with the process up continuously the daily ticks carry the load, and the boot passes become the deploy-time safety net they were designed to be — deploys land exactly the kind of short downtime that used to eat a whole fire. If the Steam budget ever tightens, the caps and windows in each poller are the knobs; they were set to preserve each poller's previous effective cadence, not to a measured limit.
 
-This matters more, not less, once hosting lands: the process will be up continuously, but deploys land exactly the kind of short downtime that eats a single fire. The portrait arc's chunk 0 already recorded the same underlying constraint from the other side — `SteamPlaySession` misses launches because the poller only runs on the dev box (see [player-portrait.md](../steam/player-portrait.md)).
+The portrait arc's chunk 0 recorded the same underlying constraint from the other side — `SteamPlaySession` misses launches because the poller only runs on the dev box (see [player-portrait.md](../steam/player-portrait.md)). That one is not fixed by this arc: a missed *launch* is an event with no row to age, so there is nothing for a staleness pass to find. It needs hosting, not a better selection query.
