@@ -188,8 +188,17 @@ describe("SteamAchievementSchemaPoller", () => {
 });
 
 describe("SteamTagPoller", () => {
-  function setup(opts: { count?: number } = {}) {
-    const prisma = { steamTag: { count: vi.fn().mockResolvedValue(opts.count ?? 0) } };
+  function setup(opts: { ageDays?: number | null } = {}) {
+    const age = opts.ageDays === undefined ? null : opts.ageDays;
+    const prisma = {
+      steamTag: {
+        findFirst: vi
+          .fn()
+          .mockResolvedValue(
+            age === null ? null : { updatedAt: new Date(Date.now() - age * 86_400_000) }
+          ),
+      },
+    };
     const service = { syncTags: vi.fn().mockResolvedValue(undefined) };
     return {
       poller: new SteamTagPoller(
@@ -201,19 +210,28 @@ describe("SteamTagPoller", () => {
   }
 
   it("onModuleInit pulls the catalog when the table is empty", async () => {
-    const { poller, service } = setup({ count: 0 });
+    const { poller, service } = setup({ ageDays: null });
     await poller.onModuleInit();
     expect(service.syncTags).toHaveBeenCalled();
   });
 
-  it("onModuleInit no-ops when the table is already populated", async () => {
-    const { poller, service } = setup({ count: 1200 });
+  it("onModuleInit no-ops when the catalog is populated and fresh", async () => {
+    const { poller, service } = setup({ ageDays: 3 });
     await poller.onModuleInit();
     expect(service.syncTags).not.toHaveBeenCalled();
   });
 
+  // The failure this replaced: a populated-but-stale catalog had no path back,
+  // because boot returned early on row count and the monthly cron that would
+  // have refreshed it is the one that already didn't fire.
+  it("onModuleInit refreshes a populated catalog older than the cron interval", async () => {
+    const { poller, service } = setup({ ageDays: 45 });
+    await poller.onModuleInit();
+    expect(service.syncTags).toHaveBeenCalled();
+  });
+
   it("onModuleInit swallows errors from syncTags", async () => {
-    const prisma = { steamTag: { count: vi.fn().mockResolvedValue(0) } };
+    const prisma = { steamTag: { findFirst: vi.fn().mockResolvedValue(null) } };
     const service = { syncTags: vi.fn().mockRejectedValue(new Error("steam down")) };
     const poller = new SteamTagPoller(
       prisma as unknown as PrismaService,

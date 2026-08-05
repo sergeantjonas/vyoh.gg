@@ -7,10 +7,15 @@ import { SteamTagService } from "./tag.service";
 // enrichment cron so the two never overlap. The catalog rarely changes in
 // shape (Steam adds tags occasionally), so a monthly cadence is plenty.
 //
-// On-boot backfill runs only when the table is empty so a first deploy ships
-// a populated catalog without waiting for the next cron tick. Subsequent
-// reboots are no-ops — re-pulling thousands of tags on every container start
-// would burn budget for no gain over the monthly refresh.
+// On-boot backfill runs when the catalog is empty *or* older than the cron
+// interval it is meant to be kept at. Emptiness alone is not enough: a
+// monthly cron only fires if the process happens to be alive at 04:45 on the
+// 1st, and `@nestjs/schedule` does not replay a fire it missed. A catalog
+// that is populated but four months stale then has no path back — boot
+// returns early because rows exist, and the cron that would refresh them is
+// the one that already didn't run. Checking age instead means a restart
+// reconciles, which is the one event guaranteed to happen after downtime.
+const CATALOG_MAX_AGE_MS = 31 * 24 * 60 * 60 * 1000;
 @Injectable()
 export class SteamTagPoller implements OnModuleInit {
   private readonly logger = new Logger(SteamTagPoller.name);
@@ -22,9 +27,17 @@ export class SteamTagPoller implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
-    const count = await this.prisma.steamTag.count();
-    if (count > 0) return;
-    this.logger.log("tag catalog empty at boot — pulling initial catalog");
+    const newest = await this.prisma.steamTag.findFirst({
+      orderBy: { updatedAt: "desc" },
+      select: { updatedAt: true },
+    });
+    const age = newest ? Date.now() - newest.updatedAt.getTime() : null;
+    if (age !== null && age < CATALOG_MAX_AGE_MS) return;
+    this.logger.log(
+      newest
+        ? `tag catalog is ${Math.floor((age ?? 0) / 86_400_000)} days old at boot — refreshing`
+        : "tag catalog empty at boot — pulling initial catalog"
+    );
     try {
       await this.service.syncTags();
     } catch (err) {
