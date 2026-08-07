@@ -9,6 +9,49 @@ const REMAKE_SCAN_ROOTS = ["apps/web/src", "apps/api/src", "packages/shared/src"
 
 const TITLE_SCAN_ROOTS = ["apps/web/src"];
 
+const TIMEZONE_SCAN_ROOTS = ["apps/web/src"];
+
+// Date/time fields that mark a `.toLocaleString` options object as formatting a
+// date rather than a number. `.toLocaleString` is the overloaded one: it is
+// mostly `count.toLocaleString("en-GB")` in this repo, and a lint that flagged
+// those would be turned off rather than obeyed.
+const DATE_FIELDS =
+  /\b(?:dateStyle|timeStyle|weekday|era|year|month|day|hour|minute|second|dayPeriod|timeZoneName)\s*:/;
+
+/**
+ * Every `Intl.DateTimeFormat` / `toLocale*String` call in `text` that renders a
+ * date without naming a zone. Scans by matching parens rather than by regex so
+ * a nested or multi-line options object is read as one call.
+ */
+function unpinnedFormatters(text: string): Array<{ line: number; snippet: string }> {
+  const CALL = /\b(?:new Intl\.DateTimeFormat|\.toLocale(?:Date|Time)?String)\s*\(/g;
+  const out: Array<{ line: number; snippet: string }> = [];
+  for (const m of text.matchAll(CALL)) {
+    const open = m.index + m[0].length - 1;
+    let depth = 0;
+    let args = "";
+    for (let i = open; i < text.length; i++) {
+      if (text[i] === "(") depth++;
+      else if (text[i] === ")") {
+        depth--;
+        if (depth === 0) {
+          args = text.slice(open + 1, i);
+          break;
+        }
+      }
+    }
+    if (/\btimeZone\s*:/.test(args)) continue;
+    // `.toLocaleString` only counts when its options say it means a date.
+    const ambiguous = m[0].startsWith(".toLocaleString");
+    if (ambiguous && !DATE_FIELDS.test(args)) continue;
+    out.push({
+      line: text.slice(0, m.index).split("\n").length,
+      snippet: m[0].slice(0, -1).trim(),
+    });
+  }
+  return out;
+}
+
 // excludeRemakes() itself is allowed to inline the filter — it *is* the helper.
 const REMAKE_ALLOWLIST = new Set([
   path.join(WORKSPACE_ROOT, "packages/shared/src/lol/exclude-remakes.ts"),
@@ -422,5 +465,52 @@ describe("project conventions (structural lints)", () => {
     ).toBe(false);
 
     expect(methodBody("class X {}", "resolveSummoner")).toBeNull();
+  });
+
+  // repo-conventions.md: "The production image is a different environment" —
+  // an Intl formatter with no `timeZone` resolves to the process zone, so a UTC
+  // container and a visitor's browser disagree on any date near midnight and
+  // React discards the server-rendered tree. The page still looks fine, which
+  // is why this needs a lint rather than review.
+  //
+  // Balanced-paren scanning, not a regex: the options object nests, and the
+  // 2026-08-07 sweep had formatters spanning six lines. A line-oriented rule
+  // reads every one of those as unpinned.
+  it("no unpinned date formatter in web", () => {
+    const hits = collect(TIMEZONE_SCAN_ROOTS, (text) =>
+      unpinnedFormatters(text).map((f) => `L${f.line}: ${f.snippet}`)
+    );
+    expect(
+      hits,
+      "Pass timeZone (OWNER_TIME_ZONE, or UTC for upstream date-only values)"
+    ).toEqual([]);
+  });
+
+  // Guards the guard. `.toLocaleString` is the ambiguous one — it formats
+  // numbers far more often than dates in this repo, and flagging
+  // `count.toLocaleString("en-GB")` would get the lint disabled within a week.
+  // So it counts only when the options carry a date/time field, while
+  // toLocaleDateString / toLocaleTimeString / Intl.DateTimeFormat always do.
+  it("the timezone lint spares number formatting and multi-line pinned formatters", () => {
+    const flagged = [
+      'new Intl.DateTimeFormat("en-GB", { month: "short" })',
+      "d.toLocaleDateString()",
+      'd.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })',
+    ];
+    for (const src of flagged) expect(unpinnedFormatters(src)).toHaveLength(1);
+
+    const spared = [
+      // Numbers, which is what .toLocaleString overwhelmingly means here.
+      'count.toLocaleString("en-GB")',
+      'n.toLocaleString("en-US", { maximumFractionDigits: 1 })',
+      // Pinned, including across the line breaks Biome introduces.
+      'new Intl.DateTimeFormat("en-GB", { day: "numeric", timeZone: OWNER_TIME_ZONE })',
+      'new Intl.DateTimeFormat("en-GB", {\n  month: "short",\n  timeZone: OWNER_TIME_ZONE,\n})',
+      // UTC is a deliberate pin for upstream date-only values, not a miss.
+      'new Intl.DateTimeFormat("en-US", { year: "numeric", timeZone: "UTC" })',
+      // A nested object must not hide the zone from the scan.
+      'new Intl.DateTimeFormat("en-GB", { ...base, timeZone: OWNER_TIME_ZONE })',
+    ];
+    for (const src of spared) expect(unpinnedFormatters(src)).toEqual([]);
   });
 });
