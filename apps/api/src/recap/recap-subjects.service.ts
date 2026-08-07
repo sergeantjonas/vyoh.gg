@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import type { RecapCandidate, RecapChapterDescriptor } from "@vyoh/shared";
-import { ageBucketFromDaysSince, selectChapters } from "@vyoh/shared";
+import { ageBucketFromDaysSince, recapScore, selectChapters } from "@vyoh/shared";
 
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamOwnedGamesService } from "../steam/owned-games.service";
@@ -70,35 +70,61 @@ export class RecapSubjectsService {
 
     // Steam-moment ↔ steam-subject dedup, momentType-scoped. FIRST_TIME_GAME
     // and "Playing lately" overlap by construction — a freshly-added game
-    // with hours of recent play would fire both, surfacing the same appid
-    // in two adjacent chapters with conflicting editorial registers, so the
-    // moment wins and the subject candidate is dropped. ACHIEVEMENT_CLUSTER
-    // is different: a binge day on a recently-played game is a COMPLEMENTARY
-    // fact ("you also unlocked 5 in one sitting"), not a substitute framing.
-    // Stripping the subject in that case sends the prominent chapter slot to
-    // a less-played game while the actually-active game only appears as one
-    // of up to 3 small Highlights tiles — which reads as a bug to anyone
-    // looking at the page. So narrow the dedup to FIRST_TIME_GAME only.
-    // Runs PRE-selection so the steam-subject cap doesn't get burned on a
-    // row that's about to be dropped.
+    // with hours of recent play fires both, and the two are genuinely
+    // exclusive framings of the same appid, so one of them has to lose.
+    // ACHIEVEMENT_CLUSTER is different: a binge day on a recently-played
+    // game is a COMPLEMENTARY fact ("you also unlocked 5 in one sitting"),
+    // not a substitute framing. Stripping the subject in that case sends the
+    // prominent chapter slot to a less-played game while the actually-active
+    // game only appears as one of up to 3 small Highlights tiles — which
+    // reads as a bug to anyone looking at the page. So the dedup is narrowed
+    // to FIRST_TIME_GAME only.
+    //
+    // Which side loses is a question about the game, not about the kind.
+    // Hardcoding "the moment wins" is right for a game opened once for forty
+    // minutes, where "first time loading X" is the whole story — and wrong
+    // for one that pulled 9h across its first two days, where a Highlights
+    // tile buries the strongest Steam signal on the page behind five dormant
+    // subjects. Both sides carry a comparable score (same `recapScore`
+    // decay, calibrated against the same floor), so let the score decide and
+    // drop the loser. Runs PRE-selection so neither cap gets burned on a row
+    // that's about to be dropped.
     const allSteamMomentAppids = new Set(
       steamMomentCandidates
         .filter((c) => c.kind === "steam-moment")
         .map((c) => (c.kind === "steam-moment" ? c.appid : -1))
     );
-    const firstTimeMomentAppids = new Set(
-      steamMomentCandidates
-        .filter((c) => c.kind === "steam-moment" && c.momentType === "FIRST_TIME_GAME")
-        .map((c) => (c.kind === "steam-moment" ? c.appid : -1))
-    );
-    const filteredSteamCandidates = steamCandidates.filter(
-      (c) => c.kind !== "steam-subject" || !firstTimeMomentAppids.has(c.appid)
+    const firstTimeByAppid = new Map<number, RecapCandidate>();
+    for (const c of steamMomentCandidates) {
+      if (c.kind === "steam-moment" && c.momentType === "FIRST_TIME_GAME") {
+        firstTimeByAppid.set(c.appid, c);
+      }
+    }
+    const outscoredMomentAppids = new Set<number>();
+    const filteredSteamCandidates = steamCandidates.filter((c) => {
+      if (c.kind !== "steam-subject") return true;
+      const moment = firstTimeByAppid.get(c.appid);
+      if (!moment) return true;
+      if (
+        recapScore(c.baseSignal, c.daysSince) <=
+        recapScore(moment.baseSignal, moment.daysSince)
+      ) {
+        return false;
+      }
+      outscoredMomentAppids.add(c.appid);
+      return true;
+    });
+    const filteredSteamMomentCandidates = steamMomentCandidates.filter(
+      (c) =>
+        c.kind !== "steam-moment" ||
+        c.momentType !== "FIRST_TIME_GAME" ||
+        !outscoredMomentAppids.has(c.appid)
     );
 
     const active = selectChapters([
       ...filteredSteamCandidates,
       ...lolMomentCandidates,
-      ...steamMomentCandidates,
+      ...filteredSteamMomentCandidates,
     ]);
 
     // Dormant top-up. The active branch surfaces "Playing lately" games via
@@ -242,18 +268,36 @@ export class RecapSubjectsService {
   ): Promise<RecapChapterDescriptor[]> {
     // Only the unfiltered lastUnlock groupBy is needed here — dormant
     // ranking is by `freshest`, not by recent activity, so the 14d-window
-    // count is irrelevant.
-    const [ownedGames, lastUnlockRows] = await Promise.all([
+    // count is irrelevant. The snapshot rows back the brief-launch floor
+    // below; `gt: 0` keeps the read tiny (a couple hundred rows), since the
+    // column is null for every game outside its own two-week window.
+    const [ownedGames, lastUnlockRows, playtime2WRows] = await Promise.all([
       this.ownedGames.getOwnedGames(),
       this.prisma.steamPlayerUnlock.groupBy({
         by: ["appid"],
         _max: { unlockedAt: true },
+      }),
+      this.prisma.steamPlaytimeSnapshot.findMany({
+        where: { playtime2WeeksMinutes: { gt: 0 } },
+        select: { appid: true, snapshotDate: true, playtime2WeeksMinutes: true },
       }),
     ]);
 
     const lastUnlockByAppid = new Map<number, Date | null>(
       lastUnlockRows.map((row) => [row.appid, row._max.unlockedAt ?? null])
     );
+
+    const playtime2WHistory = new Map<number, Array<{ at: number; minutes: number }>>();
+    for (const row of playtime2WRows) {
+      if (row.playtime2WeeksMinutes === null) continue;
+      const entry = {
+        at: row.snapshotDate.getTime(),
+        minutes: row.playtime2WeeksMinutes,
+      };
+      const existing = playtime2WHistory.get(row.appid);
+      if (existing) existing.push(entry);
+      else playtime2WHistory.set(row.appid, [entry]);
+    }
 
     const ranked: Array<{
       appid: number;
@@ -275,18 +319,39 @@ export class RecapSubjectsService {
       if (lifetimeHours < DORMANT_LIFETIME_FLOOR_HOURS) continue;
 
       const lastUnlockMs = lastUnlockByAppid.get(game.appid)?.getTime() ?? null;
+      const lastPlayedAtMs = game.rtimeLastPlayedAt
+        ? new Date(game.rtimeLastPlayedAt).getTime()
+        : null;
       // Brief-launch floor: a non-zero but tiny 2w playtime (e.g. 3 minutes)
       // means the game was opened recently but not actually played. Treat the
       // `rtimeLastPlayedAt` signal as untrustworthy in this case and fall
       // through to the unlock signal for `freshest`. If the user launched it
       // for testing/checking, we don't want it crowding RE3/RE4 sessions
       // that *were* real play but happened weeks ago.
-      const playtime2W = game.playtime2WeeksMinutes ?? 0;
+      //
+      // Read that evidence out of the snapshot history rather than off the
+      // live field. Steam omits `playtime_2weeks` entirely once the window
+      // rolls past the session, so it arrives as null — and null loses to
+      // the `> 0` test below, which silently exempts precisely the launches
+      // this floor exists to catch. Every dormant game is null by then, so
+      // the guard could only ever fire in the ~14 days before a game became
+      // dormant. The history keeps a reading taken while the window still
+      // covered the session, so a 10-minute launch stays a 10-minute launch
+      // however long ago it happened. Snapshots dated on or before the
+      // session are excluded: `snapshotDate` is a date-only column, so a
+      // same-day row sits at midnight and describes the state *before* the
+      // launch. Nothing is lost by skipping it — the window keeps reporting
+      // the session for another two weeks of rows.
+      const observed2W = (playtime2WHistory.get(game.appid) ?? []).reduce(
+        (max, entry) =>
+          lastPlayedAtMs !== null && entry.at >= lastPlayedAtMs
+            ? Math.max(max, entry.minutes)
+            : max,
+        0
+      );
+      const playtime2W = Math.max(game.playtime2WeeksMinutes ?? 0, observed2W);
       const brieflyLaunched = playtime2W > 0 && playtime2W < BRIEF_LAUNCH_2W_MINUTES;
-      const lastPlayedMs =
-        !brieflyLaunched && game.rtimeLastPlayedAt
-          ? new Date(game.rtimeLastPlayedAt).getTime()
-          : null;
+      const lastPlayedMs = brieflyLaunched ? null : lastPlayedAtMs;
       const freshest =
         lastUnlockMs !== null && lastPlayedMs !== null
           ? Math.max(lastUnlockMs, lastPlayedMs)

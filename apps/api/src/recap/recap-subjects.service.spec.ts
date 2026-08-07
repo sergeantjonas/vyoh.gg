@@ -67,10 +67,17 @@ interface RecentUnlockRow {
   _count: { apiName: number };
 }
 
+interface Playtime2WRow {
+  appid: number;
+  snapshotDate: Date;
+  playtime2WeeksMinutes: number | null;
+}
+
 function makeService(
   games: SteamOwnedGame[],
   lastUnlockRows: LastUnlockRow[] = [],
-  recentUnlockRows: RecentUnlockRow[] = []
+  recentUnlockRows: RecentUnlockRow[] = [],
+  playtime2WRows: Playtime2WRow[] = []
 ): RecapSubjectsService {
   const ownedGames = {
     getOwnedGames: vi.fn().mockResolvedValue(makeOwnedGames(games)),
@@ -86,6 +93,9 @@ function makeService(
         .mockImplementation((args: { where?: unknown }) =>
           Promise.resolve(args.where ? recentUnlockRows : lastUnlockRows)
         ),
+    },
+    steamPlaytimeSnapshot: {
+      findMany: vi.fn().mockResolvedValue(playtime2WRows),
     },
   } as unknown as PrismaService;
   // LoL + Steam moment services default to empty so the existing steam-
@@ -444,6 +454,146 @@ describe("RecapSubjectsService.getChapters", () => {
       ]);
     });
 
+    it("reads the brief-launch floor off snapshot history once the 2w window has rolled", async () => {
+      // Regression: the live `playtime2WeeksMinutes` is null for every
+      // dormant game, because Steam drops the field once the window rolls
+      // past the session. `playtime2W > 0` therefore failed on exactly the
+      // launches the floor exists to catch — a 10-minute Requiem launch to
+      // check GPU settings, 17d ago, took the top dormant slot ahead of
+      // Sekiro's 10h playthrough. The snapshot taken while the window still
+      // covered the launch preserves the reading, so the floor can still
+      // fire. Note both games report null today: the discriminator is the
+      // history, not the current value.
+      const requiemLastPlayed = new Date(NOW.getTime() - 17 * 24 * 60 * 60 * 1000);
+      const sekiroLastPlayed = new Date(NOW.getTime() - 40 * 24 * 60 * 60 * 1000);
+      const requiemUnlock = new Date(NOW.getTime() - 180 * 24 * 60 * 60 * 1000);
+      const service = makeService(
+        [
+          makeOwnedGame({
+            appid: 3764200, // Requiem shape
+            name: "Resident Evil Requiem",
+            playtimeForeverMinutes: 60 * 43,
+            playtime2WeeksMinutes: null,
+            rtimeLastPlayedAt: requiemLastPlayed.toISOString(),
+          }),
+          makeOwnedGame({
+            appid: 814380, // Sekiro shape
+            name: "Sekiro",
+            playtimeForeverMinutes: 60 * 53,
+            playtime2WeeksMinutes: null,
+            rtimeLastPlayedAt: sekiroLastPlayed.toISOString(),
+          }),
+        ],
+        [
+          { appid: 3764200, _max: { unlockedAt: requiemUnlock } },
+          { appid: 814380, _max: { unlockedAt: sekiroLastPlayed } },
+        ],
+        [],
+        [
+          // Taken 2d after each session, while the window still covered it.
+          {
+            appid: 3764200,
+            snapshotDate: new Date(requiemLastPlayed.getTime() + 2 * 24 * 60 * 60 * 1000),
+            playtime2WeeksMinutes: 10, // the GPU-settings launch
+          },
+          {
+            appid: 814380,
+            snapshotDate: new Date(sekiroLastPlayed.getTime() + 2 * 24 * 60 * 60 * 1000),
+            playtime2WeeksMinutes: 596, // a real playthrough
+          },
+        ]
+      );
+
+      const chapters = await service.getChapters(NOW);
+      expect(chapters.map((c) => (c.kind === "steam-subject" ? c.appid : -1))).toEqual([
+        814380, 3764200,
+      ]);
+    });
+
+    it("keeps trusting lastPlayed when no snapshot covers the session", async () => {
+      // Games last played before snapshot coverage began have no evidence
+      // either way. Absence of a reading must not be read as a brief launch —
+      // that would demote every pre-history game to its unlock date and drop
+      // the ones with no achievements out of the dormant branch entirely.
+      const recent = new Date(NOW.getTime() - 20 * 24 * 60 * 60 * 1000);
+      const older = new Date(NOW.getTime() - 60 * 24 * 60 * 60 * 1000);
+      const service = makeService(
+        [
+          makeOwnedGame({
+            appid: 1,
+            name: "No Snapshot Coverage",
+            playtimeForeverMinutes: 60 * 30,
+            playtime2WeeksMinutes: null,
+            rtimeLastPlayedAt: recent.toISOString(),
+          }),
+          makeOwnedGame({
+            appid: 2,
+            name: "Older",
+            playtimeForeverMinutes: 60 * 30,
+            playtime2WeeksMinutes: null,
+            rtimeLastPlayedAt: older.toISOString(),
+          }),
+        ],
+        [],
+        [],
+        []
+      );
+
+      const chapters = await service.getChapters(NOW);
+      expect(chapters.map((c) => (c.kind === "steam-subject" ? c.appid : -1))).toEqual([
+        1, 2,
+      ]);
+    });
+
+    it("ignores snapshots predating the session when applying the brief-launch floor", async () => {
+      // `snapshotDate` is a date-only column, so a row keyed to the session's
+      // own day sits at midnight and describes the state *before* the launch.
+      // Counting it would let an old playthrough's reading vouch for a later
+      // brief launch. Here the pre-session reading is 596m and the only
+      // post-session one is 10m — the floor must still fire.
+      const lastPlayed = new Date(NOW.getTime() - 17 * 24 * 60 * 60 * 1000);
+      const unlock = new Date(NOW.getTime() - 180 * 24 * 60 * 60 * 1000);
+      const service = makeService(
+        [
+          makeOwnedGame({
+            appid: 1,
+            name: "Relaunched",
+            playtimeForeverMinutes: 60 * 43,
+            playtime2WeeksMinutes: null,
+            rtimeLastPlayedAt: lastPlayed.toISOString(),
+          }),
+          makeOwnedGame({
+            appid: 2,
+            name: "Older Real Session",
+            playtimeForeverMinutes: 60 * 20,
+            playtime2WeeksMinutes: null,
+            rtimeLastPlayedAt: new Date(
+              NOW.getTime() - 30 * 24 * 60 * 60 * 1000
+            ).toISOString(),
+          }),
+        ],
+        [{ appid: 1, _max: { unlockedAt: unlock } }],
+        [],
+        [
+          {
+            appid: 1,
+            snapshotDate: new Date(lastPlayed.getTime() - 5 * 24 * 60 * 60 * 1000),
+            playtime2WeeksMinutes: 596,
+          },
+          {
+            appid: 1,
+            snapshotDate: new Date(lastPlayed.getTime() + 2 * 24 * 60 * 60 * 1000),
+            playtime2WeeksMinutes: 10,
+          },
+        ]
+      );
+
+      const chapters = await service.getChapters(NOW);
+      expect(chapters.map((c) => (c.kind === "steam-subject" ? c.appid : -1))).toEqual([
+        2, 1,
+      ]);
+    });
+
     it("drops dormant candidates below the lifetime floor", async () => {
       // A briefly-launched-but-never-actually-played game must not surface
       // in the dormant branch — the lifetime floor is the gate that distinguishes
@@ -530,6 +680,9 @@ describe("RecapSubjectsService.getChapters", () => {
         steamPlayerUnlock: {
           groupBy: vi.fn().mockResolvedValue([]),
         },
+        steamPlaytimeSnapshot: {
+          findMany: vi.fn().mockResolvedValue([]),
+        },
       } as unknown as PrismaService;
       const lolMoments = {
         detectAll: vi.fn().mockResolvedValue([
@@ -568,19 +721,21 @@ describe("RecapSubjectsService.getChapters", () => {
   });
 
   describe("Steam moment ↔ steam-subject dedup", () => {
-    it("suppresses the steam-subject row when the same appid surfaces as a FIRST_TIME_GAME", async () => {
-      // A freshly-added game with hours of recent play would qualify for
-      // both: steam-subject ("Playing lately") AND steam-moment
-      // (FIRST_TIME_GAME). The moment is the more interesting framing —
-      // the dedup keeps it and drops the subject so the same appid doesn't
-      // appear in two adjacent chapters with conflicting registers.
+    it("suppresses the steam-subject row when a FIRST_TIME_GAME outscores it", async () => {
+      // A freshly-added game with recent play qualifies for both:
+      // steam-subject ("Playing lately") AND steam-moment (FIRST_TIME_GAME).
+      // They're exclusive framings of one appid, so the higher score wins.
+      // Here the subject clears the floor on its own (6h recent, no unlocks
+      // → 6) but the moment outscores it (10 decayed over 3d ≈ 8.6), so
+      // "first time loading X" is the better story and the subject is
+      // dropped before scoring rather than by the floor.
       const ownedGames = {
         getOwnedGames: vi.fn().mockResolvedValue(
           makeOwnedGames([
             makeOwnedGame({
               appid: 2050650,
               name: "Resident Evil 4",
-              playtime2WeeksMinutes: 60 * 8, // 8h recent
+              playtime2WeeksMinutes: 60 * 6, // 6h recent → baseSignal 6
               rtimeLastPlayedAt: NOW.toISOString(),
             }),
           ])
@@ -592,11 +747,12 @@ describe("RecapSubjectsService.getChapters", () => {
             .fn()
             .mockImplementation((args: { where?: unknown }) =>
               Promise.resolve(
-                args.where
-                  ? [{ appid: 2050650, _count: { apiName: 5 } }]
-                  : [{ appid: 2050650, _max: { unlockedAt: NOW } }]
+                args.where ? [] : [{ appid: 2050650, _max: { unlockedAt: NOW } }]
               )
             ),
+        },
+        steamPlaytimeSnapshot: {
+          findMany: vi.fn().mockResolvedValue([]),
         },
       } as unknown as PrismaService;
       const lolMoments = {
@@ -636,6 +792,83 @@ describe("RecapSubjectsService.getChapters", () => {
       expect(chapters.filter((c) => c.kind === "steam-moment")).toHaveLength(1);
     });
 
+    it("keeps the steam-subject row when it outscores the FIRST_TIME_GAME", async () => {
+      // The converse, and the case that made the dedup score-based:
+      // 9.5h across the first two days with 12 unlocks is the strongest
+      // Steam signal on the page (baseSignal 9.5 + 6 = 15.5). Moments render
+      // after every subject, so hardcoding "the moment wins" buried it as
+      // one tile in the closing Highlights rack, behind five dormant
+      // subjects — while the FIRST_TIME detector scored it at 7.2, because
+      // its signal is observed session minutes and the poller only saw part
+      // of the play. The subject wins and the moment is dropped.
+      const ownedGames = {
+        getOwnedGames: vi.fn().mockResolvedValue(
+          makeOwnedGames([
+            makeOwnedGame({
+              appid: 2001760,
+              name: "Beast of Reincarnation",
+              playtimeForeverMinutes: 569,
+              playtime2WeeksMinutes: 569, // 9.5h, all of it in the window
+              rtimeLastPlayedAt: NOW.toISOString(),
+            }),
+          ])
+        ),
+      } as unknown as SteamOwnedGamesService;
+      const prisma = {
+        steamPlayerUnlock: {
+          groupBy: vi
+            .fn()
+            .mockImplementation((args: { where?: unknown }) =>
+              Promise.resolve(
+                args.where
+                  ? [{ appid: 2001760, _count: { apiName: 12 } }]
+                  : [{ appid: 2001760, _max: { unlockedAt: NOW } }]
+              )
+            ),
+        },
+        steamPlaytimeSnapshot: {
+          findMany: vi.fn().mockResolvedValue([]),
+        },
+      } as unknown as PrismaService;
+      const lolMoments = {
+        detectAll: vi.fn().mockResolvedValue([]),
+      } as unknown as LolMomentsService;
+      const steamMoments = {
+        detectAll: vi.fn().mockResolvedValue([
+          {
+            kind: "steam-moment",
+            slug: "steam-moment-first-2001760",
+            momentType: "FIRST_TIME_GAME",
+            appid: 2001760,
+            name: "Beast of Reincarnation",
+            baseSignal: 108 / 15, // observed session minutes / signal divisor
+            daysSince: 0,
+            firstTime: {
+              windowPlayMinutes: 108,
+              sessionCount: 7,
+              firstSessionMinutes: 32,
+              addedAt: "2026-05-25T08:25:18.000Z",
+              firstPlayedAt: "2026-05-30T22:15:49.000Z",
+            },
+          },
+        ]),
+      } as unknown as SteamMomentsService;
+      const service = new RecapSubjectsService(
+        ownedGames,
+        prisma,
+        lolMoments,
+        steamMoments
+      );
+
+      const chapters = await service.getChapters(NOW);
+      expect(chapters.filter((c) => c.kind === "steam-moment")).toHaveLength(0);
+      const subjects = chapters.filter((c) => c.kind === "steam-subject");
+      expect(subjects).toHaveLength(1);
+      expect(subjects[0]?.kind === "steam-subject" && subjects[0].appid).toBe(2001760);
+      // And it leads the page rather than trailing the dormant block.
+      expect(chapters[0]?.kind).toBe("steam-subject");
+    });
+
     it("keeps the steam-subject row when the same appid surfaces only as an ACHIEVEMENT_CLUSTER", async () => {
       // An ACHIEVEMENT_CLUSTER is a complementary fact ("you binged 5 in
       // one sitting"), not a substitute framing for "Playing lately".
@@ -667,6 +900,9 @@ describe("RecapSubjectsService.getChapters", () => {
                   : [{ appid: 2050650, _max: { unlockedAt: NOW } }]
               )
             ),
+        },
+        steamPlaytimeSnapshot: {
+          findMany: vi.fn().mockResolvedValue([]),
         },
       } as unknown as PrismaService;
       const lolMoments = {
@@ -715,6 +951,9 @@ describe("RecapSubjectsService.getChapters", () => {
       const prisma = {
         steamPlayerUnlock: {
           groupBy: vi.fn().mockResolvedValue([]),
+        },
+        steamPlaytimeSnapshot: {
+          findMany: vi.fn().mockResolvedValue([]),
         },
       } as unknown as PrismaService;
       const lolMoments = {
