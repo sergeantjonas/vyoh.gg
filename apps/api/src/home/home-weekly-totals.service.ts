@@ -1,9 +1,9 @@
 import { Injectable } from "@nestjs/common";
 import type { HomeWeeklyTotals } from "@vyoh/shared";
+import { OWNER_TIME_ZONE } from "@vyoh/shared";
 import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
 
-const TIME_ZONE = "Europe/Brussels";
 const WINDOW_DAYS = 7;
 
 export interface PlaytimeSnapshotRow {
@@ -88,7 +88,7 @@ export class HomeWeeklyTotalsService {
       totalMinutes: lolMinutes + steamMinutes,
       weekStart: weekStart.toISOString(),
       weekEnd: weekEnd.toISOString(),
-      timeZone: TIME_ZONE,
+      timeZone: OWNER_TIME_ZONE,
     };
   }
 }

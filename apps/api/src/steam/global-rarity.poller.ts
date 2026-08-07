@@ -1,5 +1,6 @@
 import { Injectable, Logger, type OnModuleInit } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
+import { OWNER_TIME_ZONE } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamGlobalRarityService } from "./global-rarity.service";
 
@@ -41,7 +42,7 @@ export class SteamGlobalRarityPoller implements OnModuleInit {
 
   // Daily at 05:30 Europe/Brussels, 30 min after the schema tick so the two
   // never overlap. Was Sunday-only until 2026-08-06.
-  @Cron("30 5 * * *", { name: "steam-global-rarity", timeZone: "Europe/Brussels" })
+  @Cron("30 5 * * *", { name: "steam-global-rarity", timeZone: OWNER_TIME_ZONE })
   async tick(): Promise<void> {
     if (this.running) {
       this.logger.warn("previous tick still running — skipping");

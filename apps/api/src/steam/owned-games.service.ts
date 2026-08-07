@@ -10,6 +10,7 @@ import type {
   SteamReviewSummary,
   SteamScreenshotEntry,
 } from "@vyoh/shared";
+import { OWNER_TIME_ZONE } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamAchievementSchemaService } from "./achievement-schema.service";
 import { SteamEnrichmentService } from "./enrichment.service";
@@ -124,7 +125,7 @@ export class SteamOwnedGamesService {
       select: { appid: true, removedAt: true },
     });
     const diff = diffOwnedGames(games, previous);
-    const snapshotDate = localDateBucket(now, "Europe/Brussels");
+    const snapshotDate = localDateBucket(now, OWNER_TIME_ZONE);
 
     await this.prisma.$transaction(async (tx) => {
       // Upsert each currently-owned game. firstSeenAt is only set on insert

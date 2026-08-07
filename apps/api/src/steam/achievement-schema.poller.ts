@@ -1,5 +1,6 @@
 import { Injectable, Logger, type OnModuleInit } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
+import { OWNER_TIME_ZONE } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamAchievementSchemaService } from "./achievement-schema.service";
 
@@ -46,7 +47,7 @@ export class SteamAchievementSchemaPoller implements OnModuleInit {
   // never overlap. Was Sunday-only until 2026-08-06.
   @Cron("0 5 * * *", {
     name: "steam-achievement-schema",
-    timeZone: "Europe/Brussels",
+    timeZone: OWNER_TIME_ZONE,
   })
   async tick(): Promise<void> {
     if (this.running) {

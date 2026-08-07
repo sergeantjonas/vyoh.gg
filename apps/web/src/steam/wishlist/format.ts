@@ -1,4 +1,8 @@
-import { type SteamWishlistItem, classifyReleasePrecision } from "@vyoh/shared";
+import {
+  OWNER_TIME_ZONE,
+  type SteamWishlistItem,
+  classifyReleasePrecision,
+} from "@vyoh/shared";
 
 import type { WishlistFact } from "@/steam/wishlist/wishlist-fact";
 
@@ -6,7 +10,7 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "short",
   year: "numeric",
-  timeZone: "Europe/Brussels",
+  timeZone: OWNER_TIME_ZONE,
 });
 
 // Release-date labels format the placeholder timestamp in UTC, matching the

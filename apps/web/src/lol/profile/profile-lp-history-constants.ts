@@ -1,5 +1,6 @@
 import type { RangeKey } from "@/lol/profile/use-rank-history";
 import type { RankedQueueKey } from "@vyoh/shared";
+import { OWNER_TIME_ZONE } from "@vyoh/shared";
 
 export const RANGE_LABEL: Record<RangeKey, string> = {
   "30d": "30d",
@@ -43,7 +44,7 @@ export const RESOLUTION_FOR_RANGE: Record<RangeKey, Resolution> = {
 };
 
 export const DAY_KEY_FMT = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "Europe/Brussels",
+  timeZone: OWNER_TIME_ZONE,
   year: "numeric",
   month: "2-digit",
   day: "2-digit",

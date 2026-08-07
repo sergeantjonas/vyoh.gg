@@ -1,9 +1,9 @@
 import { Injectable } from "@nestjs/common";
 import type { HomeDaySplit, HomeDaySplitHour } from "@vyoh/shared";
+import { OWNER_TIME_ZONE } from "@vyoh/shared";
 import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
 
-const TIME_ZONE = "Europe/Brussels";
 const MINUTE_MS = 60_000;
 
 export interface DaySplitInterval {
@@ -87,8 +87,8 @@ export class HomeDaySplitService {
       .filter((r): r is { startedAt: Date; endedAt: Date } => r.endedAt !== null)
       .map((r) => ({ startedAt: r.startedAt, endedAt: r.endedAt }));
 
-    const lolBuckets = splitIntervalsByHour(lolIntervals, TIME_ZONE);
-    const steamBuckets = splitIntervalsByHour(steamIntervals, TIME_ZONE);
+    const lolBuckets = splitIntervalsByHour(lolIntervals, OWNER_TIME_ZONE);
+    const steamBuckets = splitIntervalsByHour(steamIntervals, OWNER_TIME_ZONE);
 
     const hours = emptyHours().map((slot) => ({
       hour: slot.hour,
@@ -100,7 +100,7 @@ export class HomeDaySplitService {
       hours,
       totalLolMinutes: lolBuckets.reduce((a, b) => a + b, 0),
       totalSteamMinutes: steamBuckets.reduce((a, b) => a + b, 0),
-      timeZone: TIME_ZONE,
+      timeZone: OWNER_TIME_ZONE,
     };
   }
 }

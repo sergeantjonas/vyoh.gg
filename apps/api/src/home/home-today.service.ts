@@ -1,10 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import type { HomeToday } from "@vyoh/shared";
+import { OWNER_TIME_ZONE } from "@vyoh/shared";
 import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { clipSessionMinutes, startOfLocalDay } from "./home-activity-intensity.service";
 
-const TIME_ZONE = "Europe/Brussels";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
@@ -20,7 +20,7 @@ export class HomeTodayService {
     // so non-owner test accounts in accounts.json must not contribute.
     const ownerPuuids = await this.identity.getOwnerPuuids();
     const now = new Date();
-    const dayStart = startOfLocalDay(now, TIME_ZONE);
+    const dayStart = startOfLocalDay(now, OWNER_TIME_ZONE);
     const last24h = new Date(now.getTime() - DAY_MS);
     const sessionWindowStart = dayStart < last24h ? dayStart : last24h;
 
@@ -67,7 +67,7 @@ export class HomeTodayService {
       steamMinutes: clipSessionMinutes(sessionRows, dayStart, now),
       achievementUnlocks: unlockCount,
       asOf: now.toISOString(),
-      timeZone: TIME_ZONE,
+      timeZone: OWNER_TIME_ZONE,
     };
   }
 }

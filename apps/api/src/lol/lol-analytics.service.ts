@@ -17,6 +17,7 @@ import {
   excludeRemakes,
   replayHistory,
 } from "@vyoh/shared";
+import { OWNER_TIME_ZONE } from "@vyoh/shared";
 import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -419,7 +420,7 @@ export class LolAnalyticsService {
     if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
       throw new ForbiddenException("Account not in whitelist");
     }
-    const timezone = "Europe/Brussels";
+    const timezone = OWNER_TIME_ZONE;
     const emptyHours = () =>
       Array.from({ length: 24 }, (_, hour) => ({ hour, games: 0, wins: 0 }));
     const summoner = await this.prisma.summoner.findUnique({

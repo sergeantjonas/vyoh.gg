@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
+import { OWNER_TIME_ZONE } from "@vyoh/shared";
 import { SteamOwnedGamesService } from "./owned-games.service";
 
 // Steam's playtime is essentially read-only between launches — once-daily is
@@ -20,7 +21,7 @@ export class SteamOwnedGamesPoller {
   // Steam budget at this rate. Offset to xx:00 marks; unlocks poller offsets
   // to xx:05/20/35/50 to keep the on-add chain (owned → schema → unlocks)
   // ordered without contention.
-  @Cron("*/15 * * * *", { name: "steam-owned-games", timeZone: "Europe/Brussels" })
+  @Cron("*/15 * * * *", { name: "steam-owned-games", timeZone: OWNER_TIME_ZONE })
   async tick(): Promise<void> {
     if (this.running) {
       this.logger.warn("previous tick still running — skipping");

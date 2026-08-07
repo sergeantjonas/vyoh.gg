@@ -1,5 +1,6 @@
 import { Injectable, Logger, type OnModuleInit } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
+import { OWNER_TIME_ZONE } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamTagService } from "./tag.service";
 
@@ -47,7 +48,7 @@ export class SteamTagPoller implements OnModuleInit {
     }
   }
 
-  @Cron("45 4 1 * *", { name: "steam-tag-catalog", timeZone: "Europe/Brussels" })
+  @Cron("45 4 1 * *", { name: "steam-tag-catalog", timeZone: OWNER_TIME_ZONE })
   async tick(): Promise<void> {
     if (this.running) {
       this.logger.warn("previous tick still running — skipping");

@@ -1,8 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import type { SteamChronotype, SteamChronotypeHour } from "@vyoh/shared";
+import { OWNER_TIME_ZONE } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
-
-const TIME_ZONE = "Europe/Brussels";
 
 // Pure function — extracted so the spec can test bucketing without Prisma.
 export function bucketUnlocks(dates: Date[], timeZone: string): SteamChronotypeHour[] {
@@ -34,7 +33,7 @@ export class SteamChronotypeService {
     });
 
     const dates = rows.map((r) => r.unlockedAt);
-    const hours = bucketUnlocks(dates, TIME_ZONE);
-    return { hours, totalCount: dates.length, timeZone: TIME_ZONE };
+    const hours = bucketUnlocks(dates, OWNER_TIME_ZONE);
+    return { hours, totalCount: dates.length, timeZone: OWNER_TIME_ZONE };
   }
 }

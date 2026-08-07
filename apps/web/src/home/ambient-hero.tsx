@@ -1,3 +1,4 @@
+import { OWNER_TIME_ZONE } from "@vyoh/shared";
 import { type RefObject, useMemo } from "react";
 import { useAtmosphereClaim } from "./atmosphere/use-atmosphere-claim";
 
@@ -110,7 +111,7 @@ export function layerToCssGradient(layer: GradientLayer, intensity = 0.5): strin
 const brusselsHourFormatter = new Intl.DateTimeFormat("en-GB", {
   hour: "numeric",
   hour12: false,
-  timeZone: "Europe/Brussels",
+  timeZone: OWNER_TIME_ZONE,
 });
 
 export function currentBrusselsHour(): number {

@@ -12,6 +12,7 @@ export {
   formatTimeAgo,
   relativeTimeAgo,
 } from "./format.ts";
+export { OWNER_TIME_ZONE } from "./time-zone.ts";
 export { excludeRemakes } from "./lol/exclude-remakes.ts";
 export { isPersonalRecord } from "./lol/personal-records.ts";
 export type { PersonalRecordDirection } from "./lol/personal-records.ts";

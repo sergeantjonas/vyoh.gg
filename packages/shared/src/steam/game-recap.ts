@@ -1,4 +1,5 @@
 import type { VerdictClause } from "../lol/champion-recap.ts";
+import { OWNER_TIME_ZONE } from "../time-zone.ts";
 import type { SteamGameAchievements } from "./achievements.ts";
 import type { SteamOwnedGame } from "./owned-games.ts";
 import type { SteamScreenshotEntry } from "./screenshots.ts";
@@ -448,7 +449,7 @@ export function formatReleaseDateChip(
  */
 function brusselsWeekAnchor(date: Date): Date {
   const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Brussels",
+    timeZone: OWNER_TIME_ZONE,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

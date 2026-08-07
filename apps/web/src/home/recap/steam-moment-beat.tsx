@@ -4,7 +4,7 @@ import type {
   SteamFirstTimeStats,
   SteamMomentChapterDescriptor,
 } from "@vyoh/shared";
-import { formatPlaytime, formatReleaseDateChip } from "@vyoh/shared";
+import { OWNER_TIME_ZONE, formatPlaytime, formatReleaseDateChip } from "@vyoh/shared";
 import { Award, Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo } from "react";
@@ -273,7 +273,7 @@ function formatShortDate(iso: string): string {
   return d.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
-    timeZone: "Europe/Brussels",
+    timeZone: OWNER_TIME_ZONE,
   });
 }
 

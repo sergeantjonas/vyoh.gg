@@ -1,5 +1,6 @@
 import { Injectable, Logger, type OnModuleInit } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
+import { OWNER_TIME_ZONE } from "@vyoh/shared";
 import { SteamPlayerStateService } from "./player-state.service";
 
 // GetPlayerSummaries is the cheapest Steam endpoint we touch — one call per
@@ -33,7 +34,7 @@ export class SteamPlayerStatePoller implements OnModuleInit {
 
   @Cron("*/2 * * * *", {
     name: "steam-player-state",
-    timeZone: "Europe/Brussels",
+    timeZone: OWNER_TIME_ZONE,
   })
   async tick(): Promise<void> {
     if (this.running) {

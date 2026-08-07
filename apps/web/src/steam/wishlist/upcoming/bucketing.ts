@@ -3,6 +3,7 @@ import {
   type SteamWishlistItem,
   classifyReleasePrecision,
 } from "@vyoh/shared";
+import { OWNER_TIME_ZONE } from "@vyoh/shared";
 
 // Date-bucketing for the `/steam/wishlist` Upcoming view. Pure functions of
 // `(items, now)` — no network, no DB — so they're cheap to recompute on every
@@ -31,7 +32,7 @@ export interface CivilDate {
 }
 
 const BRUSSELS_PARTS = new Intl.DateTimeFormat("en-US", {
-  timeZone: "Europe/Brussels",
+  timeZone: OWNER_TIME_ZONE,
   year: "numeric",
   month: "numeric",
   day: "numeric",

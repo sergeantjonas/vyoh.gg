@@ -1,5 +1,6 @@
 import { Injectable, Logger, type OnModuleInit } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
+import { OWNER_TIME_ZONE } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamPlayerUnlocksService } from "./player-unlocks.service";
 
@@ -60,7 +61,7 @@ export class SteamPlayerUnlocksPoller implements OnModuleInit {
   // path alone — was 13.6k.
   @Cron("5 */4 * * *", {
     name: "steam-player-unlocks",
-    timeZone: "Europe/Brussels",
+    timeZone: OWNER_TIME_ZONE,
   })
   async tick(): Promise<void> {
     if (this.running) {

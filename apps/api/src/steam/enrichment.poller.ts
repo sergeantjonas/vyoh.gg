@@ -1,5 +1,6 @@
 import { Injectable, Logger, type OnModuleInit } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
+import { OWNER_TIME_ZONE } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamEnrichmentService } from "./enrichment.service";
 import { SteamService } from "./steam.service";
@@ -59,7 +60,7 @@ export class SteamEnrichmentPoller implements OnModuleInit {
     }
   }
 
-  @Cron("30 4 1 * *", { name: "steam-enrichment", timeZone: "Europe/Brussels" })
+  @Cron("30 4 1 * *", { name: "steam-enrichment", timeZone: OWNER_TIME_ZONE })
   async tick(): Promise<void> {
     if (this.running) {
       this.logger.warn("previous tick still running — skipping");

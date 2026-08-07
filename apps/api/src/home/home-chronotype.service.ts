@@ -1,9 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import type { HomeChronotype, HomeChronotypeHour } from "@vyoh/shared";
+import { OWNER_TIME_ZONE } from "@vyoh/shared";
 import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
-
-const TIME_ZONE = "Europe/Brussels";
 
 export interface HourCount {
   hour: number;
@@ -75,14 +74,14 @@ export class HomeChronotypeService {
     const lolDates = matchRows.map((r) => r.playedAt);
     const steamDates = unlockRows.map((r) => r.unlockedAt);
 
-    const lolBuckets = bucketDates(lolDates, TIME_ZONE);
-    const steamBuckets = bucketDates(steamDates, TIME_ZONE);
+    const lolBuckets = bucketDates(lolDates, OWNER_TIME_ZONE);
+    const steamBuckets = bucketDates(steamDates, OWNER_TIME_ZONE);
 
     return {
       hours: mergePerStream(lolBuckets, steamBuckets),
       totalLolCount: lolDates.length,
       totalSteamCount: steamDates.length,
-      timeZone: TIME_ZONE,
+      timeZone: OWNER_TIME_ZONE,
     };
   }
 }

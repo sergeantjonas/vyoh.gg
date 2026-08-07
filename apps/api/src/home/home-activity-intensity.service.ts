@@ -1,8 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import type { HomeActivityIntensity } from "@vyoh/shared";
+import { OWNER_TIME_ZONE } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 
-const TIME_ZONE = "Europe/Brussels";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MIN_MS = 60_000;
 
@@ -104,7 +104,7 @@ export class HomeActivityIntensityService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getActivityIntensity(now: Date = new Date()): Promise<HomeActivityIntensity> {
-    const dayStart = startOfLocalDay(now, TIME_ZONE);
+    const dayStart = startOfLocalDay(now, OWNER_TIME_ZONE);
     const last24h = new Date(now.getTime() - DAY_MS);
     const windowStart = dayStart < last24h ? dayStart : last24h;
 
@@ -130,7 +130,7 @@ export class HomeActivityIntensityService {
       steamMinutesToday,
       intensity,
       asOf: now.toISOString(),
-      timeZone: TIME_ZONE,
+      timeZone: OWNER_TIME_ZONE,
     };
   }
 }

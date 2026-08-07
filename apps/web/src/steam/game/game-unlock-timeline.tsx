@@ -3,6 +3,7 @@ import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
 import { useGameUnlockTimeline } from "@/steam/game/use-game-unlock-timeline";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import { OWNER_TIME_ZONE } from "@vyoh/shared";
 
 // Inter-unlock gap that closes a session. 4h matches typical play-session
 // length — long enough that a quick AFK doesn't split a run, short enough
@@ -14,7 +15,6 @@ const PAD_TOP = 14; // leaves room for the "100%" goal-line label above the dash
 const PAD_BOTTOM = 6;
 const PAD_X = 4; // viewBox units; matches the dot-cap padding so peaks don't kiss the edge
 const DOT_R = 3;
-const TIME_ZONE = "Europe/Brussels";
 
 type Session = {
   start: Date;
@@ -41,14 +41,14 @@ const DATE_FMT_FULL = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
   year: "numeric",
-  timeZone: TIME_ZONE,
+  timeZone: OWNER_TIME_ZONE,
 });
 
 const DATE_FMT_BOOKEND = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
   year: "numeric",
-  timeZone: TIME_ZONE,
+  timeZone: OWNER_TIME_ZONE,
 });
 
 function sessionDate(s: Session): string {

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
+import { OWNER_TIME_ZONE } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamAchievementSchemaService } from "./achievement-schema.service";
 import { SteamOwnedGamesService } from "./owned-games.service";
@@ -42,7 +43,7 @@ export class SteamRecentlyPlayedUnlocksPoller {
 
   @Cron("15 * * * *", {
     name: "steam-recently-played-unlocks",
-    timeZone: "Europe/Brussels",
+    timeZone: OWNER_TIME_ZONE,
   })
   async tick(): Promise<void> {
     if (this.running) {

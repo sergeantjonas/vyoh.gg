@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { OWNER_TIME_ZONE } from "@vyoh/shared";
 import { useMemo } from "react";
 import { FactCard } from "./_shared/fact-card";
 import { FactCardData } from "./_shared/fact-card-data";
@@ -12,7 +13,7 @@ const PREVIEW_LIMIT = 5;
 const SHORT_DATE = new Intl.DateTimeFormat("en-GB", {
   month: "short",
   year: "numeric",
-  timeZone: "Europe/Brussels",
+  timeZone: OWNER_TIME_ZONE,
 });
 
 function shortDateAdded(epochSeconds: number): string {
