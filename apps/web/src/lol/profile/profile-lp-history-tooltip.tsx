@@ -1,6 +1,10 @@
 import { ChartTooltipShell } from "@/components/chart-tooltip";
 import { formatRank } from "@vyoh/shared/lol/rank-history";
-import { type ChartPoint, formatBucketHeader } from "./profile-lp-history-helpers";
+import {
+  type ChartPoint,
+  POINT_FMT,
+  formatBucketHeader,
+} from "./profile-lp-history-helpers";
 
 export function LpTooltip({
   active,
@@ -18,10 +22,7 @@ export function LpTooltip({
           <div className="mb-0.5 text-xs text-muted-foreground">
             {bucket
               ? formatBucketHeader(bucket)
-              : new Date(point.realT).toLocaleString(undefined, {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                })}
+              : POINT_FMT.format(new Date(point.realT))}
           </div>
           <div className="font-semibold">
             {formatRank(point.tier, point.rank, point.leaguePoints)}

@@ -4,12 +4,18 @@ import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useCachedMatchesWindow } from "@/lol/matches/use-matches";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import type { MatchSummary } from "@vyoh/shared";
+import { type MatchSummary, OWNER_TIME_ZONE } from "@vyoh/shared";
 import { cloneElement } from "react";
 import type { ReactElement, SVGProps } from "react";
 import CalendarHeatmap from "react-calendar-heatmap";
 
 type Value = CalendarHeatmap.ReactCalendarHeatmapValue<string>;
+
+const OLDEST_DAY_FMT = new Intl.DateTimeFormat("en-GB", {
+  month: "short",
+  day: "numeric",
+  timeZone: OWNER_TIME_ZONE,
+});
 
 const COLOR_EMPTY = "fill-muted/30";
 const COLOR_LEVEL_1 = "fill-emerald-500/40";
@@ -83,11 +89,7 @@ export function ProfileActivityCalendar({ accountSlug }: { accountSlug: string }
           <TooltipPrimitive.Root delayDuration={150}>
             <TooltipPrimitive.Trigger asChild>
               <span className="cursor-help text-xs text-muted-foreground/70">
-                {daysShown} days · from{" "}
-                {oldestDate.toLocaleDateString(undefined, {
-                  month: "short",
-                  day: "numeric",
-                })}
+                {daysShown} days · from {OLDEST_DAY_FMT.format(oldestDate)}
               </span>
             </TooltipPrimitive.Trigger>
             <TooltipPrimitive.Portal>

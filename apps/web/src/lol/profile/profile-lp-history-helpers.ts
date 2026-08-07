@@ -1,4 +1,4 @@
-import type { RankHistoryPoint } from "@vyoh/shared";
+import { OWNER_TIME_ZONE, type RankHistoryPoint } from "@vyoh/shared";
 import { normalizeLp } from "@vyoh/shared/lol/rank-history";
 import {
   DAY_KEY_FMT,
@@ -8,6 +8,36 @@ import {
   STREAK_MIN_LENGTH,
   formatTierShort,
 } from "./profile-lp-history-constants";
+
+// Every reading on this chart is a moment in the owner's day, so all four
+// formatters pin the zone and share one locale — an unpinned `Intl` resolves
+// to the host's, which differs between a UTC container and a visitor's
+// browser and makes React throw away the server-rendered tree.
+const AXIS_TICK_FMT = new Intl.DateTimeFormat("en-GB", {
+  month: "short",
+  day: "numeric",
+  timeZone: OWNER_TIME_ZONE,
+});
+
+const BUCKET_DAY_FMT = new Intl.DateTimeFormat("en-GB", {
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  timeZone: OWNER_TIME_ZONE,
+});
+
+const BUCKET_TIME_FMT = new Intl.DateTimeFormat("en-GB", {
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: OWNER_TIME_ZONE,
+});
+
+/** A single unbucketed point, for the chart tooltip and the data table. */
+export const POINT_FMT = new Intl.DateTimeFormat("en-GB", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: OWNER_TIME_ZONE,
+});
 
 export interface BucketMeta {
   kind: "session" | "day";
@@ -245,7 +275,7 @@ export function makeDayTicks(points: ChartPoint[]): number[] {
   const seen = new Set<string>();
   const ticks: number[] = [];
   for (const p of points) {
-    const key = new Date(p.realT).toLocaleDateString();
+    const key = DAY_KEY_FMT.format(new Date(p.realT));
     if (!seen.has(key)) {
       seen.add(key);
       ticks.push(p.t);
@@ -255,15 +285,7 @@ export function makeDayTicks(points: ChartPoint[]): number[] {
 }
 
 export function makeTickFormatter(points: ChartPoint[]): (visualT: number) => string {
-  const map = new Map(
-    points.map((p) => [
-      p.t,
-      new Date(p.realT).toLocaleDateString(undefined, {
-        month: "short",
-        day: "numeric",
-      }),
-    ])
-  );
+  const map = new Map(points.map((p) => [p.t, AXIS_TICK_FMT.format(new Date(p.realT))]));
   return (t) => map.get(t) ?? "";
 }
 
@@ -271,17 +293,8 @@ export function formatBucketHeader(bucket: BucketMeta): string {
   const start = new Date(bucket.startRealT);
   const end = new Date(bucket.endRealT);
   if (bucket.kind === "day") {
-    return start.toLocaleDateString(undefined, {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
+    return BUCKET_DAY_FMT.format(start);
   }
-  const dateStr = start.toLocaleDateString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-  const timeFmt: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-digit" };
-  return `${dateStr} · ${start.toLocaleTimeString(undefined, timeFmt)} – ${end.toLocaleTimeString(undefined, timeFmt)}`;
+  const dateStr = BUCKET_DAY_FMT.format(start);
+  return `${dateStr} · ${BUCKET_TIME_FMT.format(start)} – ${BUCKET_TIME_FMT.format(end)}`;
 }

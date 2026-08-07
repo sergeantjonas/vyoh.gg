@@ -11,10 +11,16 @@ import {
 import { useChampionName } from "@/lol/champions/use-champions";
 import type { CardOrigin } from "@/lol/matches/active-match-context";
 import { useActiveMatch } from "@/lol/matches/active-match-context";
-import { formatDuration, queueLabel } from "@vyoh/shared";
+import { OWNER_TIME_ZONE, formatDuration, queueLabel } from "@vyoh/shared";
 import type { MatchSummary } from "@vyoh/shared";
 import { useReducedMotion } from "motion/react";
 import { useEffect, useLayoutEffect, useRef } from "react";
+
+const PLAYED_AT_FMT = new Intl.DateTimeFormat("en-GB", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: OWNER_TIME_ZONE,
+});
 
 function LpBadge({ delta }: { delta: number }) {
   return (
@@ -176,11 +182,7 @@ export function MatchHero({
             ) : (
               formatDuration(summary.durationSec)
             )}{" "}
-            ·{" "}
-            {playedAt.toLocaleString(undefined, {
-              dateStyle: "medium",
-              timeStyle: "short",
-            })}
+            · {PLAYED_AT_FMT.format(playedAt)}
           </span>
         </div>
       </div>

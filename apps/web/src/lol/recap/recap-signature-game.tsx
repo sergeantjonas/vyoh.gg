@@ -12,7 +12,12 @@ import {
   CHAPTER_SHELL_EMPTY_CLASS,
 } from "@/lol/recap/chapter-shell";
 import { Link } from "@tanstack/react-router";
-import { type MatchSummary, excludeRemakes, formatKda } from "@vyoh/shared";
+import {
+  type MatchSummary,
+  OWNER_TIME_ZONE,
+  excludeRemakes,
+  formatKda,
+} from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 
@@ -45,12 +50,15 @@ function pickSignature(matches: MatchSummary[]): MatchSummary | null {
   return best;
 }
 
+const DATE_FMT = new Intl.DateTimeFormat("en-GB", {
+  month: "short",
+  day: "numeric",
+  timeZone: OWNER_TIME_ZONE,
+});
+
 function formatDate(iso: string): string {
   try {
-    return new Date(iso).toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-    });
+    return DATE_FMT.format(new Date(iso));
   } catch {
     return "";
   }

@@ -11,7 +11,7 @@ import {
   RANKED_QUEUE_KEY_LABEL,
   type RankedQueueKey,
 } from "@vyoh/shared";
-import type { DetectedSeason } from "@vyoh/shared";
+import { type DetectedSeason, OWNER_TIME_ZONE } from "@vyoh/shared";
 import { detectSeasons } from "@vyoh/shared/lol/rank-history";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { useMemo, useState } from "react";
@@ -31,12 +31,15 @@ const TIER_COLOR: Record<string, string> = {
 
 const APEX_TIERS = new Set(["MASTER", "GRANDMASTER", "CHALLENGER"]);
 
+const DATE_FMT = new Intl.DateTimeFormat("en-GB", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  timeZone: OWNER_TIME_ZONE,
+});
+
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return DATE_FMT.format(new Date(iso));
 }
 
 function formatRange(startAt: string, endAt: string): string {

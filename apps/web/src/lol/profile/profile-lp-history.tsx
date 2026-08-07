@@ -55,6 +55,7 @@ import {
 } from "./profile-lp-history-constants";
 import {
   type ChartPoint,
+  POINT_FMT,
   findLongestStreak,
   findTierChanges,
   formatBucketHeader,
@@ -73,12 +74,7 @@ const LP_TABLE_COLUMNS: ChartDataColumn<ChartPoint>[] = [
     key: "when",
     header: "Date",
     cell: (p) =>
-      p.bucket
-        ? formatBucketHeader(p.bucket)
-        : new Date(p.realT).toLocaleString(undefined, {
-            dateStyle: "medium",
-            timeStyle: "short",
-          }),
+      p.bucket ? formatBucketHeader(p.bucket) : POINT_FMT.format(new Date(p.realT)),
   },
   {
     key: "rank",
