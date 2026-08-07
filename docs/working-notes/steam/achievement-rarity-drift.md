@@ -1,15 +1,15 @@
 # Steam achievement rarity drift
 
-**Status:** Active — plan written 2026-08-07, nothing built. R1 (history table + append-on-change) is the only chunk worth doing now; R2 and R3 are gated on elapsed time, not on effort. The arc exists because the data has a lead time: every week without R1 is a week of curve that cannot be reconstructed later.
+**Status:** Active — R1 shipped 2026-08-07 (history table, append-on-change, seeded from the 9,085 existing rarity rows). R2 and R3 are gated on elapsed time, not on effort: nothing reads the table yet, and nothing should until there is a curve worth rendering.
 
 ## Today's behaviour
 
-Global rarity is a **current value, refreshed, with no history**.
+Global rarity is a **current value, refreshed weekly, with an append-only observation log behind it**.
 
 - [global-rarity.poller.ts](../../../apps/api/src/steam/global-rarity.poller.ts) selects every game whose `lastRarityCheckedAt` is older than 7 days, daily at 05:30 Europe/Brussels, 40 games per pass, boot-reconciled. So a displayed percentage is at most ~7 days stale.
-- [global-rarity.service.ts:60-73](../../../apps/api/src/steam/global-rarity.service.ts#L60-L73) upserts `SteamAchievementGlobalRarity` in place — `update: { percent, polledAt }`. Every refresh destroys the previous value.
-- [schema.prisma:356-365](../../../apps/api/prisma/schema.prisma#L356-L365) PKs the row on `(appid, apiName)`. One row per achievement, one `percent`, forever.
-- `polledAt` never crosses the API boundary. No read-side consumer exists.
+- [global-rarity.service.ts](../../../apps/api/src/steam/global-rarity.service.ts) upserts `SteamAchievementGlobalRarity` in place. That row stays the single current value and stays the only thing the read path touches.
+- The same transaction reads the outgoing values *before* the upsert overwrites them — the one moment the previous reading still exists anywhere — and appends to `SteamAchievementRarityHistory` only for what moved at Steam's one-decimal precision.
+- `polledAt` never crosses the API boundary, and neither does the history table. No read-side consumer exists for either.
 
 The display copy is present-tense and therefore correct — "X% of Steam players who own this game have unlocked this achievement" ([rarity-percent.tsx:36](../../../apps/web/src/steam/_shared/rarity-percent.tsx#L36)), "of players have it" ([game-recap.ts:810](../../../packages/shared/src/steam/game-recap.ts#L810)). **Nothing in the app claims rarity-at-unlock-time, so there is no defect here.** This arc is a feature, not a fix.
 
@@ -46,14 +46,14 @@ Where it lands is Nioh-3-shaped: a game bought near release, where percentages f
 
 Two consequences:
 
-- R1 is worth doing now *despite* having no visible payoff now. That is unusual for this repo and is the whole argument — deferring costs a year of curve, and the migration is an afternoon.
+- R1 was worth doing *despite* having no visible payoff. That is unusual for this repo and was the whole argument — deferring costs a year of curve, and the migration was an afternoon.
 - R3 (the UI) must not be built on spec. It ships when R2's diagnostic shows a game with a real slope, and not before, or it renders twelve flat lines and reads as a bug.
 
 ## Chunk plan (2026-08-07)
 
 | # | What | Where | Notes |
 |---|---|---|---|
-| R1 | History table + append-on-change | Prisma migration + `apps/api/src/steam` | The only chunk to do now. `SteamAchievementRarityHistory(appid, apiName, percent, observedAt)`, FK to `SteamGameAchievement` like the current-value row. `refreshRarity` appends **only when the value moved**; the existing `SteamAchievementGlobalRarity` upsert stays exactly as-is. Seed one history row per existing rarity row from its current `percent` + `polledAt` (9,085 rows) so every series has an origin instead of starting at its first move. Tests alongside per project policy. No read-side change, no API change, no web change. |
+| R1 | History table + append-on-change | Prisma migration + `apps/api/src/steam` | **Shipped 2026-08-07**, migration `20260807000000_steam_achievement_rarity_history`. `SteamAchievementRarityHistory(id, appid, apiName, percent, observedAt)`, FK to `SteamGameAchievement` like the current-value row, indexed `(appid, apiName, observedAt)` so the series-for-one-achievement read gets its sort from the index. Seeded 9,085 origin rows from the current `percent` + `polledAt`, so every series starts at a known reading rather than at its first move. `RaritySyncResult` gained `historyRowsAppended`; the poller's log line reports it. Read path, API and web untouched. |
 | R2 | Drift diagnostic script | `apps/api/src/scripts` | A one-off reader — for each achievement with ≥2 history rows, report span, endpoints, and slope; rank by absolute and relative movement. Follows the `backfill-remake-flag.ts` shape. This is the **gate on R3**: run it periodically and build the UI when it names a game with a visible slope in the rare band. Cheap enough to write with R1, but useless until history accumulates, so it can wait. |
 | R3 | The drift beat | web + `packages/shared` | **Gated on R2, unscoped deliberately.** Shape is undecided because it depends on what R2 finds — a delta line on the achievement card, a sparkline in the trophy case, or a recap beat are all plausible and the data picks. Do not scope this before R2 has something to show. |
 
@@ -71,4 +71,4 @@ Two consequences:
 
 ## Pointer hygiene
 
-When R1 ships, update the Status header and the [open-work.md](../open-work.md) index line with the migration date and the seeded row count. When R2's diagnostic first reports a game with a real slope, record the numbers here — that reading is the trigger that unblocks R3, and it should be written down rather than remembered.
+When R2's diagnostic first reports a game with a real slope, record the numbers here — that reading is the trigger that unblocks R3, and it should be written down rather than remembered. Until then the honest state of this arc is "recording, nothing to show", and the Status header should keep saying so rather than drifting toward "in progress".

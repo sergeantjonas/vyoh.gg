@@ -323,9 +323,10 @@ model SteamGameAchievement {
   hidden          Boolean  @default(false)
   schemaFetchedAt DateTime @default(now())
 
-  game   SteamOwnedGame                @relation(fields: [appid], references: [appid])
-  unlock SteamPlayerUnlock?
-  rarity SteamAchievementGlobalRarity?
+  game          SteamOwnedGame                  @relation(fields: [appid], references: [appid])
+  unlock        SteamPlayerUnlock?
+  rarity        SteamAchievementGlobalRarity?
+  rarityHistory SteamAchievementRarityHistory[]
 
   @@id([appid, apiName])
 }
@@ -353,6 +354,10 @@ model SteamPlayerUnlock {
 // Refreshed weekly. Drives the rarity badge on the per-game panel + the
 // "rare unlock" annotation on the completion verdict card. Endpoint is
 // unauthenticated but routed through the limiter for consistency.
+// Stays the single current value, and stays the only thing the read path
+// touches — every achievement panel, the trophy case and the recap join
+// against it, so deriving "latest" out of the history table below would buy
+// a DISTINCT ON per achievement for nothing.
 model SteamAchievementGlobalRarity {
   appid    Int
   apiName  String
@@ -362,6 +367,33 @@ model SteamAchievementGlobalRarity {
   achievement SteamGameAchievement @relation(fields: [appid, apiName], references: [appid, apiName])
 
   @@id([appid, apiName])
+}
+
+// Append-only observation log behind that current value. Steam's percentages
+// move in both directions — a growing owner base pushes them down, remaining
+// owners grinding pushes them up — and the upsert above overwrites, so the
+// curve is unreconstructable after the fact. This table exists to accumulate
+// it before there is anything worth rendering.
+//
+// A row is appended only when the value moves at Steam's own precision (it
+// publishes one decimal), which is what keeps this at tens of thousands of
+// rows a year rather than hundreds. There is deliberately no retention pass:
+// pruning would destroy the long spans the table exists to hold.
+//
+// `observedAt` is when we looked, never when the achievement was unlocked.
+// Unlock timestamps backfill retroactively (see SteamPlayerUnlock) while this
+// series can only start at its first observation, so the two can never be
+// reconciled for anything already owned.
+model SteamAchievementRarityHistory {
+  id         Int      @id @default(autoincrement())
+  appid      Int
+  apiName    String
+  percent    Float
+  observedAt DateTime @default(now())
+
+  achievement SteamGameAchievement @relation(fields: [appid, apiName], references: [appid, apiName])
+
+  @@index([appid, apiName, observedAt])
 }
 
 // Sidecar bookkeeping for the three achievement pollers (monthly schema,
