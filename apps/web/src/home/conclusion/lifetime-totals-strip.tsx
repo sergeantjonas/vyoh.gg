@@ -1,6 +1,12 @@
 import { SHADOW_BODY, SHADOW_LABEL } from "@/home/recap/chapter-shadows";
 import { useHomeLifetimeTotals } from "@/home/use-home-lifetime-totals";
-import { formatHoursMinutes } from "@vyoh/shared";
+import { OWNER_TIME_ZONE, formatHoursMinutes } from "@vyoh/shared";
+
+const SINCE_FMT = new Intl.DateTimeFormat("en-GB", {
+  month: "short",
+  year: "numeric",
+  timeZone: OWNER_TIME_ZONE,
+});
 
 function Chip({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -54,10 +60,7 @@ function formatSinceDate(iso: string | null): string {
   // Single-line "Jan 2024" — chip is too tight for a full date and the
   // year/month is what carries the "how long has this been tracked"
   // signal.
-  return new Date(iso).toLocaleDateString("en-GB", {
-    month: "short",
-    year: "numeric",
-  });
+  return SINCE_FMT.format(new Date(iso));
 }
 
 function formatBacklog(unplayed: number, owned: number): React.ReactNode {

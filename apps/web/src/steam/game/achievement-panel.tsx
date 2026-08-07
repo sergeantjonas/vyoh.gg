@@ -1,7 +1,7 @@
 import { CardTitle } from "@/components/ui/card-title";
 import { cn } from "@/lib/utils";
 import { AchievementCardInner, rareTier } from "@/steam/_shared/achievement-card";
-import type { SteamAchievement } from "@vyoh/shared";
+import { OWNER_TIME_ZONE, type SteamAchievement } from "@vyoh/shared";
 import { useEffect, useRef, useState } from "react";
 import { useGameAchievements } from "./use-game-achievements";
 
@@ -19,6 +19,7 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
   month: "short",
   day: "numeric",
+  timeZone: OWNER_TIME_ZONE,
 });
 
 function formatUnlockedDate(iso: string): string {

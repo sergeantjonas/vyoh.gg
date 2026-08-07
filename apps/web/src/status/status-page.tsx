@@ -5,13 +5,21 @@ import { toastError, toastInfo, toastSuccess } from "@/lib/toast";
 import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import type {
-  AppWindowSnapshot,
-  LolAccount,
-  MethodLimiterSnapshot,
-  SyncTick,
-  SyncTickAccountResult,
+import {
+  type AppWindowSnapshot,
+  type LolAccount,
+  type MethodLimiterSnapshot,
+  OWNER_TIME_ZONE,
+  type SyncTick,
+  type SyncTickAccountResult,
 } from "@vyoh/shared";
+
+const TICK_TIME_FMT = new Intl.DateTimeFormat("en-GB", {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  timeZone: OWNER_TIME_ZONE,
+});
 import { Pause, Play, RefreshCw } from "lucide-react";
 import {
   useSetSyncEnabled,
@@ -99,7 +107,7 @@ export function StatusPage() {
                 key={tick.startedAt}
                 className="flex items-center justify-between rounded-md border bg-muted/20 px-3 py-1.5 text-xs text-muted-foreground"
               >
-                <span>{new Date(tick.startedAt).toLocaleTimeString()}</span>
+                <span>{TICK_TIME_FMT.format(new Date(tick.startedAt))}</span>
                 <span>{tick.durationMs} ms</span>
                 <span>
                   {sumBackfilled(tick)} new match{sumBackfilled(tick) === 1 ? "" : "es"}
@@ -205,7 +213,7 @@ function SyncCard({
           <div className="grid grid-cols-3 gap-3 text-sm">
             <Metric
               label="Started"
-              value={new Date(tick.startedAt).toLocaleTimeString()}
+              value={TICK_TIME_FMT.format(new Date(tick.startedAt))}
             />
             <Metric label="Duration" value={`${tick.durationMs} ms`} />
             <Metric label="New matches" value={String(sumBackfilled(tick))} />

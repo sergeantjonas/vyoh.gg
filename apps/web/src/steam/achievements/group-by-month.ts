@@ -1,13 +1,18 @@
-import type { SteamRecentUnlock } from "@vyoh/shared";
+import { OWNER_TIME_ZONE, type SteamRecentUnlock } from "@vyoh/shared";
 
+// `monthKey` decides which bucket a row lands in, so the zone is a
+// correctness question here and not only a hydration one — unpinned, which
+// month an unlock belongs to would depend on where the reader is sitting.
 const monthFormatter = new Intl.DateTimeFormat("en-US", {
   month: "long",
   year: "numeric",
+  timeZone: OWNER_TIME_ZONE,
 });
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
+  timeZone: OWNER_TIME_ZONE,
 });
 
 export function monthKey(iso: string): string {
