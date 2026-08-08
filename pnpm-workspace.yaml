@@ -7,11 +7,14 @@ packages:
 # fresh `pnpm audit` finding rather than being silently masked by a stale floor.
 overrides:
   protobufjs@<=7.6.4: ^7.6.5
-  # The advisory range is `<=5.0.7`, which by semver also covers the legacy 1.x
+  # The advisory range is `<5.0.9`, which by semver also covers the legacy 1.x
   # and 2.x lines that minimatch pulls under @nestjs/cli. 5.0.8 ships a dual
   # ESM+CJS build, so the CJS `require()` in minimatch 3.x/9.x still resolves;
-  # verified with a nest build + start.
-  brace-expansion@<=5.0.7: ^5.0.8
+  # verified with a nest build + start. Widened from `<=5.0.7`/`^5.0.8` on
+  # 2026-08-08 — GHSA-rgw5-rvv9-x895 re-broke the same DoS past the floor this
+  # override had pinned, which is the case the range-tracking note above exists
+  # for: the stale floor showed up as a fresh finding instead of hiding.
+  brace-expansion@<5.0.9: ^5.0.9
   ws@<8.21.0: ^8.21.0
   # file-type@16 (CJS) is pinned by @jimp/core, reached via node-vibrant in
   # apps/api and tools/champion-assets; v21 is ESM-only and breaks require().
@@ -27,6 +30,24 @@ overrides:
   # Both reached only through @prisma/dev, i.e. the local Prisma dev server.
   find-my-way@<=9.6.0: ^9.6.1
   valibot@<=1.4.1: ^1.4.2
+  # ajv's URI parser, one copy under both prisma and the webpack that
+  # @tanstack/router-plugin drags in. ajv declares `^3.0.1`, so this stays
+  # inside the range it asked for — fast-uri 4.x exists and would not.
+  fast-uri@<3.1.5: ^3.1.5
+  # The only runtime path of the five: steam-user reaches it through
+  # socks-proxy-agent > socks. SSRF via leading-zero octets decoded as decimal,
+  # and steam-user is the one place we hand a remote-controlled host to a proxy.
+  # 10.3.1 was already resolved elsewhere in the tree, so this de-duplicates
+  # rather than introducing a version.
+  ip-address@<=10.3.0: ^10.3.1
+  # Scoped to the 4.x line on purpose. The advisory covers 3.x as well, but
+  # js-yaml 4 dropped `safeLoad`, so a blanket range would break any 3.x
+  # consumer instead of patching it. Reached via xmlbuilder2 under
+  # @tanstack/start-plugin-core.
+  js-yaml@>=4.0.0 <4.3.1: ^4.3.1
+  # Under postcss, which declares `^3.3.11`. Selective range so the unrelated
+  # nanoid 5.x copy in the tree is left where it is.
+  nanoid@<3.3.17: ^3.3.17
 allowBuilds:
   '@biomejs/biome': true
   '@nestjs/core': true
