@@ -66,19 +66,28 @@ function setupChampions() {
   vi.mocked(useChampionAliasFromName).mockReturnValue((name: string) => name);
 }
 
-function mockPatchList(list: PatchListEntry[] | undefined) {
+function mockPatchList(
+  list: PatchListEntry[] | undefined,
+  extra: { isError?: boolean; refetch?: () => void } = {}
+) {
   vi.mocked(usePatchList).mockReturnValue({
     data: list,
+    isError: extra.isError ?? false,
+    refetch: extra.refetch ?? vi.fn(),
   } as unknown as ReturnType<typeof usePatchList>);
 }
 
 function mockPatchChanges(value: {
   data?: PatchChangesResponse | undefined;
   isPending?: boolean;
+  isError?: boolean;
+  refetch?: () => void;
 }) {
   vi.mocked(usePatchChanges).mockReturnValue({
     data: value.data,
     isPending: value.isPending ?? false,
+    isError: value.isError ?? false,
+    refetch: value.refetch ?? vi.fn(),
   } as unknown as ReturnType<typeof usePatchChanges>);
 }
 
@@ -473,6 +482,69 @@ describe("PatchesPage", () => {
       });
       render(<PatchesPage versionParam="16.9.1" asSlug={undefined} />);
       expect(screen.queryByText("current")).toBeNull();
+    });
+  });
+
+  // A failed query leaves `data` undefined exactly like a pending one, so the
+  // loading gate cannot tell them apart on its own. Before this branch existed
+  // an outage parked the page on its skeleton with nothing left to advance it.
+  describe("when a query fails", () => {
+    it("stops holding the skeleton when the patch list fails", () => {
+      mockPatchList(undefined, { isError: true });
+      mockPatchChanges({ data: undefined });
+
+      const { container } = render(
+        <PatchesPage versionParam={undefined} asSlug="jonas-euw" />
+      );
+
+      expect(container.querySelectorAll(".animate-pulse").length).toBe(0);
+      expect(screen.getByText(/unavailable right now/)).toBeTruthy();
+    });
+
+    it("does not claim the patches simply haven't synced", () => {
+      // `PatchesEmpty` states a fact about the sync schedule. During an outage
+      // that sends the visitor away to wait for something that already ran.
+      mockPatchList([
+        { version: "16.10.1", patchDate: null },
+      ] as unknown as PatchListEntry[]);
+      mockPatchChanges({ data: undefined, isError: true });
+
+      render(<PatchesPage versionParam={undefined} asSlug="jonas-euw" />);
+
+      expect(screen.queryByText(/No patches synced yet/)).toBeNull();
+      expect(screen.getByText(/unavailable right now/)).toBeTruthy();
+    });
+
+    it("still renders the page when only the list fails and the version is in the path", () => {
+      // The `$version` loader tolerates a failed list precisely because this
+      // renders. An error branch that bailed on any failure would undo that.
+      mockPatchList(undefined, { isError: true });
+      mockPatchChanges({
+        data: {
+          patchVersion: "16.9.1",
+          champions: [],
+          items: [],
+          runes: [],
+        } as unknown as PatchChangesResponse,
+      });
+
+      render(<PatchesPage versionParam="16.9.1" asSlug={undefined} />);
+
+      expect(screen.queryByText(/unavailable right now/)).toBeNull();
+      expect(screen.getByText(/16\.9\.1/)).toBeTruthy();
+    });
+
+    it("retries only the query that failed", () => {
+      const refetchList = vi.fn();
+      const refetchChanges = vi.fn();
+      mockPatchList(undefined, { isError: true, refetch: refetchList });
+      mockPatchChanges({ data: undefined, refetch: refetchChanges });
+
+      render(<PatchesPage versionParam={undefined} asSlug="jonas-euw" />);
+      fireEvent.click(screen.getByRole("button", { name: /try again/i }));
+
+      expect(refetchList).toHaveBeenCalled();
+      expect(refetchChanges).not.toHaveBeenCalled();
     });
   });
 });

@@ -152,9 +152,7 @@ describe("fatal primes", () => {
     await expect(runLoader(AchievementsRoute)).rejects.toThrow();
   });
 
-  it("/lol/$accountSlug/matches fails rather than holding its skeleton", async () => {
-    // `MatchList` gates on `isPending` with no error branch, so a tolerated
-    // failure here would hold the skeleton forever rather than degrade.
+  it("/lol/$accountSlug/matches fails rather than serving an empty history", async () => {
     fails = (url) => url.includes("/matches");
 
     await expect(runLoader(MatchesRoute, { accountSlug: "ahri" })).rejects.toThrow();

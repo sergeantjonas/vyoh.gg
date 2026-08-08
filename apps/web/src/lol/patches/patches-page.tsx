@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -70,14 +71,18 @@ export function PatchesPage({
     [playCountByWikiName]
   );
 
-  const { data: patchList } = usePatchList();
+  const { data: patchList, isError: listFailed, refetch: refetchList } = usePatchList();
   const navigate = useNavigate();
   const newestVersion = patchList?.[0]?.version ?? null;
   // Path segment overrides; absent → newest. Selecting the newest patch
   // navigates back to the unversioned route so shareable URLs stay clean.
   const selectedVersion = versionParam ?? newestVersion;
-  const { data: patchChanges, isPending: changesPending } =
-    usePatchChanges(selectedVersion);
+  const {
+    data: patchChanges,
+    isPending: changesPending,
+    isError: changesFailed,
+    refetch: refetchChanges,
+  } = usePatchChanges(selectedVersion);
 
   const patchDateLabel = useMemo(() => {
     const iso = patchList?.find((p) => p.version === selectedVersion)?.patchDate;
@@ -123,6 +128,24 @@ export function PatchesPage({
 
   const items = patchChanges?.items ?? [];
   const runes = patchChanges?.runes ?? [];
+
+  // A failed query leaves `data` undefined exactly like a pending one, so the
+  // loading gate below cannot tell the two apart and would hold the skeleton
+  // forever against an outage. This has to come first, and it has to be
+  // narrower than "either query failed": on `/lol/patches/$version` the version
+  // comes from the path, so a failed list costs only the release date and the
+  // page is otherwise intact — which is the whole reason that route's loader
+  // tolerates it. Bail only when there is genuinely nothing left to render.
+  if (!patchChanges && (changesFailed || (listFailed && !selectedVersion))) {
+    return (
+      <PatchesUnavailable
+        onRetry={() => {
+          if (listFailed) void refetchList();
+          if (changesFailed) void refetchChanges();
+        }}
+      />
+    );
+  }
 
   // Loading rhythm: patches haven't synced yet, list is in flight, or the
   // changes query for the selected version is in flight. A single skeleton
@@ -458,6 +481,20 @@ function PatchesEmpty() {
       <p className="text-sm text-muted-foreground">
         No patches synced yet. Check back after the next sync window.
       </p>
+    </div>
+  );
+}
+
+// Distinct from `PatchesEmpty` on purpose: "no patches synced yet" is a claim
+// about the sync schedule, and telling a visitor that during an outage sends
+// them away to wait for something that already happened.
+function PatchesUnavailable({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-3 py-24">
+      <p className="text-sm text-destructive">Patch notes are unavailable right now.</p>
+      <Button variant="outline" size="sm" onClick={onRetry}>
+        Try again
+      </Button>
     </div>
   );
 }

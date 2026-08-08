@@ -133,10 +133,10 @@ Tolerate with [`primeQuietly`](../apps/web/src/lib/prime-quietly.ts), never a ba
 | `/lol/patches/$version` changeset | fatal | without it `PatchesPage` returns `PatchesEmpty` *before* the version sidebar, so the tolerated document is empty **and** unnavigable |
 | `/lol/patches` list + changeset | fatal | the list picks the version; same `PatchesEmpty` shape below it |
 | `/steam/wishlist`, `/steam/achievements` | fatal | the list is the route, not a region of it |
-| `/lol/$accountSlug/matches` | fatal | `MatchList` gates on `isPending` with no error branch, so tolerating holds the skeleton forever |
+| `/lol/$accountSlug/matches` | fatal | the list is the route, not a region of it |
 | `/steam/portrait` | tolerated | two independent halves; either one still argues without the other |
 
-That last row of the fatal column is the trap worth naming: **swallowing is only safe if the consuming component has an error branch.** A component that gates on `isPending` alone never leaves its skeleton when the query *errors*, so tolerating there ships an infinite loading state — strictly worse than the error card it replaced.
+One trap worth naming, because it decides whether tolerating is even available: **swallowing is only safe if the consuming component distinguishes "failed" from "still loading".** A failed query leaves `data` undefined exactly like a pending one, so a gate written as `data === undefined || isPending` holds its skeleton forever against an outage rather than degrading — strictly worse than the error card it replaced. `PatchesPage` had that shape, which is why its error branch had to land before its loader could tolerate anything. Check the consumer's gate, not just whether it mentions `isError`.
 
 **How to apply:** when you add a `loader`, answer the question above for each prime and record the answer at the loader, including for the ones that stay fatal — otherwise the next reader reads an unguarded `await` as an oversight and "fixes" it. Check the consuming component for an `isError` branch before tolerating anything. The decisions are pinned in [route-loaders.test.ts](../apps/web/src/route-loaders.test.ts); add a case there rather than relying on review. Nothing about either choice fails to compile, and the two are indistinguishable until an upstream is actually down — the way to see it is a proxy that fails one endpoint while the api stays up, not a stopped api, which only ever exercises the root loader.
 
