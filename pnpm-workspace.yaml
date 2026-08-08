@@ -48,6 +48,20 @@ overrides:
   # Under postcss, which declares `^3.3.11`. Selective range so the unrelated
   # nanoid 5.x copy in the tree is left where it is.
   nanoid@<3.3.17: ^3.3.17
+  # The three below are build-graph only and invisible to `pnpm audit --prod`,
+  # which is what CI gates on. They are here because Dependabot scans the whole
+  # lockfile and cannot fix a transitive dependency in a pnpm workspace on its
+  # own — it has no manifest entry to edit and does not write this block — so it
+  # reports `security_update_not_possible` and the update run fails. An override
+  # is the only lever, which is why they land here rather than as a lockfile bump.
+  #
+  # undici and hono reach the tree through `shadcn` alone (via @dotenvx/dotenvx
+  # and @modelcontextprotocol/sdk > @hono/node-server respectively). Pinned to
+  # their own major: undici 8 is published and nothing here asks for it.
+  undici@>=7.0.0 <7.29.0: ^7.29.0
+  hono@<4.12.34: ^4.12.34
+  # Two parents, only one of which is shadcn — vite pulls postcss as well.
+  postcss@<=8.5.22: ^8.5.23
 allowBuilds:
   '@biomejs/biome': true
   '@nestjs/core': true
