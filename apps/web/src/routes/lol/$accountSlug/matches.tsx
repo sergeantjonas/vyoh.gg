@@ -31,6 +31,12 @@ export const Route = createFileRoute("/lol/$accountSlug/matches")({
   // Only the unfiltered view is primed. `?queue=` is a filter the owner reaches
   // for, not a URL anything links to, so it renders client-side like any other
   // interaction.
+  //
+  // Deliberately fatal, unlike the tolerated primes elsewhere (see
+  // `primeQuietly`). `MatchList` gates on `isPending` with no error branch, so
+  // swallowing here would hold the skeleton forever rather than degrade — and
+  // even with one, a match history with no matches in it is not a page worth
+  // returning 200 for.
   loader: async ({ context: { queryClient }, params }) => {
     const me = await queryClient.ensureQueryData(meQueryOptions());
     const account = findAccountBySlug(me.lol, params.accountSlug);

@@ -115,6 +115,31 @@ All three yes → await it in the loader. Any no → leave it client-side.
 
 **How to apply:** when adding a route, ask the three questions above before writing a `loader`. Time the endpoint before you decide — `curl -o /dev/null -w '%{size_download}B %{time_total}s'` three times answers all three questions in one command, and the latency one is invisible from reading the code. If you prime, go through a shared `queryOptions` factory — the loader and the hook must build the same cache key, and a loader that constructs the key inline warms an entry the component never reads. That failure is quiet in exactly the wrong way: the data shows up in the dehydrated payload, so the page looks primed while the component still renders its pending branch. If you skip priming, say so at the hook with the payload size, so the next reader doesn't "fix" the omission.
 
+#### A loader that rejects answers HTTP 500, so decide per prime whether that is the honest answer
+
+Priming decides *whether* to await; this decides what happens when the await fails. A rejected loader is escalated to the nearest `errorComponent` — the route tier by default, via `defaultErrorComponent` in [router.tsx](../apps/web/src/router.tsx) — and on a server render the document comes back **HTTP 500**. The shell, nav and palette survive; the region renders the error card. The status code is the part that has to be chosen deliberately:
+
+> **Swallow the prime when the primed query is one region of a page that still says something true without it. Let it reject when the primed query *is* the page.**
+
+A 200 over an empty state teaches a crawler the page is empty and gets that indexed. A 500 asks it to come back. So for the routes the SSR migration exists to get indexed, rejecting is the *correct* behaviour, not a defect — which is why this is a per-loader decision rather than a guard to add everywhere.
+
+Tolerate with [`primeQuietly`](../apps/web/src/lib/prime-quietly.ts), never a bare `.catch()` on `Promise.all` — `all` settles the instant either input rejects, so a slower sibling that was going to succeed never lands in the dehydrated cache it had already earned.
+
+| Loader | Decision | Because |
+|---|---|---|
+| `__root.tsx` `me` | fatal | no identity, no app — and no shell left to render into |
+| `/lol/$accountSlug` rank + live | tolerated | two chips on a page also carrying the champion pool, match links, season history |
+| `/lol/patches/$version` list | tolerated | supplies only the release date, read through `patchList?.find` |
+| `/lol/patches/$version` changeset | fatal | without it `PatchesPage` returns `PatchesEmpty` *before* the version sidebar, so the tolerated document is empty **and** unnavigable |
+| `/lol/patches` list + changeset | fatal | the list picks the version; same `PatchesEmpty` shape below it |
+| `/steam/wishlist`, `/steam/achievements` | fatal | the list is the route, not a region of it |
+| `/lol/$accountSlug/matches` | fatal | `MatchList` gates on `isPending` with no error branch, so tolerating holds the skeleton forever |
+| `/steam/portrait` | tolerated | two independent halves; either one still argues without the other |
+
+That last row of the fatal column is the trap worth naming: **swallowing is only safe if the consuming component has an error branch.** A component that gates on `isPending` alone never leaves its skeleton when the query *errors*, so tolerating there ships an infinite loading state — strictly worse than the error card it replaced.
+
+**How to apply:** when you add a `loader`, answer the question above for each prime and record the answer at the loader, including for the ones that stay fatal — otherwise the next reader reads an unguarded `await` as an oversight and "fixes" it. Check the consuming component for an `isError` branch before tolerating anything. The decisions are pinned in [route-loaders.test.ts](../apps/web/src/route-loaders.test.ts); add a case there rather than relying on review. Nothing about either choice fails to compile, and the two are indistinguishable until an upstream is actually down — the way to see it is a proxy that fails one endpoint while the api stays up, not a stopped api, which only ever exercises the root loader.
+
 Two more traps worth knowing before writing a loader:
 
 - **Cover the whole loading gate, not one query.** Dependent queries have to be chained (`/lol/patches` awaits the list, reads the newest version off it, then awaits that changeset). Priming one of two leaves the page rendering its skeleton, because a gate like `!changes && (list === undefined || changesPending)` needs both.

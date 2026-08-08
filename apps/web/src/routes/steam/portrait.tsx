@@ -1,3 +1,4 @@
+import { primeQuietly } from "@/lib/prime-quietly";
 import { routeMeta } from "@/lib/route-meta";
 import { AntiPortraitSection } from "@/steam/portrait/anti-portrait-section";
 import { BacklogBand } from "@/steam/portrait/backlog-band";
@@ -12,16 +13,14 @@ export const Route = createFileRoute("/steam/portrait")({
   // — and between them they answer every claim this page makes, so the whole
   // route server-renders its argument rather than a stack of spinners.
   //
-  // `allSettled`, not `all`: an unhandled rejection here takes the route to a
-  // 500 with no page at all (measured), which is worse than the cards
-  // rendering their own unavailable state. `all` would also resolve the loader
-  // the instant either failed, leaving the other's result out of the
-  // dehydrated cache it had already earned.
+  // Tolerated rather than fatal: the two halves of the page are independent
+  // arguments, so one endpoint failing still leaves the other's cards saying
+  // something true. See `primeQuietly` for why that is `allSettled`.
   loader: ({ context: { queryClient } }) =>
-    Promise.allSettled([
+    primeQuietly(
       queryClient.ensureQueryData(portraitQueryOptions()),
-      queryClient.ensureQueryData(platformMixQueryOptions()),
-    ]),
+      queryClient.ensureQueryData(platformMixQueryOptions())
+    ),
   head: () =>
     routeMeta({
       title: "Steam portrait · vyoh.gg",

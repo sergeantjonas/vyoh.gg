@@ -25,6 +25,12 @@ export const Route = createFileRoute("/steam/wishlist")({
   // Both tabs read the one wishlist query, and it is 7 kB served from the
   // backend's own GetWishlist cache in ~1 ms. Small, fast, and it is the whole
   // of what either panel renders.
+  //
+  // Deliberately fatal, unlike the tolerated primes elsewhere (see
+  // `primeQuietly`). The panels do each carry an `isError` EmptyState, so
+  // swallowing would render — but it would render an empty page at HTTP 200,
+  // which is a worse thing to hand a crawler than a 500 asking it to retry.
+  // The wishlist is not a region of this route; it is the route.
   loader: ({ context: { queryClient } }) =>
     queryClient.ensureQueryData(steamWishlistQueryOptions()),
   validateSearch: (search: Record<string, unknown>): WishlistSearch => {

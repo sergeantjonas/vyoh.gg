@@ -17,6 +17,11 @@ export const Route = createFileRoute("/steam/achievements")({
   // The unlock feed is the page. It comes out of our own achievement store
   // rather than Steam, so it answers in a few ms, and 100 unlocks is ~23 kB
   // that renders as ~100 rows — the payload is the content, not an aggregate.
+  //
+  // Which is also why it stays fatal rather than joining the tolerated primes
+  // (see `primeQuietly`): the component below handles its own `isError`, so
+  // swallowing would render a heading, a link and nothing else at HTTP 200.
+  // A 500 asks a crawler to come back instead of indexing that.
   loader: ({ context: { queryClient } }) =>
     queryClient.ensureQueryData(recentUnlocksQueryOptions(FEED_LIMIT)),
   head: () =>

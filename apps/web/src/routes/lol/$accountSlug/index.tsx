@@ -1,6 +1,7 @@
 import { CvSection, SectionPlaceholder } from "@/_shared/cv-section";
 import { ChartBoundary } from "@/components/error-boundary";
 import { meQueryOptions } from "@/identity/use-me";
+import { primeQuietly } from "@/lib/prime-quietly";
 import { routeMeta } from "@/lib/route-meta";
 import { findAccountBySlug } from "@/lol/_shared/account/find-account-by-slug";
 import { LiveGameChip } from "@/lol/_shared/account/live-game-chip";
@@ -92,14 +93,19 @@ export const Route = createFileRoute("/lol/$accountSlug/")({
   // game the server render could not. That mismatch made React discard the
   // server tree for the whole LoL landing page, and only while a game was
   // actually in progress, which is why it survived the chunk 4b sweep.
+  // Both are tolerated. They are two chips on a page that also carries the
+  // champion pool, the match links, the ritual tiles and the season history —
+  // so a rank endpoint having a moment used to take the whole LoL landing page
+  // to an error card, for content the page is not about. The identity await
+  // above stays fatal, because without it there is no account to render.
   loader: async ({ context: { queryClient }, params }) => {
     const me = await queryClient.ensureQueryData(meQueryOptions());
     const account = findAccountBySlug(me.lol, params.accountSlug);
     if (!account) return;
-    await Promise.all([
+    await primeQuietly(
       queryClient.ensureQueryData(profileRankQueryOptions(account)),
-      queryClient.ensureQueryData(liveGameQueryOptions(account)),
-    ]);
+      queryClient.ensureQueryData(liveGameQueryOptions(account))
+    );
   },
   // Static fallback used until `ProfilePage` enriches `document.title`
   // with the resolved `gameName#tagLine` (see the useEffect below).

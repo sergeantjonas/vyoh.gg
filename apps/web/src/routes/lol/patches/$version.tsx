@@ -1,3 +1,4 @@
+import { primeQuietly } from "@/lib/prime-quietly";
 import { routeMeta } from "@/lib/route-meta";
 import { PatchesPage } from "@/lol/patches/patches-page";
 import { validatePatchesSearch } from "@/lol/patches/patches-search";
@@ -9,12 +10,17 @@ export const Route = createFileRoute("/lol/patches/$version")({
   component: PatchesVersionRoute,
   validateSearch: validatePatchesSearch,
   // Same shape as the index route, minus the dependency: the version is in
-  // the path, so both queries can be awaited in parallel. The list is still
-  // needed — `PatchesPage` reads the release date off it, and its loading
-  // gate gives up only when both have landed.
+  // the path, so both queries can be awaited in parallel.
+  //
+  // Only the changeset is fatal. It is the page — without it `PatchesPage`
+  // returns `PatchesEmpty` before it renders the version sidebar, so tolerating
+  // it would serve an empty unnavigable document at HTTP 200 and teach a
+  // crawler that the patch notes this route exists to get indexed aren't there.
+  // The list only supplies the release date (read through `patchList?.find`),
+  // so its failure costs one line of a page that is otherwise entirely intact.
   loader: ({ context: { queryClient }, params }) =>
     Promise.all([
-      queryClient.ensureQueryData(patchListQueryOptions()),
+      primeQuietly(queryClient.ensureQueryData(patchListQueryOptions())),
       queryClient.ensureQueryData(patchChangesQueryOptions(params.version)),
     ]),
   head: ({ params }) =>

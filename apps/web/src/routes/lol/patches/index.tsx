@@ -18,6 +18,13 @@ export const Route = createFileRoute("/lol/patches/")({
   // only the list leaves the page rendering `PatchesLoading`, because its
   // gate is `!patchChanges && (patchList === undefined || changesPending)` —
   // one of the two being warm is not enough to clear it.
+  //
+  // Both halves are deliberately fatal, unlike the tolerated primes elsewhere
+  // (see `primeQuietly`). The list picks the version, so losing it loses the
+  // page outright; losing the changeset drops `PatchesPage` into `PatchesEmpty`
+  // before the version sidebar renders, so swallowing would serve an empty
+  // unnavigable document at HTTP 200 — and this is the route the SSR migration
+  // exists to get indexed. A 500 tells a crawler to come back.
   loader: async ({ context: { queryClient } }) => {
     const patches = await queryClient.ensureQueryData(patchListQueryOptions());
     const newest = patches[0]?.version;
