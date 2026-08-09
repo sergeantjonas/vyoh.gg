@@ -65,8 +65,26 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload coverage to Codecov
+      # The upload tolerates a missing file, so a package whose test run
+      # crashed before writing lcov would be silently absent from the report —
+      # that is how packages/shared alone charted as the whole repo between
+      # 2026-05-31 and 2026-07-25. A package whose tests merely fail still
+      # writes lcov, so this only rejects crashed or truncated runs.
+      - name: Assert every package produced coverage
+        id: coverage-files
         if: always()
+        shell: bash
+        run: |
+          for f in apps/api/coverage/lcov.info apps/web/coverage/lcov.info packages/shared/coverage/lcov.info; do
+            count=$(grep -c '^SF:' "$f" 2>/dev/null) || count=0
+            if [ "$count" -lt 10 ]; then
+              echo "::error::$f is missing or truncated ($count source files) — refusing a partial Codecov upload"
+              exit 1
+            fi
+          done
+
+      - name: Upload coverage to Codecov
+        if: ${{ !cancelled() && steps.coverage-files.outcome == 'success' }}
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

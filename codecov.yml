@@ -1,0 +1,13 @@
+# Codecov counts a partial-branch line as uncovered, so its number sits well
+# below the vitest `lines` gate by construction (~73% vs ~91% as of 2026-08).
+# Don't read that gap as a regression, and don't chase parity by raising the
+# target — the ratchet below is the guard that matters.
+coverage:
+  status:
+    project:
+      default:
+        target: auto # fail only on a real slide against the parent commit
+        threshold: 0.5% # absorbs coverage-remap noise between runs
+    patch:
+      default:
+        target: 80% # new code is gated regardless of the legacy baseline
