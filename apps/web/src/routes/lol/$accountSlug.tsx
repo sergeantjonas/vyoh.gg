@@ -8,7 +8,6 @@ import { useScrollResetOnNav } from "@/lib/use-scroll-reset-on-nav";
 import { cn } from "@/lib/utils";
 import { RefreshAccountButton } from "@/lol/_shared/account/refresh-account-button";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
-import championAssets from "@/lol/_shared/assets/champion-assets.json";
 import { useSplashChampion } from "@/lol/_shared/assets/splash-backdrop";
 import { profileIconUrl } from "@/lol/_shared/assets/summoner-icon";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
@@ -44,11 +43,12 @@ import {
   useNavigate,
   useRouterState,
 } from "@tanstack/react-router";
+import { CHAMPION_ASSETS } from "@vyoh/shared";
 import { Crown, History, LayoutDashboard, TrendingUp } from "lucide-react";
 import { m, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-const CHAMPION_KEYS = Object.keys(championAssets.champions as Record<string, unknown>);
+const CHAMPION_KEYS = Object.keys(CHAMPION_ASSETS.champions);
 
 const TABS = [
   { to: "/lol/$accountSlug", label: "Profile", Icon: LayoutDashboard, exact: true },

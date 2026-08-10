@@ -22,6 +22,9 @@ export type {
   SeasonArtworkMatch,
   SeasonRidgeOptions,
 } from "./lol/season-artwork.ts";
+export { championTheme, normalizeChampionAlias } from "./lol/champion-theme.ts";
+export type { ChampionAsset, ChampionAssetsFile } from "./lol/champion-theme.ts";
+export { CHAMPION_ASSETS } from "./lol/champion-assets.gen.ts";
 export {
   NON_LANED_QUEUE_IDS,
   QUEUE_TYPES,

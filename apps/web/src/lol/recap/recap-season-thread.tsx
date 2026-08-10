@@ -1,11 +1,11 @@
 import { ChapterLabel } from "@/components/ui/chapter-label";
-import { normalizeChampionAlias } from "@/lol/_shared/assets/champion-icon";
-import { championTheme } from "@/lol/_shared/assets/champion-theme";
 import { useCachedMatchesWindow } from "@/lol/matches/use-matches";
 import {
   type LolAccount,
   OWNER_TIME_ZONE,
+  championTheme,
   excludeRemakes,
+  normalizeChampionAlias,
   renderSeasonRidge,
 } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";

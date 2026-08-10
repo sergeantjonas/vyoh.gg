@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   OgChampionAliasDto,
   OgMatchParamsDto,
+  OgRecapChapterDto,
   OgSlugDto,
   OgSteamAppidDto,
 } from "./og-params.dto";
@@ -143,5 +144,35 @@ describe("OgSteamAppidDto", () => {
     const dto = (appid: string) => Object.assign(new OgSteamAppidDto(), { appid });
     expect(await validate(dto("abc"))).not.toHaveLength(0);
     expect(await validate(dto("1.5"))).not.toHaveLength(0);
+  });
+});
+
+describe("OgController.recapChapterCard", () => {
+  it("delegates to generateRecapChapterCard with the chapter param", async () => {
+    const png = Buffer.from("recap-chapter-png");
+    const generateRecapChapterCard = vi.fn().mockResolvedValue(png);
+    const controller = await makeController({ generateRecapChapterCard });
+    const send = vi.fn();
+    await controller.recapChapterCard(
+      { chapter: "conclusion" } as OgRecapChapterDto,
+      { send } as unknown as Response
+    );
+    expect(generateRecapChapterCard).toHaveBeenCalledWith("conclusion");
+    expect(send).toHaveBeenCalledWith(png);
+  });
+});
+
+describe("OgRecapChapterDto", () => {
+  const dto = (chapter: string) => Object.assign(new OgRecapChapterDto(), { chapter });
+
+  it("accepts exactly the two shareable chapters", async () => {
+    expect(await validate(dto("champion"))).toHaveLength(0);
+    expect(await validate(dto("conclusion"))).toHaveLength(0);
+  });
+
+  it("rejects anything outside the closed enum", async () => {
+    expect(await validate(dto("ahri"))).not.toHaveLength(0);
+    expect(await validate(dto("champion2"))).not.toHaveLength(0);
+    expect(await validate(dto(""))).not.toHaveLength(0);
   });
 });

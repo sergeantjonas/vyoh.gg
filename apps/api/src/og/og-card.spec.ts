@@ -34,6 +34,7 @@ import {
   renderHomeCard,
   renderMatchCard,
   renderProfileCard,
+  renderRecapChapterCard,
   renderSteamGameCard,
 } from "./og-card";
 
@@ -262,5 +263,48 @@ describe("renderSteamGameCard", () => {
   it("renders without the blurb block when shortDescription is null", async () => {
     const buf = await renderSteamGameCard({ ...baseData, shortDescription: null });
     expect(buf).toBeInstanceOf(Buffer);
+  });
+});
+
+describe("renderRecapChapterCard", () => {
+  const baseData = {
+    eyebrow: "Vyoh's Ahri",
+    title: "Ahri",
+    subtitle: "the Nine-Tailed Fox",
+    accentHex: "#c8233e",
+    ridgeSvg: "<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='630'/>",
+    kpis: [
+      { label: "Games", value: "226" },
+      { label: "Win rate", value: "56%" },
+      { label: "Avg KDA", value: "3.42" },
+    ],
+    threadLabel: "564 games · Jun 2024 – Aug 2026",
+  };
+
+  it("returns a Buffer with the PNG header bytes", async () => {
+    const buf = await renderRecapChapterCard(baseData);
+    expect(buf).toBeInstanceOf(Buffer);
+    expect(buf.subarray(0, 4).toString("hex")).toBe("89504e47");
+  });
+
+  it("rasterises the ridge SVG in-process instead of fetching it", async () => {
+    const fetchSpy = vi.mocked(fetch);
+    await renderRecapChapterCard(baseData);
+    expect(vi.mocked(renderAsync)).toHaveBeenCalledWith(baseData.ridgeSvg);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("lays out masthead copy, accent, and KPI strip in the element tree", async () => {
+    await renderRecapChapterCard(baseData);
+    const tree = JSON.stringify(vi.mocked(satori).mock.calls.at(-1)?.[0]);
+    for (const expected of [
+      "Vyoh's Ahri",
+      "the Nine-Tailed Fox",
+      "#c8233e",
+      "Win rate",
+      "564 games",
+    ]) {
+      expect(tree).toContain(expected);
+    }
   });
 });

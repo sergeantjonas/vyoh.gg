@@ -119,7 +119,7 @@ The sort is alphabetical by alias. Two consequences:
 - **Diffs are minimal across re-runs.** When Riot ships a new champion, the diff is a single new key in the right alphabetical position plus possibly a few `dominantHex` changes for champions whose splash art was updated. A timestamp-sorted or insertion-ordered output would diff every run.
 - **The file is reviewable in PRs.** Reading a 200-line JSON change to confirm "yes, this is a new champion" is easy. Reading a 200-line shuffled JSON to confirm "no, none of this is suspicious" is hard.
 
-The output ships to `apps/web/src/data/champion-assets.json` and is imported as a regular module — Vite's JSON import handles it without ceremony. Runtime cost is a single object lookup behind a fallback:
+The output ships to `packages/shared/src/lol/champion-assets.gen.ts` — a generated TypeScript module rather than raw JSON, so the same data flows untouched through Vite on the web side and the NestJS/SWC build on the api side (which renders OG-card artwork from the same palette). Runtime cost is a single object lookup behind a fallback:
 
 ```ts
 const FALLBACK: ChampionAsset = {
@@ -162,7 +162,7 @@ The script is run on demand — typically when Riot ships a new patch and a new 
 - has a stable upstream (CDragon) but an upstream that can rate-limit
 - produces a deterministic, reviewable artifact
 
-A daily CI re-run would risk a churn-y diff for no good reason — the splash art rarely changes, so most days would produce a no-op diff (a different timestamp, same hashes). On-demand keeps the output meaningful: every PR that touches `champion-assets.json` is a deliberate update.
+A daily CI re-run would risk a churn-y diff for no good reason — the splash art rarely changes, so most days would produce a no-op diff (a different timestamp, same hashes). On-demand keeps the output meaningful: every PR that touches `champion-assets.gen.ts` is a deliberate update.
 
 ## What this earns
 

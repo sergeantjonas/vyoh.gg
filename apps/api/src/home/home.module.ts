@@ -23,5 +23,8 @@ import { HomeController } from "./home.controller";
     HomeLifetimeTotalsService,
     HomeTodayService,
   ],
+  // The OG module renders the conclusion share card from the same lifetime
+  // totals the strip on `/` reads.
+  exports: [HomeLifetimeTotalsService],
 })
 export class HomeModule {}

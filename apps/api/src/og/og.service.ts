@@ -1,19 +1,25 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import {
+  OWNER_TIME_ZONE,
   RANKED_QUEUE_KEYS,
   RANKED_QUEUE_KEY_TO_TYPE,
   type SteamGameRecap,
+  championTheme,
   excludeRemakes,
   formatDuration,
   formatKda,
   formatPercent,
   formatPlaytimeFromSeconds,
+  getPrimaryAccount,
   queueLabel,
+  renderSeasonRidge,
   selectChampionOfYear,
 } from "@vyoh/shared";
+import { HomeLifetimeTotalsService } from "../home/home-lifetime-totals.service";
 import { IdentityService } from "../identity/identity.service";
 import { LolImageService } from "../img/lol-image.service";
 import { SteamImageService } from "../img/steam-image.service";
+import { LolChampionAnalyticsService } from "../lol/lol-champion-analytics.service";
 import { LolService } from "../lol/lol.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamGameRecapService } from "../steam/game-recap.service";
@@ -22,6 +28,7 @@ import {
   renderHomeCard,
   renderMatchCard,
   renderProfileCard,
+  renderRecapChapterCard,
   renderSteamGameCard,
 } from "./og-card";
 
@@ -35,6 +42,25 @@ const HOME_TAGLINE = "A personal cross-stream gaming dashboard";
 // frontend code for what is a tiny domain rule.
 const APEX_TIERS = new Set(["MASTER", "GRANDMASTER", "CHALLENGER"]);
 
+// The two shareable recap chapters on `/`. Copy mirrors the chapters
+// themselves (`ahri-chapter.tsx`, `conclusion-chapter.tsx`) — those files are
+// the source of truth for masthead strings and the conclusion accent.
+export type RecapChapterKey = "champion" | "conclusion";
+const RECAP_CHAMPION_ALIAS = "Ahri";
+const RECAP_CHAMPION_TITLE = "the Nine-Tailed Fox";
+const CONCLUSION_ACCENT = "#f0c878";
+
+// Full cached history for the ridge background — the same window the recap
+// hero band reads (see `RecapSeasonThread`), so card and page render the same
+// artwork.
+const RIDGE_WINDOW_COUNT = 2000;
+
+const RIDGE_RANGE_FMT = new Intl.DateTimeFormat("en-GB", {
+  month: "short",
+  year: "numeric",
+  timeZone: OWNER_TIME_ZONE,
+});
+
 @Injectable()
 export class OgService {
   constructor(
@@ -43,7 +69,9 @@ export class OgService {
     private readonly lolImage: LolImageService,
     private readonly steamImage: SteamImageService,
     private readonly prisma: PrismaService,
-    private readonly steamGameRecap: SteamGameRecapService
+    private readonly steamGameRecap: SteamGameRecapService,
+    private readonly championAnalytics: LolChampionAnalyticsService,
+    private readonly lifetimeTotals: HomeLifetimeTotalsService
   ) {}
 
   async generateMatchCard(slug: string, matchId: string): Promise<Buffer> {
@@ -230,6 +258,94 @@ export class OgService {
               : "—",
         },
       ],
+    });
+  }
+
+  async generateRecapChapterCard(chapter: RecapChapterKey): Promise<Buffer> {
+    // Owner-scoped, no slug: `/` has a single subject. Same resolution the
+    // recap chapters themselves use (`getPrimaryAccount` drives the Ahri
+    // chapter's account framing).
+    const account = getPrimaryAccount(this.identity.getLolAccounts());
+    if (!account) {
+      throw new NotFoundException("No primary owner account configured");
+    }
+
+    const window = await this.lol.getCachedMatches(
+      account.region,
+      account.gameName,
+      account.tagLine,
+      0,
+      RIDGE_WINDOW_COUNT
+    );
+
+    // Identity surface, so all queues; remakes are the only exclusion. Sorted
+    // oldest-first — the walk reads left to right. Same projection as the
+    // recap hero band, so the card background is the page's artwork.
+    const played = excludeRemakes(window.matches).sort(
+      (a, b) => Date.parse(a.playedAt) - Date.parse(b.playedAt)
+    );
+    const ridgeSvg = renderSeasonRidge(
+      played.map((m) => ({
+        win: m.win,
+        kills: m.kills,
+        colorHex: championTheme(m.champion).dominantHex,
+      })),
+      { background: "#0a0a0a" }
+    );
+    const first = played[0];
+    const last = played[played.length - 1];
+    const threadLabel =
+      first && last
+        ? `${played.length} games · ${RIDGE_RANGE_FMT.format(new Date(first.playedAt))} – ${RIDGE_RANGE_FMT.format(new Date(last.playedAt))}`
+        : "";
+
+    if (chapter === "champion") {
+      const recap = await this.championAnalytics.getChampionRecap(
+        account.region,
+        account.gameName,
+        account.tagLine,
+        RECAP_CHAMPION_ALIAS
+      );
+      return renderRecapChapterCard({
+        eyebrow: `${account.gameName}'s ${RECAP_CHAMPION_ALIAS}`,
+        title: RECAP_CHAMPION_ALIAS,
+        subtitle: RECAP_CHAMPION_TITLE,
+        accentHex: championTheme(RECAP_CHAMPION_ALIAS).dominantHex,
+        ridgeSvg,
+        kpis: [
+          { label: "Games", value: recap.totalGames.toString() },
+          {
+            label: "Win rate",
+            value: recap.winRate !== null ? formatPercent(recap.winRate) : "—",
+          },
+          {
+            label: "Avg KDA",
+            value: recap.avgKda !== null ? formatKda(recap.avgKda) : "—",
+          },
+        ],
+        threadLabel,
+      });
+    }
+
+    const totals = await this.lifetimeTotals.getLifetimeTotals();
+    return renderRecapChapterCard({
+      eyebrow: `${account.gameName}'s portrait`,
+      title: account.gameName,
+      subtitle: "the player",
+      accentHex: CONCLUSION_ACCENT,
+      ridgeSvg,
+      kpis: [
+        { label: "LoL matches", value: totals.lolMatchCount.toString() },
+        {
+          label: "LoL time",
+          value: formatPlaytimeFromSeconds(totals.lolMinutes * 60),
+        },
+        {
+          label: "Steam time",
+          value: formatPlaytimeFromSeconds(totals.steamMinutes * 60),
+        },
+      ],
+      threadLabel,
     });
   }
 }

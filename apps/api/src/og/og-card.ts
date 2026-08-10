@@ -83,6 +83,24 @@ export interface SteamGameCardData {
   kpis: Array<{ label: string; value: string }>;
 }
 
+export interface RecapChapterCardData {
+  // Masthead copy — mirrors the chapter's own eyebrow → title → subtitle
+  // hierarchy on `/` so the card previews the page it links to.
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  // Per-chapter accent (champion dominantHex / the conclusion's warm amber);
+  // colors the eyebrow so sibling cards read as one family, differently lit.
+  accentHex: string;
+  // The season-ridge artwork as an SVG string (from `renderSeasonRidge`),
+  // not a URL chain — it is generated in-process, never fetched.
+  ridgeSvg: string;
+  kpis: Array<{ label: string; value: string }>;
+  // Right-hand slot under the KPIs — the thread's extent ("564 games ·
+  // Jun 2024 → Aug 2026"), taking the position `region` holds elsewhere.
+  threadLabel: string;
+}
+
 // -----------------------------------------------------------------------------
 // Shared rendering helpers
 // -----------------------------------------------------------------------------
@@ -918,6 +936,205 @@ export async function renderSteamGameCard(data: SteamGameCardData): Promise<Buff
               kpi.label
             )
           )
+        )
+      )
+    )
+  );
+
+  return svgToPng(card);
+}
+
+// -----------------------------------------------------------------------------
+// Recap chapter card — the shareable face of a `/` recap chapter. Full-bleed
+// season-ridge artwork with the chapter's masthead + KPI strip over it, so the
+// share preview teases the exact image the click-through delivers.
+// -----------------------------------------------------------------------------
+
+export async function renderRecapChapterCard(
+  data: RecapChapterCardData
+): Promise<Buffer> {
+  // Rasterise the ridge through the same resvg path the finished card uses and
+  // embed it as PNG. Embedding the raw SVG string as a data URL would lean on
+  // satori's nested-SVG image handling; PNG keeps the contract to what every
+  // other card already exercises (bitmap in, bitmap out).
+  const ridgePng = (await renderAsync(data.ridgeSvg)).asPng();
+  const ridgeDataUrl = `data:image/png;base64,${Buffer.from(ridgePng).toString("base64")}`;
+
+  const card = e(
+    "div",
+    {
+      style: {
+        display: "flex",
+        position: "relative",
+        width: OG_WIDTH,
+        height: OG_HEIGHT,
+        backgroundColor: "#0a0a0a",
+        color: "#f4f4f5",
+        fontFamily: "Geist",
+      },
+    },
+    e("img", {
+      src: ridgeDataUrl,
+      style: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: OG_WIDTH,
+        height: OG_HEIGHT,
+      },
+    }),
+    // Same gradient stops as the champion/profile cards: clears the artwork up
+    // top, anchors the editorial block below.
+    e("div", {
+      style: {
+        display: "flex",
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: OG_WIDTH,
+        height: OG_HEIGHT,
+        backgroundImage:
+          "linear-gradient(to bottom, rgba(10,10,10,0.2) 0%, rgba(10,10,10,0) 30%, rgba(10,10,10,0.7) 70%, rgba(10,10,10,0.96) 100%)",
+      },
+    }),
+    e(
+      "div",
+      {
+        style: {
+          position: "absolute",
+          top: 48,
+          right: 64,
+          display: "flex",
+        },
+      },
+      wordmark()
+    ),
+    e(
+      "div",
+      {
+        style: {
+          position: "absolute",
+          left: 64,
+          right: 64,
+          bottom: 64,
+          display: "flex",
+          flexDirection: "column",
+          gap: 28,
+        },
+      },
+      e(
+        "div",
+        {
+          style: { display: "flex", flexDirection: "column", gap: 12 },
+        },
+        e(
+          "div",
+          {
+            style: {
+              display: "flex",
+              fontSize: 20,
+              color: data.accentHex,
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+            },
+          },
+          data.eyebrow
+        ),
+        e(
+          "div",
+          {
+            style: {
+              display: "flex",
+              alignItems: "baseline",
+              gap: 20,
+            },
+          },
+          e(
+            "div",
+            {
+              style: {
+                display: "flex",
+                fontSize: 80,
+                fontWeight: 600,
+                lineHeight: 1,
+                letterSpacing: "-0.02em",
+                color: "#f4f4f5",
+              },
+            },
+            data.title
+          ),
+          e(
+            "div",
+            {
+              style: {
+                display: "flex",
+                fontSize: 28,
+                color: "#a1a1aa",
+                letterSpacing: "0.02em",
+              },
+            },
+            data.subtitle
+          )
+        )
+      ),
+      e(
+        "div",
+        {
+          style: {
+            display: "flex",
+            flexDirection: "row",
+            gap: 56,
+            alignItems: "flex-end",
+            justifyContent: "space-between",
+          },
+        },
+        ...data.kpis.map((kpi) =>
+          e(
+            "div",
+            {
+              style: { display: "flex", flexDirection: "column", gap: 4 },
+            },
+            e(
+              "div",
+              {
+                style: {
+                  display: "flex",
+                  fontSize: 48,
+                  fontWeight: 600,
+                  fontVariantNumeric: "tabular-nums",
+                  color: "#f4f4f5",
+                  lineHeight: 1,
+                },
+              },
+              kpi.value
+            ),
+            e(
+              "div",
+              {
+                style: {
+                  display: "flex",
+                  fontSize: 16,
+                  color: "#d4d4d8",
+                  letterSpacing: "0.16em",
+                  textTransform: "uppercase",
+                },
+              },
+              kpi.label
+            )
+          )
+        ),
+        e(
+          "div",
+          {
+            style: {
+              display: "flex",
+              fontSize: 16,
+              color: "#a1a1aa",
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+            },
+          },
+          data.threadLabel
         )
       )
     )

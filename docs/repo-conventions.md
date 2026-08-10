@@ -474,6 +474,7 @@ Generated files (codegen output, router manifests, OpenAPI clients, Prisma artef
 **Currently committed generated files:**
 
 - `apps/web/src/routeTree.gen.ts` — TanStack Router file-based route manifest. Kept tracked so `pnpm dev` works immediately after `pnpm install` without a generate step; the diff also serves as a readable audit log when routes change.
+- `packages/shared/src/lol/champion-assets.gen.ts` — champion accent colors + blurhashes precomputed from wiki art by `tools/champion-assets` (full rationale: [build-time-champion-assets.md](case-studies/build-time-champion-assets.md)). Committed because regeneration needs ~500 wiki fetches and the alphabetical diff doubles as the review artifact. Emitted as TS rather than JSON so it flows through the api's SWC build and the web's Vite build identically; typechecked against the handwritten `ChampionAssetsFile` shape, ignored by Biome via the `**/*.gen.ts` pattern.
 
 **How to apply:** When introducing a new codegen plugin, decide commit-vs-ignore intentionally and add a line here if committing. When reviewing a PR, a committed generated file without an entry here is a finding.
 

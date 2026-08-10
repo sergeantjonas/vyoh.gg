@@ -3,10 +3,11 @@ import type { Response } from "express";
 import {
   OgChampionAliasDto,
   OgMatchParamsDto,
+  OgRecapChapterDto,
   OgSlugDto,
   OgSteamAppidDto,
 } from "./og-params.dto";
-import { OgService } from "./og.service";
+import { OgService, type RecapChapterKey } from "./og.service";
 
 // Shared cache header for every PNG endpoint. Aggressive shared-CDN cache
 // (s-maxage 30d) + 24h browser cache. Per-entity URLs are stable; profile
@@ -65,6 +66,18 @@ export class OgController {
     @Res() res: Response
   ): Promise<void> {
     const png = await this.og.generateSteamGameCard(Number.parseInt(appid, 10));
+    res.send(png);
+  }
+
+  @Get("recap/:chapter.png")
+  @Header("Content-Type", "image/png")
+  @Header("Cache-Control", OG_CACHE_HEADER)
+  async recapChapterCard(
+    @Param() { chapter }: OgRecapChapterDto,
+    @Res() res: Response
+  ): Promise<void> {
+    // The DTO's closed regex is what makes this cast safe.
+    const png = await this.og.generateRecapChapterCard(chapter as RecapChapterKey);
     res.send(png);
   }
 }

@@ -41,3 +41,12 @@ export class OgSteamAppidDto {
   @Matches(/^\d+$/)
   appid!: string;
 }
+
+// Recap chapter key — the two shareable chapters on `/`. Closed enum rather
+// than MinLength so an arbitrary string can't reach the service and 500 on an
+// unhandled branch.
+export class OgRecapChapterDto {
+  @IsString()
+  @Matches(/^(champion|conclusion)$/)
+  chapter!: string;
+}

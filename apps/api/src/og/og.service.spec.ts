@@ -1,9 +1,19 @@
 import { NotFoundException } from "@nestjs/common";
-import type { MatchDetail, ParticipantDetail, SteamGameRecap } from "@vyoh/shared";
+import {
+  type MatchDetail,
+  type ParticipantDetail,
+  type SteamGameRecap,
+  championTheme,
+  formatKda,
+  formatPercent,
+  formatPlaytimeFromSeconds,
+} from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
+import type { HomeLifetimeTotalsService } from "../home/home-lifetime-totals.service";
 import type { IdentityService } from "../identity/identity.service";
 import type { LolImageService } from "../img/lol-image.service";
 import type { SteamImageService } from "../img/steam-image.service";
+import type { LolChampionAnalyticsService } from "../lol/lol-champion-analytics.service";
 import type { LolService } from "../lol/lol.service";
 import type { PrismaService } from "../prisma/prisma.service";
 import type { SteamGameRecapService } from "../steam/game-recap.service";
@@ -18,12 +28,16 @@ const renderHomeCardMock = vi.fn(async (_args: unknown) => Buffer.from("mock-hom
 const renderSteamGameCardMock = vi.fn(async (_args: unknown) =>
   Buffer.from("mock-steam")
 );
+const renderRecapChapterCardMock = vi.fn(async (_args: unknown) =>
+  Buffer.from("mock-recap-chapter")
+);
 vi.mock("./og-card", () => ({
   renderMatchCard: (args: unknown) => renderMatchCardMock(args),
   renderChampionCard: (args: unknown) => renderChampionCardMock(args),
   renderProfileCard: (args: unknown) => renderProfileCardMock(args),
   renderHomeCard: (args: unknown) => renderHomeCardMock(args),
   renderSteamGameCard: (args: unknown) => renderSteamGameCardMock(args),
+  renderRecapChapterCard: (args: unknown) => renderRecapChapterCardMock(args),
 }));
 
 interface ServiceStubs {
@@ -33,6 +47,8 @@ interface ServiceStubs {
   steamImage?: Partial<SteamImageService>;
   prisma?: Partial<PrismaService>;
   steamGameRecap?: Partial<SteamGameRecapService>;
+  championAnalytics?: Partial<LolChampionAnalyticsService>;
+  lifetimeTotals?: Partial<HomeLifetimeTotalsService>;
 }
 
 function participant(overrides: Partial<ParticipantDetail> = {}): ParticipantDetail {
@@ -100,7 +116,9 @@ function makeService(stubs: ServiceStubs = {}): OgService {
     (stubs.lolImage ?? lolImageDefault) as unknown as LolImageService,
     (stubs.steamImage ?? steamImageDefault) as unknown as SteamImageService,
     (stubs.prisma ?? {}) as unknown as PrismaService,
-    (stubs.steamGameRecap ?? {}) as unknown as SteamGameRecapService
+    (stubs.steamGameRecap ?? {}) as unknown as SteamGameRecapService,
+    (stubs.championAnalytics ?? {}) as unknown as LolChampionAnalyticsService,
+    (stubs.lifetimeTotals ?? {}) as unknown as HomeLifetimeTotalsService
   );
 }
 
@@ -513,5 +531,144 @@ describe("OgService.generateSteamGameCard", () => {
       | undefined;
     const completion = args?.kpis.find((k) => k.label === "Completion");
     expect(completion?.value).toBe("—");
+  });
+});
+
+describe("OgService.generateRecapChapterCard", () => {
+  const OWNER_ACCOUNT = { ...ACCOUNT, isOwner: true, isPrimary: true };
+
+  // Deliberately newest-first (the cached endpoint's order) with a remake in
+  // the middle — the service must exclude the remake and re-sort oldest-first
+  // before seeding the ridge.
+  const windowMatches = [
+    {
+      champion: "Jinx",
+      win: false,
+      kills: 2,
+      remake: false,
+      playedAt: "2026-07-01T12:00:00.000Z",
+    },
+    {
+      champion: "Ahri",
+      win: true,
+      kills: 11,
+      remake: true,
+      playedAt: "2026-06-01T12:00:00.000Z",
+    },
+    {
+      champion: "Ahri",
+      win: true,
+      kills: 9,
+      remake: false,
+      playedAt: "2026-05-01T12:00:00.000Z",
+    },
+  ];
+
+  function recapStubs(overrides: ServiceStubs = {}): ServiceStubs {
+    return {
+      identity: { getLolAccounts: vi.fn().mockReturnValue([OWNER_ACCOUNT]) },
+      lol: {
+        getCachedMatches: vi.fn().mockResolvedValue({ matches: windowMatches }),
+      } as unknown as Partial<LolService>,
+      championAnalytics: {
+        getChampionRecap: vi
+          .fn()
+          .mockResolvedValue({ totalGames: 226, winRate: 0.56, avgKda: 3.42 }),
+      } as unknown as Partial<LolChampionAnalyticsService>,
+      lifetimeTotals: {
+        getLifetimeTotals: vi.fn().mockResolvedValue({
+          lolMatchCount: 564,
+          lolMinutes: 30_000,
+          steamMinutes: 12_000,
+        }),
+      } as unknown as Partial<HomeLifetimeTotalsService>,
+      ...overrides,
+    };
+  }
+
+  function lastCardArgs(): {
+    eyebrow: string;
+    title: string;
+    subtitle: string;
+    accentHex: string;
+    ridgeSvg: string;
+    kpis: Array<{ label: string; value: string }>;
+    threadLabel: string;
+  } {
+    const calls = renderRecapChapterCardMock.mock.calls;
+    return calls[calls.length - 1]?.[0] as ReturnType<typeof lastCardArgs>;
+  }
+
+  it("throws NotFoundException when no primary owner account is configured", async () => {
+    const service = makeService(
+      recapStubs({ identity: { getLolAccounts: vi.fn().mockReturnValue([]) } })
+    );
+    await expect(service.generateRecapChapterCard("champion")).rejects.toBeInstanceOf(
+      NotFoundException
+    );
+  });
+
+  it("seeds the ridge from the remake-filtered window, oldest first", async () => {
+    const service = makeService(recapStubs());
+    await service.generateRecapChapterCard("champion");
+    const { ridgeSvg, threadLabel } = lastCardArgs();
+    // 2 non-remake matches → 2 thread segments + 1 baseline.
+    expect(ridgeSvg.match(/<line /g)).toHaveLength(3);
+    // First thread segment carries the OLDEST match's champion (Ahri), not the
+    // newest — pins the re-sort.
+    const threadStrokes = [...ridgeSvg.matchAll(/stroke="(#[0-9a-f]{6})"/g)]
+      .map((m) => m[1])
+      .filter((hex) => hex !== "#ffffff");
+    expect(threadStrokes[0]).toBe(championTheme("Ahri").dominantHex);
+    expect(threadStrokes[1]).toBe(championTheme("Jinx").dominantHex);
+    expect(threadLabel).toBe("2 games · May 2026 – Jul 2026");
+  });
+
+  it("composes the champion chapter from the Ahri recap", async () => {
+    const service = makeService(recapStubs());
+    await service.generateRecapChapterCard("champion");
+    const args = lastCardArgs();
+    expect(args.eyebrow).toBe("Vyoh's Ahri");
+    expect(args.title).toBe("Ahri");
+    expect(args.subtitle).toBe("the Nine-Tailed Fox");
+    expect(args.accentHex).toBe(championTheme("Ahri").dominantHex);
+    expect(args.kpis).toEqual([
+      { label: "Games", value: "226" },
+      { label: "Win rate", value: formatPercent(0.56) },
+      { label: "Avg KDA", value: formatKda(3.42) },
+    ]);
+  });
+
+  it("renders em-dashes when the champion recap window is empty", async () => {
+    const service = makeService(
+      recapStubs({
+        championAnalytics: {
+          getChampionRecap: vi
+            .fn()
+            .mockResolvedValue({ totalGames: 0, winRate: null, avgKda: null }),
+        } as unknown as Partial<LolChampionAnalyticsService>,
+      })
+    );
+    await service.generateRecapChapterCard("champion");
+    expect(lastCardArgs().kpis).toEqual([
+      { label: "Games", value: "0" },
+      { label: "Win rate", value: "—" },
+      { label: "Avg KDA", value: "—" },
+    ]);
+  });
+
+  it("composes the conclusion chapter from lifetime totals", async () => {
+    const service = makeService(recapStubs());
+    await service.generateRecapChapterCard("conclusion");
+    const args = lastCardArgs();
+    expect(args.eyebrow).toBe("Vyoh's portrait");
+    expect(args.title).toBe("Vyoh");
+    expect(args.subtitle).toBe("the player");
+    expect(args.accentHex).toBe("#f0c878");
+    expect(args.kpis).toEqual([
+      { label: "LoL matches", value: "564" },
+      { label: "LoL time", value: formatPlaytimeFromSeconds(30_000 * 60) },
+      { label: "Steam time", value: formatPlaytimeFromSeconds(12_000 * 60) },
+    ]);
   });
 });

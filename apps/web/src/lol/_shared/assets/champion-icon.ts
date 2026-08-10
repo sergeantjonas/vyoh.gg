@@ -15,11 +15,11 @@
 // rather than the fetch one — the two diverge under SSR, and markup has to
 // carry the origin the visitor's browser can reach.
 import { API_PUBLIC_URL } from "@/lib/api-url";
+import { normalizeChampionAlias } from "@vyoh/shared";
 
-const SWARM_PREFIX = "Strawberry_";
-export function normalizeChampionAlias(alias: string): string {
-  return alias.startsWith(SWARM_PREFIX) ? alias.slice(SWARM_PREFIX.length) : alias;
-}
+// Moved to @vyoh/shared with the champion accent data; re-exported so web
+// call sites keep importing it from the assets barrel.
+export { normalizeChampionAlias };
 
 export type ChampionVariant = "square" | "card" | "backdrop" | "splash" | "hd";
 
