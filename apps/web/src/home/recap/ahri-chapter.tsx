@@ -25,6 +25,7 @@ import { ChapterDetail, ChapterOpener, ChapterStats } from "./chapter-bands";
 import { ChapterMultiBeat } from "./chapter-multi-beat";
 import { useChapterGroupNudge } from "./chapter-nudge-contexts";
 import { ChapterReveal } from "./chapter-reveal";
+import { ChapterShareButton } from "./chapter-share-button";
 import { MultiBeat } from "./multi-beat";
 import { parseAnimatableNumber } from "./parse-animatable-number";
 import { preloadLinkAsImage } from "./preload-link";
@@ -474,6 +475,14 @@ function AhriChapterMasthead({
               </span>
             </>
           ) : null}
+          <span
+            aria-hidden="true"
+            className="text-foreground/40"
+            style={{ textShadow: SHADOW_LABEL }}
+          >
+            ·
+          </span>
+          <ChapterShareButton chapter="champion" title={eyebrow} />
         </p>
       </ChapterReveal>
       <ChapterReveal active={hasEntered} delay={0.18} duration={1.1} blur={16} rise={20}>

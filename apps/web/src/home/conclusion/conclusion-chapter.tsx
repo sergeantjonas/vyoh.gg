@@ -23,6 +23,7 @@ import {
   SHADOW_MASTHEAD,
   STROKE_ACCENT,
 } from "../recap/chapter-shadows";
+import { ChapterShareButton } from "../recap/chapter-share-button";
 import { MultiBeat } from "../recap/multi-beat";
 import { useAssetClaim } from "../recap/use-asset-claim";
 import { EditorialCloser } from "./editorial-closer";
@@ -119,6 +120,17 @@ function ConclusionMasthead() {
               </span>
             </>
           ) : null}
+          <span
+            aria-hidden="true"
+            className="text-foreground/40"
+            style={{ textShadow: SHADOW_LABEL }}
+          >
+            ·
+          </span>
+          <ChapterShareButton
+            chapter="conclusion"
+            title={`${account.gameName}'s portrait`}
+          />
         </p>
       </ChapterReveal>
       <ChapterReveal active={hasEntered} delay={0.18} duration={1.1} blur={16} rise={20}>
