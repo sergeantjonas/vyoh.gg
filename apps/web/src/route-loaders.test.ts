@@ -1,6 +1,8 @@
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { patchChangesQueryOptions } from "@/lol/patches/use-patch-changes";
+import { patchListQueryOptions } from "@/lol/patches/use-patch-list";
 import { Route as AccountIndexRoute } from "./routes/lol/$accountSlug/index";
 import { Route as MatchesRoute } from "./routes/lol/$accountSlug/matches";
 import { Route as PatchVersionRoute } from "./routes/lol/patches/$version";
@@ -24,12 +26,15 @@ const API = "http://localhost:2010";
 // failing one without the other.
 let fails: (url: string) => boolean = () => false;
 
+// Mutable so the empty-season case can drain it without a second fetch mock.
+let patchList: Array<{ version: string; patchDate: string }> = [];
+
 function jsonFor(url: string): unknown {
   // Only the shapes a loader itself reads matter — the patches index loader
   // picks `patches[0].version` to build its second query, and the LoL routes
   // resolve their slug against the account list. Everything else is handed
   // straight to the cache.
-  if (url === `${API}/lol/patches`) return [{ version: "26.3", patchDate: "2026-08-01" }];
+  if (url === `${API}/lol/patches`) return patchList;
   if (url.includes("/changes")) return { patchVersion: "26.3" };
   if (url.endsWith("/me")) {
     return {
@@ -43,9 +48,9 @@ function jsonFor(url: string): unknown {
 // into a multi-second test for no added confidence.
 function runLoader(
   route: { options: { loader?: unknown } },
-  params: Record<string, string> = {}
+  params: Record<string, string> = {},
+  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 ) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const loader = route.options.loader;
   // Without this, a route that lost its loader entirely would make the call
   // below throw a TypeError, and every `rejects.toThrow()` here would keep
@@ -62,6 +67,7 @@ function runLoader(
 
 beforeEach(() => {
   fails = () => false;
+  patchList = [{ version: "26.3", patchDate: "2026-08-01" }];
   vi.stubGlobal(
     "fetch",
     vi.fn((input: RequestInfo | URL) => {
@@ -156,5 +162,37 @@ describe("fatal primes", () => {
     fails = (url) => url.includes("/matches");
 
     await expect(runLoader(MatchesRoute, { accountSlug: "ahri" })).rejects.toThrow();
+  });
+});
+
+describe("dependent primes", () => {
+  it("/lol/patches warms both queries under the keys the page reads", async () => {
+    // The changeset key must come out of the same queryOptions factory the
+    // hook uses — a loader that built the key inline would warm an entry the
+    // component never reads, and the page would look primed while rendering
+    // its pending branch.
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    await runLoader(PatchesIndexRoute, {}, queryClient);
+
+    expect(queryClient.getQueryData(patchListQueryOptions().queryKey)).toEqual([
+      { version: "26.3", patchDate: "2026-08-01" },
+    ]);
+    expect(queryClient.getQueryData(patchChangesQueryOptions("26.3").queryKey)).toEqual({
+      patchVersion: "26.3",
+    });
+  });
+
+  it("/lol/patches settles for the list alone when the season has no patches yet", async () => {
+    // An empty list is data, not an outage: there is no version to pick, so
+    // the loader must neither reject nor fire a changeset request for nobody.
+    patchList = [];
+
+    await expect(runLoader(PatchesIndexRoute)).resolves.toBeUndefined();
+
+    const requested = vi.mocked(fetch).mock.calls.map(([input]) => String(input));
+    expect(requested.some((url) => url.includes("/changes"))).toBe(false);
   });
 });
