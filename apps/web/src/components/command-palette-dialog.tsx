@@ -19,6 +19,7 @@ import {
   CommandShortcut,
 } from "@/components/ui/command";
 import { DialogTitle } from "@/components/ui/dialog";
+import { type ShareableChapter, shareChapterCard } from "@/home/recap/share-chapter-card";
 import { useMe } from "@/identity/use-me";
 import { clearMatchHighlights, paintMatchHighlights } from "@/lib/highlight-matches";
 import { useAudio } from "@/lib/use-audio";
@@ -52,6 +53,7 @@ import {
   ListChecks,
   Loader2,
   ScrollText,
+  Share2,
   Swords,
   TrendingUp,
   Trophy,
@@ -308,10 +310,10 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
     });
   }
 
-  // When a navigation verb (`/patches …`, `wishlist …`) is parsed, all other
-  // groups — including the Matches list — collapse so the palette reads as a
-  // single routed destination. The chip / match-filter groups would be visual
-  // noise relative to that intent.
+  // When a global verb (`/patches …`, `/share …`, `wishlist …`) is parsed,
+  // all other groups — including the Matches list — collapse so the palette
+  // reads as a single resolved intent. The chip / match-filter groups would
+  // be visual noise relative to that intent.
   const showVerbDestinationsOnly = paletteVerb !== null || wishlistQuery !== null;
 
   // Non-Matches groups are hidden once any structured verb is in play —
@@ -336,10 +338,43 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
     paletteVerb?.kind === "patches" && paletteVerb.version
       ? `Patches · ${paletteVerb.version}`
       : "Patches";
-  // Scoped to the patches verb specifically — `showVerbDestinationsOnly` now
-  // also covers the wishlist verb, which must not surface the Patches entry.
+  // Scoped to the patches verb specifically — the wishlist verb and the
+  // `/share` kind below must not surface the Patches entry.
   const showGlobalLol =
-    paletteVerb !== null || (showNonMatchGroups && passesFreeText("patches global lol"));
+    paletteVerb?.kind === "patches" ||
+    (showNonMatchGroups && passesFreeText("patches global lol"));
+
+  // `/share …` is an action verb, not a navigation one: selecting an entry
+  // hands the chapter's OG card to the share ladder instead of routing. The
+  // card titles mirror what the chapter mastheads pass to ChapterShareButton.
+  const ownerGameName = me.data?.lol?.[0]?.gameName ?? null;
+  const shareTargets: {
+    chapter: ShareableChapter;
+    value: string;
+    label: string;
+    title: string;
+  }[] = [
+    {
+      chapter: "champion",
+      value: "share ahri chapter card",
+      label: "Ahri chapter card",
+      title: ownerGameName ? `${ownerGameName}'s Ahri` : "Ahri chapter",
+    },
+    {
+      chapter: "conclusion",
+      value: "share season portrait card",
+      label: "Season portrait card",
+      title: ownerGameName ? `${ownerGameName}'s portrait` : "Season portrait",
+    },
+  ];
+  const shareVerb = paletteVerb?.kind === "share" ? paletteVerb : null;
+  const visibleShareTargets = shareVerb
+    ? shareTargets.filter(
+        (t) => shareVerb.chapter === null || t.chapter === shareVerb.chapter
+      )
+    : shareTargets.filter((t) => passesFreeText(t.value));
+  const showShare =
+    shareVerb !== null || (showNonMatchGroups && visibleShareTargets.length > 0);
 
   const pages = [
     { value: "home", icon: <Home />, label: "Home", path: "/" },
@@ -777,6 +812,27 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
               <ScrollText className="size-4" />
               <span>{patchesLabel}</span>
             </CommandItem>
+          </CommandGroup>
+        )}
+
+        {showShare && (
+          <CommandGroup heading="Share">
+            {visibleShareTargets.map((t) => (
+              <CommandItem
+                key={t.chapter}
+                value={t.value}
+                onSelect={() => {
+                  audio.play("palette.select");
+                  onOpenChange(false);
+                  // The outcome surfaces in OS chrome (share sheet, download
+                  // bar); nothing to await from the palette's side.
+                  void shareChapterCard(t.chapter, t.title);
+                }}
+              >
+                <Share2 className="size-4" />
+                <span>{t.label}</span>
+              </CommandItem>
+            ))}
           </CommandGroup>
         )}
 

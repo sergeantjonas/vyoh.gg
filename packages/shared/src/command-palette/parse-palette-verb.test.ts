@@ -94,4 +94,39 @@ describe("parsePaletteVerb", () => {
       asSlug: "b",
     });
   });
+
+  it("parses bare /share with no chapter", () => {
+    expect(parsePaletteVerb("/share")).toEqual({ kind: "share", chapter: null });
+  });
+
+  it("parses /share <chapter> for both flagship chapters", () => {
+    expect(parsePaletteVerb("/share champion")).toEqual({
+      kind: "share",
+      chapter: "champion",
+    });
+    expect(parsePaletteVerb("/share conclusion")).toEqual({
+      kind: "share",
+      chapter: "conclusion",
+    });
+  });
+
+  it("is case-insensitive on the share head and chapter", () => {
+    expect(parsePaletteVerb("/SHARE Champion")).toEqual({
+      kind: "share",
+      chapter: "champion",
+    });
+  });
+
+  it("returns null on share without the slash", () => {
+    expect(parsePaletteVerb("share")).toBeNull();
+    expect(parsePaletteVerb("share champion")).toBeNull();
+  });
+
+  it("ignores unknown share tokens and last-wins on chapters", () => {
+    expect(parsePaletteVerb("/share foo")).toEqual({ kind: "share", chapter: null });
+    expect(parsePaletteVerb("/share champion conclusion")).toEqual({
+      kind: "share",
+      chapter: "conclusion",
+    });
+  });
 });

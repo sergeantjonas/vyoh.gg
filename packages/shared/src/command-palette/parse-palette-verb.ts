@@ -1,15 +1,17 @@
-// Navigation verbs for the ⌘K palette. Distinct from the match-filter
+// Global verbs for the ⌘K palette. Distinct from the match-filter
 // grammar in `lol/match-query.ts`: that one filters the matches currently
-// loaded in the cache; this one drives cross-page navigation that doesn't
-// belong to any single account scope.
+// loaded in the cache; these drive cross-page navigation or app-level
+// actions that don't belong to any single account scope.
 //
 // Current vocabulary:
 //   /patches                       → /lol/patches
 //   /patches 25.10                 → /lol/patches/25.10
 //   /patches @jonas-eune           → /lol/patches?as=jonas-eune
 //   /patches 25.10 @jonas-eune     → /lol/patches/25.10?as=jonas-eune
+//   /share                         → share cards for both flagship recap chapters
+//   /share champion|conclusion     → one chapter's share card
 //
-// Designed as a discriminated union so future global LoL surfaces
+// Designed as a discriminated union so future global surfaces
 // (champion DB, item meta, tier list) plug in by adding a `kind`.
 
 export type PalettePatchesVerb = {
@@ -18,7 +20,12 @@ export type PalettePatchesVerb = {
   asSlug: string | null;
 };
 
-export type PaletteVerb = PalettePatchesVerb;
+export type PaletteShareVerb = {
+  kind: "share";
+  chapter: "champion" | "conclusion" | null;
+};
+
+export type PaletteVerb = PalettePatchesVerb | PaletteShareVerb;
 
 const VERSION_RE = /^\d+\.\d+(?:\.\d+)?$/;
 const SLUG_TOKEN_RE = /^@([a-z0-9-]+)$/;
@@ -27,6 +34,16 @@ export function parsePaletteVerb(input: string): PaletteVerb | null {
   const tokens = input.toLowerCase().split(/\s+/).filter(Boolean);
   if (tokens.length === 0) return null;
   const head = tokens[0];
+
+  if (head === "/share") {
+    // Same last-wins + ignore-unknown posture as the /patches tokens below.
+    let chapter: PaletteShareVerb["chapter"] = null;
+    for (const token of tokens.slice(1)) {
+      if (token === "champion" || token === "conclusion") chapter = token;
+    }
+    return { kind: "share", chapter };
+  }
+
   if (head !== "/patches") return null;
 
   let version: string | null = null;

@@ -88,6 +88,14 @@ vi.mock("@/lol/matches/use-matches", () => ({
   prefetchCachedMatches: vi.fn(),
 }));
 
+const { shareChapterCardSpy } = vi.hoisted(() => ({
+  shareChapterCardSpy: vi.fn().mockResolvedValue("copied"),
+}));
+
+vi.mock("@/home/recap/share-chapter-card", () => ({
+  shareChapterCard: shareChapterCardSpy,
+}));
+
 function wrap(ui: ReactNode) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
@@ -436,8 +444,9 @@ describe("CommandPaletteDialog", () => {
     );
     // The Matches group renders the match row with a relative timestamp.
     expect(screen.getByText(/m ago|h ago|d ago/)).toBeTruthy();
-    // Clicking the match navigates to the detail route.
-    fireEvent.click(screen.getByRole("option", { name: /Ahri/ }));
+    // Clicking the match navigates to the detail route. The KDA pins the
+    // match row — a bare /Ahri/ would also match the Share group's card.
+    fireEvent.click(screen.getByRole("option", { name: /Ahri.*5\/2\/7/ }));
     expect(navigateSpy).toHaveBeenCalledWith({
       to: "/lol/jonas-euw/matches/EUW1_42",
     });
@@ -959,6 +968,62 @@ describe("CommandPaletteDialog", () => {
         target: { value: "wishlist wukong" },
       });
       expect(screen.queryByRole("option", { name: /Black Myth: Wukong/ })).toBeNull();
+    });
+  });
+
+  describe("share verb (/share)", () => {
+    beforeEach(() => {
+      shareChapterCardSpy.mockClear();
+    });
+
+    it("shares a chapter card on select without navigating", () => {
+      const onOpenChange = vi.fn();
+      wrap(<CommandPaletteDialog open onOpenChange={onOpenChange} />);
+      fireEvent.click(screen.getByRole("option", { name: /Ahri chapter card/ }));
+      expect(shareChapterCardSpy).toHaveBeenCalledWith("champion", "Ahri chapter");
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+      expect(navigateSpy).not.toHaveBeenCalled();
+    });
+
+    it("titles the card with the default account's game name when one exists", () => {
+      accountsRef.current = [
+        { slug: "jonas-euw", gameName: "Jonas", tagLine: "EUW", region: "EUW1" },
+      ];
+      wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+      fireEvent.click(screen.getByRole("option", { name: /Season portrait card/ }));
+      expect(shareChapterCardSpy).toHaveBeenCalledWith("conclusion", "Jonas's portrait");
+    });
+
+    it("typing /share collapses other groups and keeps both cards", () => {
+      wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "/share" },
+      });
+      expect(screen.queryByRole("option", { name: /^Home$/ })).toBeNull();
+      // The share verb must not surface the sibling global-verb entry.
+      expect(screen.queryByRole("option", { name: /Patches/ })).toBeNull();
+      expect(screen.getByRole("option", { name: /Ahri chapter card/ })).not.toBeNull();
+      expect(screen.getByRole("option", { name: /Season portrait card/ })).not.toBeNull();
+    });
+
+    it("typing /share conclusion narrows to the portrait card", () => {
+      wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "/share conclusion" },
+      });
+      expect(screen.queryByRole("option", { name: /Ahri chapter card/ })).toBeNull();
+      fireEvent.click(screen.getByRole("option", { name: /Season portrait card/ }));
+      expect(shareChapterCardSpy).toHaveBeenCalledWith("conclusion", "Season portrait");
+    });
+
+    it("typing share without the slash surfaces the group by free text", () => {
+      wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "share" },
+      });
+      expect(screen.getByRole("option", { name: /Ahri chapter card/ })).not.toBeNull();
+      expect(screen.getByRole("option", { name: /Season portrait card/ })).not.toBeNull();
+      expect(screen.queryByRole("option", { name: /Patches/ })).toBeNull();
     });
   });
 });

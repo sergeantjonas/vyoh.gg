@@ -73,6 +73,7 @@ export { parsePaletteVerb } from "./command-palette/parse-palette-verb.ts";
 export type {
   PaletteVerb,
   PalettePatchesVerb,
+  PaletteShareVerb,
 } from "./command-palette/parse-palette-verb.ts";
 export type { Me } from "./identity.ts";
 export type {
