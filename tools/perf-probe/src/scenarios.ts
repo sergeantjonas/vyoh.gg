@@ -91,6 +91,19 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    // The per-account LoL recap: seven frosted chapter wrappers over the
+    // champion splash claim, opened by the season-thread artwork band (inline
+    // SVG, one element per match). Load settle covers the band's ~1.7 s
+    // clip-path draw-on cascade so the shot and the phase both capture the
+    // settled page, entrance raster included.
+    name: "lol-recap",
+    path: `/lol/${OWNER_SLUG}/recap`,
+    screenshotMoments: [
+      { name: "01-load", phase: "load", settleMs: 2000 },
+      { name: "02-scroll-bottom", phase: "scroll-bottom", settleMs: 1000 },
+    ],
+  },
+  {
     // Patch-notes route pinned to a representative *big* patch (26.3: 41
     // champion + 9 item + 3 rune changes — largest in the DB as of 2026-06-12).
     // The newest patch is often small, which would understate the V3 identity

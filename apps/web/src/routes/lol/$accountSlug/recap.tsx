@@ -8,6 +8,7 @@ import { RecapDuoOfYear } from "@/lol/recap/recap-duo-of-year";
 import { RecapMostImproved } from "@/lol/recap/recap-most-improved";
 import { RecapPatchVerdict } from "@/lol/recap/recap-patch-verdict";
 import { RecapRankArc } from "@/lol/recap/recap-rank-arc";
+import { RecapSeasonThread } from "@/lol/recap/recap-season-thread";
 import { RecapSignatureGame } from "@/lol/recap/recap-signature-game";
 import { RecapTopInsight } from "@/lol/recap/recap-top-insight";
 import { Link, createFileRoute } from "@tanstack/react-router";
@@ -83,6 +84,9 @@ function RecapPage() {
           when the chapter paints in. Above-fold chapters stay wrapped too —
           CV-auto is a no-op for in-view content but the wrapper unifies the
           composition. */}
+      <CvSection minHeight={420}>
+        <RecapSeasonThread account={account} />
+      </CvSection>
       <CvSection minHeight={260}>
         <RecapRankArc account={account} />
       </CvSection>

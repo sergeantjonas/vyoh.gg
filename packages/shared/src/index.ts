@@ -17,6 +17,11 @@ export { excludeRemakes } from "./lol/exclude-remakes.ts";
 export { isPersonalRecord } from "./lol/personal-records.ts";
 export type { PersonalRecordDirection } from "./lol/personal-records.ts";
 export { REMAKE_DURATION_S, isRemakeMatch } from "./lol/remake.ts";
+export { renderSeasonRidge } from "./lol/season-artwork.ts";
+export type {
+  SeasonArtworkMatch,
+  SeasonRidgeOptions,
+} from "./lol/season-artwork.ts";
 export {
   NON_LANED_QUEUE_IDS,
   QUEUE_TYPES,
