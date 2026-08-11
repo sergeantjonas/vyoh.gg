@@ -1,6 +1,6 @@
 # Queue identity: migrate `Match.queueType` label → numeric `queueId`
 
-**Status:** Shipped 2026-08-01 — every chunk landed. `Match.queueType` no longer exists, every live queue has a label, and queue 710's `RANKED_PREMADE_5x5` ladder is captured and displayed everywhere solo and flex are (opt-in for statistics). Two follow-ups live outside this arc: the app has not been exercised in a browser across the whole migration, and `live-game-poller` still passes `gameQueueConfigId` through unfiltered, so a LoL Classic game would reach the live surfaces.
+**Status:** Shipped 2026-08-01 — every chunk landed. `Match.queueType` no longer exists, every live queue has a label, and queue 710's `RANKED_PREMADE_5x5` ladder is captured and displayed everywhere solo and flex are (opt-in for statistics). Two follow-ups live outside this arc: the app has not been exercised in a browser across the whole migration, and the live surface is open-world, so any queue spectator-v5 returns reaches it — whether Classic is ever among them is unobserved.
 
 ## Why
 
@@ -70,6 +70,8 @@ The identity/cadence surfaces (Recent form, Now playing, Queue distribution, Act
 Riot Developer Relations announced 2026-07-28 that League Classic match history is **not** exposed through the Riot API, and asked that League Classic data not be aggregated or displayed in any form (Tournament API map-type support is the sole exception). Confirmed against our own data: no unmapped modern queue ids are present, consistent with Classic never arriving. **Do not add a Classic entry to `QUEUE_TYPES` and do not build a workaround.**
 
 One unverified path: `live-game-poller.service.ts` passes `gameQueueConfigId` through with no filter, so if spectator-v5 surfaces a Classic game it would reach the live halo / favicon dot / now-playing strip. Owner to observe next time they play Classic.
+
+Note what that leaves available, so it is not re-derived: a name-based filter is not, because it needs the Classic entry this section forbids. The only code-side fix is inverting the live surface to closed-world — display a live game only when its id is in `QUEUE_TYPES` — which holds without ever naming Classic, and costs a dark live surface for each new Riot mode until the map catches up. Weighed 2026-08-12 and not taken: a missing live game is the worse everyday failure, and the trigger is still unobserved.
 
 ## Backfill provenance
 
