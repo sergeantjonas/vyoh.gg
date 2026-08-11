@@ -188,7 +188,7 @@ export function AchievementPanel({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={`Search ${total} achievements…`}
-              className="min-w-0 flex-1 rounded-md border border-border/40 bg-background/40 px-3 py-1.5 text-sm placeholder:text-muted-foreground/60 focus:border-border focus:outline-none"
+              className="min-w-0 flex-1 rounded-md border border-border/40 bg-background/40 px-3 py-1.5 text-sm shadow-none placeholder:text-muted-foreground/60 focus:border-border focus:outline-none"
             />
           )}
           {unlocked < total && (

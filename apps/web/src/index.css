@@ -560,7 +560,13 @@ p {
        themed hue matches a bright splash behind it — at least one edge always
        contrasts, on any backdrop. Components with their own `ring-*`
        box-shadow ring (Button, checkbox, match-pips, …) override this casing
-       via the utilities layer, so they never double-up. */
+       via the utilities layer, so they never double-up.
+
+       The two halves are separate properties, so opting out needs both:
+       `outline-none` alone drops the outline and leaves the casing painting a
+       lone black ring. Any element that suppresses the indicator on purpose
+       (cmdk's input, bare Dialog content) needs `shadow-none` beside it; any
+       element that wants an indicator needs a `ring-*` instead. */
     outline: 2px solid var(--theme-ring);
     outline-offset: 1px;
     box-shadow: 0 0 0 4px var(--ring-casing);

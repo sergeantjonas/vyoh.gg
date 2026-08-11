@@ -57,9 +57,13 @@ export function CommandInput({
   return (
     <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
       <Search className="mr-2 size-4 shrink-0 opacity-50" />
+      {/* `shadow-none` is not cosmetic: the global `*:focus-visible` rule pairs
+          its themed outline with a dark `--ring-casing` box-shadow, and
+          `outline-none` only drops the outline half. Without this the
+          autofocused palette input paints a lone 4px black ring. */}
       <CommandPrimitive.Input
         className={cn(
-          "flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
+          "flex h-11 w-full rounded-md bg-transparent py-3 text-sm shadow-none outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
           className
         )}
         {...props}
