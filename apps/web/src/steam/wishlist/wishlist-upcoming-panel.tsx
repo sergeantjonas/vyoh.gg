@@ -46,7 +46,7 @@ export function WishlistUpcomingPanel() {
       <EmptyState
         illustration={<EmptyWishlistIllustration />}
         title="Nothing on the horizon"
-        hint="Nothing wishlisted or pre-ordered is still unreleased — browse everything under the All tab."
+        hint="Nothing wishlisted or pre-ordered is still unreleased — the Wishlist tab has everything that's already out."
       />
     );
   }

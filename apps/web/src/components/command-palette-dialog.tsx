@@ -35,6 +35,7 @@ import {
   type MatchSummary,
   type SteamOwnedGames,
   type SteamWishlist,
+  type WishlistPaletteTarget,
   excludeRemakes,
   nameMatchesQuery,
   parseMatchQuery,
@@ -44,6 +45,7 @@ import {
   queueLabel,
 } from "@vyoh/shared";
 import {
+  CalendarClock,
   Crown,
   Fingerprint,
   Gamepad2,
@@ -64,6 +66,7 @@ import {
 } from "lucide-react";
 import {
   type KeyboardEvent,
+  type ReactNode,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -88,6 +91,28 @@ const chordHint = isMac ? "⌘↵" : "Ctrl ↵";
 // `parsePaletteValue` (see command-palette-preview-value.ts) can dispatch
 // the focused row to the matching preview content component.
 const ACCOUNT_VALUE_PREFIX = "account:";
+
+// The two destinations `parseWishlistQuery` resolves. Keyed by its `target` so a
+// keyword and the bare-head "offer both" case read the same descriptor, and the
+// `value` strings keep the pre-split phrasing the palette taught (`wishlist
+// upcoming`) even though it now routes elsewhere.
+const WISHLIST_DESTINATIONS = {
+  wishlist: {
+    value: "wishlist all",
+    label: "Wishlist",
+    path: "/steam/wishlist",
+    icon: <ListChecks className="size-4" />,
+  },
+  upcoming: {
+    value: "wishlist upcoming",
+    label: "Upcoming releases",
+    path: "/steam/upcoming",
+    icon: <CalendarClock className="size-4" />,
+  },
+} as const satisfies Record<
+  WishlistPaletteTarget,
+  { value: string; label: string; path: string; icon: ReactNode }
+>;
 
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -448,25 +473,22 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
     !showVerbDestinationsOnly &&
     (hasSteamStructuredVerbs || (parsed.freeText.length > 0 && steamGames.length > 0));
 
-  // Wishlist navigation entries: a bare `wishlist` offers both tabs; a tab
-  // keyword resolves the single routed destination. These work from any scope
-  // (pure navigation, like `/patches`) — no cache needed.
+  // Wishlist navigation entries: a bare `wishlist` offers both routes; a keyword
+  // resolves the single destination. These work from any scope (pure navigation,
+  // like `/patches`) — no cache needed.
   const wishlistNavEntries =
     wishlistQuery && !wishlistQuery.query
-      ? (wishlistQuery.tab ? [wishlistQuery.tab] : (["upcoming", "all"] as const)).map(
-          (tab) => ({
-            value: `wishlist ${tab}`,
-            label: tab === "upcoming" ? "Wishlist · Upcoming" : "Wishlist · All",
-            path: `/steam/wishlist?tab=${tab}`,
-          })
-        )
+      ? (wishlistQuery.target
+          ? [wishlistQuery.target]
+          : (["upcoming", "wishlist"] as const)
+        ).map((target) => WISHLIST_DESTINATIONS[target])
       : [];
 
   // Wishlist name search: read the wishlist query cache directly per the
   // cache-hit-before-fetch invariant. The cache is warm under /steam (the
   // profile chip fetches it); an empty list is the natural cold-cache state,
-  // so no Load affordance is surfaced. Each hit deep-links into the All view,
-  // where the row scroll+highlight lives (?appid → tab `all`).
+  // so no Load affordance is surfaced. Each hit deep-links to the list route
+  // with `?appid`, which scrolls to and highlights that row.
   const wishlistMatches = useMemo(() => {
     if (!wishlistQuery || !wishlistQuery.query) return [];
     const cached = queryClient.getQueryData<SteamWishlist>(["steam", "wishlist"]);
@@ -538,6 +560,14 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
             icon: <ListChecks />,
             label: "Wishlist",
             path: "/steam/wishlist",
+          },
+          {
+            // "releases" and "calendar" because the page is looked for by what
+            // it shows at least as often as by its name.
+            value: "steam upcoming releases calendar pre-orders",
+            icon: <CalendarClock />,
+            label: "Upcoming",
+            path: "/steam/upcoming",
           },
           {
             value: "steam achievements trophies",
@@ -776,7 +806,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
                 value={e.value}
                 onSelect={() => go({ path: e.path, label: e.label, kind: "tab" })}
               >
-                <ListChecks className="size-4" />
+                {e.icon}
                 <span>{e.label}</span>
               </CommandItem>
             ))}
@@ -786,7 +816,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
                 value={`wishlist-game:${it.appid} ${(it.name ?? "").toLowerCase()} ${it.appid}`}
                 onSelect={() =>
                   go({
-                    path: `/steam/wishlist?tab=all&appid=${it.appid}`,
+                    path: `/steam/wishlist?appid=${it.appid}`,
                     label: it.name ?? `Wishlisted app ${it.appid}`,
                     kind: "page",
                   })

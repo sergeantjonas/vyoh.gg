@@ -11,6 +11,7 @@ import { Route as PatchVersionRoute } from "./routes/lol/patches/$version";
 import { Route as PatchesIndexRoute } from "./routes/lol/patches/index";
 import { Route as AchievementsRoute } from "./routes/steam/achievements";
 import { Route as PortraitRoute } from "./routes/steam/portrait";
+import { Route as UpcomingRoute } from "./routes/steam/upcoming";
 import { Route as WishlistRoute } from "./routes/steam/wishlist";
 
 // Which loaders tolerate a failing prime and which take the route down is a
@@ -154,14 +155,10 @@ describe("fatal primes", () => {
     await expect(runLoader(WishlistRoute)).rejects.toThrow();
   });
 
-  // The route primes two queries and Upcoming is the default tab, so the upcoming
-  // one failing is the case that empties the page the crawler actually lands on.
-  // Asserted separately because the wishlist case above would keep passing on its
-  // own while this prime silently became tolerated.
-  it("/steam/wishlist fails when the upcoming prime fails", async () => {
+  it("/steam/upcoming fails rather than serving an empty timeline", async () => {
     fails = (url) => url.endsWith("/upcoming");
 
-    await expect(runLoader(WishlistRoute)).rejects.toThrow();
+    await expect(runLoader(UpcomingRoute)).rejects.toThrow();
   });
 
   it("/steam/achievements fails rather than serving an empty feed", async () => {
@@ -197,19 +194,31 @@ describe("dependent primes", () => {
     });
   });
 
-  it("/steam/wishlist warms both tabs' queries under the keys the panels read", async () => {
-    // The two tabs read different endpoints — the All list from /wishlist, the
-    // Upcoming view from /upcoming — and only the first is named after the route.
-    // A loader priming the wishlist alone leaves the *default* tab rendering its
-    // pending branch on a page that looks fully primed.
-    const queryClient = new QueryClient({
+  it("the two Steam list routes each warm only their own query", async () => {
+    // They read different endpoints — the wishlist from /wishlist, the timeline
+    // from /upcoming — and each one's key must come out of the same queryOptions
+    // factory its panel uses, or the page renders a pending branch while looking
+    // primed. Pinned as a pair because they were one route behind `?tab=` and
+    // priming both from either side is the shape that survived the split.
+    const forWishlist = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
+    await runLoader(WishlistRoute, {}, forWishlist);
 
-    await runLoader(WishlistRoute, {}, queryClient);
+    expect(forWishlist.getQueryData(steamWishlistQueryOptions().queryKey)).toBeDefined();
+    expect(
+      forWishlist.getQueryData(steamUpcomingQueryOptions().queryKey)
+    ).toBeUndefined();
 
-    expect(queryClient.getQueryData(steamWishlistQueryOptions().queryKey)).toBeDefined();
-    expect(queryClient.getQueryData(steamUpcomingQueryOptions().queryKey)).toBeDefined();
+    const forUpcoming = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    await runLoader(UpcomingRoute, {}, forUpcoming);
+
+    expect(forUpcoming.getQueryData(steamUpcomingQueryOptions().queryKey)).toBeDefined();
+    expect(
+      forUpcoming.getQueryData(steamWishlistQueryOptions().queryKey)
+    ).toBeUndefined();
   });
 
   it("/lol/patches settles for the list alone when the season has no patches yet", async () => {

@@ -118,12 +118,13 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
-    // The Upcoming view (now the default tab). Carries the chunk-3/4 layer-
-    // promoting CSS: the frosted calendar wrapper + the imminent hero's backdrop
-    // lease (swaps the page-wide Steam backdrop) + the hero/calendar Motion
-    // entrances. settleMs on load clears the hero cascade before the shot.
+    // The release timeline. Carries the layer-promoting CSS: the frosted calendar
+    // wrapper + the imminent hero's backdrop lease (swaps the page-wide Steam
+    // backdrop) + the hero/calendar Motion entrances. settleMs on load clears the
+    // hero cascade before the shot. The handle keeps its pre-split name so the
+    // baseline stays comparable; the view is no longer a tab of the wishlist.
     name: "wishlist-upcoming",
-    path: "/steam/wishlist",
+    path: "/steam/upcoming",
     screenshotMoments: [
       { name: "01-load", phase: "load", settleMs: 750 },
       { name: "02-scroll-bottom", phase: "scroll-bottom", settleMs: 500 },

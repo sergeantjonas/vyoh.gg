@@ -13,6 +13,7 @@ export const STEAM_TAB_SEGMENTS = [
   "portrait",
   "library",
   "wishlist",
+  "upcoming",
   "achievements",
 ] as const;
 

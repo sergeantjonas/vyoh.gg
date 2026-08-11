@@ -1,21 +1,16 @@
 import { routeMeta } from "@/lib/route-meta";
-import { steamUpcomingQueryOptions } from "@/steam/use-upcoming";
 import { steamWishlistQueryOptions } from "@/steam/use-wishlist";
 import { WishlistAllPanel } from "@/steam/wishlist/wishlist-all-panel";
 import { WishlistSkeleton } from "@/steam/wishlist/wishlist-skeleton";
-import {
-  type WishlistTab,
-  WishlistTabs,
-  isWishlistTab,
-  wishlistPanelId,
-  wishlistTabId,
-} from "@/steam/wishlist/wishlist-tabs";
-import { WishlistUpcomingPanel } from "@/steam/wishlist/wishlist-upcoming-panel";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 interface WishlistSearch {
   appid?: number | undefined;
-  tab?: WishlistTab | undefined;
+  // Legacy. This route used to carry both views behind `?tab=`, and those URLs
+  // are bookmarkable and were emitted by the ⌘K palette. The param is parsed
+  // only so `beforeLoad` can forward the Upcoming half to the route that owns
+  // it now; nothing renders off it.
+  tab?: "upcoming" | "all" | undefined;
 }
 
 export const Route = createFileRoute("/steam/wishlist")({
@@ -23,20 +18,23 @@ export const Route = createFileRoute("/steam/wishlist")({
   // Same reasoning as the matches route: a layout-shaped skeleton beats the
   // router's generic spinner, and only the slow client-navigation path sees it.
   pendingComponent: WishlistSkeleton,
-  // One query per tab. Both are small and served from the backend's own caches in
-  // ~1 ms — and the upcoming one shares the wishlist's upstream call, so priming
-  // both costs a second HTTP hop against a warm process, not a second Steam call.
-  //
+  // Declared above `loader`: TanStack threads the loader's context type through
+  // the beforeLoad return constraint, and in the other order that constraint
+  // collapses to `never` ("Promise<void> is not assignable to never").
+  beforeLoad: async ({ search }) => {
+    // `replace` so Back leaves the calendar for wherever the visitor came from
+    // rather than landing on the old URL and bouncing forward again.
+    if (search.tab === "upcoming") {
+      throw redirect({ to: "/steam/upcoming", replace: true });
+    }
+  },
   // Deliberately fatal, unlike the tolerated primes elsewhere (see
-  // `primeQuietly`). The panels do each carry an `isError` EmptyState, so
-  // swallowing would render — but it would render an empty page at HTTP 200,
-  // which is a worse thing to hand a crawler than a 500 asking it to retry.
-  // Neither query is a region of this route; between them they are the route.
+  // `primeQuietly`). The panel does carry an `isError` EmptyState, so swallowing
+  // would render — but it would render an empty page at HTTP 200, which is a
+  // worse thing to hand a crawler than a 500 asking it to retry. The list is not
+  // a region of this route, it is the route.
   loader: ({ context: { queryClient } }) =>
-    Promise.all([
-      queryClient.ensureQueryData(steamWishlistQueryOptions()),
-      queryClient.ensureQueryData(steamUpcomingQueryOptions()),
-    ]),
+    queryClient.ensureQueryData(steamWishlistQueryOptions()),
   validateSearch: (search: Record<string, unknown>): WishlistSearch => {
     const raw = search.appid;
     const parsed =
@@ -47,7 +45,9 @@ export const Route = createFileRoute("/steam/wishlist")({
           : Number.NaN;
     return {
       appid: Number.isFinite(parsed) && parsed > 0 ? parsed : undefined,
-      tab: isWishlistTab(search.tab) ? search.tab : undefined,
+      // `all` is kept out: it named this route's own list, so an old link
+      // carrying it is already where it was going.
+      tab: search.tab === "upcoming" ? "upcoming" : undefined,
     };
   },
   head: () =>
@@ -58,36 +58,19 @@ export const Route = createFileRoute("/steam/wishlist")({
 });
 
 function WishlistPage() {
-  const { appid: focusAppid, tab } = Route.useSearch();
-
-  // Default is `Upcoming` — the editorial upcoming-releases view is now the
-  // primary surface. A deep-link carrying `?appid` (the profile chip) with no
-  // explicit tab still lands on `All`, where the row scroll+highlight lives.
-  const activeTab: WishlistTab = tab ?? (focusAppid ? "all" : "upcoming");
+  const { appid: focusAppid } = Route.useSearch();
 
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold tracking-tight">Wishlist</h1>
         <p className="text-sm text-muted-foreground">
-          Public Steam wishlist — upcoming releases on a timeline, plus everything still
-          on the watch list.
+          Everything on the public Steam wishlist, oldest addition first — what's still
+          unreleased has its own timeline under Upcoming.
         </p>
       </header>
 
-      <WishlistTabs active={activeTab} />
-
-      <div
-        role="tabpanel"
-        id={wishlistPanelId(activeTab)}
-        aria-labelledby={wishlistTabId(activeTab)}
-      >
-        {activeTab === "upcoming" ? (
-          <WishlistUpcomingPanel />
-        ) : (
-          <WishlistAllPanel focusAppid={focusAppid} />
-        )}
-      </div>
+      <WishlistAllPanel focusAppid={focusAppid} />
     </div>
   );
 }

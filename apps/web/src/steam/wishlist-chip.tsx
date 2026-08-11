@@ -7,7 +7,6 @@ import { steamCapsuleLargeUrl, steamCapsuleUrl } from "./_shared/steam-image";
 import { useSteamUpcoming } from "./use-upcoming";
 import { useSteamWishlist } from "./use-wishlist";
 import { formatWishlistFact } from "./wishlist/format";
-import { isPreOrdered } from "./wishlist/upcoming/bucketing";
 import { pickWishlistFact } from "./wishlist/wishlist-fact";
 
 const PREVIEW_LIMIT = 5;
@@ -51,12 +50,6 @@ export function WishlistChip() {
         // stays as the quiet top-right indicator.
         const fact = pickWishlistFact(upcoming.data?.items ?? [], now);
         if (fact) {
-          // A pre-order has no wishlist row to highlight, so `?appid` would scroll
-          // the All tab to nothing. Send those to the Upcoming view, which is the
-          // surface the fact was read off.
-          const factSearch = isPreOrdered(fact.item)
-            ? ({ tab: "upcoming" } as const)
-            : ({ appid: fact.item.appid } as const);
           return (
             <FactCard
               title="Wishlist"
@@ -65,9 +58,11 @@ export function WishlistChip() {
               verdict={formatWishlistFact(fact)}
               evidence={
                 <div className="flex flex-col gap-2">
+                  {/* The fact is a release-date claim, so its evidence is the
+                      timeline, not a row in the list — and a pre-ordered title
+                      has no list row to deep-link to at all. */}
                   <Link
-                    to="/steam/wishlist"
-                    search={factSearch}
+                    to="/steam/upcoming"
                     className="group block overflow-hidden rounded-md transition-opacity hover:opacity-95"
                   >
                     <img

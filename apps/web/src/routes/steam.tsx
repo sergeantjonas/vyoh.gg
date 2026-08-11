@@ -23,6 +23,7 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import {
+  CalendarClock,
   Fingerprint,
   LayoutDashboard,
   Library,
@@ -51,6 +52,12 @@ const TAB_CHROME = {
   portrait: { to: "/steam/portrait", label: "Portrait", Icon: Fingerprint, exact: false },
   library: { to: "/steam/library", label: "Library", Icon: Library, exact: false },
   wishlist: { to: "/steam/wishlist", label: "Wishlist", Icon: ListChecks, exact: false },
+  upcoming: {
+    to: "/steam/upcoming",
+    label: "Upcoming",
+    Icon: CalendarClock,
+    exact: false,
+  },
   achievements: {
     to: "/steam/achievements",
     label: "Achievements",

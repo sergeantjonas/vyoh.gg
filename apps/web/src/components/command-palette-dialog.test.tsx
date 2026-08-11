@@ -648,11 +648,12 @@ describe("CommandPaletteDialog", () => {
   });
 
   describe("Current section tabs (S1)", () => {
-    it("shows Library / Wishlist / Achievements on /steam at empty input", () => {
+    it("shows Library / Wishlist / Upcoming / Achievements on /steam at empty input", () => {
       pathnameRef.current = "/steam";
       wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
       expect(screen.getByRole("option", { name: /^Library$/ })).toBeTruthy();
       expect(screen.getByRole("option", { name: /^Wishlist$/ })).toBeTruthy();
+      expect(screen.getByRole("option", { name: /^Upcoming$/ })).toBeTruthy();
       expect(screen.getByRole("option", { name: /^Achievements$/ })).toBeTruthy();
     });
 
@@ -907,37 +908,49 @@ describe("CommandPaletteDialog", () => {
       );
     }
 
-    it("`wishlist upcoming` navigates to the Upcoming tab (works from any scope)", () => {
+    it("`upcoming` navigates to the calendar route (works from any scope)", () => {
+      pathnameRef.current = "/";
+      wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "upcoming" },
+      });
+      fireEvent.click(screen.getByRole("option", { name: /Upcoming releases/ }));
+      expect(navigateSpy).toHaveBeenCalledWith({ to: "/steam/upcoming" });
+    });
+
+    // The palette taught `wishlist upcoming` for as long as the calendar was a
+    // tab of the wishlist route, so the phrasing outlives the route it named.
+    it("still resolves the pre-split `wishlist upcoming` phrasing, now to its own route", () => {
       pathnameRef.current = "/";
       wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
       fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
         target: { value: "wishlist upcoming" },
       });
-      fireEvent.click(screen.getByRole("option", { name: /Wishlist · Upcoming/ }));
-      expect(navigateSpy).toHaveBeenCalledWith({ to: "/steam/wishlist?tab=upcoming" });
+      fireEvent.click(screen.getByRole("option", { name: /Upcoming releases/ }));
+      expect(navigateSpy).toHaveBeenCalledWith({ to: "/steam/upcoming" });
     });
 
-    it("`wishlist all` navigates to the All tab", () => {
+    it("`wishlist all` navigates to the list", () => {
       pathnameRef.current = "/";
       wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
       fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
         target: { value: "wishlist all" },
       });
-      fireEvent.click(screen.getByRole("option", { name: /Wishlist · All/ }));
-      expect(navigateSpy).toHaveBeenCalledWith({ to: "/steam/wishlist?tab=all" });
+      fireEvent.click(screen.getByRole("option", { name: /^Wishlist$/ }));
+      expect(navigateSpy).toHaveBeenCalledWith({ to: "/steam/wishlist" });
     });
 
-    it("bare `wishlist` offers both tab destinations", () => {
+    it("bare `wishlist` offers both destinations", () => {
       pathnameRef.current = "/";
       wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
       fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
         target: { value: "wishlist" },
       });
-      expect(screen.getByRole("option", { name: /Wishlist · Upcoming/ })).toBeTruthy();
-      expect(screen.getByRole("option", { name: /Wishlist · All/ })).toBeTruthy();
+      expect(screen.getByRole("option", { name: /Upcoming releases/ })).toBeTruthy();
+      expect(screen.getByRole("option", { name: /^Wishlist$/ })).toBeTruthy();
     });
 
-    it("`wishlist <name>` finds a wishlisted game and deep-links to the All view", () => {
+    it("`wishlist <name>` finds a wishlisted game and deep-links to its row", () => {
       pathnameRef.current = "/steam";
       renderWithWishlistCache();
       fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
@@ -946,7 +959,7 @@ describe("CommandPaletteDialog", () => {
       expect(screen.queryByRole("option", { name: /The Last of Us/ })).toBeNull();
       fireEvent.click(screen.getByRole("option", { name: /Black Myth: Wukong/ }));
       expect(navigateSpy).toHaveBeenCalledWith({
-        to: "/steam/wishlist?tab=all&appid=2358720",
+        to: "/steam/wishlist?appid=2358720",
       });
     });
 

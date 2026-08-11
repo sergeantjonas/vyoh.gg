@@ -68,13 +68,15 @@ describe("steamTabIndex", () => {
       "portrait",
       "library",
       "wishlist",
+      "upcoming",
       "achievements",
     ]);
     expect(steamTabIndex("/steam")).toBe(0);
     expect(steamTabIndex("/steam/portrait")).toBe(1);
     expect(steamTabIndex("/steam/library")).toBe(2);
     expect(steamTabIndex("/steam/wishlist")).toBe(3);
-    expect(steamTabIndex("/steam/achievements")).toBe(4);
+    expect(steamTabIndex("/steam/upcoming")).toBe(4);
+    expect(steamTabIndex("/steam/achievements")).toBe(5);
   });
 
   it("treats the trailing-slash index as the index", () => {
@@ -83,7 +85,7 @@ describe("steamTabIndex", () => {
 
   it("resolves a drill-in to the tab that owns it", () => {
     expect(steamTabIndex("/steam/library/1245620")).toBe(2);
-    expect(steamTabIndex("/steam/achievements/signature")).toBe(4);
+    expect(steamTabIndex("/steam/achievements/signature")).toBe(5);
   });
 
   it("returns -1 outside the section, so a cross-section nav gets no slide", () => {

@@ -261,33 +261,34 @@ describe("WishlistChip", () => {
     }
   });
 
-  // `?appid` scrolls the All tab to a wishlist row; a pre-order has none, so the
-  // deep-link has to go to the surface that actually shows it.
-  it("links a pre-ordered fact to the Upcoming view rather than an absent row", () => {
-    mockHook(
-      {
-        data: { steamId: "x", items: [makeItem({ appid: 30 })], fetchedAt: 0 },
-        isPending: false,
-        isError: false,
-      },
-      [
+  // The fact is a release-date claim, so its evidence belongs on the timeline
+  // whichever provenance it came from — and `?appid`, which scrolls the list to a
+  // wishlist row, has nothing to scroll to when the title was bought.
+  it("sends the fact's evidence to the calendar rather than a list row", () => {
+    const upcomingLike = {
+      storeUrl: "https://store.steampowered.com/app/31/",
+      releaseDate: null,
+      comingSoon: true,
+      dateAdded: 1_700_000_000,
+    } as const;
+
+    for (const source of ["wishlist", "owned"] as const) {
+      mockHook(
         {
-          appid: 31,
-          name: "Pre-ordered",
-          storeUrl: "https://store.steampowered.com/app/31/",
-          releaseDate: null,
-          comingSoon: true,
-          dateAdded: 1_700_000_000,
-          source: "owned",
+          data: { steamId: "x", items: [makeItem({ appid: 30 })], fetchedAt: 0 },
+          isPending: false,
+          isError: false,
         },
-      ]
-    );
-    const { container } = renderChip();
-    const searches = [...container.querySelectorAll("a")].map((a) =>
-      a.getAttribute("data-search")
-    );
-    expect(searches).toContain('{"tab":"upcoming"}');
-    expect(searches.some((s) => s?.includes("appid"))).toBe(false);
+        [{ ...upcomingLike, appid: 31, name: "Next thing", source }]
+      );
+      const { container } = renderChip();
+      const links = [...container.querySelectorAll("a")];
+
+      expect(links.map((a) => a.getAttribute("to"))).toContain("/steam/upcoming");
+      expect(links.some((a) => a.getAttribute("data-search")?.includes("appid"))).toBe(
+        false
+      );
+    }
   });
 
   it("falls back to a placeholder label for items with null name in the preview list", () => {

@@ -43,6 +43,7 @@ import { Route as SteamIndexRoute } from "./routes/steam/index";
 import { Route as LibraryRoute } from "./routes/steam/library";
 import { Route as GamePanelRoute } from "./routes/steam/library/$appid";
 import { Route as PortraitRoute } from "./routes/steam/portrait";
+import { Route as UpcomingRoute } from "./routes/steam/upcoming";
 import { Route as WishlistRoute } from "./routes/steam/wishlist";
 
 type HeadTags = Record<string, string | undefined>;
@@ -79,6 +80,7 @@ describe("head()", () => {
     ["/steam/library", LibraryRoute, {}],
     ["/steam/library/$appid", GamePanelRoute, { appid: "440" }],
     ["/steam/portrait", PortraitRoute, {}],
+    ["/steam/upcoming", UpcomingRoute, {}],
     ["/steam/wishlist", WishlistRoute, {}],
     ["/lol/", LolIndexRoute, {}],
     ["/lol/$accountSlug/", ProfileRoute, { accountSlug: "ahri" }],
@@ -186,6 +188,38 @@ describe("redirect gates", () => {
     await expect(lolBeforeLoad({ context: { queryClient } })).resolves.toBeUndefined();
   });
 
+  // The calendar and the list were one route behind `?tab=`, and the palette
+  // emitted `?tab=upcoming` for months. Those URLs are bookmarked, so the gate
+  // is the only thing keeping them from landing on a page that no longer has
+  // the view they name.
+  it("/steam/wishlist forwards the retired ?tab=upcoming to the calendar route", async () => {
+    const beforeLoad = WishlistRoute.options.beforeLoad as unknown as (ctx: {
+      search: Record<string, unknown>;
+    }) => Promise<void>;
+
+    const caught = await beforeLoad({ search: { tab: "upcoming" } }).then(
+      () => null,
+      (thrown: unknown) => thrown
+    );
+
+    expect(isRedirect(caught)).toBe(true);
+    expect((caught as Response & { options: unknown }).options).toMatchObject({
+      to: "/steam/upcoming",
+      replace: true,
+    });
+  });
+
+  it("/steam/wishlist stays put for the list itself, with or without the old tab", async () => {
+    const beforeLoad = WishlistRoute.options.beforeLoad as unknown as (ctx: {
+      search: Record<string, unknown>;
+    }) => Promise<void>;
+
+    // `?tab=all` named this route's own list, so it is already where it was
+    // going — forwarding it would be a redirect to the current page.
+    await expect(beforeLoad({ search: { tab: "all" } })).resolves.toBeUndefined();
+    await expect(beforeLoad({ search: { appid: 440 } })).resolves.toBeUndefined();
+  });
+
   it("/lol/…/matches/$matchId lands on the recap tab with its params intact", () => {
     const beforeLoad = MatchIndexRoute.options.beforeLoad as unknown as (ctx: {
       params: Record<string, string>;
@@ -214,16 +248,23 @@ describe("validateSearch", () => {
 
     // Everything arriving via a URL is a string; the profile chip deep-links
     // `?appid=440` and expects a number on the other side.
-    expect(validate({ appid: "440", tab: "upcoming" })).toEqual({
-      appid: 440,
-      tab: "upcoming",
-    });
-    expect(validate({ appid: 440, tab: "all" })).toEqual({ appid: 440, tab: "all" });
-    expect(validate({ appid: "junk", tab: "nonsense" })).toEqual({
-      appid: undefined,
-      tab: undefined,
-    });
+    expect(validate({ appid: "440" })).toEqual({ appid: 440, tab: undefined });
+    expect(validate({ appid: 440 })).toEqual({ appid: 440, tab: undefined });
+    expect(validate({ appid: "junk" })).toEqual({ appid: undefined, tab: undefined });
     expect(validate({ appid: "-3" })).toEqual({ appid: undefined, tab: undefined });
+  });
+
+  it("wishlist keeps the retired tab param only in the one shape it forwards", () => {
+    const validate = WishlistRoute.options.validateSearch as (
+      search: Record<string, unknown>
+    ) => { appid?: number; tab?: string };
+
+    // The param survives validation purely so `beforeLoad` can see it. Anything
+    // other than the value that redirects is dropped, so the route never carries
+    // a search key nothing reads.
+    expect(validate({ tab: "upcoming" })).toEqual({ appid: undefined, tab: "upcoming" });
+    expect(validate({ tab: "all" })).toEqual({ appid: undefined, tab: undefined });
+    expect(validate({ tab: "nonsense" })).toEqual({ appid: undefined, tab: undefined });
   });
 
   it("champions keeps only a real role position", () => {
@@ -266,11 +307,19 @@ describe("wiring", () => {
     expect(HomeRoute.options.staticData).toEqual({ ownsEntry: true });
   });
 
-  it("the two paged list routes bring their own layout-shaped skeletons", () => {
+  it("the paged list routes bring their own layout-shaped skeletons", () => {
     // Per the skeleton convention these mirror the layout they replace; the
     // pin here is that the routes carry one at all instead of falling back to
     // the router's generic pending row.
     expect(typeof MatchesLayoutRoute.options.pendingComponent).toBe("function");
     expect(typeof WishlistRoute.options.pendingComponent).toBe("function");
+    expect(typeof UpcomingRoute.options.pendingComponent).toBe("function");
+    // And that the two Steam ones are not the same skeleton: a row list and a
+    // calendar are the layouts, and one shape standing in for both is the reflow
+    // the convention exists to prevent. While they shared a route behind `?tab=`
+    // that was unavoidable, and the row skeleton stood in for the calendar.
+    expect(UpcomingRoute.options.pendingComponent).not.toBe(
+      WishlistRoute.options.pendingComponent
+    );
   });
 });
