@@ -4,7 +4,7 @@
 
 ## Why
 
-The per-route layer/raster budget table in [repo-conventions.md](../../repo-conventions.md#layer-count--paint-budget-per-route-scenario) is enforced by convention and reviewer discipline today. Wiring [`tools/perf-probe`](../../../tools/perf-probe/) into CI turns it into a regression gate — and "I built a compositor-budget CI gate" is a perf-specialist artifact essentially nobody has. Bundle-size budgets and Lighthouse CI (both tracked in [vnext-ideas.md](vnext-ideas.md#foundational--invisible-but-valuable-) Observability) measure payload and lab scores; this gates **layer count, raster cost, and dropped frames** — the metrics the project actually budgets.
+The per-route layer/raster budget table in [repo-conventions.md](../../repo-conventions-web.md#layer-count--paint-budget-per-route-scenario) is enforced by convention and reviewer discipline today. Wiring [`tools/perf-probe`](../../../tools/perf-probe/) into CI turns it into a regression gate — and "I built a compositor-budget CI gate" is a perf-specialist artifact essentially nobody has. Bundle-size budgets and Lighthouse CI (both tracked in [vnext-ideas.md](vnext-ideas.md#foundational--invisible-but-valuable-) Observability) measure payload and lab scores; this gates **layer count, raster cost, and dropped frames** — the metrics the project actually budgets.
 
 ## Shape
 

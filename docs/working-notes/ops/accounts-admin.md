@@ -101,7 +101,7 @@ Lands as a **separate prerequisite commit (chunk 0)** before chunk 1 — indepen
 
 Add a new **"Tracked accounts"** `SectionTitle` zone in [status-page.tsx](../../../apps/web/src/status/status-page.tsx), placed below the existing Sync/Pause/Resume block. Two cards side-by-side at md+ (LoL, Steam), stacked on mobile.
 
-The owner-auth disable-with-tooltip pattern from owner-auth chunk 2 applies here: when `viewer.isOwner === false`, the tables render read-only (no toggle, no delete, no add button) with a single `TooltipPrimitive` lock icon in the header. Per the [`CardTitle` / `SectionTitle` convention](../repo-conventions.md#header-primitives-sectiontitle-vs-cardtitle--pick-by-chrome-not-by-content): each card carries its own chrome → use `CardTitle` for the per-card headers, `SectionTitle` for the zone divider above them.
+The owner-auth disable-with-tooltip pattern from owner-auth chunk 2 applies here: when `viewer.isOwner === false`, the tables render read-only (no toggle, no delete, no add button) with a single `TooltipPrimitive` lock icon in the header. Per the [`CardTitle` / `SectionTitle` convention](../repo-conventions-web.md#header-primitives-sectiontitle-vs-cardtitle--pick-by-chrome-not-by-content): each card carries its own chrome → use `CardTitle` for the per-card headers, `SectionTitle` for the zone divider above them.
 
 ### Tests in same commit
 

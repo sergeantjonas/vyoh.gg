@@ -118,7 +118,7 @@ The calendar is the surface most at risk of reading as dashboard vocabulary. A b
 
 ### Glass and chrome assignment
 
-Per the [one-glass rule](../../repo-conventions.md#tile-background-one-level-of-glass-between-background-and-content) and the [compositional chrome rule](../../repo-conventions.md#page-composition-chrome-belongs-at-the-lowest-level-that-visually-groups-heterogeneous-content), applied top to bottom:
+Per the [one-glass rule](../../repo-conventions-web.md#tile-background-one-level-of-glass-between-background-and-content) and the [compositional chrome rule](../../repo-conventions-web.md#page-composition-chrome-belongs-at-the-lowest-level-that-visually-groups-heterogeneous-content), applied top to bottom:
 
 | Surface | Treatment |
 |---|---|

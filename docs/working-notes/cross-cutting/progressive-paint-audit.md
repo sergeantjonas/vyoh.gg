@@ -381,7 +381,7 @@ Nothing in the run's own output flags it. The probe exits clean, and `web-vitals
 
 Three cold runs bracketed together pull the median down about 40% and read as a large, plausible improvement. Same failure class as F-1 and F-3 in the [state review](state-review-2026-07-25.md): a measurement that reports green while measuring the wrong thing.
 
-Encoded in [repo-conventions.md](../../repo-conventions.md#layer-count--paint-budget-per-route-scenario) as "discard the first run after any dev-server restart, or warm the route once before bracketing".
+Encoded in [repo-conventions.md](../../repo-conventions-web.md#layer-count--paint-budget-per-route-scenario) as "discard the first run after any dev-server restart, or warm the route once before bracketing".
 
 ### 2026-07-25 warm observation — NOT a re-baseline
 

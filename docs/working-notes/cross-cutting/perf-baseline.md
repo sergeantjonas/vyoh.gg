@@ -209,7 +209,7 @@ The ceiling moved 240 → 250 kB because the cost buys server rendering, which i
 
 +2.7 kB across the two chunks, against 5.7 kB of headroom left. 4b's share is the `initialRect` plumbing and `use-hydrated`; 5's is `route-error.tsx`, `site-url.ts`, and the shell's canonical component — all of which land in the entry graph because the router and the shell reach them on every route. Nothing here is a candidate for trimming; the next unplanned addition is what the budget is now defending against.
 
-**Layer/paint probe, warm dev server, 3-run bracket.** Both scenarios the chunks touched are comfortably inside the budgets in [repo-conventions.md § "Layer-count + paint budget per route scenario"](../../repo-conventions.md#layer-count--paint-budget-per-route-scenario), and both read *better* than the 2026-06-10 baselines:
+**Layer/paint probe, warm dev server, 3-run bracket.** Both scenarios the chunks touched are comfortably inside the budgets in [repo-conventions.md § "Layer-count + paint budget per route scenario"](../../repo-conventions-web.md#layer-count--paint-budget-per-route-scenario), and both read *better* than the 2026-06-10 baselines:
 
 | Scenario | Layers (budget) | Load raster (budget) | Long tasks | Dropped |
 |---|---|---|---|---|

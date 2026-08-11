@@ -15,7 +15,7 @@ The calm aesthetic — correctly — keeps rejecting loud showcases: [library-sh
 
 ## Rules (the part worth writing down now)
 
-1. **Exempt from the calm test, NOT from perf budgets.** Every exhibit route gets a perf-probe scenario and budget row per [repo-conventions.md](../../repo-conventions.md#layer-count--paint-budget-per-route-scenario) — a janky lab disproves the exact competence it exists to demonstrate. Heavy exhibits gate behind explicit interaction (click-to-start), never autoplay.
+1. **Exempt from the calm test, NOT from perf budgets.** Every exhibit route gets a perf-probe scenario and budget row per [repo-conventions.md](../../repo-conventions-web.md#layer-count--paint-budget-per-route-scenario) — a janky lab disproves the exact competence it exists to demonstrate. Heavy exhibits gate behind explicit interaction (click-to-start), never autoplay.
 2. **Artifacts only, no editorial upkeep.** The self-portrait brainstorm rejected hand-maintained surfaces (`/uses`, anti-resume — see [vnext-ideas.md](vnext-ideas.md#low-priority--explicitly-deferred)) because they rot. The lab dodges that only if every exhibit is a finished artifact that exists anyway — the moment an exhibit needs recurring content maintenance, it violates the founding rule.
 3. **Graduation path:** an exhibit that passes the calm test in practice can be promoted into the main app (the generative artwork → recap hero path); the lab page then documents the evolution.
 

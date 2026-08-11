@@ -10,10 +10,10 @@ Concretizes the vnext Observability entry "Web Vitals dashboard … public versi
 
 ## Shape
 
-A `/colophon` route (utility route, page-grounded, no backdrop — bare tile tier per the [tile convention](../../repo-conventions.md#tile-background-one-level-of-glass-between-background-and-content)). Candidate bands, roughly in value order:
+A `/colophon` route (utility route, page-grounded, no backdrop — bare tile tier per the [tile convention](../../repo-conventions-web.md#tile-background-one-level-of-glass-between-background-and-content)). Candidate bands, roughly in value order:
 
 1. **RUM vitals** — p75 LCP / INP / CLS per top-level route. The multi-subscriber web-vitals bus already exists (`?perf=1` overlay + console subscriber per [library-shortlist.md](library-shortlist.md)); the new piece is a small API ingest endpoint + aggregate table + chart. Until launch this only collects owner traffic — honest label required ("n=…").
-2. **Perf budgets vs actuals** — render the per-route layer/raster budget table from [repo-conventions.md](../../repo-conventions.md#layer-count--paint-budget-per-route-scenario) next to the latest [perf-probe](../../../tools/perf-probe/) numbers. If [perf-probe-ci-gate.md](perf-probe-ci-gate.md) ships, this band reads straight from the committed CI artifact — the two notes compound.
+2. **Perf budgets vs actuals** — render the per-route layer/raster budget table from [repo-conventions.md](../../repo-conventions-web.md#layer-count--paint-budget-per-route-scenario) next to the latest [perf-probe](../../../tools/perf-probe/) numbers. If [perf-probe-ci-gate.md](perf-probe-ci-gate.md) ships, this band reads straight from the committed CI artifact — the two notes compound.
 3. **Build facts** — per-route chunk sizes (build-time manifest), dependency count, TS strictness flags, test counts + coverage. All static, derivable at build time, zero runtime cost.
 4. **Accessibility statement** — WCAG 2.2 AA self-assessment: axe-scan coverage, `prefers-reduced-motion` / `prefers-reduced-transparency` support (both already implemented), keyboard coverage. Gaming sites essentially never publish this; agencies and enterprise clients notice. Folded in here rather than its own note — it's the same "engineering trust made visible" surface.
 5. **Stack narrative** — one paragraph per layer with links into the [case-study reader](case-study-reader.md) when that exists.

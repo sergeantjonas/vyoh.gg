@@ -22,7 +22,7 @@ A scrubbable, time-animated "replay sketch" of a match on the Rift mini-map — 
 
 ## Perf / conventions
 
-- Canvas is one compositor layer; scrubbing redraws are bounded (10 dots + trails). Add a perf-probe scenario row per [repo-conventions.md](../../repo-conventions.md#layer-count--paint-budget-per-route-scenario) in the same change since match-detail's budget shifts.
+- Canvas is one compositor layer; scrubbing redraws are bounded (10 dots + trails). Add a perf-probe scenario row per [repo-conventions.md](../../repo-conventions-web.md#layer-count--paint-budget-per-route-scenario) in the same change since match-detail's budget shifts.
 - Interactive surface → test in the same commit (scrub keyboard a11y: slider role, arrow-key steps).
 - Palette: `replay <champion|match>` deep-link verb per the palette convention.
 

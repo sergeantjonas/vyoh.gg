@@ -95,7 +95,7 @@ VYOH_DEPLOY_HOST=vyoh scripts/deploy.sh             # from a local checkout
 Two things are worth knowing about the build, both learned by getting them wrong:
 
 - **`VITE_API_URL` is a build argument, not an environment variable.** It is baked into the bundle and into the markup `head()` emits, so moving the api means rebuilding the image. Its runtime counterpart, `API_INTERNAL_URL`, lets SSR loaders reach the api over the compose network instead of back out through the public hostname.
-- **The container is a different environment from the dev box** — no `.git`, no timezone, and unset build args arrive as empty strings rather than as undefined. All three produced silent, shipping-quality defects on the first containerised build; the mechanisms are written up in [`docs/repo-conventions.md`](docs/repo-conventions.md#the-production-image-is-a-different-environment-and-three-things-diverge-there).
+- **The container is a different environment from the dev box** — no `.git`, no timezone, and unset build args arrive as empty strings rather than as undefined. All three produced silent, shipping-quality defects on the first containerised build; the mechanisms are written up in [`docs/repo-conventions.md`](docs/repo-conventions-web.md#the-production-image-is-a-different-environment-and-three-things-diverge-there).
 
 ## Tracked metrics
 

@@ -224,7 +224,7 @@ return (
 
 **Why this isn't a hybrid Lane 1.5.** We could ship Lane 1 as a CSS progressive enhancement that gracefully no-ops on Firefox (no rAF cost on the primary browser, no extra JS bytes). Defensible if "Firefox sees no exit effect" is acceptable. Read: it isn't, because the page is meant to feel alive in the browser the owner reviews in, and Lane 2's cost is small (3 motion values, ~30 lines of code, all compositor-friendly writes).
 
-**Fallback path.** If Firefox cost turns out to be visible after measuring (unlikely — opacity + transform + filter are all compositor-promoted), gate Lane 2 on `!isFirefox()` and ship Lane 1 to Chromium/Safari + nothing to Firefox. This composes with the engine-gate convention in [repo-conventions.md](../repo-conventions.md#gate-engine-specific-perf-cliffs-instead-of-chasing-css-parity).
+**Fallback path.** If Firefox cost turns out to be visible after measuring (unlikely — opacity + transform + filter are all compositor-promoted), gate Lane 2 on `!isFirefox()` and ship Lane 1 to Chromium/Safari + nothing to Firefox. This composes with the engine-gate convention in [repo-conventions.md](../repo-conventions-web.md#gate-engine-specific-perf-cliffs-instead-of-chasing-css-parity).
 
 ## Spike commit checklist (Lane 2)
 

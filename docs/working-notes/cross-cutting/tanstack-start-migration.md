@@ -100,7 +100,7 @@ Two things followed, and both were load-bearing:
 
 The ordering in the chunk list was therefore wrong: "blocking loaders" sat in chunk 5 as polish, when data priming is what makes chunk 4 mean anything. The data path moved into 4a and shipped; the render-shape work is 4b.
 
-**Not every route should be primed** — the decision rule, and why the champion table is deliberately excluded, is now a convention in [repo-conventions.md § "Server-render the routes a crawler cares about"](../../repo-conventions.md#server-render-the-routes-a-crawler-cares-about-not-the-ones-the-owner-cares-about).
+**Not every route should be primed** — the decision rule, and why the champion table is deliberately excluded, is now a convention in [repo-conventions.md § "Server-render the routes a crawler cares about"](../../repo-conventions-web.md#server-render-the-routes-a-crawler-cares-about-not-the-ones-the-owner-cares-about).
 
 ### What 4b turned out to be
 
@@ -114,7 +114,7 @@ Three separate causes, all the same shape — a value read during render that di
 
 Plus `use-audio`'s `getServerSnapshot` returning a fresh object literal per call, which React flags as a potential infinite loop.
 
-The rule and the correct shape per case are now a convention: [repo-conventions.md § "A server/client branch during render is a hydration bug"](../../repo-conventions.md#a-serverclient-branch-during-render-is-a-hydration-bug-not-a-safety-guard). `apps/web/src/lib/ssr-hydration.test.tsx` pins it per-hook; each assertion was checked against a reverted fix to confirm it fails.
+The rule and the correct shape per case are now a convention: [repo-conventions.md § "A server/client branch during render is a hydration bug"](../../repo-conventions-web.md#a-serverclient-branch-during-render-is-a-hydration-bug-not-a-safety-guard). `apps/web/src/lib/ssr-hydration.test.tsx` pins it per-hook; each assertion was checked against a reverted fix to confirm it fails.
 
 **Two items were deliberately not done, on measurement rather than on time:**
 
@@ -125,7 +125,7 @@ The rule and the correct shape per case are now a convention: [repo-conventions.
 
 Two of the four planned items were the ones on the list. The other half of the chunk was found by reading what the server actually served.
 
-**Every page in the app was declaring itself a duplicate of the homepage.** The root's `head()` carried a hardcoded `<link rel="canonical" href="https://vyoh.gg/">` and a matching `og:url`, inherited unchanged by all 29 routes — so `/lol/patches/26.14`, the exact page the migration exists to get indexed, told crawlers to index `/` instead. It cannot be fixed per-route: router merges `links` by exact JSON equality rather than by `rel`, so a leaf canonical is a *second* conflicting tag, not an override, and `/lol/x/matches/y/timeline` has three ancestors with a `head()`. It is now emitted once from the shell — full rule in [repo-conventions.md § "Exactly one `<link rel="canonical">`"](../../repo-conventions.md#exactly-one-link-relcanonical-emitted-from-the-shell). Verified one tag per document, correct per route, on the built bundle.
+**Every page in the app was declaring itself a duplicate of the homepage.** The root's `head()` carried a hardcoded `<link rel="canonical" href="https://vyoh.gg/">` and a matching `og:url`, inherited unchanged by all 29 routes — so `/lol/patches/26.14`, the exact page the migration exists to get indexed, told crawlers to index `/` instead. It cannot be fixed per-route: router merges `links` by exact JSON equality rather than by `rel`, so a leaf canonical is a *second* conflicting tag, not an override, and `/lol/x/matches/y/timeline` has three ancestors with a `head()`. It is now emitted once from the shell — full rule in [repo-conventions.md § "Exactly one `<link rel="canonical">`"](../../repo-conventions-web.md#exactly-one-link-relcanonical-emitted-from-the-shell). Verified one tag per document, correct per route, on the built bundle.
 
 **Two more hydration mismatches, of a class the 4b sweep structurally could not find.** No `typeof window` anywhere in them: `PresenceMounts` polls live-game and Steam presence from the root layout, which is not code-split, while every route component is — so the root's fetch resolves before the route chunk arrives to hydrate, and the hydrating render sees data the server render never had. It only reproduces **while the owner is actually playing something**, which is why a full 12-route sweep passed over it twice. It was discarding the server tree on `/lol/$accountSlug` (the whole LoL landing page, which `/` and the new `/lol` redirect both feed into) and on `/`. Fixed by priming on the profile route and by a `useHydrated()` gate on `/`'s now-playing strip; the reasoning for which fix goes where is a convention now.
 
