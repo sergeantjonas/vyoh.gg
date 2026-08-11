@@ -118,6 +118,13 @@ model SteamGameEnrichment {
   logoPath             String?
   appType              Int?
   releaseDate          DateTime? @db.Date
+  // `release.is_coming_soon`. Persisted rather than derived from `releaseDate`,
+  // because a pre-purchased title can be coming-soon with no date (TBA
+  // pre-order) and Steam keeps the flag raised past the target date until its
+  // launch sweep runs. The upcoming surface reads owned-but-unreleased titles
+  // off this column — a pre-order leaves the wishlist on purchase, so the
+  // library is the only place it still exists.
+  comingSoon           Boolean?
   isFree               Boolean?
   tagIds               Int[]
   featureCategoryIds   Int[]

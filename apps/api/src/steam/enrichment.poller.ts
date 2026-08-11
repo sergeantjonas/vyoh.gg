@@ -20,6 +20,13 @@ import { SteamSubjectAnchorService } from "./subject-anchor.service";
 // tick rather than only picking up incomplete rows.
 const ENRICHMENT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
+// Unreleased titles are the exception to the monthly rhythm: an announced date
+// slips or firms up repeatedly before launch, and `comingSoon` only drops on
+// Steam's launch sweep. Both feed the upcoming surface directly, so a row still
+// flagged coming-soon is re-pulled daily. The set is a handful of rows against
+// the batch cap below.
+const COMING_SOON_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
 // Bounds one pass. Steady state is ~227 candidates / 30 ≈ 8 a day, so the cap
 // only engages after downtime, and stays well above that arrival rate so the
 // oldest rows still drain.
@@ -60,7 +67,7 @@ export class SteamEnrichmentPoller implements OnModuleInit {
     }
   }
 
-  @Cron("30 4 1 * *", { name: "steam-enrichment", timeZone: OWNER_TIME_ZONE })
+  @Cron("30 4 * * *", { name: "steam-enrichment", timeZone: OWNER_TIME_ZONE })
   async tick(): Promise<void> {
     if (this.running) {
       this.logger.warn("previous tick still running — skipping");
@@ -96,10 +103,12 @@ export class SteamEnrichmentPoller implements OnModuleInit {
   private async dueAppids(candidates: number[]): Promise<number[]> {
     const rows = await this.prisma.steamGameEnrichment.findMany({
       where: { appid: { in: candidates } },
-      select: { appid: true, logoPath: true, enrichedAt: true },
+      select: { appid: true, logoPath: true, enrichedAt: true, comingSoon: true },
     });
     const byAppid = new Map(rows.map((r) => [r.appid, r]));
-    const cutoff = Date.now() - ENRICHMENT_MAX_AGE_MS;
+    const now = Date.now();
+    const cutoff = now - ENRICHMENT_MAX_AGE_MS;
+    const comingSoonCutoff = now - COMING_SOON_MAX_AGE_MS;
     const stamp = (appid: number): number =>
       byAppid.get(appid)?.enrichedAt.getTime() ?? 0;
 
@@ -108,6 +117,7 @@ export class SteamEnrichmentPoller implements OnModuleInit {
         const row = byAppid.get(appid);
         if (!row) return true;
         if (row.logoPath === null) return true;
+        if (row.comingSoon) return row.enrichedAt.getTime() < comingSoonCutoff;
         return row.enrichedAt.getTime() < cutoff;
       })
       .sort((a, b) => stamp(a) - stamp(b))

@@ -18,12 +18,18 @@ function makeService() {
 
 function row(
   appid: number,
-  opts: { logoPath?: string | null; ageDays: number }
-): { appid: number; logoPath: string | null; enrichedAt: Date } {
+  opts: { logoPath?: string | null; ageDays: number; comingSoon?: boolean | null }
+): {
+  appid: number;
+  logoPath: string | null;
+  enrichedAt: Date;
+  comingSoon: boolean | null;
+} {
   return {
     appid,
     logoPath: opts.logoPath === undefined ? "abc" : opts.logoPath,
     enrichedAt: new Date(Date.now() - opts.ageDays * 86_400_000),
+    comingSoon: opts.comingSoon ?? null,
   };
 }
 
@@ -88,8 +94,7 @@ describe("SteamEnrichmentPoller.onModuleInit", () => {
   });
 
   // Boot used to reach incomplete rows only, so a complete row that had aged
-  // past the refresh interval was invisible to it — and the monthly cron that
-  // would have caught it is the one most likely to be missed.
+  // past the refresh interval was invisible to it.
   it("enriches a complete row that has aged past the window", async () => {
     const prisma = makePrisma();
     prisma.steamOwnedGame.findMany.mockResolvedValue([{ appid: 42 }]);
@@ -97,6 +102,30 @@ describe("SteamEnrichmentPoller.onModuleInit", () => {
     const { poller, service } = makePoller(prisma);
     await poller.onModuleInit();
     expect(service.enrichApps).toHaveBeenCalledWith([42]);
+  });
+
+  // Unreleased titles drive the upcoming calendar, and their dates slip right up
+  // to launch, so they refresh daily instead of riding the monthly age.
+  it("enriches a coming-soon row that is stale by a day but fresh by the monthly window", async () => {
+    const prisma = makePrisma();
+    prisma.steamOwnedGame.findMany.mockResolvedValue([{ appid: 42 }]);
+    prisma.steamGameEnrichment.findMany.mockResolvedValue([
+      row(42, { ageDays: 2, comingSoon: true }),
+    ]);
+    const { poller, service } = makePoller(prisma);
+    await poller.onModuleInit();
+    expect(service.enrichApps).toHaveBeenCalledWith([42]);
+  });
+
+  it("leaves a released row alone at the same age", async () => {
+    const prisma = makePrisma();
+    prisma.steamOwnedGame.findMany.mockResolvedValue([{ appid: 42 }]);
+    prisma.steamGameEnrichment.findMany.mockResolvedValue([
+      row(42, { ageDays: 2, comingSoon: false }),
+    ]);
+    const { poller, service } = makePoller(prisma);
+    await poller.onModuleInit();
+    expect(service.enrichApps).not.toHaveBeenCalled();
   });
 
   it("orders never-enriched first, then oldest, and caps the pass", async () => {

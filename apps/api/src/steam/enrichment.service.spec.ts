@@ -85,6 +85,29 @@ describe("projectEnrichment", () => {
     expect(projectEnrichment(raw({ release: {} }))?.releaseDate).toBeNull();
   });
 
+  // Upstream omits `is_coming_soon` entirely for released titles rather than
+  // sending false (protobuf default; measured 1 key present across 195 owned
+  // apps). So null is the normal resting state and `comingSoon: true` is the
+  // only meaningful query — "IS NULL" can never stand in for "needs refresh".
+  it("carries is_coming_soon through, keeping absent distinct from false", () => {
+    expect(
+      projectEnrichment(raw({ release: { is_coming_soon: true } }))?.comingSoon
+    ).toBe(true);
+    expect(
+      projectEnrichment(raw({ release: { is_coming_soon: false } }))?.comingSoon
+    ).toBe(false);
+    expect(projectEnrichment(raw({ release: {} }))?.comingSoon).toBeNull();
+    expect(projectEnrichment(raw({}))?.comingSoon).toBeNull();
+  });
+
+  // A TBA pre-order is the shape the upcoming surface exists for: owned,
+  // unreleased, no date. Deriving coming-soon from `releaseDate` would drop it.
+  it("keeps comingSoon true when there is no release date at all", () => {
+    const row = projectEnrichment(raw({ release: { is_coming_soon: true } }));
+    expect(row?.releaseDate).toBeNull();
+    expect(row?.comingSoon).toBe(true);
+  });
+
   it("defaults logoPath to null when no PICS hash is supplied", () => {
     expect(projectEnrichment(raw({}))?.logoPath).toBeNull();
   });

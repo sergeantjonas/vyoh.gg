@@ -45,6 +45,12 @@ export interface EnrichmentUpsert {
   logoPath: string | null;
   appType: number | null;
   releaseDate: Date | null;
+  // `release.is_coming_soon` — Steam's own unreleased verdict, persisted rather
+  // than derived from `releaseDate`. A pre-purchased title can be coming-soon
+  // with no date at all (TBA pre-order), and Steam keeps the flag raised for a
+  // window past the target date until its launch sweep flips it, so
+  // `releaseDate > today` is wrong in both directions.
+  comingSoon: boolean | null;
   isFree: boolean | null;
   tagIds: number[];
   featureCategoryIds: number[];
@@ -120,6 +126,7 @@ export function projectEnrichment(
     logoPath,
     appType: raw.type ?? null,
     releaseDate,
+    comingSoon: release?.is_coming_soon ?? null,
     isFree: raw.is_free ?? null,
     tagIds: (raw.tagids ?? []).slice(0, MAX_TAG_IDS),
     featureCategoryIds: categories?.feature_categoryids ?? [],
