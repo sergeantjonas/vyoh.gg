@@ -4,6 +4,8 @@ import { PrismaService } from "../prisma/prisma.service";
 import { STEAM_OWNER_ID } from "./steam.config";
 import { SteamService, buildStoreUrl } from "./steam.service";
 
+export type UpcomingSource = SteamUpcomingItem["source"];
+
 // Merges the two places an unreleased title can live. The wishlist is the
 // obvious one; the library is the one this service exists for — Steam removes a
 // wishlist entry on purchase, so a pre-ordered game drops out of the wishlist
@@ -51,6 +53,38 @@ export class SteamUpcomingService {
       items: sortUpcoming([...byAppid.values()]),
       fetchedAt: wishlist.fetchedAt,
     };
+  }
+
+  // Membership check for routes that take an attacker-supplied appid and do real
+  // work on it. The upcoming set is the closed set those routes may act on, and
+  // it has to be the union: a pre-order is gone from the wishlist by the time it
+  // becomes the imminent hero, which is exactly when the hero asks about it.
+  //
+  // Returns the provenance rather than a boolean because the caller has a
+  // cheaper path for an owned title — the enrichment row this check reads to
+  // answer "owned" is the same row that already holds its metadata. The library
+  // arm goes first for two reasons: it answers out of our own DB, so a
+  // pre-order still resolves while Steam is down, and it is the arm that wins a
+  // collision in the merge above.
+  async membershipOf(appid: number): Promise<UpcomingSource | null> {
+    if (await this.isOwnedUnreleased(appid)) return "owned";
+    return (await this.steam.isWishlisted(appid)) ? "wishlist" : null;
+  }
+
+  // The single-appid form of `ownedUnreleased`'s predicate; the two must stay in
+  // step, or the guard admits an appid the set itself would not list.
+  private async isOwnedUnreleased(appid: number): Promise<boolean> {
+    const unreleased = await this.prisma.steamGameEnrichment.findFirst({
+      where: { appid, comingSoon: true },
+      select: { appid: true },
+    });
+    if (!unreleased) return false;
+
+    const owned = await this.prisma.steamOwnedGame.findFirst({
+      where: { appid, removedAt: null },
+      select: { appid: true },
+    });
+    return owned !== null;
   }
 
   // Owned, not removed from the library, still flagged coming-soon. Driven from

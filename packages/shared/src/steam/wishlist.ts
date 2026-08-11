@@ -82,21 +82,23 @@ export function classifyReleasePrecision(
   return "day";
 }
 
-// On-read enrichment for the Upcoming view's imminent hero (chunk 4). Returned
-// by GET /api/steam/store/:appid/hero-meta. The wishlist payload carries none
-// of this — the imminent-hero candidates are unreleased and almost always
-// *unowned*, so they have no SteamGameEnrichment row. This shape is projected
-// per request from a fresh IStoreBrowseService/GetItems(full) call (+ a Vibrant
-// pass over the resolved hero art for the accent) and TTL-cached server-side.
+// Metadata for the Upcoming view's imminent hero, returned by GET
+// /api/steam/wishlist/:appid/hero-meta. Neither list payload carries any of it.
+// A pre-ordered title is owned, so the api reads its enrichment row; a
+// wishlisted one is unowned by definition and has no such row, so the shape is
+// projected per request from a fresh IStoreBrowseService/GetItems(full) call
+// (+ a Vibrant pass over the resolved hero art for the accent) and TTL-cached
+// server-side.
 //
 // Field names mirror SteamOwnedGame so the game-detail platform-pill / ESRB-chip
 // renderers transfer 1:1. Every field is independently nullable — a brand-new
 // store page often has a hero but no rating block, or platforms but no blurb.
 export interface SteamWishlistHeroMeta {
   appid: number;
-  // Accent extracted on read from the resolved hero art via Vibrant. Null when
-  // the hero was unreachable across the fallback chain or yielded no swatch.
-  // Computed per request (no enrichment row to read from), not persisted.
+  // Accent from the hero art via Vibrant — off the enrichment row for an owned
+  // title, computed on read for a wishlisted one. Null when the hero was
+  // unreachable across the fallback chain, yielded no swatch, or has not been
+  // through the anchor pass yet.
   dominantHex: string | null;
   // One-line store blurb (`basic_info.short_description`). Null when absent.
   shortDescription: string | null;

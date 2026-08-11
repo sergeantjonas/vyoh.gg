@@ -172,3 +172,86 @@ describe("SteamUpcomingService.getUpcoming", () => {
     expect(result.items[0]).toMatchObject({ releaseDate: null, comingSoon: true });
   });
 });
+
+// Per-appid lookups rather than the merge's list reads, so these get their own
+// doubles: `comingSoon` decides the enrichment arm, `owned` the library one.
+function makeMembershipDeps(
+  { comingSoon = false, owned = false, wishlisted = false } = {},
+  isWishlisted = vi.fn().mockResolvedValue(wishlisted)
+) {
+  const prisma = {
+    steamGameEnrichment: {
+      findFirst: vi.fn().mockResolvedValue(comingSoon ? { appid: 42 } : null),
+    },
+    steamOwnedGame: {
+      findFirst: vi.fn().mockResolvedValue(owned ? { appid: 42 } : null),
+    },
+  };
+  const steam = { isWishlisted };
+  return {
+    service: new SteamUpcomingService(
+      steam as unknown as SteamService,
+      prisma as unknown as PrismaService
+    ),
+    prisma,
+    isWishlisted,
+  };
+}
+
+describe("SteamUpcomingService.membershipOf", () => {
+  it("answers 'wishlist' for a title on the wishlist", async () => {
+    const { service } = makeMembershipDeps({ wishlisted: true });
+    await expect(service.membershipOf(42)).resolves.toBe("wishlist");
+  });
+
+  // The reason this check exists: the hero asks about a pre-order at the moment
+  // it becomes the nearest release, and by then the wishlist has dropped it.
+  it("answers 'owned' for a pre-order the wishlist no longer holds", async () => {
+    const { service } = makeMembershipDeps({ comingSoon: true, owned: true });
+    await expect(service.membershipOf(42)).resolves.toBe("owned");
+  });
+
+  it("refuses an appid in neither set", async () => {
+    const { service } = makeMembershipDeps();
+    await expect(service.membershipOf(999_999)).resolves.toBeNull();
+  });
+
+  // Same precedence as the merge, so a title in both is described the same way
+  // by the guard and by the payload.
+  it("prefers 'owned' when an appid is in both", async () => {
+    const { service } = makeMembershipDeps({
+      comingSoon: true,
+      owned: true,
+      wishlisted: true,
+    });
+    await expect(service.membershipOf(42)).resolves.toBe("owned");
+  });
+
+  // The library arm reads our own DB, so a pre-order still resolves through a
+  // Steam outage — which is the arm that has to answer without help.
+  it("does not consult the wishlist once the library has answered", async () => {
+    const { service, isWishlisted } = makeMembershipDeps({
+      comingSoon: true,
+      owned: true,
+    });
+    await service.membershipOf(42);
+    expect(isWishlisted).not.toHaveBeenCalled();
+  });
+
+  // Enrichment carries wishlist-only appids too, so the coming-soon flag alone
+  // would admit games the owner has never held — the same narrowing the merge does.
+  it("does not take a coming-soon row the owner does not own as ownership", async () => {
+    const { service, prisma } = makeMembershipDeps({ comingSoon: true });
+    await expect(service.membershipOf(42)).resolves.toBeNull();
+    expect(prisma.steamOwnedGame.findFirst).toHaveBeenCalledWith({
+      where: { appid: 42, removedAt: null },
+      select: { appid: true },
+    });
+  });
+
+  it("skips the library lookup for an appid with no coming-soon row", async () => {
+    const { service, prisma } = makeMembershipDeps({ wishlisted: true });
+    await service.membershipOf(42);
+    expect(prisma.steamOwnedGame.findFirst).not.toHaveBeenCalled();
+  });
+});

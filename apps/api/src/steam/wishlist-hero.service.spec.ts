@@ -2,9 +2,10 @@ import { NotFoundException } from "@nestjs/common";
 import type { SteamGameRating } from "@vyoh/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UpstreamError } from "../img/upstream";
+import type { PrismaService } from "../prisma/prisma.service";
 import type { EnrichmentUpsert } from "./enrichment.service";
 import type { SteamClientService } from "./steam-client.service";
-import type { SteamService } from "./steam.service";
+import type { SteamUpcomingService, UpcomingSource } from "./upcoming.service";
 import { SteamWishlistHeroService } from "./wishlist-hero.service";
 
 const fetchUpstreamChain = vi.hoisted(() => vi.fn());
@@ -46,15 +47,38 @@ function projection(overrides: Partial<EnrichmentUpsert> = {}): EnrichmentUpsert
   } as unknown as EnrichmentUpsert;
 }
 
-function makeService() {
+// The stored row, as the service selects it — bigint timestamp, Json rating.
+function storedRow(overrides: Record<string, unknown> = {}) {
+  return {
+    dominantHex: "#2f4858",
+    shortDescription: "A bleak action RPG.",
+    steamDeckCompat: 3,
+    platformWindows: true,
+    platformMac: false,
+    platformLinux: false,
+    gameRating: RATING,
+    assetTimestamp: 1_776_125_684n,
+    ...overrides,
+  };
+}
+
+function makeService({
+  source = "wishlist",
+  row = null,
+}: { source?: UpcomingSource | null; row?: object | null } = {}) {
   const getStoreItemsFull = vi.fn().mockResolvedValue([{ appid: 1, success: 1 }]);
   const client = { getStoreItemsFull } as unknown as SteamClientService;
-  const isWishlisted = vi.fn().mockResolvedValue(true);
-  const steam = { isWishlisted } as unknown as SteamService;
+  const membershipOf = vi.fn().mockResolvedValue(source);
+  const upcoming = { membershipOf } as unknown as SteamUpcomingService;
+  const findUnique = vi.fn().mockResolvedValue(row);
+  const prisma = {
+    steamGameEnrichment: { findUnique },
+  } as unknown as PrismaService;
   return {
-    service: new SteamWishlistHeroService(client, steam),
+    service: new SteamWishlistHeroService(client, upcoming, prisma),
     getStoreItemsFull,
-    isWishlisted,
+    membershipOf,
+    findUnique,
   };
 }
 
@@ -100,9 +124,8 @@ describe("SteamWishlistHeroService", () => {
     await expect(service.getHeroMeta(1)).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it("refuses an appid that is not on the wishlist before doing any work", async () => {
-    const { service, getStoreItemsFull, isWishlisted } = makeService();
-    isWishlisted.mockResolvedValue(false);
+  it("refuses an appid outside the upcoming set before doing any work", async () => {
+    const { service, getStoreItemsFull } = makeService({ source: null });
     await expect(service.getHeroMeta(999_999)).rejects.toBeInstanceOf(NotFoundException);
     // The refusal is worth nothing if it lands after the spend it exists to
     // prevent — the store call and the art fetch are the cost, not the map write.
@@ -111,9 +134,9 @@ describe("SteamWishlistHeroService", () => {
   });
 
   it("re-checks membership on a cache hit", async () => {
-    const { service, isWishlisted } = makeService();
+    const { service, membershipOf } = makeService();
     await service.getHeroMeta(1);
-    isWishlisted.mockResolvedValue(false);
+    membershipOf.mockResolvedValue(null);
     await expect(service.getHeroMeta(1)).rejects.toBeInstanceOf(NotFoundException);
   });
 
@@ -134,5 +157,64 @@ describe("SteamWishlistHeroService", () => {
     const { service } = makeService();
     const meta = await service.getHeroMeta(1);
     expect(meta.assetTimestamp).toBeNull();
+  });
+});
+
+// A pre-ordered title is owned, so the poller that keeps its release date honest
+// has already stored everything this endpoint returns.
+describe("SteamWishlistHeroService, for an owned title", () => {
+  it("serves the enrichment row instead of calling the store", async () => {
+    const { service, getStoreItemsFull } = makeService({
+      source: "owned",
+      row: storedRow(),
+    });
+    const meta = await service.getHeroMeta(2_584_270);
+
+    expect(meta).toEqual({
+      appid: 2_584_270,
+      dominantHex: "#2f4858",
+      shortDescription: "A bleak action RPG.",
+      steamDeckCompat: 3,
+      platformWindows: true,
+      platformMac: false,
+      platformLinux: false,
+      gameRating: RATING,
+      assetTimestamp: 1_776_125_684,
+    });
+    expect(getStoreItemsFull).not.toHaveBeenCalled();
+    expect(fetchUpstreamChain).not.toHaveBeenCalled();
+  });
+
+  // The accent is the expensive field, and the anchor pass has already run
+  // Vibrant over the same art. A null there means that pass hasn't reached the
+  // row — not a reason to re-fetch the hero on a page view.
+  it("keeps a null stored accent rather than recomputing it", async () => {
+    const { service } = makeService({
+      source: "owned",
+      row: storedRow({ dominantHex: null }),
+    });
+    const meta = await service.getHeroMeta(2_584_270);
+    expect(meta.dominantHex).toBeNull();
+    expect(extractDominantHex).not.toHaveBeenCalled();
+  });
+
+  // No in-memory copy: the row read costs nothing to repeat, and a cached copy
+  // would outlive the daily refresh that keeps an announced date current.
+  it("re-reads the row on every request", async () => {
+    const { service, findUnique } = makeService({
+      source: "owned",
+      row: storedRow(),
+    });
+    await service.getHeroMeta(2_584_270);
+    await service.getHeroMeta(2_584_270);
+    expect(findUnique).toHaveBeenCalledTimes(2);
+  });
+
+  it("falls back to the per-request projection when the row has gone", async () => {
+    const { service, getStoreItemsFull } = makeService({ source: "owned", row: null });
+    await expect(service.getHeroMeta(1)).resolves.toMatchObject({
+      shortDescription: "A bleak action RPG.",
+    });
+    expect(getStoreItemsFull).toHaveBeenCalled();
   });
 });
