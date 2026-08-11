@@ -1,13 +1,8 @@
 import type { SteamUpcomingItem } from "@vyoh/shared";
 import { describe, expect, it } from "vitest";
-import {
-  formatWishlistDateAdded,
-  formatWishlistFact,
-  formatWishlistReleaseLabel,
-} from "./format";
-import type { WishlistFact } from "./wishlist-fact";
+import { formatWishlistDateAdded, formatWishlistReleaseLabel } from "./format";
 
-// Typed as the upcoming item because that is the shape a WishlistFact carries; it
+// Typed as the upcoming item because both list shapes reach these formatters; it
 // also satisfies formatWishlistReleaseLabel, which takes only the release fields.
 function item(overrides: Partial<SteamUpcomingItem> = {}): SteamUpcomingItem {
   return {
@@ -76,45 +71,5 @@ describe("formatWishlistReleaseLabel", () => {
     expect(
       formatWishlistReleaseLabel(item({ comingSoon: false, releaseDate: null }))
     ).toBeNull();
-  });
-});
-
-describe("formatWishlistFact", () => {
-  const game = item({ appid: 7, name: "Dawnwalker" });
-
-  it("frames an imminent release with the day count", () => {
-    const fact: WishlistFact = { kind: "imminent", item: game, daysUntil: 12 };
-    expect(formatWishlistFact(fact)).toBe("Next up: Dawnwalker, in 12 days.");
-  });
-
-  it("collapses 0/1 days to out today / out tomorrow", () => {
-    expect(formatWishlistFact({ kind: "imminent", item: game, daysUntil: 0 })).toBe(
-      "Next up: Dawnwalker, out today."
-    );
-    expect(formatWishlistFact({ kind: "imminent", item: game, daysUntil: 1 })).toBe(
-      "Next up: Dawnwalker, out tomorrow."
-    );
-  });
-
-  it("frames a dated release as Coming {Month D} (0-based month, no year)", () => {
-    const fact: WishlistFact = {
-      kind: "dated",
-      item: game,
-      date: { year: 2026, month: 7, day: 3 }, // month 7 = August
-    };
-    expect(formatWishlistFact(fact)).toBe("Coming Aug 3: Dawnwalker.");
-  });
-
-  it("frames a TBA fallback as still-waiting", () => {
-    expect(formatWishlistFact({ kind: "waiting", item: game })).toBe(
-      "Still waiting on Dawnwalker."
-    );
-  });
-
-  it("uses a placeholder name when the item has no title", () => {
-    const nameless = item({ appid: 9, name: null });
-    expect(formatWishlistFact({ kind: "waiting", item: nameless })).toBe(
-      "Still waiting on an untitled game."
-    );
   });
 });

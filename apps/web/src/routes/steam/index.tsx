@@ -3,6 +3,7 @@ import { OwnedGamesChip } from "@/steam/owned-games-chip";
 import { SteamIdentityHero } from "@/steam/profile/steam-identity-hero";
 import { TrophyCaseStrip } from "@/steam/profile/trophy-case-strip";
 import { RecentUnlocksChip } from "@/steam/recent-unlocks-chip";
+import { UpcomingChip } from "@/steam/upcoming-chip";
 import { WishlistChip } from "@/steam/wishlist-chip";
 import { createFileRoute } from "@tanstack/react-router";
 
@@ -28,8 +29,11 @@ function SteamPage() {
     <div className="flex flex-col gap-12">
       <SteamIdentityHero />
       <TrophyCaseStrip />
+      {/* Paired by tense on the wide tier: the two-column row reads recent
+          unlocks beside what lands next, then the backlog beside the library. */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <RecentUnlocksChip />
+        <UpcomingChip />
         <WishlistChip />
         <OwnedGamesChip />
       </div>

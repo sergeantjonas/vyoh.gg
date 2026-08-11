@@ -4,8 +4,6 @@ import {
   classifyReleasePrecision,
 } from "@vyoh/shared";
 
-import type { WishlistFact } from "@/steam/wishlist/wishlist-fact";
-
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "short",
@@ -53,34 +51,5 @@ export function formatWishlistReleaseLabel(
       // concrete date — the diagnosed fix for day-precise titles that used to
       // collapse to "Coming <year>".
       return `Coming ${RELEASE_DAY_FORMATTER.format(date)}`;
-  }
-}
-
-// Month + day only (no year), UTC-framed to match RELEASE_DAY_FORMATTER — a
-// near-term release reads "Coming Aug 3", the year is implied by proximity.
-const RELEASE_MONTH_DAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  timeZone: "UTC",
-});
-
-// The verdict sentence for the profile Wishlist chip's forward-looking fact
-// (§ Profile tile reframe). Mirrors the certainty ladder in pickWishlistFact:
-// the nearer the release, the more precise the framing.
-export function formatWishlistFact(fact: WishlistFact): string {
-  const name = fact.item.name ?? "an untitled game";
-  switch (fact.kind) {
-    case "imminent":
-      if (fact.daysUntil <= 0) return `Next up: ${name}, out today.`;
-      if (fact.daysUntil === 1) return `Next up: ${name}, out tomorrow.`;
-      return `Next up: ${name}, in ${fact.daysUntil} days.`;
-    case "dated": {
-      const when = RELEASE_MONTH_DAY_FORMATTER.format(
-        new Date(Date.UTC(fact.date.year, fact.date.month, fact.date.day))
-      );
-      return `Coming ${when}: ${name}.`;
-    }
-    case "waiting":
-      return `Still waiting on ${name}.`;
   }
 }

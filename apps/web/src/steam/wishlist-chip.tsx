@@ -1,13 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { OWNER_TIME_ZONE } from "@vyoh/shared";
-import { useMemo } from "react";
 import { FactCard } from "./_shared/fact-card";
 import { FactCardData } from "./_shared/fact-card-data";
-import { steamCapsuleLargeUrl, steamCapsuleUrl } from "./_shared/steam-image";
-import { useSteamUpcoming } from "./use-upcoming";
+import { steamCapsuleUrl } from "./_shared/steam-image";
 import { useSteamWishlist } from "./use-wishlist";
-import { formatWishlistFact } from "./wishlist/format";
-import { pickWishlistFact } from "./wishlist/wishlist-fact";
 
 const PREVIEW_LIMIT = 5;
 
@@ -21,16 +17,14 @@ function shortDateAdded(epochSeconds: number): string {
   return SHORT_DATE.format(new Date(epochSeconds * 1_000));
 }
 
+// The backlog half of the pair. Everything forward-looking moved to the
+// `On the radar` chip when the calendar got its own route: a fact about what
+// lands next is a claim about the upcoming set, which is not this card's list —
+// Steam deletes a title from the wishlist the moment it is bought, so the chip
+// was naming games its own count did not include. What is left is the question
+// only the wishlist can answer: how long has this stuff been sitting here.
 export function WishlistChip() {
   const query = useSteamWishlist();
-  // Second query, because the card makes two different claims. The count and the
-  // fallback list are about the wishlist and belong to the wishlist. The leading
-  // fact is about what lands next, which a pre-order can win — and pre-orders are
-  // not on the wishlist. Its pending/error states stay the wishlist's: the fact is
-  // an enhancement, and the card is legible without it.
-  const upcoming = useSteamUpcoming();
-  // One "now" per mount so the fact picker reads a stable today.
-  const now = useMemo(() => new Date(), []);
 
   return (
     <FactCardData
@@ -42,53 +36,7 @@ export function WishlistChip() {
       isEmpty={(data) => data.items.length === 0}
     >
       {(data) => {
-        const count = data.items.length;
-
-        // Lead with a forward-looking fact when one qualifies (§ Profile tile
-        // reframe): a dated release within the horizon, or the longest-waiting
-        // TBA title — a real piece of identity rather than a count. The count
-        // stays as the quiet top-right indicator.
-        const fact = pickWishlistFact(upcoming.data?.items ?? [], now);
-        if (fact) {
-          return (
-            <FactCard
-              title="Wishlist"
-              metric={count}
-              metricLabel={{ singular: "game", plural: "games" }}
-              verdict={formatWishlistFact(fact)}
-              evidence={
-                <div className="flex flex-col gap-2">
-                  {/* The fact is a release-date claim, so its evidence is the
-                      timeline, not a row in the list — and a pre-ordered title
-                      has no list row to deep-link to at all. */}
-                  <Link
-                    to="/steam/upcoming"
-                    className="group block overflow-hidden rounded-md transition-opacity hover:opacity-95"
-                  >
-                    <img
-                      src={steamCapsuleLargeUrl(fact.item.appid)}
-                      alt={fact.item.name ?? `Upcoming app ${fact.item.appid}`}
-                      width={460}
-                      height={215}
-                      loading="lazy"
-                      className="aspect-[460/215] w-full rounded-md bg-muted object-cover"
-                    />
-                  </Link>
-                  <Link
-                    to="/steam/wishlist"
-                    className="text-sm text-foreground/70 underline-offset-2 hover:underline"
-                  >
-                    See the full list →
-                  </Link>
-                </div>
-              }
-            />
-          );
-        }
-
-        // Fallback (§ Profile tile reframe tier 4): nothing dated within the
-        // horizon and no TBA title — keep the backlog-age framing on the oldest
-        // entry by dateAdded. Oldest-first matches the destination route.
+        // Oldest first, matching the destination route's order.
         const sorted = [...data.items].sort((a, b) => a.dateAdded - b.dateAdded);
         const [oldest] = sorted;
         if (!oldest) return null;
@@ -100,7 +48,7 @@ export function WishlistChip() {
         return (
           <FactCard
             title="Wishlist"
-            metric={count}
+            metric={data.items.length}
             metricLabel={{ singular: "game", plural: "games" }}
             verdict={verdict}
             evidence={
