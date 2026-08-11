@@ -18,6 +18,7 @@ import { motion } from "motion/react";
 import { CountUp } from "@/components/count-up";
 import { currentBrusselsHour, paletteForHour } from "@/home/ambient-hero";
 import { STEAM_FEATURED_APPID } from "@/home/landing-config";
+import { formatRarityPercentEditorial } from "@/steam/_shared/rarity-percent";
 import {
   steamAchievementIconUrl,
   steamLibraryHeroLargeUrl,
@@ -108,14 +109,8 @@ function StandoutUnlockBlock({
     standout.globalPercent !== null && standout.globalPercent <= 25
       ? standout.globalPercent
       : null;
-  // Single decimal for sub-10% rarities (1.8% reads as editorial weight, "2%"
-  // erases it); integer otherwise (12% reads cleaner than 12.4%).
   const rarityLabel =
-    rarity !== null
-      ? rarity < 10
-        ? `${rarity.toFixed(1)}% have it`
-        : `${Math.round(rarity)}% have it`
-      : null;
+    rarity !== null ? `${formatRarityPercentEditorial(rarity)} have it` : null;
   return (
     <Link
       to="/steam/library/$appid"
@@ -202,9 +197,7 @@ function RecentUnlockRow({
 }) {
   const rarityChip =
     unlock.globalPercent !== null
-      ? unlock.globalPercent < 10
-        ? `${unlock.globalPercent.toFixed(1)}%`
-        : `${Math.round(unlock.globalPercent)}%`
+      ? formatRarityPercentEditorial(unlock.globalPercent)
       : null;
   return (
     <Link
@@ -445,9 +438,7 @@ function RemainingRarestLadder({
                 <span className="flex shrink-0 items-center gap-1.5 text-xs text-foreground/80 group-hover:text-foreground/95">
                   <span className="tabular-nums">
                     {u.globalPercent !== null
-                      ? u.globalPercent < 10
-                        ? `${u.globalPercent.toFixed(1)}%`
-                        : `${Math.round(u.globalPercent)}%`
+                      ? formatRarityPercentEditorial(u.globalPercent)
                       : "—"}
                   </span>
                 </span>

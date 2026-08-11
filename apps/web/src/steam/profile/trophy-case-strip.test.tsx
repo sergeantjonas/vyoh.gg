@@ -122,6 +122,20 @@ describe("TrophyCaseStrip", () => {
     expect(screen.getByText("See full signature →")).toBeTruthy();
   });
 
+  // The tile badge formats its own percentage instead of going through
+  // <RarityPercent>, so it needs its own guard against "0.0%" — which is what
+  // Steam reports in bulk for a game whose player base is still too small to
+  // register a share at one decimal.
+  it("labels a sub-resolution rarity as an upper bound on the tile badge", () => {
+    mockData({
+      rarest: { data: { unlocks: [unlock({ globalPercent: 0 })] } },
+      owned: { data: { games: [game(440)] } },
+    });
+    render(<TrophyCaseStrip />);
+    expect(screen.getByText("<0.1%")).toBeTruthy();
+    expect(screen.queryByText("0.0%")).toBeNull();
+  });
+
   it("renders prev/next carousel controls with aria-labels", () => {
     mockData({
       rarest: { data: { unlocks: [unlock()] } },

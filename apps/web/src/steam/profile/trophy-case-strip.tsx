@@ -6,6 +6,7 @@ import {
   useCarousel,
 } from "@/components/ui/carousel";
 import { SectionTitle } from "@/components/ui/section-title";
+import { formatRarityPercent } from "@/steam/_shared/rarity-percent";
 import { steamAchievementIconUrl, steamCapsuleUrl } from "@/steam/_shared/steam-image";
 import { prefetchSteamGameBackdrop } from "@/steam/profile-backdrop";
 import { useCrossGameRarest } from "@/steam/use-cross-game-rarest";
@@ -25,6 +26,10 @@ const RARITY_GATE = 10;
 
 interface TrophyEntry {
   unlock: SteamRecentUnlock;
+  // Narrowed at the gate below rather than re-derived per tile — a `?? 0`
+  // fallback at the render site would label an unknown rarity as the rarest
+  // thing in the case.
+  percent: number;
   assetTimestamp: number | null;
 }
 
@@ -37,7 +42,11 @@ function joinEntries(
   for (const u of unlocks) {
     const pct = u.globalPercent;
     if (pct == null || pct >= RARITY_GATE) continue;
-    entries.push({ unlock: u, assetTimestamp: tsByAppid.get(u.appid) ?? null });
+    entries.push({
+      unlock: u,
+      percent: pct,
+      assetTimestamp: tsByAppid.get(u.appid) ?? null,
+    });
   }
   return entries;
 }
@@ -124,8 +133,7 @@ function CarouselHeaderControls() {
 }
 
 function TrophyTile({ entry }: { entry: TrophyEntry }) {
-  const { unlock, assetTimestamp } = entry;
-  const pct = unlock.globalPercent ?? 0;
+  const { unlock, percent: pct, assetTimestamp } = entry;
   // Mirror RarestSection's threshold — sub-5% gets the amber treatment, the
   // rest read as plain trophies. The capsule is the frame either way.
   const isAmber = pct < 5;
@@ -172,7 +180,7 @@ function TrophyTile({ entry }: { entry: TrophyEntry }) {
                 : "absolute right-1.5 top-1.5 rounded-full bg-background/95 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-foreground/80"
             }
           >
-            {pct.toFixed(1)}%
+            {formatRarityPercent(pct)}
           </span>
         </div>
         <div className="flex min-w-0 flex-col">
