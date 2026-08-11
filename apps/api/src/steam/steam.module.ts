@@ -27,6 +27,7 @@ import { SteamService } from "./steam.service";
 import { SteamSubjectAnchorService } from "./subject-anchor.service";
 import { SteamTagPoller } from "./tag.poller";
 import { SteamTagService } from "./tag.service";
+import { SteamUpcomingService } from "./upcoming.service";
 import { SteamWishlistHeroService } from "./wishlist-hero.service";
 
 @Module({
@@ -36,6 +37,7 @@ import { SteamWishlistHeroService } from "./wishlist-hero.service";
     SteamClientService,
     SteamChronotypeService,
     SteamService,
+    SteamUpcomingService,
     SteamOwnedGamesService,
     SteamOwnedGamesPoller,
     SteamEnrichmentService,

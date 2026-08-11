@@ -7,6 +7,7 @@ import type {
   SteamPortrait,
   SteamSummary,
   SteamTagCatalog,
+  SteamUpcoming,
   SteamWishlist,
 } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
@@ -19,6 +20,7 @@ import { SteamChronotypeService } from "./steam-chronotype.service";
 import { SteamController } from "./steam.controller";
 import { SteamService } from "./steam.service";
 import { SteamTagService } from "./tag.service";
+import { SteamUpcomingService } from "./upcoming.service";
 import { SteamWishlistHeroService } from "./wishlist-hero.service";
 
 describe("SteamController", () => {
@@ -45,6 +47,7 @@ describe("SteamController", () => {
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
         { provide: SteamWishlistHeroService, useValue: {} },
+        { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
       ],
     }).compile();
@@ -83,12 +86,52 @@ describe("SteamController", () => {
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
         { provide: SteamWishlistHeroService, useValue: {} },
+        { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
       ],
     }).compile();
 
     const controller = moduleRef.get(SteamController);
     await expect(controller.getWishlist()).resolves.toBe(wishlist);
+    expect(stub).toHaveBeenCalledOnce();
+  });
+
+  it("delegates to SteamUpcomingService.getUpcoming", async () => {
+    const upcoming: SteamUpcoming = {
+      steamId: "76561198020053778",
+      items: [
+        {
+          appid: 2584270,
+          name: "Mortal Shell II",
+          storeUrl: "https://store.steampowered.com/app/2584270/",
+          releaseDate: 1787184000,
+          comingSoon: true,
+          dateAdded: 1753920000,
+          source: "owned",
+        },
+      ],
+      fetchedAt: 1715688000000,
+    };
+    const stub = vi.fn().mockResolvedValue(upcoming);
+
+    const moduleRef = await Test.createTestingModule({
+      controllers: [SteamController],
+      providers: [
+        { provide: SteamService, useValue: {} },
+        { provide: SteamOwnedGamesService, useValue: {} },
+        { provide: SteamTagService, useValue: {} },
+        { provide: SteamAchievementsService, useValue: {} },
+        { provide: SteamGameRecapService, useValue: {} },
+        { provide: SteamPlayerStateService, useValue: {} },
+        { provide: SteamChronotypeService, useValue: {} },
+        { provide: SteamWishlistHeroService, useValue: {} },
+        { provide: SteamUpcomingService, useValue: { getUpcoming: stub } },
+        { provide: SteamPortraitService, useValue: {} },
+      ],
+    }).compile();
+
+    const controller = moduleRef.get(SteamController);
+    await expect(controller.getUpcoming()).resolves.toBe(upcoming);
     expect(stub).toHaveBeenCalledOnce();
   });
 
@@ -117,6 +160,7 @@ describe("SteamController", () => {
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
         { provide: SteamWishlistHeroService, useValue: { getHeroMeta: stub } },
+        { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
       ],
     }).compile();
@@ -146,6 +190,7 @@ describe("SteamController", () => {
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
         { provide: SteamWishlistHeroService, useValue: {} },
+        { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
       ],
     }).compile();
@@ -231,6 +276,7 @@ describe("SteamController", () => {
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
         { provide: SteamWishlistHeroService, useValue: {} },
+        { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: { getPortrait: stub } },
       ],
     }).compile();
@@ -263,6 +309,7 @@ describe("SteamController", () => {
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
         { provide: SteamWishlistHeroService, useValue: {} },
+        { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
       ],
     }).compile();
@@ -293,6 +340,7 @@ describe("SteamController", () => {
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
         { provide: SteamWishlistHeroService, useValue: {} },
+        { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
       ],
     }).compile();
@@ -323,6 +371,7 @@ describe("SteamController", () => {
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
         { provide: SteamWishlistHeroService, useValue: {} },
+        { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
       ],
     }).compile();
@@ -347,6 +396,7 @@ describe("SteamController", () => {
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
         { provide: SteamWishlistHeroService, useValue: {} },
+        { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
       ],
     }).compile();
@@ -380,6 +430,7 @@ describe("SteamController", () => {
         { provide: SteamPlayerStateService, useValue: { getPlayerState: stub } },
         { provide: SteamChronotypeService, useValue: {} },
         { provide: SteamWishlistHeroService, useValue: {} },
+        { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
       ],
     }).compile();
@@ -403,6 +454,7 @@ describe("SteamController", () => {
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
         { provide: SteamWishlistHeroService, useValue: {} },
+        { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
       ],
     }).compile();
@@ -425,6 +477,7 @@ describe("SteamController", () => {
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
         { provide: SteamWishlistHeroService, useValue: {} },
+        { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
       ],
     }).compile();
@@ -447,6 +500,7 @@ describe("SteamController", () => {
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
         { provide: SteamWishlistHeroService, useValue: {} },
+        { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
       ],
     }).compile();
@@ -469,6 +523,7 @@ describe("SteamController", () => {
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
         { provide: SteamWishlistHeroService, useValue: {} },
+        { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
       ],
     }).compile();
@@ -491,6 +546,7 @@ describe("SteamController", () => {
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: { getChronotype: stub } },
         { provide: SteamWishlistHeroService, useValue: {} },
+        { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
       ],
     }).compile();
@@ -514,6 +570,7 @@ describe("SteamController", () => {
         { provide: SteamPlayerStateService, useValue: {} },
         { provide: SteamChronotypeService, useValue: {} },
         { provide: SteamWishlistHeroService, useValue: {} },
+        { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
       ],
     }).compile();
@@ -537,6 +594,7 @@ describe("SteamController", () => {
         { provide: SteamPlayerStateService, useValue: { getPlayerState: stub } },
         { provide: SteamChronotypeService, useValue: {} },
         { provide: SteamWishlistHeroService, useValue: {} },
+        { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
       ],
     }).compile();

@@ -268,7 +268,10 @@ function storeItemToCacheEntry(row: SteamStoreItemFullRaw, now: number): CachedN
   };
 }
 
-function buildStoreUrl(appid: number, storeUrlPath: string | null): string {
+// Exported for the upcoming surface, which composes store links for owned
+// pre-purchases: enrichment persists no `store_url_path`, so those fall to the
+// bare /app/<appid>/ form that Steam redirects to the slug anyway.
+export function buildStoreUrl(appid: number, storeUrlPath: string | null): string {
   if (storeUrlPath) return `https://store.steampowered.com/${storeUrlPath}/`;
   return `https://store.steampowered.com/app/${appid}/`;
 }

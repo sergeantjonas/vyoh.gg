@@ -205,6 +205,11 @@ export {
   type SteamWishlistHeroMeta,
   type SteamWishlistItem,
 } from "./steam/wishlist.ts";
+export type {
+  SteamUpcoming,
+  SteamUpcomingItem,
+  SteamUpcomingSource,
+} from "./steam/upcoming.ts";
 export type { SteamLibrarySummary } from "./steam/library-summary.ts";
 export type { SteamPlatform, SteamPlatformMix } from "./steam/platform-mix.ts";
 export { isSteamGameAppType } from "./steam/owned-games.ts";

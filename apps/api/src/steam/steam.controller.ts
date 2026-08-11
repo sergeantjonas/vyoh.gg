@@ -23,6 +23,7 @@ import type {
   SteamRecentUnlocks,
   SteamSummary,
   SteamTagCatalog,
+  SteamUpcoming,
   SteamWishlist,
   SteamWishlistHeroMeta,
 } from "@vyoh/shared";
@@ -39,6 +40,7 @@ import { SteamPortraitService } from "./portrait.service";
 import { SteamChronotypeService } from "./steam-chronotype.service";
 import { SteamService } from "./steam.service";
 import { SteamTagService } from "./tag.service";
+import { SteamUpcomingService } from "./upcoming.service";
 import { SteamWishlistHeroService } from "./wishlist-hero.service";
 
 @Controller("steam")
@@ -52,6 +54,7 @@ export class SteamController {
     private readonly playerState: SteamPlayerStateService,
     private readonly chronotype: SteamChronotypeService,
     private readonly wishlistHero: SteamWishlistHeroService,
+    private readonly upcoming: SteamUpcomingService,
     private readonly portrait: SteamPortraitService
   ) {}
 
@@ -79,6 +82,16 @@ export class SteamController {
   @Get("wishlist")
   async getWishlist(): Promise<SteamWishlist> {
     return this.steam.getOwnerWishlist();
+  }
+
+  // Unreleased titles from both provenances: wishlisted, and owned-but-unlaunched
+  // (pre-orders, which Steam deletes from the wishlist at purchase). Separate
+  // from /wishlist rather than a flag on it, because the two answer different
+  // questions — this one is "what is coming", that one is "what am I watching",
+  // and only the first has to survive a purchase.
+  @Get("upcoming")
+  async getUpcoming(): Promise<SteamUpcoming> {
+    return this.upcoming.getUpcoming();
   }
 
   // On-read enrichment for the Upcoming view's imminent hero — accent,
