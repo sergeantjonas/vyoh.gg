@@ -1,6 +1,6 @@
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { render, screen } from "@testing-library/react";
-import type { SteamWishlistItem } from "@vyoh/shared";
+import type { SteamUpcomingItem } from "@vyoh/shared";
 import { configureAxe } from "jest-axe";
 import { afterEach, describe, expect, it } from "vitest";
 import type { QuarterBand, YearBand } from "./bucketing";
@@ -14,12 +14,12 @@ function utcDay(year: number, month0: number, day: number): number {
   return Date.UTC(year, month0, day, 12, 0, 0) / 1_000;
 }
 
-function item(appid: number, releaseDate: number | null): SteamWishlistItem {
+function item(appid: number, releaseDate: number | null): SteamUpcomingItem {
   return {
     appid,
     name: `Game ${appid}`,
     dateAdded: 1_700_000_000,
-    priority: 0,
+    source: "wishlist",
     storeUrl: `https://store.steampowered.com/app/${appid}`,
     releaseDate,
     comingSoon: true,
@@ -78,6 +78,16 @@ describe("TbaPool", () => {
   it("renders nothing when empty", () => {
     const { container } = withProvider(<TbaPool items={[]} />);
     expect(container.firstChild).toBeNull();
+  });
+
+  // A pre-ordered title with no announced date is the shape most at risk of being
+  // read as "still just wanted" — it is the one the owner has already paid for.
+  it("notes a pre-ordered chip inside its accessible name", () => {
+    withProvider(
+      <TbaPool items={[{ ...item(4, null), source: "owned" }, item(5, null)]} />
+    );
+    expect(screen.getByRole("link", { name: "Game 4 Pre-ordered" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Game 5" })).toBeTruthy();
   });
 });
 

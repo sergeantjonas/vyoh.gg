@@ -1,11 +1,11 @@
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { render, screen } from "@testing-library/react";
-import type { SteamWishlist, SteamWishlistItem } from "@vyoh/shared";
+import type { SteamUpcoming, SteamUpcomingItem } from "@vyoh/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WishlistUpcomingPanel } from "./wishlist-upcoming-panel";
 
-const { mockUseWishlist } = vi.hoisted(() => ({ mockUseWishlist: vi.fn() }));
-vi.mock("@/steam/use-wishlist", () => ({ useSteamWishlist: mockUseWishlist }));
+const { mockUseUpcoming } = vi.hoisted(() => ({ mockUseUpcoming: vi.fn() }));
+vi.mock("@/steam/use-upcoming", () => ({ useSteamUpcoming: mockUseUpcoming }));
 // Stub the hero — its backdrop lease + meta fetch are exercised in
 // imminent-hero.test.tsx; here we only assert the panel wires it in.
 vi.mock("@/steam/wishlist/upcoming/imminent-hero", () => ({
@@ -14,12 +14,12 @@ vi.mock("@/steam/wishlist/upcoming/imminent-hero", () => ({
   ),
 }));
 
-function item(overrides: Partial<SteamWishlistItem>): SteamWishlistItem {
+function item(overrides: Partial<SteamUpcomingItem>): SteamUpcomingItem {
   return {
     appid: 1,
     name: "Game 1",
     dateAdded: 1_700_000_000,
-    priority: 0,
+    source: "wishlist",
     storeUrl: "https://store.steampowered.com/app/1",
     releaseDate: null,
     comingSoon: true,
@@ -27,7 +27,7 @@ function item(overrides: Partial<SteamWishlistItem>): SteamWishlistItem {
   };
 }
 
-function wishlist(items: SteamWishlistItem[]): SteamWishlist {
+function upcoming(items: SteamUpcomingItem[]): SteamUpcoming {
   return { steamId: "1", items, fetchedAt: 1_700_000_000 };
 }
 
@@ -40,27 +40,27 @@ function renderPanel() {
 }
 
 afterEach(() => {
-  mockUseWishlist.mockReset();
+  mockUseUpcoming.mockReset();
   document.body.innerHTML = "";
 });
 
 describe("WishlistUpcomingPanel", () => {
   it("renders the calendar/band skeleton while pending", () => {
-    mockUseWishlist.mockReturnValue({ data: undefined, isPending: true, isError: false });
+    mockUseUpcoming.mockReturnValue({ data: undefined, isPending: true, isError: false });
     const { container } = renderPanel();
     expect(container.querySelector(".animate-shimmer")).toBeTruthy();
   });
 
   it("renders an error message on failure", () => {
-    mockUseWishlist.mockReturnValue({ data: undefined, isPending: false, isError: true });
+    mockUseUpcoming.mockReturnValue({ data: undefined, isPending: false, isError: true });
     renderPanel();
     expect(screen.getByText(/unavailable right now/)).toBeTruthy();
   });
 
   it("shows the empty state when nothing is upcoming", () => {
     // Only already-released titles → every bucket is empty.
-    mockUseWishlist.mockReturnValue({
-      data: wishlist([item({ comingSoon: false, releaseDate: 1_600_000_000 })]),
+    mockUseUpcoming.mockReturnValue({
+      data: upcoming([item({ comingSoon: false, releaseDate: 1_600_000_000 })]),
       isPending: false,
       isError: false,
     });
@@ -71,8 +71,8 @@ describe("WishlistUpcomingPanel", () => {
   it("leads with the imminent hero when a day-precise release is near", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-15T12:00:00Z"));
-    mockUseWishlist.mockReturnValue({
-      data: wishlist([
+    mockUseUpcoming.mockReturnValue({
+      data: upcoming([
         item({
           appid: 7,
           name: "Near Game",
@@ -90,8 +90,8 @@ describe("WishlistUpcomingPanel", () => {
   });
 
   it("renders bands without a calendar when there are no day-precise releases", () => {
-    mockUseWishlist.mockReturnValue({
-      data: wishlist([item({ appid: 1, releaseDate: null })]), // TBA only
+    mockUseUpcoming.mockReturnValue({
+      data: upcoming([item({ appid: 1, releaseDate: null })]), // TBA only
       isPending: false,
       isError: false,
     });

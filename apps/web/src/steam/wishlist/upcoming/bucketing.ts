@@ -1,11 +1,11 @@
 import {
   type ReleasePrecision,
-  type SteamWishlistItem,
+  type SteamUpcomingItem,
   classifyReleasePrecision,
 } from "@vyoh/shared";
 import { OWNER_TIME_ZONE } from "@vyoh/shared";
 
-// Date-bucketing for the `/steam/wishlist` Upcoming view. Pure functions of
+// Date-bucketing for the Upcoming view. Pure functions of
 // `(items, now)` — no network, no DB — so they're cheap to recompute on every
 // render and trivial to test. See docs/working-notes/steam/wishlist-upcoming.md
 // § Upcoming view composition.
@@ -91,13 +91,14 @@ function quarterOfMonth(month: number): number {
 }
 
 export interface DayRelease {
-  item: SteamWishlistItem;
+  item: SteamUpcomingItem;
   // UTC civil date the title is slated to launch on (calendar-cell key).
   date: CivilDate;
   // Brussels-today days-until; negative once the date has passed.
   daysUntil: number;
-  // daysUntil < 0 — still wishlisted but the date slipped past, rendered as a
-  // desaturated "released N days ago" ghost per the open-question decision.
+  // daysUntil < 0 — the date slipped past while Steam still calls the title
+  // unreleased, rendered as a desaturated "released N days ago" ghost per the
+  // open-question decision.
   isPast: boolean;
 }
 
@@ -106,40 +107,46 @@ export interface QuarterBand {
   // 1..4
   quarter: number;
   // month- and quarter-precision items, chronological within the band.
-  items: SteamWishlistItem[];
+  items: SteamUpcomingItem[];
 }
 
 export interface YearBand {
   year: number;
-  items: SteamWishlistItem[];
+  items: SteamUpcomingItem[];
 }
 
 export interface UpcomingBuckets {
-  // Every day-precise still-wishlisted title, including past ghosts, sorted by
-  // release date ascending. The calendar renders whichever fall in its window;
-  // the imminent hero (chunk 4) picks the nearest future one.
+  // Every day-precise title, including past ghosts, sorted by release date
+  // ascending. The calendar renders whichever fall in its window; the imminent
+  // hero picks the nearest future one.
   dayReleases: DayRelease[];
   // Month/quarter precision, one band per (year, quarter), chronological.
   quarterBands: QuarterBand[];
   // Year precision, one band per year, ascending.
   yearBands: YearBand[];
   // No committed date — the watching pile. Recency order (newest add first).
-  tba: SteamWishlistItem[];
+  tba: SteamUpcomingItem[];
 }
 
-const RELEASE_SORT = (a: SteamWishlistItem, b: SteamWishlistItem) =>
+/** True when the title is already bought — a pre-order awaiting its launch. */
+export function isPreOrdered(item: SteamUpcomingItem): boolean {
+  return item.source === "owned";
+}
+
+const RELEASE_SORT = (a: SteamUpcomingItem, b: SteamUpcomingItem) =>
   (a.releaseDate ?? 0) - (b.releaseDate ?? 0);
 
 /**
- * Partition a wishlist into the Upcoming view's tiers. Already-released titles
- * (`comingSoon === false`, precision `null`) are dropped — they belong to the
- * `All` tab, not the upcoming pipeline.
+ * Partition the upcoming set into the view's tiers. Already-released titles
+ * (`comingSoon === false`, precision `null`) are dropped. The endpoint filters
+ * those out already; the check stays because it is what makes the tiering total,
+ * and a released row reaching a calendar cell is the worse failure.
  */
-export function groupUpcoming(items: SteamWishlistItem[], now: Date): UpcomingBuckets {
+export function groupUpcoming(items: SteamUpcomingItem[], now: Date): UpcomingBuckets {
   const dayReleases: DayRelease[] = [];
   const quarterMap = new Map<number, QuarterBand>();
   const yearMap = new Map<number, YearBand>();
-  const tba: SteamWishlistItem[] = [];
+  const tba: SteamUpcomingItem[] = [];
 
   for (const item of items) {
     const precision: ReleasePrecision | null = classifyReleasePrecision(item);

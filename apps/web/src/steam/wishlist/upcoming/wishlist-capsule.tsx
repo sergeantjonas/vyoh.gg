@@ -1,12 +1,14 @@
 import { TOOLTIP_CONTENT_RICH } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
 import { steamCapsuleUrl } from "@/steam/_shared/steam-image";
+import { isPreOrdered } from "@/steam/wishlist/upcoming/bucketing";
+import { PreOrderedMark } from "@/steam/wishlist/upcoming/pre-ordered-mark";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import type { SteamWishlistItem } from "@vyoh/shared";
+import type { SteamUpcomingItem } from "@vyoh/shared";
 import { useState } from "react";
 
 interface WishlistCapsuleProps {
-  item: SteamWishlistItem;
+  item: SteamUpcomingItem;
   // One-line release framing under the name in the hover card ("in 12 days",
   // "Q4 2026", "released 3 days ago"). Optional — bands that already carry a
   // band-level date label can omit it.
@@ -28,6 +30,7 @@ export function WishlistCapsule({
 }: WishlistCapsuleProps) {
   const [failed, setFailed] = useState(false);
   const name = item.name ?? `App ${item.appid}`;
+  const preOrdered = isPreOrdered(item);
 
   return (
     <TooltipPrimitive.Root>
@@ -36,7 +39,7 @@ export function WishlistCapsule({
           href={item.storeUrl}
           target="_blank"
           rel="noreferrer"
-          aria-label={`${name} on Steam`}
+          aria-label={preOrdered ? `${name} on Steam — pre-ordered` : `${name} on Steam`}
           data-ghost={ghost ? "" : undefined}
           className={cn(
             "group/cap relative block aspect-[231/87] overflow-hidden rounded-md border border-border/40 bg-card outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50",
@@ -60,6 +63,7 @@ export function WishlistCapsule({
             />
           )}
           <span className="absolute inset-0 bg-black/0 transition-colors group-hover/cap:bg-black/25" />
+          {preOrdered ? <PreOrderedMark className="absolute right-1 bottom-1" /> : null}
         </a>
       </TooltipPrimitive.Trigger>
       <TooltipPrimitive.Portal>

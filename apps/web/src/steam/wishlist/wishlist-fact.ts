@@ -1,10 +1,15 @@
-import type { SteamWishlistItem } from "@vyoh/shared";
+import type { SteamUpcomingItem } from "@vyoh/shared";
 
 import { type CivilDate, groupUpcoming } from "@/steam/wishlist/upcoming/bucketing";
 
 // The Steam profile's Wishlist chip leads with a forward-looking *fact*, not a
 // count (§ Profile tile reframe). `pickWishlistFact` resolves the single most
-// salient thing on the wishlist, in certainty-priority order:
+// salient thing coming up — over the merged upcoming set, not the wishlist, for
+// the same reason the calendar does: a pre-ordered game is deleted from the
+// wishlist, and it is exactly the release most likely to be nearest. Naming the
+// second-nearest title "next up" is the reported bug in miniature.
+//
+// Certainty-priority order:
 //
 //   1. imminent — nearest day-precise release within 30 days ("Next up …").
 //   2. dated    — nearest day-precise release within 90 days ("Coming {Month D}").
@@ -24,15 +29,15 @@ import { type CivilDate, groupUpcoming } from "@/steam/wishlist/upcoming/bucketi
 // framing on the oldest entry.
 
 export type WishlistFact =
-  | { kind: "imminent"; item: SteamWishlistItem; daysUntil: number }
-  | { kind: "dated"; item: SteamWishlistItem; date: CivilDate }
-  | { kind: "waiting"; item: SteamWishlistItem };
+  | { kind: "imminent"; item: SteamUpcomingItem; daysUntil: number }
+  | { kind: "dated"; item: SteamUpcomingItem; date: CivilDate }
+  | { kind: "waiting"; item: SteamUpcomingItem };
 
 const IMMINENT_HORIZON_DAYS = 30;
 const DATED_HORIZON_DAYS = 90;
 
 export function pickWishlistFact(
-  items: SteamWishlistItem[],
+  items: SteamUpcomingItem[],
   now: Date
 ): WishlistFact | null {
   const { dayReleases, tba } = groupUpcoming(items, now);

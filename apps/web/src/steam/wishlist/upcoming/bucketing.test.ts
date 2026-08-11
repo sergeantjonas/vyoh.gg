@@ -1,4 +1,4 @@
-import type { SteamWishlistItem } from "@vyoh/shared";
+import type { SteamUpcomingItem } from "@vyoh/shared";
 import { describe, expect, it } from "vitest";
 import {
   type CivilDate,
@@ -19,12 +19,12 @@ function utcDay(year: number, month0: number, day: number): number {
   return Date.UTC(year, month0, day, 12, 0, 0) / 1_000;
 }
 
-function item(overrides: Partial<SteamWishlistItem> = {}): SteamWishlistItem {
+function item(overrides: Partial<SteamUpcomingItem> = {}): SteamUpcomingItem {
   return {
     appid: 1,
     name: "Game",
     dateAdded: 1_700_000_000,
-    priority: 0,
+    source: "wishlist",
     storeUrl: "https://store.steampowered.com/app/1",
     releaseDate: null,
     comingSoon: true,

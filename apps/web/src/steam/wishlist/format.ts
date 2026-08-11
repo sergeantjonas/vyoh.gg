@@ -27,7 +27,11 @@ export function formatWishlistDateAdded(epochSeconds: number): string {
   return DATE_FORMATTER.format(new Date(epochSeconds * 1_000));
 }
 
-export function formatWishlistReleaseLabel(item: SteamWishlistItem): string | null {
+// Takes the release fields rather than a whole item, so the wishlist list and the
+// upcoming surface — which carry different shapes — both format through one path.
+export function formatWishlistReleaseLabel(
+  item: Pick<SteamWishlistItem, "releaseDate" | "comingSoon">
+): string | null {
   const precision = classifyReleasePrecision(item);
 
   // null precision === already released. Released titles keep year-only framing.

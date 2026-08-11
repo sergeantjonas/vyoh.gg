@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { patchChangesQueryOptions } from "@/lol/patches/use-patch-changes";
 import { patchListQueryOptions } from "@/lol/patches/use-patch-list";
+import { steamUpcomingQueryOptions } from "@/steam/use-upcoming";
+import { steamWishlistQueryOptions } from "@/steam/use-wishlist";
 import { Route as AccountIndexRoute } from "./routes/lol/$accountSlug/index";
 import { Route as MatchesRoute } from "./routes/lol/$accountSlug/matches";
 import { Route as PatchVersionRoute } from "./routes/lol/patches/$version";
@@ -147,7 +149,17 @@ describe("fatal primes", () => {
   });
 
   it("/steam/wishlist fails rather than serving an empty page", async () => {
-    fails = (url) => url.includes("/wishlist");
+    fails = (url) => url.endsWith("/wishlist");
+
+    await expect(runLoader(WishlistRoute)).rejects.toThrow();
+  });
+
+  // The route primes two queries and Upcoming is the default tab, so the upcoming
+  // one failing is the case that empties the page the crawler actually lands on.
+  // Asserted separately because the wishlist case above would keep passing on its
+  // own while this prime silently became tolerated.
+  it("/steam/wishlist fails when the upcoming prime fails", async () => {
+    fails = (url) => url.endsWith("/upcoming");
 
     await expect(runLoader(WishlistRoute)).rejects.toThrow();
   });
@@ -183,6 +195,21 @@ describe("dependent primes", () => {
     expect(queryClient.getQueryData(patchChangesQueryOptions("26.3").queryKey)).toEqual({
       patchVersion: "26.3",
     });
+  });
+
+  it("/steam/wishlist warms both tabs' queries under the keys the panels read", async () => {
+    // The two tabs read different endpoints — the All list from /wishlist, the
+    // Upcoming view from /upcoming — and only the first is named after the route.
+    // A loader priming the wishlist alone leaves the *default* tab rendering its
+    // pending branch on a page that looks fully primed.
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    await runLoader(WishlistRoute, {}, queryClient);
+
+    expect(queryClient.getQueryData(steamWishlistQueryOptions().queryKey)).toBeDefined();
+    expect(queryClient.getQueryData(steamUpcomingQueryOptions().queryKey)).toBeDefined();
   });
 
   it("/lol/patches settles for the list alone when the season has no patches yet", async () => {

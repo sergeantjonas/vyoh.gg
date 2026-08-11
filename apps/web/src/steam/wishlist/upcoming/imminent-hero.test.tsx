@@ -1,6 +1,6 @@
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { render, screen } from "@testing-library/react";
-import type { SteamWishlistHeroMeta, SteamWishlistItem } from "@vyoh/shared";
+import type { SteamUpcomingItem, SteamWishlistHeroMeta } from "@vyoh/shared";
 import { configureAxe } from "jest-axe";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -35,12 +35,12 @@ const axe = configureAxe({
   },
 });
 
-function item(overrides: Partial<SteamWishlistItem> = {}): SteamWishlistItem {
+function item(overrides: Partial<SteamUpcomingItem> = {}): SteamUpcomingItem {
   return {
     appid: 1904610,
     name: "Beast of Reincarnation",
     dateAdded: 1_700_000_000,
-    priority: 0,
+    source: "wishlist",
     storeUrl: "https://store.steampowered.com/app/1904610",
     releaseDate: 1_785_776_400,
     comingSoon: true,
@@ -119,6 +119,18 @@ describe("ImminentHero", () => {
     document.body.innerHTML = "";
     renderHero(release({ daysUntil: 0 }));
     expect(screen.getByText("Out today")).toBeTruthy();
+  });
+
+  // The eyebrow states the owner's relationship to the release, and calling a
+  // pre-order "next on the wishlist" is not a tone problem — Steam deleted that
+  // wishlist row when it was bought.
+  it("swaps the eyebrow when the cover story is already owned", () => {
+    renderHero();
+    expect(screen.getByText("Next on the wishlist")).toBeTruthy();
+    document.body.innerHTML = "";
+    renderHero(release({ item: item({ source: "owned" }) }));
+    expect(screen.getByText("Next up — already yours")).toBeTruthy();
+    expect(screen.queryByText("Next on the wishlist")).toBeNull();
   });
 
   it("renders the enriched chrome (platforms, ESRB, blurb) when meta resolves", () => {

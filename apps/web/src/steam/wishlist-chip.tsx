@@ -4,8 +4,10 @@ import { useMemo } from "react";
 import { FactCard } from "./_shared/fact-card";
 import { FactCardData } from "./_shared/fact-card-data";
 import { steamCapsuleLargeUrl, steamCapsuleUrl } from "./_shared/steam-image";
+import { useSteamUpcoming } from "./use-upcoming";
 import { useSteamWishlist } from "./use-wishlist";
 import { formatWishlistFact } from "./wishlist/format";
+import { isPreOrdered } from "./wishlist/upcoming/bucketing";
 import { pickWishlistFact } from "./wishlist/wishlist-fact";
 
 const PREVIEW_LIMIT = 5;
@@ -22,6 +24,12 @@ function shortDateAdded(epochSeconds: number): string {
 
 export function WishlistChip() {
   const query = useSteamWishlist();
+  // Second query, because the card makes two different claims. The count and the
+  // fallback list are about the wishlist and belong to the wishlist. The leading
+  // fact is about what lands next, which a pre-order can win — and pre-orders are
+  // not on the wishlist. Its pending/error states stay the wishlist's: the fact is
+  // an enhancement, and the card is legible without it.
+  const upcoming = useSteamUpcoming();
   // One "now" per mount so the fact picker reads a stable today.
   const now = useMemo(() => new Date(), []);
 
@@ -41,8 +49,14 @@ export function WishlistChip() {
         // reframe): a dated release within the horizon, or the longest-waiting
         // TBA title — a real piece of identity rather than a count. The count
         // stays as the quiet top-right indicator.
-        const fact = pickWishlistFact(data.items, now);
+        const fact = pickWishlistFact(upcoming.data?.items ?? [], now);
         if (fact) {
+          // A pre-order has no wishlist row to highlight, so `?appid` would scroll
+          // the All tab to nothing. Send those to the Upcoming view, which is the
+          // surface the fact was read off.
+          const factSearch = isPreOrdered(fact.item)
+            ? ({ tab: "upcoming" } as const)
+            : ({ appid: fact.item.appid } as const);
           return (
             <FactCard
               title="Wishlist"
@@ -53,12 +67,12 @@ export function WishlistChip() {
                 <div className="flex flex-col gap-2">
                   <Link
                     to="/steam/wishlist"
-                    search={{ appid: fact.item.appid }}
+                    search={factSearch}
                     className="group block overflow-hidden rounded-md transition-opacity hover:opacity-95"
                   >
                     <img
                       src={steamCapsuleLargeUrl(fact.item.appid)}
-                      alt={fact.item.name ?? `Wishlisted app ${fact.item.appid}`}
+                      alt={fact.item.name ?? `Upcoming app ${fact.item.appid}`}
                       width={460}
                       height={215}
                       loading="lazy"

@@ -1,17 +1,35 @@
 import { render, screen } from "@testing-library/react";
-import type { SteamWishlist, SteamWishlistItem } from "@vyoh/shared";
+import type { SteamUpcomingItem, SteamWishlist, SteamWishlistItem } from "@vyoh/shared";
 import { MotionConfig } from "motion/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { useSteamUpcoming } from "./use-upcoming";
 import { useSteamWishlist } from "./use-wishlist";
 import { WishlistChip } from "./wishlist-chip";
 
+// `search` is an object, so React drops it off a plain <a>. Serialize it instead —
+// which target a deep-link points at is a behaviour worth asserting.
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children, ...props }: { children: ReactNode }) => <a {...props}>{children}</a>,
+  Link: ({
+    children,
+    search,
+    ...props
+  }: {
+    children: ReactNode;
+    search?: unknown;
+  }) => (
+    <a {...props} data-search={search === undefined ? undefined : JSON.stringify(search)}>
+      {children}
+    </a>
+  ),
 }));
 
 vi.mock("./use-wishlist", () => ({
   useSteamWishlist: vi.fn(),
+}));
+
+vi.mock("./use-upcoming", () => ({
+  useSteamUpcoming: vi.fn(),
 }));
 
 type HookReturn = {
@@ -20,10 +38,28 @@ type HookReturn = {
   isError: boolean;
 };
 
-function mockHook(value: HookReturn): void {
+// The card reads two queries: the wishlist for its count and fallback list, the
+// upcoming set for its leading fact. Server-side the second is the first's
+// coming-soon rows plus owned pre-orders, so mirror that by default and let a test
+// pass `upcomingItems` when it needs the two to diverge — which is the pre-order
+// case, the one shape the wishlist provably cannot hold.
+function mockHook(value: HookReturn, upcomingItems?: SteamUpcomingItem[]): void {
   vi.mocked(useSteamWishlist).mockReturnValue(
     value as unknown as ReturnType<typeof useSteamWishlist>
   );
+  const items =
+    upcomingItems ??
+    (value.data?.items ?? []).filter((item) => item.comingSoon).map(asUpcoming);
+  vi.mocked(useSteamUpcoming).mockReturnValue({
+    data: { steamId: "x", items, fetchedAt: 0 },
+    isPending: false,
+    isError: false,
+  } as unknown as ReturnType<typeof useSteamUpcoming>);
+}
+
+function asUpcoming(item: SteamWishlistItem): SteamUpcomingItem {
+  const { priority: _priority, ...rest } = item;
+  return { ...rest, source: "wishlist" };
 }
 
 function makeItem(overrides: Partial<SteamWishlistItem> = {}): SteamWishlistItem {
@@ -49,6 +85,7 @@ function renderChip() {
 
 afterEach(() => {
   vi.mocked(useSteamWishlist).mockReset();
+  vi.mocked(useSteamUpcoming).mockReset();
 });
 
 describe("WishlistChip", () => {
@@ -179,6 +216,78 @@ describe("WishlistChip", () => {
     });
     renderChip();
     expect(screen.getByText("Still waiting on Oldest TBA.")).toBeTruthy();
+  });
+
+  // The reported bug, on this surface: a pre-ordered game is deleted from the
+  // wishlist, so a wishlist-sourced fact names the second-nearest release. The
+  // upcoming query is the only place the nearer one still exists.
+  it("names a pre-ordered release the wishlist no longer holds", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-01-15T12:00:00Z"));
+    try {
+      mockHook(
+        {
+          data: {
+            steamId: "x",
+            items: [
+              makeItem({
+                appid: 30,
+                name: "Wishlisted",
+                comingSoon: true,
+                releaseDate: Math.floor(Date.UTC(2026, 0, 30, 12) / 1000), // +15d
+              }),
+            ],
+            fetchedAt: 0,
+          },
+          isPending: false,
+          isError: false,
+        },
+        [
+          {
+            appid: 31,
+            name: "Pre-ordered",
+            storeUrl: "https://store.steampowered.com/app/31/",
+            releaseDate: Math.floor(Date.UTC(2026, 0, 20, 12) / 1000), // +5d, nearer
+            comingSoon: true,
+            dateAdded: 1_700_000_000,
+            source: "owned",
+          },
+        ]
+      );
+      renderChip();
+      expect(screen.getByText("Next up: Pre-ordered, in 5 days.")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // `?appid` scrolls the All tab to a wishlist row; a pre-order has none, so the
+  // deep-link has to go to the surface that actually shows it.
+  it("links a pre-ordered fact to the Upcoming view rather than an absent row", () => {
+    mockHook(
+      {
+        data: { steamId: "x", items: [makeItem({ appid: 30 })], fetchedAt: 0 },
+        isPending: false,
+        isError: false,
+      },
+      [
+        {
+          appid: 31,
+          name: "Pre-ordered",
+          storeUrl: "https://store.steampowered.com/app/31/",
+          releaseDate: null,
+          comingSoon: true,
+          dateAdded: 1_700_000_000,
+          source: "owned",
+        },
+      ]
+    );
+    const { container } = renderChip();
+    const searches = [...container.querySelectorAll("a")].map((a) =>
+      a.getAttribute("data-search")
+    );
+    expect(searches).toContain('{"tab":"upcoming"}');
+    expect(searches.some((s) => s?.includes("appid"))).toBe(false);
   });
 
   it("falls back to a placeholder label for items with null name in the preview list", () => {

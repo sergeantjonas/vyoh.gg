@@ -1,4 +1,4 @@
-import type { SteamWishlistItem } from "@vyoh/shared";
+import type { SteamUpcomingItem } from "@vyoh/shared";
 import { describe, expect, it } from "vitest";
 import {
   formatWishlistDateAdded,
@@ -7,15 +7,18 @@ import {
 } from "./format";
 import type { WishlistFact } from "./wishlist-fact";
 
-function item(overrides: Partial<SteamWishlistItem> = {}): SteamWishlistItem {
+// Typed as the upcoming item because that is the shape a WishlistFact carries; it
+// also satisfies formatWishlistReleaseLabel, which takes only the release fields.
+function item(overrides: Partial<SteamUpcomingItem> = {}): SteamUpcomingItem {
   return {
     appid: 1,
     name: "Game",
     dateAdded: 0,
     releaseDate: null,
     comingSoon: false,
+    source: "wishlist",
     ...overrides,
-  } as unknown as SteamWishlistItem;
+  } as unknown as SteamUpcomingItem;
 }
 
 describe("formatWishlistDateAdded", () => {

@@ -1,6 +1,6 @@
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { fireEvent, render, screen } from "@testing-library/react";
-import type { SteamWishlistItem } from "@vyoh/shared";
+import type { SteamUpcomingItem } from "@vyoh/shared";
 import { configureAxe } from "jest-axe";
 import { afterEach, describe, expect, it } from "vitest";
 import type { DayRelease } from "./bucketing";
@@ -8,12 +8,12 @@ import { WishlistCalendar } from "./wishlist-calendar";
 
 const axe = configureAxe({ rules: { "color-contrast": { enabled: false } } });
 
-function item(appid: number): SteamWishlistItem {
+function item(appid: number): SteamUpcomingItem {
   return {
     appid,
     name: `Game ${appid}`,
     dateAdded: 1_700_000_000,
-    priority: 0,
+    source: "wishlist",
     storeUrl: `https://store.steampowered.com/app/${appid}`,
     releaseDate: 1_700_000_000,
     comingSoon: true,
@@ -84,6 +84,19 @@ describe("WishlistCalendar", () => {
     expect(screen.getByLabelText("Game 4 on Steam").hasAttribute("data-ghost")).toBe(
       true
     );
+  });
+
+  // Mixed provenance is the point of the surface: without a mark, a pre-order and
+  // a wishlisted title are indistinguishable tiles.
+  it("marks a pre-ordered release and leaves a wishlisted one unmarked", () => {
+    const preOrdered: DayRelease = {
+      ...rel(9, 2026, 5, 20, 5),
+      item: { ...item(9), source: "owned" },
+    };
+    renderCalendar([rel(1, 2026, 5, 24, 9), preOrdered]);
+    expect(screen.getByLabelText("Game 9 on Steam — pre-ordered")).toBeTruthy();
+    expect(screen.getByLabelText("Game 1 on Steam")).toBeTruthy();
+    expect(screen.getAllByText("Pre-ordered")).toHaveLength(1);
   });
 
   it("pages the window forward with the next-month control", () => {

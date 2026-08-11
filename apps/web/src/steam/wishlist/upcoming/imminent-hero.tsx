@@ -14,7 +14,7 @@ import { GameRatingBadge } from "@/steam/_shared/game-rating-badge";
 import { PlatformIconRow } from "@/steam/_shared/platform-icon-row";
 import { useSteamGameBackdrop } from "@/steam/profile-backdrop";
 import { formatWishlistReleaseLabel } from "@/steam/wishlist/format";
-import type { DayRelease } from "@/steam/wishlist/upcoming/bucketing";
+import { type DayRelease, isPreOrdered } from "@/steam/wishlist/upcoming/bucketing";
 import { useWishlistHeroMeta } from "@/steam/wishlist/upcoming/use-wishlist-hero-meta";
 
 // The Upcoming view's cover story (§ Art direction — "temporal certainty maps
@@ -78,6 +78,11 @@ export function ImminentHero({ release }: { release: DayRelease }) {
   const accent = meta?.dominantHex ?? null;
   const name = item.name ?? "Untitled";
   const dateLabel = formatWishlistReleaseLabel(item);
+  // The eyebrow states the owner's relationship to the release, and the two are
+  // different stories: a wishlisted title is anticipation, a pre-ordered one is a
+  // commitment already made. Calling a pre-order "next on the wishlist" would also
+  // be factually wrong — Steam deleted that wishlist row at purchase.
+  const eyebrow = isPreOrdered(item) ? "Next up — already yours" : "Next on the wishlist";
 
   // Accent text needs a true outline to survive hue collision on the leased
   // hero art (red-on-red); fall back to the plain masthead shadow when the
@@ -110,7 +115,7 @@ export function ImminentHero({ release }: { release: DayRelease }) {
           paintOrder: "stroke",
         }}
       >
-        Next on the wishlist
+        {eyebrow}
       </m.p>
 
       <m.h2

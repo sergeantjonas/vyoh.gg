@@ -1,5 +1,5 @@
 import { EmptyState, EmptyWishlistIllustration } from "@/components/empty-state";
-import { useSteamWishlist } from "@/steam/use-wishlist";
+import { useSteamUpcoming } from "@/steam/use-upcoming";
 import { groupUpcoming, pickImminentRelease } from "@/steam/wishlist/upcoming/bucketing";
 import { ImminentHero } from "@/steam/wishlist/upcoming/imminent-hero";
 import { QuarterBands } from "@/steam/wishlist/upcoming/quarter-bands";
@@ -9,12 +9,14 @@ import { WishlistCalendar } from "@/steam/wishlist/upcoming/wishlist-calendar";
 import { YearBands } from "@/steam/wishlist/upcoming/year-bands";
 import { useMemo } from "react";
 
-// The upcoming-releases editorial (§ Upcoming view composition): the wishlist
-// reframed as a pipeline of what's coming when, certainty mapping to prominence
-// — calendar for day-precise, quarter/year bands for coarser dates, the TBA
-// pile last. The imminent hero (chunk 4) slots in above the calendar.
+// The upcoming-releases editorial (§ Upcoming view composition): a pipeline of
+// what's coming when, certainty mapping to prominence — calendar for day-precise,
+// quarter/year bands for coarser dates, the TBA pile last, imminent hero above
+// the calendar. Reads the merged upcoming set, not the wishlist: a pre-ordered
+// game leaves the wishlist at purchase, and dropping the nearest release from the
+// calendar the moment the owner commits to it is the bug this endpoint exists for.
 export function WishlistUpcomingPanel() {
-  const { data, isPending, isError } = useSteamWishlist();
+  const { data, isPending, isError } = useSteamUpcoming();
   // One "now" per mount so the calendar and bucketing agree on today.
   const now = useMemo(() => new Date(), []);
   const buckets = useMemo(
@@ -25,7 +27,11 @@ export function WishlistUpcomingPanel() {
   if (isPending) return <UpcomingSkeleton />;
 
   if (isError) {
-    return <p className="text-destructive text-sm">Wishlist is unavailable right now.</p>;
+    return (
+      <p className="text-destructive text-sm">
+        Upcoming releases are unavailable right now.
+      </p>
+    );
   }
 
   const isEmpty =
@@ -40,7 +46,7 @@ export function WishlistUpcomingPanel() {
       <EmptyState
         illustration={<EmptyWishlistIllustration />}
         title="Nothing on the horizon"
-        hint="No dated or upcoming releases on the wishlist right now — browse everything under the All tab."
+        hint="Nothing wishlisted or pre-ordered is still unreleased — browse everything under the All tab."
       />
     );
   }

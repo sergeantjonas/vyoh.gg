@@ -1,4 +1,5 @@
 import { routeMeta } from "@/lib/route-meta";
+import { steamUpcomingQueryOptions } from "@/steam/use-upcoming";
 import { steamWishlistQueryOptions } from "@/steam/use-wishlist";
 import { WishlistAllPanel } from "@/steam/wishlist/wishlist-all-panel";
 import { WishlistSkeleton } from "@/steam/wishlist/wishlist-skeleton";
@@ -22,17 +23,20 @@ export const Route = createFileRoute("/steam/wishlist")({
   // Same reasoning as the matches route: a layout-shaped skeleton beats the
   // router's generic spinner, and only the slow client-navigation path sees it.
   pendingComponent: WishlistSkeleton,
-  // Both tabs read the one wishlist query, and it is 7 kB served from the
-  // backend's own GetWishlist cache in ~1 ms. Small, fast, and it is the whole
-  // of what either panel renders.
+  // One query per tab. Both are small and served from the backend's own caches in
+  // ~1 ms — and the upcoming one shares the wishlist's upstream call, so priming
+  // both costs a second HTTP hop against a warm process, not a second Steam call.
   //
   // Deliberately fatal, unlike the tolerated primes elsewhere (see
   // `primeQuietly`). The panels do each carry an `isError` EmptyState, so
   // swallowing would render — but it would render an empty page at HTTP 200,
   // which is a worse thing to hand a crawler than a 500 asking it to retry.
-  // The wishlist is not a region of this route; it is the route.
+  // Neither query is a region of this route; between them they are the route.
   loader: ({ context: { queryClient } }) =>
-    queryClient.ensureQueryData(steamWishlistQueryOptions()),
+    Promise.all([
+      queryClient.ensureQueryData(steamWishlistQueryOptions()),
+      queryClient.ensureQueryData(steamUpcomingQueryOptions()),
+    ]),
   validateSearch: (search: Record<string, unknown>): WishlistSearch => {
     const raw = search.appid;
     const parsed =

@@ -1,4 +1,4 @@
-import type { SteamWishlistItem } from "@vyoh/shared";
+import type { SteamUpcomingItem } from "@vyoh/shared";
 import { describe, expect, it } from "vitest";
 import { pickWishlistFact } from "./wishlist-fact";
 
@@ -13,12 +13,12 @@ function release(year: number, month1: number, day: number): number {
   return Date.UTC(year, month1 - 1, day, 12, 0, 0) / 1_000;
 }
 
-function makeItem(overrides: Partial<SteamWishlistItem> = {}): SteamWishlistItem {
+function makeItem(overrides: Partial<SteamUpcomingItem> = {}): SteamUpcomingItem {
   return {
     appid: 1,
     name: "Test Game",
     dateAdded: 1_577_836_800, // 2020-01-01
-    priority: 0,
+    source: "wishlist",
     storeUrl: "https://store.steampowered.com/app/1",
     releaseDate: null,
     comingSoon: false,
@@ -26,7 +26,7 @@ function makeItem(overrides: Partial<SteamWishlistItem> = {}): SteamWishlistItem
   };
 }
 
-function dated(overrides: Partial<SteamWishlistItem>): SteamWishlistItem {
+function dated(overrides: Partial<SteamUpcomingItem>): SteamUpcomingItem {
   return makeItem({ comingSoon: true, ...overrides });
 }
 
