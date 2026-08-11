@@ -362,9 +362,9 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
     },
     {
       chapter: "conclusion",
-      value: "share season portrait card",
-      label: "Season portrait card",
-      title: ownerGameName ? `${ownerGameName}'s portrait` : "Season portrait",
+      value: "share player portrait card",
+      label: "Player portrait card",
+      title: ownerGameName ? `${ownerGameName}'s portrait` : "Player portrait",
     },
   ];
   const shareVerb = paletteVerb?.kind === "share" ? paletteVerb : null;

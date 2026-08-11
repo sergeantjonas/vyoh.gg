@@ -990,7 +990,7 @@ describe("CommandPaletteDialog", () => {
         { slug: "jonas-euw", gameName: "Jonas", tagLine: "EUW", region: "EUW1" },
       ];
       wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
-      fireEvent.click(screen.getByRole("option", { name: /Season portrait card/ }));
+      fireEvent.click(screen.getByRole("option", { name: /Player portrait card/ }));
       expect(shareChapterCardSpy).toHaveBeenCalledWith("conclusion", "Jonas's portrait");
     });
 
@@ -1003,7 +1003,7 @@ describe("CommandPaletteDialog", () => {
       // The share verb must not surface the sibling global-verb entry.
       expect(screen.queryByRole("option", { name: /Patches/ })).toBeNull();
       expect(screen.getByRole("option", { name: /Ahri chapter card/ })).not.toBeNull();
-      expect(screen.getByRole("option", { name: /Season portrait card/ })).not.toBeNull();
+      expect(screen.getByRole("option", { name: /Player portrait card/ })).not.toBeNull();
     });
 
     it("typing /share conclusion narrows to the portrait card", () => {
@@ -1012,8 +1012,8 @@ describe("CommandPaletteDialog", () => {
         target: { value: "/share conclusion" },
       });
       expect(screen.queryByRole("option", { name: /Ahri chapter card/ })).toBeNull();
-      fireEvent.click(screen.getByRole("option", { name: /Season portrait card/ }));
-      expect(shareChapterCardSpy).toHaveBeenCalledWith("conclusion", "Season portrait");
+      fireEvent.click(screen.getByRole("option", { name: /Player portrait card/ }));
+      expect(shareChapterCardSpy).toHaveBeenCalledWith("conclusion", "Player portrait");
     });
 
     it("typing share without the slash surfaces the group by free text", () => {
@@ -1022,7 +1022,7 @@ describe("CommandPaletteDialog", () => {
         target: { value: "share" },
       });
       expect(screen.getByRole("option", { name: /Ahri chapter card/ })).not.toBeNull();
-      expect(screen.getByRole("option", { name: /Season portrait card/ })).not.toBeNull();
+      expect(screen.getByRole("option", { name: /Player portrait card/ })).not.toBeNull();
       expect(screen.queryByRole("option", { name: /Patches/ })).toBeNull();
     });
   });
