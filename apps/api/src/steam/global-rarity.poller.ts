@@ -13,7 +13,7 @@ import { SteamGlobalRarityService } from "./global-rarity.service";
 // does not replay a fire the process was down for. Boot runs the same
 // selection as the tick, so a restart reconciles whatever the missed windows
 // left behind.
-const RARITY_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+export const RARITY_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Bounds one pass. Steady state is ~158 games with a schema / 7 ≈ 23 a day,
 // so the cap only engages after downtime — and it has to stay above that

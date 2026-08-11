@@ -1,6 +1,6 @@
 # Steam achievement rarity drift
 
-**Status:** Active — R1 shipped 2026-08-07 (history table, append-on-change, seeded from the 9,085 existing rarity rows). R2 and R3 stay gated on elapsed time, not on effort: nothing reads the table yet, and nothing should until there is a curve worth rendering. **R2's gate has its first candidate as of 2026-08-11** — Beast of Reincarnation moved 0.0 → 0.9–2.0% in six days, the launch-week shape the framing decision reserved this arc for. The same reading exposed a display defect at the bottom of the range, fixed the same day (see below).
+**Status:** Active — R1 shipped 2026-08-07 (history table, append-on-change, seeded from the 9,085 existing rarity rows) and R2 shipped 2026-08-12 (`probe-rarity-drift.ts`). **R2's first reading does not clear the gate, so R3 stays unbuilt**: all 520 series with a second observation move 0.30pp or less, and the rare band's largest move is a single 0.1pp quantum. Beast of Reincarnation — the 0.0 → 0.9–2.0% candidate spotted by hand on 2026-08-11 — is still a one-observation series, because its seven-day refresh age only expires `2026-08-12 00:12:07Z`; it is next in the drain, so **re-run R2 after the first api boot past that timestamp**. The arc remains gated on elapsed time, not on effort.
 
 ## Today's behaviour
 
@@ -68,7 +68,7 @@ Two consequences:
 | # | What | Where | Notes |
 |---|---|---|---|
 | R1 | History table + append-on-change | Prisma migration + `apps/api/src/steam` | **Shipped 2026-08-07**, migration `20260807000000_steam_achievement_rarity_history`. `SteamAchievementRarityHistory(id, appid, apiName, percent, observedAt)`, FK to `SteamGameAchievement` like the current-value row, indexed `(appid, apiName, observedAt)` so the series-for-one-achievement read gets its sort from the index. Seeded 9,085 origin rows from the current `percent` + `polledAt`, so every series starts at a known reading rather than at its first move. `RaritySyncResult` gained `historyRowsAppended`; the poller's log line reports it. Read path, API and web untouched. |
-| R2 | Drift diagnostic script | `apps/api/src/scripts` | A one-off reader — for each achievement with ≥2 history rows, report span, endpoints, and slope; rank by absolute and relative movement. Follows the `backfill-remake-flag.ts` shape. This is the **gate on R3**: run it periodically and build the UI when it names a game with a visible slope in the rare band. Cheap enough to write with R1, but useless until history accumulates, so it can wait. **It now has something to find** — Beast of Reincarnation cleared the gate condition by hand on 2026-08-11, so write R2 against a case with a known answer rather than against an empty table. |
+| R2 | Drift diagnostic script | `apps/api/src/scripts` | **Shipped 2026-08-12** as [probe-rarity-drift.ts](../../../apps/api/src/scripts/probe-rarity-drift.ts) — span, endpoints and slope per achievement with ≥2 rows, ranked absolutely and relatively, plus a quantum histogram and an explicit gate verdict. Thresholds are flags (`--rare-band`, `--visible-pp`, `--visible-ratio`) so the gate is argued from output. Two departures from the spec above. **Coverage leads the report**, because a single-point series and a flat series produce identical silence and mean opposite things — the first run found 8,565 of 9,085 series still single-point, which would have read as "rarity doesn't drift" without that line. And it constructs `PrismaService` directly rather than booting `AppModule` like `backfill-remake-flag.ts` does: an application context runs every `onModuleInit`, including this poller's own boot drain, so the probe would race the table it measures — the first build did exactly that, and spent the Riot budget on live-game polls as well. |
 | R3 | The drift beat | web + `packages/shared` | **Gated on R2, unscoped deliberately.** Shape is undecided because it depends on what R2 finds — a delta line on the achievement card, a sparkline in the trophy case, or a recap beat are all plausible and the data picks. Do not scope this before R2 has something to show. |
 
 ## Design decisions, settled up front
@@ -82,6 +82,25 @@ Two consequences:
 ## Known limit, permanently
 
 `observedAt` records when *we* looked, never when the achievement was unlocked. Steam's unlock timestamps backfill retroactively ([schema.prisma:333-338](../../../apps/api/prisma/schema.prisma#L333-L338)), so the library's unlock history reaches back years while the rarity series can only ever start at R1. For everything already on the shelf, the honest framing is "since we started watching" — and any copy R3 ships has to say that rather than implying unlock-time. This gap cannot be closed by any amount of later work.
+
+## R2's first reading (2026-08-12)
+
+**Gate not cleared. Do not build R3.** Across 9,085 series in 158 games, 520 have a second observation and every one of them moves at Steam's precision floor or barely above it:
+
+| absolute move | series |
+|---|---|
+| 0.30pp | 1 |
+| 0.20pp | 32 |
+| 0.10pp | 487 |
+
+Nothing exceeds 0.30pp. In the rare band, 76 series move at all and the largest is `Tomb Raider — No Stone Left Unturned` at 8.2% → 8.3% over 8 days. The relative leaders top out at 1.10× (`Rise of the Tomb Raider — No One Left Behind`, 1.0% → 1.1%). This is the flat-lines outcome the framing decision reserved as a failure condition, and it confirms finding 4 rather than overturning it.
+
+**The known-answer case is not in the table, and the reason is cadence, not a defect.** Beast of Reincarnation holds 46 rows across 46 series, all stamped `2026-08-05 00:12:07` — one observation each, so it cannot appear in any movement ranking. The 0.0 → 0.9–2.0% reading from 2026-08-11 was a manual live read that never entered the history table. Its seven-day age expires at **`2026-08-12 00:12:07Z`**, so on the 08-09 drain it was correctly five days old and skipped. It is the next game to come due, and `orderBy: { lastRarityCheckedAt: asc, nulls: "first" }` puts it first in the batch — so the first api boot after that timestamp captures its second observation, and R2 should be re-run immediately afterwards. The probe prints this as a `next to come due` line precisely so the instruction is "restart after X" rather than "restart".
+
+Two things confirmed while chasing this, worth not re-deriving:
+
+- **The poller is not misbehaving.** It fires at 05:30 Europe/Brussels while the dev box is asleep, but that was designed for — the due check is a seven-day *age* and `onModuleInit` re-runs the same selection on every boot, so a missed fire costs nothing that a restart does not repair. Partial coverage across the fleet is `RARITY_BATCH_CAP = 40` draining in boot-sized bites, working as intended.
+- **`lastRarityCheckedAt` is `timestamp without time zone`, and the container runs `Europe/Brussels`.** `node-pg` parses naive timestamps as process-local, so a raw SQL probe renders every one of these two hours early and makes due-date arithmetic come out wrong by exactly that much. Prisma and the Postgres session are both UTC, so the shipped comparison is correct — it is only ad-hoc `pg` clients that mislead. Cast to `::text` when checking these by hand.
 
 ## Pointer hygiene
 
