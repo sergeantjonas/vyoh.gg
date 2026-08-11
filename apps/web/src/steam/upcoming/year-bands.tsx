@@ -1,7 +1,7 @@
 import { formatWishlistReleaseLabel } from "@/steam/wishlist/format";
 import { BandHeader } from "./band-header";
 import type { YearBand } from "./bucketing";
-import { WishlistCapsule } from "./wishlist-capsule";
+import { ReleaseCapsule } from "./release-capsule";
 
 // Year-precise titles, one bare band per year, ascending. Smaller capsule grid
 // than the quarter bands (more columns) — the temporal-certainty ramp means the
@@ -16,7 +16,7 @@ export function YearBands({ bands }: { bands: YearBand[] }) {
           <BandHeader title={String(band.year)} count={band.items.length} />
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
             {band.items.map((item) => (
-              <WishlistCapsule
+              <ReleaseCapsule
                 key={item.appid}
                 item={item}
                 detail={formatWishlistReleaseLabel(item) ?? undefined}

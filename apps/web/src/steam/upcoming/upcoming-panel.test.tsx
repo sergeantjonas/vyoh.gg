@@ -2,13 +2,13 @@ import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { render, screen } from "@testing-library/react";
 import type { SteamUpcoming, SteamUpcomingItem } from "@vyoh/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { WishlistUpcomingPanel } from "./wishlist-upcoming-panel";
+import { UpcomingPanel } from "./upcoming-panel";
 
 const { mockUseUpcoming } = vi.hoisted(() => ({ mockUseUpcoming: vi.fn() }));
 vi.mock("@/steam/use-upcoming", () => ({ useSteamUpcoming: mockUseUpcoming }));
 // Stub the hero — its backdrop lease + meta fetch are exercised in
 // imminent-hero.test.tsx; here we only assert the panel wires it in.
-vi.mock("@/steam/wishlist/upcoming/imminent-hero", () => ({
+vi.mock("@/steam/upcoming/imminent-hero", () => ({
   ImminentHero: ({ release }: { release: { item: { name: string | null } } }) => (
     <div data-testid="imminent-hero">{release.item.name}</div>
   ),
@@ -34,7 +34,7 @@ function upcoming(items: SteamUpcomingItem[]): SteamUpcoming {
 function renderPanel() {
   return render(
     <TooltipPrimitive.Provider>
-      <WishlistUpcomingPanel />
+      <UpcomingPanel />
     </TooltipPrimitive.Provider>
   );
 }
@@ -44,7 +44,7 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
-describe("WishlistUpcomingPanel", () => {
+describe("UpcomingPanel", () => {
   it("renders the calendar/band skeleton while pending", () => {
     mockUseUpcoming.mockReturnValue({ data: undefined, isPending: true, isError: false });
     const { container } = renderPanel();

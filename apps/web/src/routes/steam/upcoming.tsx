@@ -1,7 +1,7 @@
 import { routeMeta } from "@/lib/route-meta";
+import { UpcomingPanel } from "@/steam/upcoming/upcoming-panel";
+import { UpcomingSkeleton } from "@/steam/upcoming/upcoming-skeleton";
 import { steamUpcomingQueryOptions } from "@/steam/use-upcoming";
-import { UpcomingSkeleton } from "@/steam/wishlist/upcoming/upcoming-skeleton";
-import { WishlistUpcomingPanel } from "@/steam/wishlist/wishlist-upcoming-panel";
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/steam/upcoming")({
@@ -30,7 +30,7 @@ function UpcomingPage() {
         </p>
       </header>
 
-      <WishlistUpcomingPanel />
+      <UpcomingPanel />
     </div>
   );
 }

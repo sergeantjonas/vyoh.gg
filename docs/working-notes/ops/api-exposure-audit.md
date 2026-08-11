@@ -436,7 +436,7 @@ Reading the flow answered the ordering question and retired the table as the rig
 
 The wishlist itself is the better source, and it was never persisted: `SteamService.loadWishlist` holds it in memory on a 1 h TTL. `isWishlisted(appid)` now reads through that same cache, so a warm process answers from memory and a cold one pays the single upstream call it was about to make anyway. Two properties make this safe where the table was not:
 
-1. **The ordering is structural, not incidental.** `ImminentHero` is mounted with an appid taken from the wishlist response (`wishlist-upcoming-panel.tsx`), so the web cannot ask about an appid the server's own list does not contain.
+1. **The ordering is structural, not incidental.** `ImminentHero` is mounted with an appid taken from the wishlist response (`upcoming-panel.tsx`), so the web cannot ask about an appid the server's own list does not contain. (As of 2026-08-11 the panel reads `/steam/upcoming`, whose set is wishlist ∪ owned-unreleased, so the guard's list is the one it must widen to — see chunk 4 in [wishlist-upcoming.md](../steam/wishlist-upcoming.md).)
 2. **The check runs ahead of the cache read**, not after it, so an off-wishlist appid never reaches the store call, the art fetch, the Vibrant pass, or the map — the refusal is worth nothing if it lands after the spend it exists to prevent. Two tests pin this: one asserts neither `getStoreItemsFull` nor `fetchUpstreamChain` is called on a refusal, the other that a cached entry is re-checked rather than served blind.
 
 The cache bound stays as belt-and-braces behind the gate.

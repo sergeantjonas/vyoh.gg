@@ -4,14 +4,14 @@ import type { SteamUpcomingItem, SteamWishlistHeroMeta } from "@vyoh/shared";
 import { configureAxe } from "jest-axe";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { DayRelease } from "@/steam/wishlist/upcoming/bucketing";
-import { ImminentHero } from "@/steam/wishlist/upcoming/imminent-hero";
+import type { DayRelease } from "@/steam/upcoming/bucketing";
+import { ImminentHero } from "@/steam/upcoming/imminent-hero";
 
 const { mockUseHeroMeta, mockUseBackdrop } = vi.hoisted(() => ({
   mockUseHeroMeta: vi.fn(),
   mockUseBackdrop: vi.fn(),
 }));
-vi.mock("@/steam/wishlist/upcoming/use-wishlist-hero-meta", () => ({
+vi.mock("@/steam/upcoming/use-wishlist-hero-meta", () => ({
   useWishlistHeroMeta: mockUseHeroMeta,
 }));
 vi.mock("@/steam/profile-backdrop", () => ({

@@ -7,7 +7,7 @@ import {
   brusselsCivilDate,
   pickCalendarAnchor,
 } from "./bucketing";
-import { WishlistCapsule, dayCountdownLabel } from "./wishlist-capsule";
+import { ReleaseCapsule, dayCountdownLabel } from "./release-capsule";
 
 // Invisible-grid calendar (§ Art direction): empty cells are a faint numeral on
 // the page background — no borders, no boxes. Occupied days are art-forward
@@ -42,12 +42,12 @@ function addMonths(anchor: CivilDate, delta: number): CivilDate {
   return { year: Math.floor(ordinal / 12), month: ((ordinal % 12) + 12) % 12, day: 1 };
 }
 
-interface WishlistCalendarProps {
+interface ReleaseCalendarProps {
   dayReleases: DayRelease[];
   now: Date;
 }
 
-export function WishlistCalendar({ dayReleases, now }: WishlistCalendarProps) {
+export function ReleaseCalendar({ dayReleases, now }: ReleaseCalendarProps) {
   const today = useMemo(() => brusselsCivilDate(now), [now]);
   const initialAnchor = useMemo(
     () => pickCalendarAnchor(dayReleases, today),
@@ -242,7 +242,7 @@ function DayCell({ day, releases, isToday }: DayCellProps) {
         {day}
       </span>
       {releases.map((release) => (
-        <WishlistCapsule
+        <ReleaseCapsule
           key={release.item.appid}
           item={release.item}
           detail={dayCountdownLabel(release.daysUntil)}

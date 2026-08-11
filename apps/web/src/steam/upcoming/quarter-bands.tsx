@@ -1,7 +1,7 @@
 import { formatWishlistReleaseLabel } from "@/steam/wishlist/format";
 import { BandHeader } from "./band-header";
 import type { QuarterBand } from "./bucketing";
-import { WishlistCapsule } from "./wishlist-capsule";
+import { ReleaseCapsule } from "./release-capsule";
 
 // Month- and quarter-precise titles beyond the calendar window, one bare band
 // per (year, quarter), chronological. Denser capsule grid than the calendar —
@@ -17,7 +17,7 @@ export function QuarterBands({ bands }: { bands: QuarterBand[] }) {
           <BandHeader title={`Q${band.quarter} ${band.year}`} count={band.items.length} />
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
             {band.items.map((item) => (
-              <WishlistCapsule
+              <ReleaseCapsule
                 key={item.appid}
                 item={item}
                 detail={formatWishlistReleaseLabel(item) ?? undefined}

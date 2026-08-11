@@ -1,5 +1,5 @@
-import { isPreOrdered } from "@/steam/wishlist/upcoming/bucketing";
-import { PreOrderedNote } from "@/steam/wishlist/upcoming/pre-ordered-mark";
+import { isPreOrdered } from "@/steam/upcoming/bucketing";
+import { PreOrderedNote } from "@/steam/upcoming/pre-ordered-mark";
 import type { SteamUpcomingItem } from "@vyoh/shared";
 import { BandHeader } from "./band-header";
 

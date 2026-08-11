@@ -1,6 +1,6 @@
 import type { SteamUpcomingItem } from "@vyoh/shared";
 
-import { type CivilDate, groupUpcoming } from "@/steam/wishlist/upcoming/bucketing";
+import { type CivilDate, groupUpcoming } from "@/steam/upcoming/bucketing";
 
 // The Steam profile's Wishlist chip leads with a forward-looking *fact*, not a
 // count (§ Profile tile reframe). `pickWishlistFact` resolves the single most

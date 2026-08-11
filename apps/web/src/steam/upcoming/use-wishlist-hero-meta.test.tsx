@@ -1,7 +1,7 @@
 import {
   useWishlistHeroMeta,
   wishlistHeroMetaQueryOptions,
-} from "@/steam/wishlist/upcoming/use-wishlist-hero-meta";
+} from "@/steam/upcoming/use-wishlist-hero-meta";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";

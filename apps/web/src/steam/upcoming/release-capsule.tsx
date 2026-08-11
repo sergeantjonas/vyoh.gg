@@ -1,13 +1,13 @@
 import { TOOLTIP_CONTENT_RICH } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
 import { steamCapsuleUrl } from "@/steam/_shared/steam-image";
-import { isPreOrdered } from "@/steam/wishlist/upcoming/bucketing";
-import { PreOrderedMark } from "@/steam/wishlist/upcoming/pre-ordered-mark";
+import { isPreOrdered } from "@/steam/upcoming/bucketing";
+import { PreOrderedMark } from "@/steam/upcoming/pre-ordered-mark";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { SteamUpcomingItem } from "@vyoh/shared";
 import { useState } from "react";
 
-interface WishlistCapsuleProps {
+interface ReleaseCapsuleProps {
   item: SteamUpcomingItem;
   // One-line release framing under the name in the hover card ("in 12 days",
   // "Q4 2026", "released 3 days ago"). Optional — bands that already carry a
@@ -22,12 +22,7 @@ interface WishlistCapsuleProps {
 // bands: Steam capsule art (231×87) as an external link to the store, the title
 // carried in a TooltipPrimitive hover card per the no-`title=` convention. Art,
 // not glass — opaque image with a dark hover lift, no frosting (§ glass table).
-export function WishlistCapsule({
-  item,
-  detail,
-  ghost,
-  className,
-}: WishlistCapsuleProps) {
+export function ReleaseCapsule({ item, detail, ghost, className }: ReleaseCapsuleProps) {
   const [failed, setFailed] = useState(false);
   const name = item.name ?? `App ${item.appid}`;
   const preOrdered = isPreOrdered(item);

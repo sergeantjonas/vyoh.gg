@@ -13,9 +13,9 @@ import {
 import { GameRatingBadge } from "@/steam/_shared/game-rating-badge";
 import { PlatformIconRow } from "@/steam/_shared/platform-icon-row";
 import { useSteamGameBackdrop } from "@/steam/profile-backdrop";
+import { type DayRelease, isPreOrdered } from "@/steam/upcoming/bucketing";
+import { useWishlistHeroMeta } from "@/steam/upcoming/use-wishlist-hero-meta";
 import { formatWishlistReleaseLabel } from "@/steam/wishlist/format";
-import { type DayRelease, isPreOrdered } from "@/steam/wishlist/upcoming/bucketing";
-import { useWishlistHeroMeta } from "@/steam/wishlist/upcoming/use-wishlist-hero-meta";
 
 // The Upcoming view's cover story (§ Art direction — "temporal certainty maps
 // to visual prominence"): the nearest day-precise release rendered as a single

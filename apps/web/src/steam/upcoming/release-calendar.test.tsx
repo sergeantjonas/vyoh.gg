@@ -4,7 +4,7 @@ import type { SteamUpcomingItem } from "@vyoh/shared";
 import { configureAxe } from "jest-axe";
 import { afterEach, describe, expect, it } from "vitest";
 import type { DayRelease } from "./bucketing";
-import { WishlistCalendar } from "./wishlist-calendar";
+import { ReleaseCalendar } from "./release-calendar";
 
 const axe = configureAxe({ rules: { "color-contrast": { enabled: false } } });
 
@@ -47,7 +47,7 @@ const RELEASES: DayRelease[] = [
 function renderCalendar(releases = RELEASES) {
   return render(
     <TooltipPrimitive.Provider>
-      <WishlistCalendar dayReleases={releases} now={NOW} />
+      <ReleaseCalendar dayReleases={releases} now={NOW} />
     </TooltipPrimitive.Provider>
   );
 }
@@ -56,7 +56,7 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
-describe("WishlistCalendar", () => {
+describe("ReleaseCalendar", () => {
   it("renders the anchored two-month window with launch-count mastheads", () => {
     renderCalendar();
     expect(screen.getByRole("heading", { name: "June" })).toBeTruthy();
