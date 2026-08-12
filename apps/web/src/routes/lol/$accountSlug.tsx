@@ -3,6 +3,7 @@ import { SectionShell } from "@/_shared/section-layout/section-shell";
 import { useSectionShellState } from "@/_shared/section-layout/section-shell-context";
 import { NotFound } from "@/components/not-found";
 import { useMe } from "@/identity/use-me";
+import { routeMeta } from "@/lib/route-meta";
 import { toastMessage } from "@/lib/toast";
 import { useScrollResetOnNav } from "@/lib/use-scroll-reset-on-nav";
 import { cn } from "@/lib/utils";
@@ -84,6 +85,14 @@ export const Route = createFileRoute("/lol/$accountSlug")({
   component: AccountLayout,
   notFoundComponent: NotFound,
   validateSearch: validateAccountSearch,
+  // Every leaf under this layout sets its own title, so this one is a floor
+  // rather than a label anyone sees: a future leaf that ships without a head()
+  // lands on a LoL-scoped title instead of the bare root "vyoh.gg".
+  head: () =>
+    routeMeta({
+      title: "League of Legends · vyoh.gg",
+      description: "League of Legends matches, champions, and trends on vyoh.gg.",
+    }),
 });
 
 function AccountLayout() {
