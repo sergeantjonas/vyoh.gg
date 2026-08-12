@@ -3,6 +3,8 @@ import {
   type Observation,
   type Series,
   type Thresholds,
+  ageDays,
+  cohortOf,
   delta,
   foldSeries,
   isVisible,
@@ -31,7 +33,12 @@ const series = (over: Partial<Series> = {}): Series => ({
   ...over,
 });
 
-const thresholds: Thresholds = { rareBand: 10, visiblePp: 0.5, visibleRatio: 2 };
+const thresholds: Thresholds = {
+  rareBand: 10,
+  visiblePp: 0.5,
+  visibleRatio: 2,
+  launchWindowDays: 60,
+};
 
 describe("foldSeries", () => {
   it("takes endpoints from the first and last observation of each achievement", () => {
@@ -99,6 +106,37 @@ describe("isVisible", () => {
     // Guards the null-ratio path: 0 → 0.3 must fail, because 0.3pp is under the
     // pp threshold and the ratio is undefined rather than infinite.
     expect(isVisible(series({ firstPct: 0, lastPct: 0.3 }), thresholds)).toBe(false);
+  });
+});
+
+describe("cohort", () => {
+  const asOf = at("2026-08-12T00:00:00Z");
+
+  it("measures age in days from the release date", () => {
+    expect(ageDays(at("2026-08-03T00:00:00Z"), asOf)).toBe(9);
+  });
+
+  it("has no age for a game with no known release date", () => {
+    expect(ageDays(null, asOf)).toBeNull();
+  });
+
+  it("calls a game inside the window a launch-window title", () => {
+    expect(cohortOf(9, 60)).toBe("launch");
+  });
+
+  it("treats the boundary day as still inside the window", () => {
+    expect(cohortOf(60, 60)).toBe("launch");
+    expect(cohortOf(60.5, 60)).toBe("mature");
+  });
+
+  it("calls a long-settled game mature", () => {
+    expect(cohortOf(4038, 60)).toBe("mature");
+  });
+
+  it("keeps an unknown age out of both cohorts", () => {
+    // The mature cohort answers "does a settled game drift", so an unenriched
+    // new release landing in it would be the one error that flips the verdict.
+    expect(cohortOf(null, 60)).toBe("unknown");
   });
 });
 

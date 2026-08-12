@@ -1,6 +1,6 @@
 # Steam achievement rarity drift
 
-**Status:** Active — R1 shipped 2026-08-07 (history table, append-on-change, seeded from the 9,085 existing rarity rows) and R2 shipped 2026-08-12 (`probe-rarity-drift.ts`). **R2's first reading does not clear the gate, so R3 stays unbuilt**: all 520 series with a second observation move 0.30pp or less, and the rare band's largest move is a single 0.1pp quantum. Beast of Reincarnation — the 0.0 → 0.9–2.0% candidate spotted by hand on 2026-08-11 — is still a one-observation series, because its seven-day refresh age only expires `2026-08-12 00:12:07Z`; it is next in the drain, so **re-run R2 after the first api boot past that timestamp**. The arc remains gated on elapsed time, not on effort.
+**Status:** Active — R1 shipped 2026-08-07 (history table, append-on-change, seeded from the 9,085 existing rarity rows) and R2 shipped 2026-08-12 (`probe-rarity-drift.ts`, extended the same day with the launch/mature cohort split). **R2's second reading clears the gate for launch-window titles and leaves the mature library unresolved.** Beast of Reincarnation captured its second observation on the 00:12:07Z boot and moved up to +30.10pp in 7 days across 45 of 46 series — but it released 2026-08-03, so that is a launch curve, not settled drift. Split by release age: 45 of 46 launch-window series are visible, 0 of 512 mature ones are, and the mature maximum is +0.30pp over an 8-day span — on Steam's precision floor, where noise and ~3pp/year are indistinguishable. **R3 is no longer blocked on data; it needs a scoping decision**: a launch-window beat has a live dataset now but only fires on newly-played releases, while a whole-library drift beat would still be blank for 58 of 60 games and stays gated on elapsed time.
 
 ## Today's behaviour
 
@@ -68,7 +68,7 @@ Two consequences:
 | # | What | Where | Notes |
 |---|---|---|---|
 | R1 | History table + append-on-change | Prisma migration + `apps/api/src/steam` | **Shipped 2026-08-07**, migration `20260807000000_steam_achievement_rarity_history`. `SteamAchievementRarityHistory(id, appid, apiName, percent, observedAt)`, FK to `SteamGameAchievement` like the current-value row, indexed `(appid, apiName, observedAt)` so the series-for-one-achievement read gets its sort from the index. Seeded 9,085 origin rows from the current `percent` + `polledAt`, so every series starts at a known reading rather than at its first move. `RaritySyncResult` gained `historyRowsAppended`; the poller's log line reports it. Read path, API and web untouched. |
-| R2 | Drift diagnostic script | `apps/api/src/scripts` | **Shipped 2026-08-12** as [probe-rarity-drift.ts](../../../apps/api/src/scripts/probe-rarity-drift.ts) — span, endpoints and slope per achievement with ≥2 rows, ranked absolutely and relatively, plus a quantum histogram and an explicit gate verdict. Thresholds are flags (`--rare-band`, `--visible-pp`, `--visible-ratio`) so the gate is argued from output. Two departures from the spec above. **Coverage leads the report**, because a single-point series and a flat series produce identical silence and mean opposite things — the first run found 8,565 of 9,085 series still single-point, which would have read as "rarity doesn't drift" without that line. And it constructs `PrismaService` directly rather than booting `AppModule` like `backfill-remake-flag.ts` does: an application context runs every `onModuleInit`, including this poller's own boot drain, so the probe would race the table it measures — the first build did exactly that, and spent the Riot budget on live-game polls as well. |
+| R2 | Drift diagnostic script | `apps/api/src/scripts` | **Shipped 2026-08-12** as [probe-rarity-drift.ts](../../../apps/api/src/scripts/probe-rarity-drift.ts) — span, endpoints and slope per achievement with ≥2 rows, ranked absolutely and relatively, plus a quantum histogram and an explicit gate verdict. Thresholds are flags (`--rare-band`, `--visible-pp`, `--visible-ratio`) so the gate is argued from output. Two departures from the spec above. **Coverage leads the report**, because a single-point series and a flat series produce identical silence and mean opposite things — the first run found 8,565 of 9,085 series still single-point, which would have read as "rarity doesn't drift" without that line. And it constructs `PrismaService` directly rather than booting `AppModule` like `backfill-remake-flag.ts` does: an application context runs every `onModuleInit`, including this poller's own boot drain, so the probe would race the table it measures — the first build did exactly that, and spent the Riot budget on live-game polls as well. **Extended the same day with the launch/mature cohort split** (`cohortOf`, `ageDays`, `--launch-window`, default 60d) after the pooled verdict printed `Gate CLEARED` on the strength of a single nine-day-old release. The verdict now reports the cohorts separately and states the mature span, so it cannot claim "settled titles do not drift" from a window too narrow to measure one. |
 | R3 | The drift beat | web + `packages/shared` | **Gated on R2, unscoped deliberately.** Shape is undecided because it depends on what R2 finds — a delta line on the achievement card, a sparkline in the trophy case, or a recap beat are all plausible and the data picks. Do not scope this before R2 has something to show. |
 
 ## Design decisions, settled up front
@@ -83,7 +83,9 @@ Two consequences:
 
 `observedAt` records when *we* looked, never when the achievement was unlocked. Steam's unlock timestamps backfill retroactively ([schema.prisma:333-338](../../../apps/api/prisma/schema.prisma#L333-L338)), so the library's unlock history reaches back years while the rarity series can only ever start at R1. For everything already on the shelf, the honest framing is "since we started watching" — and any copy R3 ships has to say that rather than implying unlock-time. This gap cannot be closed by any amount of later work.
 
-## R2's first reading (2026-08-12)
+## R2's first reading (2026-08-12) — superseded the same day
+
+> Superseded by [R2's second reading](#r2s-second-reading-2026-08-12-after-the-001207z-boot) below, taken after the boot that drained Beast of Reincarnation. Kept because its coverage numbers and its two confirmed gotchas still hold, and because the shape of the mistake is worth keeping: this reading pooled a nine-day-old release with 58 settled titles and concluded "flat", when the two populations were about to disagree by two orders of magnitude.
 
 **Gate not cleared. Do not build R3.** Across 9,085 series in 158 games, 520 have a second observation and every one of them moves at Steam's precision floor or barely above it:
 
@@ -93,7 +95,7 @@ Two consequences:
 | 0.20pp | 32 |
 | 0.10pp | 487 |
 
-Nothing exceeds 0.30pp. In the rare band, 76 series move at all and the largest is `Tomb Raider — No Stone Left Unturned` at 8.2% → 8.3% over 8 days. The relative leaders top out at 1.10× (`Rise of the Tomb Raider — No One Left Behind`, 1.0% → 1.1%). This is the flat-lines outcome the framing decision reserved as a failure condition, and it confirms finding 4 rather than overturning it.
+Nothing exceeds 0.30pp. In the rare band, 76 series move at all and the largest is `Tomb Raider — No Stone Left Unturned` at 8.2% → 8.3% over 8 days. The relative leaders top out at 1.10× (`Rise of the Tomb Raider — No One Left Behind`, 1.0% → 1.1%). This reading called that the flat-lines outcome the framing decision reserved as a failure condition — which held for the settled library and was wrong as a verdict on the arc, since the one game about to report was a launch-window title that moved 100× harder than anything here.
 
 **The known-answer case is not in the table, and the reason is cadence, not a defect.** Beast of Reincarnation holds 46 rows across 46 series, all stamped `2026-08-05 00:12:07` — one observation each, so it cannot appear in any movement ranking. The 0.0 → 0.9–2.0% reading from 2026-08-11 was a manual live read that never entered the history table. Its seven-day age expires at **`2026-08-12 00:12:07Z`**, so on the 08-09 drain it was correctly five days old and skipped. It is the next game to come due, and `orderBy: { lastRarityCheckedAt: asc, nulls: "first" }` puts it first in the batch — so the first api boot after that timestamp captures its second observation, and R2 should be re-run immediately afterwards. The probe prints this as a `next to come due` line precisely so the instruction is "restart after X" rather than "restart".
 
@@ -101,6 +103,28 @@ Two things confirmed while chasing this, worth not re-deriving:
 
 - **The poller is not misbehaving.** It fires at 05:30 Europe/Brussels while the dev box is asleep, but that was designed for — the due check is a seven-day *age* and `onModuleInit` re-runs the same selection on every boot, so a missed fire costs nothing that a restart does not repair. Partial coverage across the fleet is `RARITY_BATCH_CAP = 40` draining in boot-sized bites, working as intended.
 - **`lastRarityCheckedAt` is `timestamp without time zone`, and the container runs `Europe/Brussels`.** `node-pg` parses naive timestamps as process-local, so a raw SQL probe renders every one of these two hours early and makes due-date arithmetic come out wrong by exactly that much. Prisma and the Postgres session are both UTC, so the shipped comparison is correct — it is only ad-hoc `pg` clients that mislead. Cast to `::text` when checking these by hand.
+
+## R2's second reading (2026-08-12, after the 00:12:07Z boot)
+
+Beast of Reincarnation captured its second observation on the restart, and it moves — hard. All 46 series moved; 45 of 46 clear the visibility bar; the largest is `Place of Return` at **16.1% → 46.2%, +30.10pp in 7 days**. Fifteen series moved more than 10pp. The relative leaders run to 26×.
+
+That is the known-answer case answering, and it is worth being precise about what it answers. **The game released 2026-08-03**, so the first observation (`2026-08-05`) caught it two days after launch and the second nine days after. What the series records is a launch curve — the owned-but-unplayed population working through content nobody had reached yet — not the drift of a settled title. Direction is up, which is finding 2's per-game direction.
+
+Splitting the 566 two-point series by release age separates the two populations cleanly:
+
+| cohort | series | visible | games | largest move |
+|---|---|---|---|---|
+| launch window (≤60d) | 46 | 45 | 1 | +30.10pp |
+| mature (>60d) | 512 | 0 | 58 | +0.30pp |
+| unknown release date | 8 | 0 | 1 | +0.10pp |
+
+**Launch-window drift is established.** It is real, large, and legible at a glance — the one thing this arc was waiting to see. The mature cohort's largest mover is `Borderless Gaming — LIGHTS_OFF` at 16.0% → 16.3% on a 4,038-day-old game; nothing else in 512 series reaches even 0.5pp.
+
+**The mature cohort is not established either way, and the note should not claim it is.** The observation span is 8 days. A 0.1–0.3pp move over 8 days sits exactly on Steam's published precision, where the slope's relative error exceeds the slope: the same data is consistent with pure quantization noise and with ~3pp/year of genuine drift, and nothing here separates them. "Settled titles do not drift" would be an overclaim from a 12-day-wide window; the correct statement is that the mature slope is unmeasurable at this span. That half of the arc stays gated on elapsed time exactly as before — the difference is that it is no longer the only path forward.
+
+**Consequence for R3.** A beat keyed on drift across the whole library would be blank for 58 of 60 games. A beat keyed on the launch window has a live, dramatic dataset today, but only fires when the owner plays something in its first weeks — which is a genuinely different feature with a different trigger, not a threshold tweak. That is the scoping decision R3 now needs; it is no longer blocked on data.
+
+R2 was extended in the same session to report this split, because the pooled verdict printed `Gate CLEARED` on the strength of one nine-day-old game — technically true and materially misleading. `cohortOf()` keeps unknown-release-date games in their own bucket rather than folding them into `mature`, since an unenriched new release landing in the settled population is the single misclassification that would flip the verdict. `--launch-window` (default 60 days) is a flag like the other thresholds.
 
 ## Pointer hygiene
 

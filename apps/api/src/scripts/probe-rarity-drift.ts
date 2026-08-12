@@ -36,7 +36,15 @@ export type Thresholds = {
   rareBand: number;
   visiblePp: number;
   visibleRatio: number;
+  launchWindowDays: number;
 };
+
+// A game's rarity percentages are still finding their level in the days after
+// release, as the owned-but-unplayed population works through content nobody
+// has reached yet. That curve is an order of magnitude steeper than anything a
+// settled title does, so mixing the two produces a verdict that reads as "drift
+// is visible" when it means "one game launched last week".
+export type Cohort = "launch" | "mature" | "unknown";
 
 export type Observation = {
   appid: number;
@@ -75,6 +83,18 @@ export const perWeek = (s: Series): number => {
 export const isVisible = (s: Series, t: Thresholds): boolean => {
   const r = ratio(s);
   return Math.abs(delta(s)) >= t.visiblePp || (r !== null && r >= t.visibleRatio);
+};
+
+export const ageDays = (release: Date | null, asOf: Date): number | null =>
+  release === null ? null : (asOf.getTime() - release.getTime()) / DAY_MS;
+
+// Unknown age is its own cohort rather than being folded into `mature`. Folding
+// it in would let an unenriched new release sit inside the population whose
+// whole job is to answer "does a settled game drift", which is the one place a
+// wrong answer changes the verdict.
+export const cohortOf = (age: number | null, launchWindowDays: number): Cohort => {
+  if (age === null) return "unknown";
+  return age <= launchWindowDays ? "launch" : "mature";
 };
 
 // Folds time-ordered observations into one row per achievement. Callers must
@@ -123,6 +143,7 @@ async function main() {
     // One decimal is Steam's precision, so 0.1pp is a single quantum.
     visiblePp: numericFlag("visible-pp", 0.5),
     visibleRatio: numericFlag("visible-ratio", 2),
+    launchWindowDays: numericFlag("launch-window", 60),
   };
   const top = numericFlag("top", 15);
 
@@ -130,7 +151,7 @@ async function main() {
   await prisma.$connect();
 
   try {
-    const [history, games, achievements, unlocks, meta] = await Promise.all([
+    const [history, games, achievements, unlocks, meta, enrichment] = await Promise.all([
       prisma.steamAchievementRarityHistory.findMany({
         orderBy: { observedAt: "asc" },
         select: { appid: true, apiName: true, percent: true, observedAt: true },
@@ -144,9 +165,16 @@ async function main() {
         where: { game: { removedAt: null }, achievementCount: { gt: 0 } },
         select: { appid: true, lastRarityCheckedAt: true },
       }),
+      prisma.steamGameEnrichment.findMany({
+        select: { appid: true, releaseDate: true },
+      }),
     ]);
 
     const gameName = new Map(games.map((g) => [g.appid, g.name]));
+    const released = new Map(enrichment.map((e) => [e.appid, e.releaseDate]));
+    const now = new Date();
+    const cohort = (s: Series): Cohort =>
+      cohortOf(ageDays(released.get(s.appid) ?? null, now), thresholds.launchWindowDays);
     const key = (appid: number, apiName: string) => `${appid}:${apiName}`;
     const label = new Map(
       achievements.map((a) => [key(a.appid, a.apiName), a.displayName])
@@ -294,14 +322,60 @@ async function main() {
   this reads partly as missing observations rather than as absent drift.`
       );
     } else {
-      const named = new Set(
-        cleared.map((s) => gameName.get(s.appid) ?? `app ${s.appid}`)
-      );
+      // Split before declaring anything. A verdict that pools the two cohorts
+      // answers "did any series move" when the question is "does a settled
+      // library drift" — and those had opposite answers on the first reading.
+      const byCohort = (c: Cohort) => moving.filter((s) => cohort(s) === c);
+      const summarise = (c: Cohort) => {
+        const set = byCohort(c);
+        const hit = set.filter((s) => isVisible(s, thresholds));
+        const games = new Set(set.map((s) => gameName.get(s.appid) ?? `app ${s.appid}`));
+        const worst = set.reduce((max, s) => Math.max(max, Math.abs(delta(s))), 0);
+        const span = set.reduce((max, s) => Math.max(max, spanDays(s)), 0);
+        return { set, hit, games, worst, span };
+      };
+
+      const launch = summarise("launch");
+      const mature = summarise("mature");
+      const unknown = summarise("unknown");
+
+      const line = (label: string, r: ReturnType<typeof summarise>) =>
+        console.log(
+          `  ${label.padEnd(34)} ${String(r.hit.length).padStart(3)} of ${String(r.set.length).padEnd(4)} series visible` +
+            ` · ${r.games.size} game(s) · max ${pp(r.worst)}`
+        );
+
       console.log(
-        `  Gate CLEARED — ${cleared.length} series across ${named.size} game(s): ${[...named].join(", ")}.`
+        `  Movement exists — ${cleared.length} series cleared the bar in the rare band.\n`
       );
+      line(`launch window (≤${thresholds.launchWindowDays}d since release)`, launch);
+      line("mature (settled titles)", mature);
+      if (unknown.set.length > 0) line("unknown release date", unknown);
+
+      if (mature.hit.length === 0 && launch.hit.length > 0) {
+        // Deliberately does not say "mature titles do not drift". At this span
+        // the mature signal sits on the quantization floor, where the slope's
+        // relative error is larger than the slope — 0.1pp over 12 days is
+        // anything from noise to ~3pp/year, and the data cannot separate them.
+        console.log(
+          `\n  Every visible mover is inside the launch window. Launch-window drift is
+  established: real, large, and worth building against. The mature cohort is
+  NOT established either way — across ${mature.set.length} series the largest move is
+  ${pp(mature.worst)} over a ${mature.span.toFixed(0)}-day observation span, which is Steam's own
+  quantum. A slope that small is unmeasurable at this span, not absent, and
+  stays gated on elapsed time. Scope R3 on the launch window, or keep waiting.`
+        );
+      } else if (mature.hit.length > 0) {
+        const named = new Set(
+          mature.hit.map((s) => gameName.get(s.appid) ?? `app ${s.appid}`)
+        );
+        console.log(
+          `\n  Gate CLEARED on settled titles — ${mature.hit.length} series across ${named.size} game(s): ${[...named].join(", ")}.
+  This is the reading the beat needs; the launch-window rows are a separate effect.`
+        );
+      }
       console.log(
-        "  Record these numbers in achievement-rarity-drift.md before scoping the beat."
+        "\n  Record these numbers in achievement-rarity-drift.md before scoping the beat."
       );
     }
   } finally {
