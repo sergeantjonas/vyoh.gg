@@ -111,7 +111,8 @@ Public endpoints — `GET /status`, `GET /status/stream` (SSE), `GET /me`, `GET 
 
 ### Route changes
 
-- `/login` — "Log in with GitHub" plus a one-line explanation, `noindex`, not linked from public nav. Renders a "signed in as @… / log out" state instead when a session already exists, so the bookmark is not a dead end.
+- `/login` — "Log in with GitHub" plus a one-line explanation, `noindex`, not in the nav. Renders a "signed in as @… / log out" state instead when a session already exists, so the bookmark is not a dead end.
+- Its **only** inbound link in the app is an "Owner-only — sign in" line under the locked status controls, rendered only when `isOwner` is false. Deliberately scoped there rather than global: `/status` is the one page with gated controls, so it is the one page where a visitor is asking the question.
 - The nav's right-hand cluster carries `<OwnerBadge />`, not `__root.tsx`. It renders nothing at all for anonymous visitors — an always-visible "Log in" on a single-owner site is an invitation to try.
 
 ### Gated UI pattern
@@ -226,4 +227,4 @@ Files touched: docs only + env config on hosting platform. Lands once a hosting 
 
 1. ~~**Naming.**~~ **Resolved 2026-08-13: option 1.** `Viewer` is visitor identity, `Me` stays content identity. Built that way; no renames landed in `@vyoh/shared`, `IdentityService`, or `useMe`.
 2. ~~**Sliding vs absolute session expiry.**~~ **Resolved 2026-08-05: both.** Sliding 30-day for convenience, with a hard 90-day `absoluteExpiresAt` that activity never extends — see the Prisma model above. Sliding-only was the quiet problem: a session touched once a month never expires, so one successful login grants indefinite access. Purely absolute re-auth would be more conservative still, but weekly re-auth to press a sync button is friction with no matching threat at this scale. Reopen only if the guarded surface grows past owner-only admin actions.
-3. ~~**Should the `/login` route be linked from public nav?**~~ **Resolved 2026-08-13: no.** Shipped unlinked and `noindex`; the owner bookmarks it, and `OwnerBadge` renders nothing until a session exists. Anonymous visitors are never told the login is there.
+3. ~~**Should the `/login` route be linked from public nav?**~~ **Resolved 2026-08-14: not from the nav, but linked from the status page.** It shipped fully unlinked first and that was wrong: a visitor met eleven padlocks with nothing anywhere saying what would unlock them. Hiding the link also bought nothing — the OAuth app accepts one GitHub user id, so a stranger who finds `/login` is bounced to `?error=forbidden` regardless. The nav was still the wrong home for it (auth chrome on `/`, `/lol` and `/steam`, none of which gate anything), so the link lives beside the locked controls instead, where the question it answers is the one the padlocks just raised. Still `noindex`, still absent for signed-in viewers.

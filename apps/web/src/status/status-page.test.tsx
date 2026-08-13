@@ -9,6 +9,7 @@ import type {
   SyncTick,
   SyncTickAccountResult,
 } from "@vyoh/shared";
+import { configureAxe } from "jest-axe";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StatusPage } from "./status-page";
@@ -31,6 +32,22 @@ vi.mock("./use-status", () => ({
 vi.mock("@/identity/use-me", () => ({ useMe: vi.fn() }));
 
 vi.mock("@/auth/use-viewer", () => ({ useIsOwner: vi.fn() }));
+
+// The page renders no router-aware component beyond the sign-in link, so a
+// plain anchor is enough to assert where it points.
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({ to, search, children, ...rest }: LinkProps) => (
+    <a href={`${to}?next=${search.next}`} {...rest}>
+      {children}
+    </a>
+  ),
+}));
+
+type LinkProps = {
+  to: string;
+  search: { next?: string };
+  children: ReactNode;
+};
 
 vi.mock("@/lib/toast", () => ({
   toastInfo: vi.fn(),
@@ -671,6 +688,23 @@ describe("StatusPage owner gating", () => {
     expect(account.hasAttribute("disabled")).toBe(true);
   });
 
+  it("offers a way out of the locked state, carrying where to return", () => {
+    vi.mocked(useIsOwner).mockReturnValue(false);
+    mockStatus({ data: makeSnapshot() });
+    renderWithTooltip(<StatusPage />);
+
+    // A row of padlocks with no route to unlocking them is the failure this
+    // link exists to prevent — it is the only entry to /login in the app.
+    const link = screen.getByRole("link", { name: /sign in/i });
+    expect(link.getAttribute("href")).toBe("/login?next=/status");
+  });
+
+  it("drops the sign-in link once signed in", () => {
+    mockStatus({ data: makeSnapshot() });
+    renderWithTooltip(<StatusPage />);
+    expect(screen.queryByRole("link", { name: /sign in/i })).toBeNull();
+  });
+
   it("keeps the locked controls rendered rather than hiding them", () => {
     vi.mocked(useIsOwner).mockReturnValue(false);
     mockStatus({ data: makeSnapshot() });
@@ -700,6 +734,16 @@ describe("StatusPage owner gating", () => {
 
     fireEvent.click(buttons().syncNow);
     expect(syncNowMutation.mutate).not.toHaveBeenCalled();
+  });
+
+  it("has no axe violations in the locked state", async () => {
+    vi.mocked(useIsOwner).mockReturnValue(false);
+    mockStatus({ data: makeSnapshot() });
+    const { container } = renderWithTooltip(<StatusPage />);
+    // color-contrast needs real computed styles, which happy-dom does not
+    // produce; `disabled` on the controls is what the scan is here for.
+    const axe = configureAxe({ rules: { "color-contrast": { enabled: false } } });
+    expect((await axe(container)).violations).toEqual([]);
   });
 
   it("explains the lock on hover rather than leaving the control mysteriously dead", async () => {

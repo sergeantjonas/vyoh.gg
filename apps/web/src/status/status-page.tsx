@@ -6,6 +6,7 @@ import { toastError, toastInfo, toastSuccess } from "@/lib/toast";
 import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import { Link } from "@tanstack/react-router";
 import {
   type AppWindowSnapshot,
   type LolAccount,
@@ -175,7 +176,7 @@ function SyncCard({
 
   return (
     <section className="flex flex-col gap-3 rounded-md border p-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <SectionTitle as="h2">Match sync</SectionTitle>
           <div className="flex items-center gap-2 text-xs">
@@ -184,36 +185,52 @@ function SyncCard({
             {enabled && !running && tick && <Badge tone="ok">idle</Badge>}
           </div>
         </div>
-        <div className="flex gap-2">
-          <OwnerAction isOwner={isOwner} label="Trigger a sync tick now">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onSyncNow}
-              disabled={!isOwner || syncNow.isPending || running || !enabled}
+        <div className="flex flex-col items-end gap-1.5">
+          <div className="flex gap-2">
+            <OwnerAction isOwner={isOwner} label="Trigger a sync tick now">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onSyncNow}
+                disabled={!isOwner || syncNow.isPending || running || !enabled}
+              >
+                {isOwner ? (
+                  <RefreshCw className={cn(syncNow.isPending && "animate-spin")} />
+                ) : (
+                  <Lock />
+                )}
+                Sync now
+              </Button>
+            </OwnerAction>
+            <OwnerAction
+              isOwner={isOwner}
+              label={enabled ? "Pause the sync cron" : "Resume the sync cron"}
             >
-              {isOwner ? (
-                <RefreshCw className={cn(syncNow.isPending && "animate-spin")} />
-              ) : (
-                <Lock />
-              )}
-              Sync now
-            </Button>
-          </OwnerAction>
-          <OwnerAction
-            isOwner={isOwner}
-            label={enabled ? "Pause the sync cron" : "Resume the sync cron"}
-          >
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onToggleEnabled}
-              disabled={!isOwner || setEnabled.isPending}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onToggleEnabled}
+                disabled={!isOwner || setEnabled.isPending}
+              >
+                {!isOwner ? <Lock /> : enabled ? <Pause /> : <Play />}
+                {enabled ? "Pause" : "Resume"}
+              </Button>
+            </OwnerAction>
+          </div>
+          {/* The only route to `/login` anywhere in the app. It sits here
+              rather than in the nav because this is the one page whose
+              controls are locked — a visitor who has just been shown a row of
+              padlocks is the only visitor the question "how do I unlock these"
+              occurs to. */}
+          {!isOwner && (
+            <Link
+              to="/login"
+              search={{ error: undefined, next: "/status" }}
+              className="text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
             >
-              {!isOwner ? <Lock /> : enabled ? <Pause /> : <Play />}
-              {enabled ? "Pause" : "Resume"}
-            </Button>
-          </OwnerAction>
+              Owner-only — sign in
+            </Link>
+          )}
         </div>
       </div>
 
