@@ -1,4 +1,4 @@
-import { Controller, Get, type MessageEvent, Post, Sse } from "@nestjs/common";
+import { Controller, Get, type MessageEvent, Post, Sse, UseGuards } from "@nestjs/common";
 import type { StatusSnapshot, SyncStatus, SyncTriggerResult } from "@vyoh/shared";
 import {
   type Observable,
@@ -10,6 +10,7 @@ import {
   startWith,
   switchMap,
 } from "rxjs";
+import { OwnerGuard } from "../auth/owner.guard";
 import { MatchEventsService } from "../lol/match-events.service";
 import { MatchSyncService } from "../lol/match-sync.service";
 import { RateLimiterService } from "../riot/rate-limiter.service";
@@ -62,17 +63,24 @@ export class StatusController {
     };
   }
 
+  // The three writes below are owner-only; the reads above and the stream below
+  // stay public. Each carries its own `@UseGuards` rather than one decorator on
+  // the class, because a class-level guard would also close `@Get()` and the SSE
+  // stream, and the status dashboard is meant to be readable by anyone.
   @Post("sync")
+  @UseGuards(OwnerGuard)
   triggerSync(): SyncTriggerResult {
     return this.matchSync.triggerNow();
   }
 
   @Post("sync/pause")
+  @UseGuards(OwnerGuard)
   pauseSync(): SyncStatus {
     return this.matchSync.setEnabled(false);
   }
 
   @Post("sync/resume")
+  @UseGuards(OwnerGuard)
   resumeSync(): SyncStatus {
     return this.matchSync.setEnabled(true);
   }

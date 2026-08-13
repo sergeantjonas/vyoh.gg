@@ -17,6 +17,7 @@ import { describe, expect, it } from "vitest";
 import { meQueryOptions } from "@/identity/use-me";
 import { validateAccountSearch } from "@/lol/account/account-search";
 import { Route as HomeRoute } from "./routes/index";
+import { Route as LoginRoute } from "./routes/login";
 import { Route as LolSectionRoute } from "./routes/lol/$accountSlug";
 import { Route as ChampionsRoute } from "./routes/lol/$accountSlug/champions";
 import { Route as ChampionDetailRoute } from "./routes/lol/$accountSlug/champions/$championKey";
@@ -72,6 +73,7 @@ describe("head()", () => {
   // rejects in any tag value.
   const HEADED: Array<[string, AnyRoute, Record<string, string>]> = [
     ["/", HomeRoute, {}],
+    ["/login", LoginRoute, {}],
     ["/status", StatusRoute, {}],
     ["/steam (section)", SteamSectionRoute, {}],
     ["/steam/", SteamIndexRoute, {}],
@@ -146,6 +148,16 @@ describe("head()", () => {
         expect(tag.content).toMatch(/^https?:\/\//);
       }
     }
+  });
+
+  it("/login opts out of the root's site-wide index, follow", () => {
+    const robots = headOf(LoginRoute)
+      .meta?.filter((m) => m.name === "robots")
+      .map((m) => m.content);
+
+    // Exactly one: the router merges root and route metas by `name`, so a
+    // second entry here would leave the page carrying two conflicting rules.
+    expect(robots).toEqual(["noindex, nofollow"]);
   });
 });
 
@@ -284,6 +296,31 @@ describe("validateSearch", () => {
 
     expect(validate({ ach: "ACH_WIN_ONE_GAME" })).toEqual({ ach: "ACH_WIN_ONE_GAME" });
     expect(validate({ ach: 42 })).toEqual({ ach: undefined });
+  });
+
+  it("login keeps only the three errors the callback emits and a same-site next", () => {
+    const validate = LoginRoute.options.validateSearch as (
+      search: Record<string, unknown>
+    ) => { error?: string; next?: string };
+
+    expect(validate({ error: "forbidden", next: "/status" })).toEqual({
+      error: "forbidden",
+      next: "/status",
+    });
+    // The page renders `error` as copy and `next` into an href, so both are
+    // attacker-reachable via a crafted /login link.
+    expect(validate({ error: "<script>" })).toEqual({
+      error: undefined,
+      next: undefined,
+    });
+    expect(validate({ next: "https://evil.example" })).toEqual({
+      error: undefined,
+      next: undefined,
+    });
+    expect(validate({ next: "//evil.example" })).toEqual({
+      error: undefined,
+      next: undefined,
+    });
   });
 
   it("the LoL section root wires the shared account-search validator", () => {

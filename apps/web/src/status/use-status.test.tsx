@@ -1,3 +1,4 @@
+import { viewerQueryKey } from "@/auth/use-viewer";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { LolAccount, StatusSnapshot } from "@vyoh/shared";
@@ -10,6 +11,12 @@ import {
   useSyncAccount,
   useSyncNow,
 } from "./use-status";
+
+// Every write here is behind `OwnerGuard`, and the api is a different origin in
+// dev, so `credentials` is what decides whether the session cookie is sent at
+// all. Asserted on each call rather than trusted: dropping it fails nothing
+// locally until the guard is reached, and then fails everything.
+const POST = { method: "POST", credentials: "include" };
 
 function makeWrapper(client: QueryClient) {
   return ({ children }: { children: ReactNode }) =>
@@ -91,9 +98,7 @@ describe("useSyncNow", () => {
       await result.current.mutateAsync();
     });
 
-    expect(fetch).toHaveBeenCalledWith("http://localhost:2010/status/sync", {
-      method: "POST",
-    });
+    expect(fetch).toHaveBeenCalledWith("http://localhost:2010/status/sync", POST);
     const patched = client.getQueryData<StatusSnapshot>(["status"]);
     expect(patched?.sync.running).toBe(true);
   });
@@ -115,6 +120,42 @@ describe("useSyncNow", () => {
     });
     await expect(result.current.mutateAsync()).rejects.toThrow(/HTTP 500/);
   });
+
+  it("rewrites the guard's 401 into copy that describes the user's situation", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ message: "Owner session required" }), {
+        status: 401,
+      })
+    );
+    const { result } = renderHook(() => useSyncNow(), {
+      wrapper: makeWrapper(freshClient()),
+    });
+    await expect(result.current.mutateAsync()).rejects.toThrow(
+      "Session expired — sign in again"
+    );
+  });
+
+  it("drops the cached viewer on 401 so the controls re-lock themselves", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response("{}", { status: 401 }));
+    const client = freshClient();
+    const invalidateSpy = vi.spyOn(client, "invalidateQueries");
+    const { result } = renderHook(() => useSyncNow(), {
+      wrapper: makeWrapper(client),
+    });
+    await expect(result.current.mutateAsync()).rejects.toThrow();
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: viewerQueryKey });
+  });
+
+  it("leaves the cached viewer alone for failures that are not about the session", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response("{}", { status: 500 }));
+    const client = freshClient();
+    const invalidateSpy = vi.spyOn(client, "invalidateQueries");
+    const { result } = renderHook(() => useSyncNow(), {
+      wrapper: makeWrapper(client),
+    });
+    await expect(result.current.mutateAsync()).rejects.toThrow();
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: viewerQueryKey });
+  });
 });
 
 describe("useSetSyncEnabled", () => {
@@ -133,9 +174,7 @@ describe("useSetSyncEnabled", () => {
     await act(async () => {
       await result.current.mutateAsync(true);
     });
-    expect(fetch).toHaveBeenCalledWith("http://localhost:2010/status/sync/resume", {
-      method: "POST",
-    });
+    expect(fetch).toHaveBeenCalledWith("http://localhost:2010/status/sync/resume", POST);
     expect(client.getQueryData<StatusSnapshot>(["status"])?.sync.enabled).toBe(true);
   });
 
@@ -151,9 +190,7 @@ describe("useSetSyncEnabled", () => {
     await act(async () => {
       await result.current.mutateAsync(false);
     });
-    expect(fetch).toHaveBeenCalledWith("http://localhost:2010/status/sync/pause", {
-      method: "POST",
-    });
+    expect(fetch).toHaveBeenCalledWith("http://localhost:2010/status/sync/pause", POST);
   });
 });
 
@@ -179,7 +216,7 @@ describe("useSyncAccount", () => {
     });
     expect(fetch).toHaveBeenCalledWith(
       "http://localhost:2010/lol/summoners/euw1/Vyoh/Ahri/matches/sync",
-      { method: "POST" }
+      POST
     );
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["status"] });
   });

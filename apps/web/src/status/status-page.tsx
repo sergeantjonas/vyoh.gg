@@ -1,3 +1,4 @@
+import { useIsOwner } from "@/auth/use-viewer";
 import { Button } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
 import { useMe } from "@/identity/use-me";
@@ -20,7 +21,7 @@ const TICK_TIME_FMT = new Intl.DateTimeFormat("en-GB", {
   second: "2-digit",
   timeZone: OWNER_TIME_ZONE,
 });
-import { Pause, Play, RefreshCw } from "lucide-react";
+import { Lock, Pause, Play, RefreshCw } from "lucide-react";
 import {
   useSetSyncEnabled,
   useStatus,
@@ -131,6 +132,7 @@ function SyncCard({
   running: boolean;
 }) {
   const { data: me } = useMe();
+  const isOwner = useIsOwner();
   const syncNow = useSyncNow();
   const setEnabled = useSetSyncEnabled();
   const syncAccount = useSyncAccount();
@@ -183,24 +185,35 @@ function SyncCard({
           </div>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onSyncNow}
-            disabled={syncNow.isPending || running || !enabled}
+          <OwnerAction isOwner={isOwner} label="Trigger a sync tick now">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onSyncNow}
+              disabled={!isOwner || syncNow.isPending || running || !enabled}
+            >
+              {isOwner ? (
+                <RefreshCw className={cn(syncNow.isPending && "animate-spin")} />
+              ) : (
+                <Lock />
+              )}
+              Sync now
+            </Button>
+          </OwnerAction>
+          <OwnerAction
+            isOwner={isOwner}
+            label={enabled ? "Pause the sync cron" : "Resume the sync cron"}
           >
-            <RefreshCw className={cn(syncNow.isPending && "animate-spin")} />
-            Sync now
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onToggleEnabled}
-            disabled={setEnabled.isPending}
-          >
-            {enabled ? <Pause /> : <Play />}
-            {enabled ? "Pause" : "Resume"}
-          </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onToggleEnabled}
+              disabled={!isOwner || setEnabled.isPending}
+            >
+              {!isOwner ? <Lock /> : enabled ? <Pause /> : <Play />}
+              {enabled ? "Pause" : "Resume"}
+            </Button>
+          </OwnerAction>
         </div>
       </div>
 
@@ -228,6 +241,7 @@ function SyncCard({
                   syncAccount.isPending && syncAccount.variables?.slug === acc.slug
                 }
                 resolvable={Boolean(me?.lol.some((a: LolAccount) => a.slug === acc.slug))}
+                isOwner={isOwner}
               />
             ))}
           </ul>
@@ -237,16 +251,61 @@ function SyncCard({
   );
 }
 
+const OWNER_ONLY_COPY = "Owner-only — sign in to enable.";
+
+/**
+ * Tooltip shell for a control that only the owner may press.
+ *
+ * The control stays rendered and disabled rather than hidden, so the page still
+ * describes what it can do and the owner sees the same layout signed in or out
+ * — hiding it would make the status page silently change shape depending on who
+ * is looking, which is the harder thing to reason about when something breaks.
+ *
+ * The `<span>` around the trigger is load-bearing: a disabled button swallows
+ * pointer events, so Radix never sees the hover and the tooltip explaining
+ * *why* it is disabled would be the one thing you cannot read.
+ */
+function OwnerAction({
+  isOwner,
+  label,
+  side = "bottom",
+  children,
+}: {
+  isOwner: boolean;
+  label: string;
+  side?: "top" | "bottom";
+  children: React.ReactNode;
+}) {
+  return (
+    <TooltipPrimitive.Root>
+      <TooltipPrimitive.Trigger asChild>
+        <span className="inline-flex">{children}</span>
+      </TooltipPrimitive.Trigger>
+      <TooltipPrimitive.Portal>
+        <TooltipPrimitive.Content
+          side={side}
+          sideOffset={4}
+          className={TOOLTIP_CONTENT_COMPACT}
+        >
+          {isOwner ? label : OWNER_ONLY_COPY}
+        </TooltipPrimitive.Content>
+      </TooltipPrimitive.Portal>
+    </TooltipPrimitive.Root>
+  );
+}
+
 function AccountRow({
   account,
   onSync,
   syncing,
   resolvable,
+  isOwner,
 }: {
   account: SyncTickAccountResult;
   onSync: () => void;
   syncing: boolean;
   resolvable: boolean;
+  isOwner: boolean;
 }) {
   const head =
     "error" in account.head
@@ -270,32 +329,23 @@ function AccountRow({
       <span className="flex items-center gap-3 text-muted-foreground">
         <span className={cn(headError && "text-destructive")}>head {head}</span>
         <span className={cn(histError && "text-destructive")}>hist {historical}</span>
-        <TooltipPrimitive.Root>
-          <TooltipPrimitive.Trigger asChild>
-            <span className="inline-flex">
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={onSync}
-                disabled={syncing || !resolvable}
-                aria-label={`Sync ${account.label}`}
-              >
-                <RefreshCw className={cn(syncing && "animate-spin")} />
-              </Button>
-            </span>
-          </TooltipPrimitive.Trigger>
-          <TooltipPrimitive.Portal>
-            <TooltipPrimitive.Content
-              side="top"
-              sideOffset={4}
-              className={TOOLTIP_CONTENT_COMPACT}
-            >
-              {resolvable
-                ? "Sync this account now"
-                : "Account no longer in identity config"}
-            </TooltipPrimitive.Content>
-          </TooltipPrimitive.Portal>
-        </TooltipPrimitive.Root>
+        <OwnerAction
+          isOwner={isOwner}
+          side="top"
+          label={
+            resolvable ? "Sync this account now" : "Account no longer in identity config"
+          }
+        >
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={onSync}
+            disabled={!isOwner || syncing || !resolvable}
+            aria-label={`Sync ${account.label}`}
+          >
+            {isOwner ? <RefreshCw className={cn(syncing && "animate-spin")} /> : <Lock />}
+          </Button>
+        </OwnerAction>
       </span>
     </li>
   );

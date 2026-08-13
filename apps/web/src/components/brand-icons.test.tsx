@@ -1,6 +1,6 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { LeagueOfLegendsIcon, SteamIcon } from "./brand-icons";
+import { GithubIcon, LeagueOfLegendsIcon, SteamIcon } from "./brand-icons";
 
 describe("brand-icons", () => {
   it("renders SteamIcon as an svg with role=img", () => {
@@ -16,6 +16,14 @@ describe("brand-icons", () => {
     const svg = container.querySelector("svg");
     expect(svg).toBeTruthy();
     expect(svg?.getAttribute("role")).toBe("img");
+  });
+
+  it("renders GithubIcon as an svg with role=img", () => {
+    const { container } = render(<GithubIcon />);
+    const svg = container.querySelector("svg");
+    expect(svg).toBeTruthy();
+    expect(svg?.getAttribute("role")).toBe("img");
+    expect(svg?.getAttribute("aria-hidden")).toBe("true");
   });
 
   it("forwards extra props (className) to the underlying svg", () => {

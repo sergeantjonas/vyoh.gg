@@ -1,6 +1,10 @@
 import { Test } from "@nestjs/testing";
 import { validate } from "class-validator";
 import { describe, expect, it, vi } from "vitest";
+// `OwnerGuard` on `POST matches/sync` injects this. Only needs to resolve — the
+// tests call handlers directly, so no guard runs. Guard behaviour is owned by
+// owner.guard.spec.ts, its placement by conventions.spec.ts.
+import { AuthService } from "../auth/auth.service";
 import { AccountParamsDto } from "./account-params.dto";
 import { LolAnalyticsService } from "./lol-analytics.service";
 import { LolChampionAnalyticsService } from "./lol-champion-analytics.service";
@@ -22,6 +26,7 @@ describe("LolController", () => {
         { provide: LolChampionAnalyticsService, useValue: {} },
         { provide: MatchBaselineService, useValue: {} },
         { provide: MatchNarrativeService, useValue: {} },
+        { provide: AuthService, useValue: {} },
       ],
     }).compile();
 
@@ -50,6 +55,7 @@ describe("LolController", () => {
         { provide: LolChampionAnalyticsService, useValue: {} },
         { provide: MatchBaselineService, useValue: {} },
         { provide: MatchNarrativeService, useValue: { getNarrativeWindow: stub } },
+        { provide: AuthService, useValue: {} },
       ],
     }).compile();
 

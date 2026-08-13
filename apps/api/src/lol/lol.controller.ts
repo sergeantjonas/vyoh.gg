@@ -10,6 +10,7 @@ import {
   Post,
   Query,
   Sse,
+  UseGuards,
 } from "@nestjs/common";
 import type {
   AramProfile,
@@ -37,6 +38,7 @@ import type {
   SummonerProfile,
 } from "@vyoh/shared";
 import type { Observable } from "rxjs";
+import { OwnerGuard } from "../auth/owner.guard";
 import {
   COUNT_PIPE,
   DAYS_PIPE_OPTIONAL,
@@ -85,7 +87,10 @@ export class LolController {
     return this.lol.getCachedMatches(region, gameName, tagLine, start, count, queue);
   }
 
+  // Owner-only: the sole write on this controller, and the one route here that
+  // spends Riot budget on demand rather than on the cron's schedule.
   @Post("matches/sync")
+  @UseGuards(OwnerGuard)
   @HttpCode(200)
   async syncMatches(
     @Param() { region, gameName, tagLine }: AccountParamsDto

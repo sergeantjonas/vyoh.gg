@@ -1,3 +1,4 @@
+import { useIsOwner } from "@/auth/use-viewer";
 import { useMe } from "@/identity/use-me";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { fireEvent, render, screen, within } from "@testing-library/react";
@@ -28,6 +29,8 @@ vi.mock("./use-status", () => ({
 }));
 
 vi.mock("@/identity/use-me", () => ({ useMe: vi.fn() }));
+
+vi.mock("@/auth/use-viewer", () => ({ useIsOwner: vi.fn() }));
 
 vi.mock("@/lib/toast", () => ({
   toastInfo: vi.fn(),
@@ -164,6 +167,9 @@ function mockMutations(
 
 beforeEach(() => {
   vi.mocked(useStatusStream).mockReturnValue(undefined);
+  // Owner by default so the pre-auth cases below keep exercising the controls
+  // themselves; the gated shape gets its own describe block.
+  vi.mocked(useIsOwner).mockReturnValue(true);
   // /me returns LolAccountWithSummary[]; status-page doesn't read the
   // denorm fields, so a null summary stub is enough to satisfy the type.
   mockMe({ lol: [{ ...account, profileIconId: null, summary: null }], steam: [] });
@@ -644,5 +650,71 @@ describe("StatusPage", () => {
     const history = screen.getByText(/Recent ticks/).parentElement;
     if (!history) throw new Error("missing recent-ticks parent");
     expect(within(history).getByText(/1 new match$/)).toBeTruthy();
+  });
+});
+
+describe("StatusPage owner gating", () => {
+  const buttons = () => ({
+    syncNow: screen.getByRole("button", { name: "Sync now" }),
+    toggle: screen.getByRole("button", { name: "Pause" }),
+    account: screen.getByRole("button", { name: "Sync Ahri" }),
+  });
+
+  it("locks every write control for an anonymous visitor", () => {
+    vi.mocked(useIsOwner).mockReturnValue(false);
+    mockStatus({ data: makeSnapshot() });
+    renderWithTooltip(<StatusPage />);
+
+    const { syncNow, toggle, account } = buttons();
+    expect(syncNow.hasAttribute("disabled")).toBe(true);
+    expect(toggle.hasAttribute("disabled")).toBe(true);
+    expect(account.hasAttribute("disabled")).toBe(true);
+  });
+
+  it("keeps the locked controls rendered rather than hiding them", () => {
+    vi.mocked(useIsOwner).mockReturnValue(false);
+    mockStatus({ data: makeSnapshot() });
+    renderWithTooltip(<StatusPage />);
+
+    // The page has to describe what it can do to a visitor who can't do it —
+    // hiding the controls would make it a different page depending on who looks.
+    expect(screen.getByText("Sync now")).toBeTruthy();
+    expect(screen.getByText("Pause")).toBeTruthy();
+  });
+
+  it("unlocks the controls once the viewer is the owner", () => {
+    mockStatus({ data: makeSnapshot() });
+    renderWithTooltip(<StatusPage />);
+
+    const { syncNow, toggle, account } = buttons();
+    expect(syncNow.hasAttribute("disabled")).toBe(false);
+    expect(toggle.hasAttribute("disabled")).toBe(false);
+    expect(account.hasAttribute("disabled")).toBe(false);
+  });
+
+  it("does not fire the mutation when a locked control is clicked", () => {
+    vi.mocked(useIsOwner).mockReturnValue(false);
+    const { syncNow: syncNowMutation } = mockMutations();
+    mockStatus({ data: makeSnapshot() });
+    renderWithTooltip(<StatusPage />);
+
+    fireEvent.click(buttons().syncNow);
+    expect(syncNowMutation.mutate).not.toHaveBeenCalled();
+  });
+
+  it("explains the lock on hover rather than leaving the control mysteriously dead", async () => {
+    vi.mocked(useIsOwner).mockReturnValue(false);
+    mockStatus({ data: makeSnapshot() });
+    renderWithTooltip(<StatusPage />);
+
+    // Hovering the wrapper, not the button: a disabled button eats pointer
+    // events, which is why the trigger is a span around it.
+    const wrapper = screen.getByRole("button", { name: "Sync now" }).parentElement;
+    if (!wrapper) throw new Error("missing tooltip trigger wrapper");
+    fireEvent.pointerEnter(wrapper);
+    fireEvent.focus(wrapper);
+
+    const copy = await screen.findAllByText("Owner-only — sign in to enable.");
+    expect(copy.length).toBeGreaterThan(0);
   });
 });

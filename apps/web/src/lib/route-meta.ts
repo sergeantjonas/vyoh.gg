@@ -10,10 +10,20 @@ interface RouteMetaOptions {
   description: string;
   ogImage?: string;
   ogType?: "website" | "article" | "profile";
+  /**
+   * Override the root's site-wide `index, follow`. For routes that exist for
+   * one person and say nothing a search result should carry.
+   *
+   * The meta tag is the half that matters: `robots.txt` can only ask a crawler
+   * not to *fetch* a URL, and a page nobody fetched can still be indexed from
+   * inbound links alone — with no snippet, because the crawler was never
+   * allowed to read the thing that says not to index it.
+   */
+  noindex?: boolean;
 }
 
 export function routeMeta(opts: RouteMetaOptions) {
-  const { title, description, ogImage, ogType = "website" } = opts;
+  const { title, description, ogImage, ogType = "website", noindex = false } = opts;
   const meta: Array<Record<string, string>> = [
     { title },
     { name: "description", content: description },
@@ -34,5 +44,8 @@ export function routeMeta(opts: RouteMetaOptions) {
   } else {
     meta.push({ name: "twitter:card", content: "summary" });
   }
+  // Merges over the root's `robots` entry by name, so it has to be the same key
+  // rather than an additional tag — two `robots` metas is undefined behaviour.
+  if (noindex) meta.push({ name: "robots", content: "noindex, nofollow" });
   return { meta };
 }

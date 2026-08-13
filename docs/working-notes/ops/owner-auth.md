@@ -1,8 +1,8 @@
 # Owner auth — GitHub OAuth for gated admin surfaces
 
-**Status:** Active — **chunk 1 shipped 2026-08-13**: the backend flow exists and is dormant, `OwnerGuard` is applied to no controller. Chunk 2 (gate the status POSTs + wire the frontend) is next and is what closes the launch gate. Plan written 2026-05-14; naming option 1 confirmed and built. The companion status-page admin surface — surfacing Steam sync status + manually-triggerable LoL sync actions — still waits on chunk 2. See [open-work.md](../open-work.md).
+**Status:** Active — **chunks 1 and 2 both shipped 2026-08-13. The launch gate is closed:** all four mutating routes answer 401 without an owner session, and the frontend renders them locked. Only chunk 3 remains, and it is prod wiring rather than code — it lands with the VPS. Plan written 2026-05-14; naming option 1 confirmed and built. The companion status-page admin surface — surfacing Steam sync status + manually-triggerable LoL sync actions — is now unblocked. See [open-work.md](../open-work.md).
 
-A working note for the planned auth layer. The status page currently exposes mutating POSTs unguarded — `POST /status/sync`, `POST /status/sync/pause`, `POST /status/sync/resume`, plus a per-account sync trigger — and the surface of "owner-only" actions will grow once Steam integration toggles, manual refreshes, secret-rotation indicators, and draft content previews land. The fix is worth shipping deliberately (real OAuth flow, session table, guard pattern) rather than as a `?key=` env hack — both as freelance-profile signal and because the half-fix isn't faster to write.
+A working note for the auth layer. The status page used to expose mutating POSTs unguarded — `POST /status/sync`, `POST /status/sync/pause`, `POST /status/sync/resume`, plus a per-account sync trigger — and the surface of "owner-only" actions will grow once Steam integration toggles, manual refreshes, secret-rotation indicators, and draft content previews land. The fix was worth shipping deliberately (real OAuth flow, session table, guard pattern) rather than as a `?key=` env hack — both as freelance-profile signal and because the half-fix isn't faster to write.
 
 Direction (owner, 2026-05-14): **single-owner auth via GitHub OAuth**, session cookie backed by a Prisma `Session` table, applied as a NestJS guard. Public read-only views stay untouched; admin surfaces stay *visibly* gated (locked button + Radix tooltip), not hidden — half the point is that a reviewer poking around can see the layer exists.
 
@@ -86,14 +86,14 @@ No `User` table. A single GitHub user ID is the entire authorization model — o
 
 All but `SESSION_COOKIE_DOMAIN` go through `requireEnv` in `bootstrap()` so the api refuses to start without them — empty is that one's correct dev value, and `requireEnv` treats empty as missing.
 
-### Routes to gate on day one
+### Routes gated (all four, shipped)
 
-Apply `@UseGuards(OwnerGuard)` to:
+`@UseGuards(OwnerGuard)` on:
 
-- `POST /status/sync` ([status.controller.ts:28](apps/api/src/status/status.controller.ts#L28))
-- `POST /status/sync/pause` ([status.controller.ts:33](apps/api/src/status/status.controller.ts#L33))
-- `POST /status/sync/resume` ([status.controller.ts:38](apps/api/src/status/status.controller.ts#L38))
-- The per-account sync trigger (referenced via `useSyncAccount` on the web side — confirm exact path during chunk 2)
+- `POST /status/sync`, `POST /status/sync/pause`, `POST /status/sync/resume` ([status.controller.ts](../../../apps/api/src/status/status.controller.ts))
+- `POST /lol/summoners/:region/:gameName/:tagLine/matches/sync` ([lol.controller.ts](../../../apps/api/src/lol/lol.controller.ts)) — the per-account trigger `useSyncAccount` calls
+
+That is the api's entire mutating surface. `StatusModule` and `LolModule` both import `AuthModule`, which is what makes the guard's own `AuthService` dependency resolvable — a guard resolves against the module declaring the guarded controller, so the decorator alone is not enough.
 
 Public endpoints — `GET /status`, `GET /status/stream` (SSE), `GET /me`, `GET /lol/...`, `GET /steam/...`, `GET /health` — stay open. The site stays fully readable to anyone.
 
@@ -101,26 +101,28 @@ Public endpoints — `GET /status`, `GET /status/stream` (SSE), `GET /me`, `GET 
 
 ## Frontend shape
 
-### New `auth/` directory ([apps/web/src/auth/](apps/web/src/auth/))
+### `auth/` directory ([apps/web/src/auth/](../../../apps/web/src/auth/))
 
-- `use-viewer.ts` — React Query hook against `GET /auth/viewer`, 30 s stale time, retry off (don't spam on 401). Returns `{ data: Viewer | null }`.
-- `login-button.tsx` — small button that links to `/auth/github/login?next=<current-path>`.
-- `logout-button.tsx` — POSTs to `/auth/logout`, invalidates the viewer query.
+- `use-viewer.ts` — `useViewer` (React Query against `GET /auth/viewer`, 30 s stale, retry off), `useIsOwner`, `useLogout`, and the shared `viewerQueryKey`. Every fetch here carries `credentials: "include"`; in dev the api is a different origin, so without it the cookie is simply never sent and the api sees an anonymous request.
+- `login-button.tsx` — an `<a href>` (not a click handler) to `/auth/github/login?next=<path>`, built on `API_PUBLIC_URL` because it is rendered into markup rather than fetched.
+- `logout-button.tsx`, `owner-badge.tsx`, `login-page.tsx`, `login-search.ts`.
+
+`useIsOwner()` is closed-by-default: pending and failed both read `false`, so a slow or unreachable api never briefly unlocks a control.
 
 ### Route changes
 
-- `/login` route (new) — landing page with a single "Log in with GitHub" button and a one-line "owner-only access" explanation. Reachable but not linked from public nav.
-- `__root.tsx` — small "Logged in as @owner · Log out" affordance in a corner when `viewer.isOwner === true`. No visible login link for anonymous visitors (they don't need to discover this).
+- `/login` — "Log in with GitHub" plus a one-line explanation, `noindex`, not linked from public nav. Renders a "signed in as @… / log out" state instead when a session already exists, so the bookmark is not a dead end.
+- The nav's right-hand cluster carries `<OwnerBadge />`, not `__root.tsx`. It renders nothing at all for anonymous visitors — an always-visible "Log in" on a single-owner site is an invitation to try.
 
 ### Gated UI pattern
 
-The status page's three buttons (Sync now / Pause / Resume in [status-page.tsx](apps/web/src/status/status-page.tsx)) become **disabled with a Radix tooltip** when `viewer === null`, not hidden. Per repo convention every hover affordance already uses `TooltipPrimitive` ([CLAUDE.md memory](#)), so this is just one more tooltip variant.
+All four write controls on [status-page.tsx](../../../apps/web/src/status/status-page.tsx) — Sync now, Pause/Resume, and the per-account sync icon — render **disabled with a Radix tooltip** rather than hidden, via a local `OwnerAction` shell. Tooltip copy: *"Owner-only — sign in to enable."* with a `Lock` icon standing in for the usual glyph.
 
-Tooltip copy (for owner-only buttons on a public visit): *"Owner-only — sign in to enable."* Lock icon from `lucide-react` (`Lock`, sibling of the existing `Pause` / `Play` / `RefreshCw` imports).
+The `<span>` wrapping the trigger is load-bearing: a disabled button swallows pointer events, so without it Radix never sees the hover and the tooltip explaining *why* the control is dead is the one thing you cannot read.
 
 ### Mutation 401 handling
 
-The existing mutation hooks in [use-status.ts](apps/web/src/status/use-status.ts) need to deal with 401 if a session expires mid-session: invalidate the viewer query and surface a `toastError` ("Session expired — sign in again"). No automatic redirect — the existing UI already shows toast errors via `toastError` from `@/lib/toast`.
+`post()` in [use-status.ts](../../../apps/web/src/status/use-status.ts) rewrites a 401 into `HttpError(401, "Session expired — sign in again")`, and each mutation's `onError` invalidates the viewer query so the controls re-lock themselves. Only reachable when a session dies between page load and click — everyone else's buttons are disabled. No redirect, and no toast of its own: the message rides the error, which the router's `MutationCache.onError` already surfaces.
 
 ---
 
@@ -133,9 +135,9 @@ Things that don't exist yet but will plausibly want the same guard. Cataloguing 
 - **Draft / preview surfaces** — render an unpublished `ConclusionCard` against live data without exposing it to visitors. Owner-only `?preview=true` toggle.
 - **Secret-rotation indicators** — surface "Riot key expires in N days" on the status page; owner sees the countdown, public visitors don't. (Read-only but sensitive — the *value* is what's gated, not an action.)
 - **Manual cache invalidation** — drop a specific cache key after debugging.
-- **Live-config edits — accounts roster** is now its own arc, planned 2026-06-06 in [accounts-admin.md](accounts-admin.md). Sequences after chunk 1 here (consumes `OwnerGuard`). Polling-interval toggles and per-integration enable/disable stay catalogued under this list.
+- **Live-config edits — accounts roster** is now its own arc, planned 2026-06-06 in [accounts-admin.md](accounts-admin.md). Its dependency on `OwnerGuard` is satisfied as of 2026-08-13. Polling-interval toggles and per-integration enable/disable stay catalogued under this list.
 
-The pattern is the same in every case: a NestJS controller decorated with `@UseGuards(OwnerGuard)`, a React surface that renders disabled with a tooltip when `viewer.isOwner` is false.
+The pattern is the same in every case, and both halves now exist to copy: a route decorated with `@UseGuards(OwnerGuard)` in a module that imports `AuthModule`, plus a control wrapped in `OwnerAction` reading `useIsOwner()`. Add the route to `GUARDED_ROUTES` in `conventions.spec.ts` in the same change.
 
 ---
 
@@ -190,18 +192,24 @@ No `cookie-parser` dependency: Express sets cookies natively, so only parsing wa
 
 **Gotcha this probe re-surfaced.** Seeding `Session` rows with node-pg `Date` objects makes every expiry test pass falsely: the columns are `timestamp without time zone`, node-pg serialises a `Date` in the container's local zone (Europe/Brussels) and Prisma reads naive columns back as UTC, so the rows land two hours in the future. Seed with `.toISOString()`. The app never mixes the two — it writes and reads through Prisma — so this is a probe hazard, not a defect.
 
-**Still unverified:** the one leg curl cannot reach — a real GitHub authorize screen producing a real `code`. Do that in a browser before chunk 2 gates anything.
+**Closed 2026-08-13** by the owner walking the real authorize screen: landed back on `/status`, `vyoh_session` set, and the persisted row carried the real numeric id, a 64-char hex hash rather than the token, and both TTLs at exactly 30 and 90 days.
 
-### Chunk 2 — Gate the status routes and wire the frontend
+### ~~Chunk 2 — Gate the status routes and wire the frontend~~ — shipped 2026-08-13
 
-- Apply `@UseGuards(OwnerGuard)` to the three status POSTs and the per-account sync trigger.
-- New `apps/web/src/auth/` directory: `use-viewer.ts`, `login-button.tsx`, `logout-button.tsx`.
-- New `/login` route.
-- Status page: disabled buttons + tooltip + lock icon when `viewer === null`.
-- `__root.tsx`: corner "Logged in as @owner · Log out" affordance when signed in.
-- 401 handling in status mutation hooks.
+`@UseGuards(OwnerGuard)` on all four mutating routes, the `apps/web/src/auth/` directory, `/login`, the locked status controls, the nav affordance, and 401 handling. The api's entire mutating surface is now four routes and every one of them is gated.
 
-Files touched: 1 modified controller + ~5 new frontend files + ~3 modified frontend files. Mergeable as one PR; the visible UX change is the lock icons appearing on the status page.
+Four things the implementation decided that the plan above left open:
+
+1. **The viewer query is client-only, and must stay that way.** It is deliberately not primed from a route loader the way `meQueryOptions` is. A loader runs on the server, where `API_URL` is the internal origin and the visitor's cookie is out of scope, so a prefetch resolves to `{ isOwner: false }` and dehydrates *that* into the client cache as authoritative for 30 s — the owner would watch their own controls sit locked after a hard refresh. The cost of leaving it client-only is one request and one flip; the server render and the first client render both see "pending", so they agree.
+2. **The lock lives on the guard, not on the toast.** `post()` rewrites a 401 into `HttpError(401, "Session expired — sign in again")` and the mutation hooks invalidate the viewer query on it. No new toast and no redirect: the router's `MutationCache.onError` already surfaces every mutation error, so the copy rides the error rather than adding a fourth code path.
+3. **The affordance went into the nav's right-hand cluster, not a floating corner.** Leftmost of the cluster so the ⌘K chip keeps the corner position muscle memory expects. It appears after hydration, and nothing reserves space for it — it only ever renders for one person, so a shift on their visits beats a permanent gap on everyone else's.
+4. **`routeMeta` grew a `noindex` flag** for `/login`. `robots.txt` can only ask a crawler not to *fetch* a URL; a page nobody fetched can still be indexed from inbound links, with no snippet, because the crawler was never allowed to read the rule saying not to. The sitemap is a hand-maintained allowlist, so it needed no change.
+
+`?error=` and `?next=` are both narrowed in `validateSearch` — the first to the three literals the callback emits (it is rendered as page copy), the second through a mirror of the api's `safeNextPath` (it ends up in the login button's href, and `/login?next=https://evil.example` is a link anyone can send).
+
+A structural lint in [conventions.spec.ts](../../../apps/api/src/conventions.spec.ts) now pins `@UseGuards(OwnerGuard)` to each of the four routes by name, with fixtures asserting a guard on a *neighbouring* route doesn't count. Per-route guards are the right shape on a public-by-design site, but nothing otherwise stops a decorator from being dropped in a refactor, and the failure is silent — the route just works, for everyone.
+
+**Verified live** against the dev pair: `GET /status` still 200 for anyone; all four writes 401 without a cookie; all four 200/201 with a seeded owner session, restoring `sync.enabled` to what it found. `Access-Control-Allow-Origin` echoes the exact origin with `Allow-Credentials: true` on both the 200 and the 401 — without the latter the browser reports a network error instead of a readable 401. `/login` server-renders with exactly one `robots` meta (`noindex, nofollow`, overriding the root's `index, follow`) and a login href carrying the validated `next`.
 
 ### Chunk 3 — Polish, prod wiring, case study
 
@@ -218,4 +226,4 @@ Files touched: docs only + env config on hosting platform. Lands once a hosting 
 
 1. ~~**Naming.**~~ **Resolved 2026-08-13: option 1.** `Viewer` is visitor identity, `Me` stays content identity. Built that way; no renames landed in `@vyoh/shared`, `IdentityService`, or `useMe`.
 2. ~~**Sliding vs absolute session expiry.**~~ **Resolved 2026-08-05: both.** Sliding 30-day for convenience, with a hard 90-day `absoluteExpiresAt` that activity never extends — see the Prisma model above. Sliding-only was the quiet problem: a session touched once a month never expires, so one successful login grants indefinite access. Purely absolute re-auth would be more conservative still, but weekly re-auth to press a sync button is friction with no matching threat at this scale. Reopen only if the guarded surface grows past owner-only admin actions.
-3. **Should the `/login` route be linked from public nav?** Plan assumes no — owner bookmarks it. The "Log out" affordance only appears once authenticated.
+3. ~~**Should the `/login` route be linked from public nav?**~~ **Resolved 2026-08-13: no.** Shipped unlinked and `noindex`; the owner bookmarks it, and `OwnerBadge` renders nothing until a session exists. Anonymous visitors are never told the login is there.

@@ -1,3 +1,4 @@
+import { OwnerBadge } from "@/auth/owner-badge";
 import { AudioToggle } from "@/components/audio-toggle";
 import { LeagueOfLegendsIcon, SteamIcon } from "@/components/brand-icons";
 import { useCommandPalette } from "@/components/command-palette-context";
@@ -238,6 +239,10 @@ export function Nav() {
           </NavigationMenuList>
         </NavigationMenu>
         <div className="ml-auto flex items-center gap-1.5">
+          {/* Leftmost of the cluster on purpose: it appears only after the
+              viewer query resolves, and only for one person, so the ⌘K chip
+              keeps the corner position everyone's muscle memory expects. */}
+          <OwnerBadge />
           <AudioToggle />
           <TooltipPrimitive.Root>
             <TooltipPrimitive.Trigger asChild>

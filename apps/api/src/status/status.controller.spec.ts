@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { EMPTY, type Observable, firstValueFrom } from "rxjs";
 import { describe, expect, it, vi } from "vitest";
+import { AuthService } from "../auth/auth.service";
 import { MatchEventsService } from "../lol/match-events.service";
 import { MatchSyncService } from "../lol/match-sync.service";
 import { RateLimiterService } from "../riot/rate-limiter.service";
@@ -17,6 +18,11 @@ async function buildController(stubs: {
       { provide: MatchSyncService, useValue: stubs.matchSync ?? {} },
       { provide: RateLimiterService, useValue: stubs.rateLimiter ?? {} },
       { provide: MatchEventsService, useValue: stubs.events ?? {} },
+      // `OwnerGuard` on the three writes injects this. The tests below call the
+      // handlers directly, so the guard never runs — it only has to resolve for
+      // the module to compile. Guard behaviour is owned by owner.guard.spec.ts
+      // and its presence on these routes by conventions.spec.ts.
+      { provide: AuthService, useValue: {} },
     ],
   }).compile();
   return moduleRef.get(StatusController);

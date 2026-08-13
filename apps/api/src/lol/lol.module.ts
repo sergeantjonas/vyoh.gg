@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { AuthModule } from "../auth/auth.module";
 import { RiotModule } from "../riot/riot.module";
 import { LiveGamePollerService } from "./live-game-poller.service";
 import { LolAnalyticsService } from "./lol-analytics.service";
@@ -15,8 +16,10 @@ import { MatchController } from "./match.controller";
 import { PatchController } from "./patch.controller";
 import { PatchService } from "./patch.service";
 
+// `AuthModule` for `OwnerGuard` on `POST matches/sync` — see status.module.ts
+// for why the import is what makes the decorator resolvable.
 @Module({
-  imports: [RiotModule],
+  imports: [RiotModule, AuthModule],
   controllers: [LolController, MatchController, PatchController, LolStaticController],
   providers: [
     LolService,

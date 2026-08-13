@@ -8,7 +8,9 @@ import type {
 } from "@vyoh/shared";
 import { useEffect } from "react";
 
+import { viewerQueryKey } from "@/auth/use-viewer";
 import { API_URL } from "@/lib/api-url";
+import { HttpError } from "@/lib/http-error";
 
 async function fetchStatus(): Promise<StatusSnapshot> {
   const res = await fetch(`${API_URL}/status`);
@@ -17,8 +19,18 @@ async function fetchStatus(): Promise<StatusSnapshot> {
 }
 
 async function post<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, { method: "POST" });
+  // Every route below this is behind `OwnerGuard`, and in dev the api answers
+  // on a different port — a different *origin*, so the session cookie is only
+  // attached when the request asks for it.
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    credentials: "include",
+  });
   if (!res.ok) {
+    // The guard's own "Owner session required" is accurate but reads as an
+    // internal error; the user's situation is that they were signed in a moment
+    // ago and are not now.
+    if (res.status === 401) throw new HttpError(401, "Session expired — sign in again");
     let message = `HTTP ${res.status}`;
     try {
       const body = await res.json();
@@ -26,9 +38,30 @@ async function post<T>(path: string): Promise<T> {
     } catch {
       // not JSON
     }
-    throw new Error(message);
+    throw new HttpError(res.status, message);
   }
   return res.json();
+}
+
+/**
+ * Re-lock the UI when a write comes back 401.
+ *
+ * Only reachable if the session died between page load and the click — the
+ * buttons are disabled for everyone else — so the cached `isOwner: true` is now
+ * a lie the controls are still being rendered against. Dropping it flips them
+ * back to their locked state on the next paint.
+ *
+ * No redirect, and no toast of its own: the message is already carried on the
+ * error, which the router's `MutationCache.onError` surfaces for every mutation
+ * in the app.
+ */
+function useRelockOnUnauthorized() {
+  const queryClient = useQueryClient();
+  return (error: Error) => {
+    if (error instanceof HttpError && error.status === 401) {
+      void queryClient.invalidateQueries({ queryKey: viewerQueryKey });
+    }
+  };
 }
 
 export function useStatus() {
@@ -94,6 +127,7 @@ export function useStatusStream(): void {
 
 export function useSyncNow() {
   const queryClient = useQueryClient();
+  const onError = useRelockOnUnauthorized();
   return useMutation<SyncTriggerResult>({
     mutationFn: () => post<SyncTriggerResult>("/status/sync"),
     onSuccess: (result) => {
@@ -101,11 +135,13 @@ export function useSyncNow() {
         prev ? { ...prev, sync: result.status } : prev
       );
     },
+    onError,
   });
 }
 
 export function useSetSyncEnabled() {
   const queryClient = useQueryClient();
+  const onError = useRelockOnUnauthorized();
   return useMutation<SyncStatus, Error, boolean>({
     mutationFn: (enabled) =>
       post<SyncStatus>(enabled ? "/status/sync/resume" : "/status/sync/pause"),
@@ -114,6 +150,7 @@ export function useSetSyncEnabled() {
         prev ? { ...prev, sync: status } : prev
       );
     },
+    onError,
   });
 }
 
@@ -121,6 +158,7 @@ type AccountSyncResult = { idCount: number; backfilled: number };
 
 export function useSyncAccount() {
   const queryClient = useQueryClient();
+  const onError = useRelockOnUnauthorized();
   return useMutation<AccountSyncResult, Error, LolAccount>({
     mutationFn: (account) =>
       post<AccountSyncResult>(
@@ -132,5 +170,6 @@ export function useSyncAccount() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["status"] });
     },
+    onError,
   });
 }
