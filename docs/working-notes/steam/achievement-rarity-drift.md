@@ -141,6 +141,10 @@ So the poller now splits its cadence: `RARITY_LAUNCH_MAX_AGE_MS` (1 day) for tit
 
 Verified against the live database, not just the mocks: the cohort resolves to 2 games, Beast is due at the 24-hour cutoff right now, and 55 settled games are due at the 7-day one — so a boot pass takes Beast plus 39 settled, and the remainder drains on the next.
 
+**Confirmed live on the first boot under the new selection** (2026-08-13 15:49:56Z). Beast led the pass, 45 of its 46 series took a third observation, and the settled arithmetic closed exactly — 55 due, minus the 39 slots left after the launch cohort, leaves the 16 the backlog query reports. The extra resolution shows immediately: `Bestie` reads **1.4 → 24.1 → 26.2**, `Closest Companion` **3.2 → 29.5 → 31.4**, so the 08-12 → 08-13 leg is ~1–2pp per day where one weekly sample had folded it into a single step. The 46th series took no row because nothing moved, which is the append-on-change table behaving correctly rather than a gap.
+
+One thing to know when reading stamps around a restart: two boots ~18 minutes apart each drained a full 40, so 80 games carried a fresh stamp inside one window. That is two passes at the cap, not one pass overrunning it — the tell is which game leads each burst (`Portal 2`, oldest-first, under the old single query; `Beast of Reincarnation` under the split one).
+
 **The honest limit: this fixes the selection, not the sampling.** The daily tick fires at 05:30 Europe/Brussels on a dev box that is asleep, so a launch-window game is still really sampled "whenever the api boots". That is the same hosting blocker tracked across the ingestion arc, and nothing here moves it — the change means the cadence is right the moment the process runs continuously, and that a restart now costs a launch title one day of resolution rather than seven.
 
 ## Pointer hygiene
