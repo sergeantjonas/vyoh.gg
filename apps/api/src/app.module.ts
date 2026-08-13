@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ScheduleModule } from "@nestjs/schedule";
+import { AuthModule } from "./auth/auth.module";
 import { HealthController } from "./health/health.controller";
 import { HomeModule } from "./home/home.module";
 import { IdentityModule } from "./identity/identity.module";
@@ -16,6 +17,7 @@ import { SteamModule } from "./steam/steam.module";
   imports: [
     ScheduleModule.forRoot(),
     PrismaModule,
+    AuthModule,
     IdentityModule,
     RiotModule,
     LolModule,

@@ -739,3 +739,31 @@ model LolProfileIcon {
   release      Int?
   wikiSyncedAt DateTime
 }
+
+// Owner sessions. There is no `User` table: a single GitHub numeric id is the
+// entire authorization model, so holding the row *is* the proof. Multiple rows
+// with the same `githubUserId` are normal — one per device — and revocation is
+// per row.
+//
+// `tokenHash` is the SHA-256 of the cookie value, never the value itself: the
+// table must be a record that sessions existed, not a list of working
+// credentials that a backup dump or a stray query log hands over. Plain SHA-256
+// rather than bcrypt/argon2 because the input is 256 bits of `randomBytes`, not
+// a human password — there is nothing to brute-force, and a slow hash would
+// only tax every guarded request.
+//
+// Two expiries, deliberately. `expiresAt` slides forward on use so the owner
+// isn't logged out mid-week; `absoluteExpiresAt` never moves, so one successful
+// login can't become indefinite access via a session touched once a month.
+model Session {
+  tokenHash         String   @id
+  githubUserId      Int
+  // Cached for display only — the id is what authorizes, and a login can be
+  // transferred to another person.
+  githubLogin       String
+  createdAt         DateTime @default(now())
+  expiresAt         DateTime
+  absoluteExpiresAt DateTime
+
+  @@index([expiresAt])
+}

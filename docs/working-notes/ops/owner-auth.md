@@ -1,6 +1,6 @@
 # Owner auth — GitHub OAuth for gated admin surfaces
 
-**Status:** Active — pre-deploy work, plan written 2026-05-14, not started. Deferred until the pre-launch sweep (not gated to any content arc finishing). The companion status-page admin surface — surfacing Steam sync status + manually-triggerable LoL sync actions — also waits on this guard. See [open-work.md](../open-work.md) for both items.
+**Status:** Active — **chunk 1 shipped 2026-08-13**: the backend flow exists and is dormant, `OwnerGuard` is applied to no controller. Chunk 2 (gate the status POSTs + wire the frontend) is next and is what closes the launch gate. Plan written 2026-05-14; naming option 1 confirmed and built. The companion status-page admin surface — surfacing Steam sync status + manually-triggerable LoL sync actions — still waits on chunk 2. See [open-work.md](../open-work.md).
 
 A working note for the planned auth layer. The status page currently exposes mutating POSTs unguarded — `POST /status/sync`, `POST /status/sync/pause`, `POST /status/sync/resume`, plus a per-account sync trigger — and the surface of "owner-only" actions will grow once Steam integration toggles, manual refreshes, secret-rotation indicators, and draft content previews land. The fix is worth shipping deliberately (real OAuth flow, session table, guard pattern) rather than as a `?key=` env hack — both as freelance-profile signal and because the half-fix isn't faster to write.
 
@@ -84,7 +84,7 @@ No `User` table. A single GitHub user ID is the entire authorization model — o
 | `SESSION_COOKIE_DOMAIN` | Empty in dev (same-origin), `.vyoh.gg` if subdomain split in prod |
 | `SESSION_SECRET` | HMAC key for the OAuth state token only — session IDs are random, not signed |
 
-All added to `requireEnv` in `bootstrap()` so the API refuses to start without them.
+All but `SESSION_COOKIE_DOMAIN` go through `requireEnv` in `bootstrap()` so the api refuses to start without them — empty is that one's correct dev value, and `requireEnv` treats empty as missing.
 
 ### Routes to gate on day one
 
@@ -151,7 +151,7 @@ Cookie scope depends on which hosting option (A/B/C in [hosting.md](hosting.md))
 - **Option B (Fly).** One container can serve both web and API or sit behind one Caddy. Same-origin → `SameSite=Lax; Domain` unset. Simplest.
 - **Option C (VPS + Nginx).** Same as B — Nginx reverse-proxies both paths under one host. Trivial.
 
-OAuth app callback URL must be set per-environment. Localhost callback is `http://localhost:2010/auth/github/callback`; prod is whatever the API host becomes. GitHub OAuth apps accept exactly one callback URL, so dev and prod usually want **two separate OAuth apps** rather than a wildcard.
+OAuth app callback URL must be set per-environment. Localhost callback is `http://localhost:2010/auth/github/callback`; prod is whatever the API host becomes. A GitHub OAuth app accepts up to 10 redirect URIs, so one registration *could* carry both — but the client secret is shared across all of them, which means a leak from a dev machine is a prod credential. Register **two separate OAuth apps**. (The dev app was created 2026-08-12; prod's is a chunk 3 item.)
 
 ---
 
@@ -172,16 +172,25 @@ OAuth app callback URL must be set per-environment. Localhost callback is `http:
 
 Each chunk is independently committable and fits a single session window. Wait for chunk N to land before starting chunk N+1.
 
-### Chunk 1 — Backend auth flow, not yet applied
+### ~~Chunk 1 — Backend auth flow, not yet applied~~ — shipped 2026-08-13
 
-- Prisma migration: add `Session` model.
-- New `AuthModule` with all four routes (`login`, `callback`, `logout`, `viewer`).
-- `OwnerGuard` implemented but **not yet applied to any controller** — verify end-to-end manually with curl/browser before gating real endpoints.
-- Env-var additions in [env.ts](apps/api/src/env.ts) (`requireEnv`) and dev `.env` template.
-- GitHub OAuth app created in the owner's GitHub account (dev callback only this chunk).
-- Vitest specs for guard logic (valid session, expired session, wrong user ID, missing cookie).
+Landed as planned: `Session` migration, `AuthModule` with all four routes, `OwnerGuard` built and applied to nothing, `Viewer` in `packages/shared/src/auth/`, and specs across `auth.service` / `auth.controller` / `owner.guard` / `oauth-state` / `cookies` / `auth.config` (71 tests).
 
-Files touched: ~6 new (auth module + spec), 2 modified (`app.module.ts`, `env.ts`, `prisma/schema.prisma`, dev `.env` template). Independently mergeable — adds a dormant capability.
+Five things the implementation decided that the plan above left open:
+
+1. **`GET /auth/viewer` answers 200 for everyone**, returning `{ isOwner: false }` rather than 401 or a null body. Being logged out is this endpoint's normal case; a 401 would make React Query treat every anonymous page view as a failed request, which is exactly the retry-storm the plan's "retry off" line was working around. `Viewer` is a discriminated union, so `login` is unreachable until `isOwner` has been checked.
+2. **The callback redirects to an absolute `webOrigin`**, resolved by `resolveWebOrigin()` from the first `WEB_ORIGIN` entry, falling back to `http://localhost:2009`. A relative `Location: /status` looks right and is wrong in dev — the api is on :2010, so the browser would land on the api's own status endpoint. Prod is same-origin behind nginx and the value is the site itself.
+3. **`SESSION_COOKIE_DOMAIN` is deliberately not in `requireEnv`.** Empty is its correct dev value and `requireEnv` treats empty as missing, so requiring it would make the api refuse to boot in the only configuration dev has. The other four are required. Note the consequence: a fresh clone running `.env.example` verbatim fails at module init, because the `00000000` owner-id placeholder is rejected by `resolveAuthConfig` — deliberate, and the error names the var.
+4. **`credentials: true` added to `enableCors`.** In dev the web tier is a different *origin* (port) though the same *site*, so without it the browser never sends the session cookie to `/auth/viewer`. Safe next to the existing allowlist — a credentialed request is only honoured against an echoed origin, never a wildcard.
+5. **The sliding window is only written once it has drifted a day.** Extending on literally every guarded request would put a `Session` UPDATE on the hot path of every admin action for no behavioural gain.
+
+No `cookie-parser` dependency: Express sets cookies natively, so only parsing was missing, and that is [cookies.ts](../../../apps/api/src/auth/cookies.ts).
+
+**Verified live** (dev api + real OAuth app), beyond the unit tests: `/auth/viewer` 200 `{"isOwner":false}` with `Cache-Control: no-store`; `/auth/github/login` 302 to GitHub with a `HttpOnly; SameSite=Lax` state cookie whose nonce matches the signed state; callback with no state cookie / a wrong nonce → `?error=state`; callback with a real GitHub exchange on a bad code → `?error=github`; and seeded `Session` rows resolving through real Prisma — live → owner, sliding-expired → reaped, absolute-expired → reaped, foreign github id → refused and *not* reaped, logout → 204 and row deleted.
+
+**Gotcha this probe re-surfaced.** Seeding `Session` rows with node-pg `Date` objects makes every expiry test pass falsely: the columns are `timestamp without time zone`, node-pg serialises a `Date` in the container's local zone (Europe/Brussels) and Prisma reads naive columns back as UTC, so the rows land two hours in the future. Seed with `.toISOString()`. The app never mixes the two — it writes and reads through Prisma — so this is a probe hazard, not a defect.
+
+**Still unverified:** the one leg curl cannot reach — a real GitHub authorize screen producing a real `code`. Do that in a browser before chunk 2 gates anything.
 
 ### Chunk 2 — Gate the status routes and wire the frontend
 
@@ -207,6 +216,6 @@ Files touched: docs only + env config on hosting platform. Lands once a hosting 
 
 ## Open questions for owner
 
-1. **Naming.** Confirm option 1 (`Viewer` for visitor identity, `Me` stays as content identity). Picking option 2 changes chunk 1's file list.
+1. ~~**Naming.**~~ **Resolved 2026-08-13: option 1.** `Viewer` is visitor identity, `Me` stays content identity. Built that way; no renames landed in `@vyoh/shared`, `IdentityService`, or `useMe`.
 2. ~~**Sliding vs absolute session expiry.**~~ **Resolved 2026-08-05: both.** Sliding 30-day for convenience, with a hard 90-day `absoluteExpiresAt` that activity never extends — see the Prisma model above. Sliding-only was the quiet problem: a session touched once a month never expires, so one successful login grants indefinite access. Purely absolute re-auth would be more conservative still, but weekly re-auth to press a sync button is friction with no matching threat at this scale. Reopen only if the guarded surface grows past owner-only admin actions.
 3. **Should the `/login` route be linked from public nav?** Plan assumes no — owner bookmarks it. The "Log out" affordance only appears once authenticated.

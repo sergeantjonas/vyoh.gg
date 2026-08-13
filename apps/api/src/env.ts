@@ -23,9 +23,29 @@ const LOCALHOST_ORIGINS = /^http:\/\/localhost:\d+$/;
  * once a browser made the first cross-origin request.
  */
 export function resolveCorsOrigin(value: string | undefined): string[] | RegExp {
-  const origins = (value ?? "")
+  const origins = splitOrigins(value);
+  return origins.length > 0 ? origins : LOCALHOST_ORIGINS;
+}
+
+/** Where the Vite dev server runs — the api is on :2010, so a relative redirect misses it. */
+const DEV_WEB_ORIGIN = "http://localhost:2009";
+
+/**
+ * The absolute origin to send a browser back to after an OAuth round-trip.
+ *
+ * In production api and web share one host behind nginx, so this is the site
+ * itself and the first `WEB_ORIGIN` entry is it (apex first, `www` second, by
+ * convention of how the var is written). In dev they are different ports, so a
+ * relative `Location: /status` would land on the api's own status endpoint
+ * rather than the page.
+ */
+export function resolveWebOrigin(value: string | undefined): string {
+  return splitOrigins(value)[0] ?? DEV_WEB_ORIGIN;
+}
+
+function splitOrigins(value: string | undefined): string[] {
+  return (value ?? "")
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean);
-  return origins.length > 0 ? origins : LOCALHOST_ORIGINS;
 }

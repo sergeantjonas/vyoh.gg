@@ -1,6 +1,6 @@
 # Pre-launch sweep — gates before vyoh.gg serves real traffic
 
-**Status:** Active — gate list assembled 2026-08-01 from the docs survey's prod-risk pass. **Seven of the eleven gates are closed as of 2026-08-13, and owner-auth is the only remaining one that is code**; backups, DNS/`VITE_API_URL` and branch protection all need the box or the GitHub settings page rather than the repo. Launch is blocked on buying the VPS. This note is the canonical ordering of everything that must land before or alongside that, plus the standing rules that change once prod exists. One-line pointers only — detail lives in the owning notes, and items are struck here in the same commit that lands them.
+**Status:** Active — gate list assembled 2026-08-01 from the docs survey's prod-risk pass. **Seven of the eleven gates are closed as of 2026-08-13, and owner-auth is the only remaining one that is code** — its chunk 1 landed the same day, leaving chunk 2 (apply the guard, wire the frontend) as the last repo-side gate. Backups, DNS/`VITE_API_URL` and branch protection all need the box or the GitHub settings page rather than the repo. Launch is blocked on buying the VPS. This note is the canonical ordering of everything that must land before or alongside that, plus the standing rules that change once prod exists. One-line pointers only — detail lives in the owning notes, and items are struck here in the same commit that lands them.
 
 Two gates were re-audited on 2026-08-13 after reading as open for longer than they were: the strike is the trail of evidence, so if a gate here looks open, confirm it against the code before scoping work around it.
 
@@ -10,7 +10,7 @@ Several notes reference "the pre-launch sweep" as one deliberate arc; this file 
 
 | Gate | Why it can't wait | Owner |
 |---|---|---|
-| Owner-auth chunks 1–2 | The three status POSTs (sync-now / pause / resume) are ungated; public means anyone can burn the dev-tier Riot budget or pause syncs. | [owner-auth.md](owner-auth.md) |
+| Owner-auth chunk 2 (~~chunk 1~~ shipped 2026-08-13) | The three status POSTs (sync-now / pause / resume) are ungated; public means anyone can burn the dev-tier Riot budget or pause syncs. Chunk 1 built the flow and the guard but applied the guard to nothing, so the gate is still open until chunk 2 lands. | [owner-auth.md](owner-auth.md) |
 | ~~Owner allowlist on the three ungated LoL routes~~ | **Closed 2026-08-03/05 (F-1).** The check moved into `resolveSummoner` itself, so it is a choke point rather than a 28th hand-written call site, and `conventions.spec.ts` pins it there. | [api-exposure-audit.md § F-1](api-exposure-audit.md) |
 | ~~Clamp the match miss-path to owner data~~ | **Closed 2026-08-03/05 (F-2).** | [api-exposure-audit.md § F-2](api-exposure-audit.md) |
 | ~~Rate limiting at the edge~~ | **Closed 2026-08-03/05 (F-4).** nginx config committed and behaviourally tested; `limit_req_zone` must be installed to `conf.d/` before the vhost that references it. | [api-exposure-audit.md § F-4](api-exposure-audit.md) |

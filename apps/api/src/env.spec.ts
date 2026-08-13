@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { requireEnv, resolveCorsOrigin } from "./env";
+import { requireEnv, resolveCorsOrigin, resolveWebOrigin } from "./env";
 
 describe("requireEnv", () => {
   const originalValue = process.env.VYOH_ENV_SPEC;
@@ -52,4 +52,17 @@ describe("resolveCorsOrigin", () => {
       expect(resolveCorsOrigin(value)).toBeInstanceOf(RegExp);
     }
   );
+});
+
+describe("resolveWebOrigin", () => {
+  it("falls back to the Vite dev server, which is a different port from the api", () => {
+    expect(resolveWebOrigin(undefined)).toBe("http://localhost:2009");
+    expect(resolveWebOrigin("")).toBe("http://localhost:2009");
+  });
+
+  it("takes the first configured origin, so the apex wins over www", () => {
+    expect(resolveWebOrigin("https://vyoh.gg, https://www.vyoh.gg")).toBe(
+      "https://vyoh.gg"
+    );
+  });
 });
