@@ -78,10 +78,24 @@ describe("SteamPlayerUnlocksPoller", () => {
 });
 
 describe("SteamGlobalRarityPoller", () => {
-  function setup(opts: { due?: { appid: number }[] } = {}) {
+  function setup(
+    opts: {
+      due?: { appid: number }[];
+      launchDue?: { appid: number }[];
+      launchWindow?: { appid: number }[];
+    } = {}
+  ) {
+    const launchWindow = opts.launchWindow ?? [];
+    // The launch query only runs when the library holds a launch-window title,
+    // so the settled selection is the first meta call whenever it doesn't.
+    const meta = vi.fn();
+    if (launchWindow.length > 0) meta.mockResolvedValueOnce(opts.launchDue ?? []);
+    meta.mockResolvedValue(opts.due ?? []);
+
     const prisma = {
-      steamGameAchievementMeta: {
-        findMany: vi.fn().mockResolvedValue(opts.due ?? []),
+      steamGameAchievementMeta: { findMany: meta },
+      steamGameEnrichment: {
+        findMany: vi.fn().mockResolvedValue(launchWindow),
       },
     };
     const service = { refreshRarity: vi.fn().mockResolvedValue(undefined) };
@@ -128,6 +142,96 @@ describe("SteamGlobalRarityPoller", () => {
     expect(args.take).toBe(40);
     const cutoff = args.where.OR[1].lastRarityCheckedAt.lt as Date;
     expect(Date.now() - cutoff.getTime()).toBeGreaterThanOrEqual(7 * 24 * 60 * 60 * 1000);
+  });
+
+  // A settled title moves ~0.1pp a week; a launch-window one moved 30pp in the
+  // same span. Sampling both weekly records two points across the interesting
+  // curve, and nothing can reconstruct it afterwards.
+  it("polls launch-window titles against a one-day age, settled ones against a week", async () => {
+    const { poller, prisma } = setup({
+      launchWindow: [{ appid: 2001760 }],
+      launchDue: [{ appid: 2001760 }],
+      due: [{ appid: 42 }],
+    });
+    await poller.onModuleInit();
+
+    const [launchArgs, settledArgs] =
+      prisma.steamGameAchievementMeta.findMany.mock.calls.map((c) => c[0]);
+
+    const launchCutoff = launchArgs.where.OR[1].lastRarityCheckedAt.lt as Date;
+    expect(Date.now() - launchCutoff.getTime()).toBeGreaterThanOrEqual(
+      24 * 60 * 60 * 1000
+    );
+    expect(Date.now() - launchCutoff.getTime()).toBeLessThan(2 * 24 * 60 * 60 * 1000);
+
+    const settledCutoff = settledArgs.where.OR[1].lastRarityCheckedAt.lt as Date;
+    expect(Date.now() - settledCutoff.getTime()).toBeGreaterThanOrEqual(
+      7 * 24 * 60 * 60 * 1000
+    );
+  });
+
+  it("splits the two cohorts so neither can select the other's games", async () => {
+    const { poller, prisma } = setup({
+      launchWindow: [{ appid: 2001760 }],
+      launchDue: [{ appid: 2001760 }],
+      due: [{ appid: 42 }],
+    });
+    await poller.onModuleInit();
+
+    const [launchArgs, settledArgs] =
+      prisma.steamGameAchievementMeta.findMany.mock.calls.map((c) => c[0]);
+    expect(launchArgs.where.appid).toEqual({ in: [2001760] });
+    expect(settledArgs.where.appid).toEqual({ notIn: [2001760] });
+  });
+
+  // Draining a merged set oldest-first would sort a daily-polled launch title
+  // behind every weekly one, since its timestamp is the newer of the two.
+  it("drains launch-window titles ahead of the settled backlog", async () => {
+    const { poller, service } = setup({
+      launchWindow: [{ appid: 2001760 }],
+      launchDue: [{ appid: 2001760 }],
+      due: [{ appid: 42 }, { appid: 99 }],
+    });
+    await poller.onModuleInit();
+    expect(service.refreshRarity).toHaveBeenCalledWith([2001760, 42, 99]);
+  });
+
+  it("leaves the settled pass only the slots the launch cohort did not take", async () => {
+    const launchDue = Array.from({ length: 6 }, (_, i) => ({ appid: 900 + i }));
+    const { poller, prisma } = setup({
+      launchWindow: launchDue,
+      launchDue,
+      due: [{ appid: 42 }],
+    });
+    await poller.onModuleInit();
+
+    const [launchArgs, settledArgs] =
+      prisma.steamGameAchievementMeta.findMany.mock.calls.map((c) => c[0]);
+    expect(launchArgs.take).toBe(40);
+    expect(settledArgs.take).toBe(34);
+  });
+
+  // The empty-cohort case is the dangerous one: an unfiltered query at the
+  // 24-hour cutoff would put every game in the library on a daily poll.
+  it("skips the launch query entirely when no title is inside the window", async () => {
+    const { poller, prisma } = setup({ launchWindow: [], due: [{ appid: 42 }] });
+    await poller.onModuleInit();
+
+    expect(prisma.steamGameAchievementMeta.findMany).toHaveBeenCalledTimes(1);
+    const args = prisma.steamGameAchievementMeta.findMany.mock.calls[0]?.[0];
+    expect(args.where.appid).toBeUndefined();
+    const cutoff = args.where.OR[1].lastRarityCheckedAt.lt as Date;
+    expect(Date.now() - cutoff.getTime()).toBeGreaterThanOrEqual(7 * 24 * 60 * 60 * 1000);
+  });
+
+  it("asks for launch-window games by release date, not by name or age of check", async () => {
+    const { poller, prisma } = setup({ launchWindow: [{ appid: 2001760 }] });
+    await poller.onModuleInit();
+    const args = prisma.steamGameEnrichment.findMany.mock.calls[0]?.[0];
+    const cutoff = args.where.releaseDate.gte as Date;
+    expect(Date.now() - cutoff.getTime()).toBeGreaterThanOrEqual(
+      60 * 24 * 60 * 60 * 1000
+    );
   });
 
   it("onModuleInit swallows errors raised by refreshRarity", async () => {

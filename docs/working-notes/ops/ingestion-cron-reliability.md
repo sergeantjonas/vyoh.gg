@@ -58,7 +58,7 @@ All eleven have overlap protection. The eight Steam pollers pin `Europe/Brussels
 **Every long-interval poller now selects on age, not on a wall-clock fire** — "on boot, and every day, process rows older than X" rather than "fire at time T, process everything". Budget is unchanged; it just spreads. The daily tick is what makes this work in production; **the boot pass is what makes it work here**, and it is the load-bearing half, since a daily cron at 05:00 on a machine that is off at 05:00 still never fires.
 
 - `steam-achievement-schema` — never-checked games first, then the oldest `lastSchemaCheckedAt` past 7 days, capped at 40. Two queries, because a game with no meta row cannot be found by ordering on a column it doesn't have.
-- `steam-global-rarity` — one query against `lastRarityCheckedAt` past 7 days, gated on `achievementCount > 0`, capped at 40. No never-checked pass: a game with no meta row has nothing to ask Steam about yet.
+- `steam-global-rarity` — `lastRarityCheckedAt` past 7 days, gated on `achievementCount > 0`, capped at 40. No never-checked pass: a game with no meta row has nothing to ask Steam about yet. **Two queries since 2026-08-13**, one per release-age cohort: titles released within 60 days refresh against a 1-day age and take their slots off the top, everything else drains the remainder at 7 days. They cannot share a query, because one ordering on `lastRarityCheckedAt asc` sorts the daily-polled cohort *behind* the weekly one — it was checked more recently — and past the cap whenever a backlog exists. Rationale for the split cadence lives in the drift arc; the short version is that launch-window rarity moves ~100× faster and an unsampled curve is unrecoverable.
 - `steam-enrichment` — no row, **or** `logoPath IS NULL`, **or** `enrichedAt` past 30 days; never-enriched first, then oldest, capped at 25. The always-due incomplete rows don't starve the queue behind them, because `enrichApps` restamps `enrichedAt` whether or not PICS resolved, sorting them to the back until everything else has had a turn.
 - `steam-tag-catalog` — got the boot half on 2026-08-05; its monthly tick is unchanged, since one restart is now enough to reconcile it.
 
@@ -68,7 +68,7 @@ Three details worth keeping:
 
 - **The batch cap must stay above the steady-state arrival rate** (~195/7 ≈ 28/day for schema) or the oldest rows never drain.
 - **`orderBy` needs `nulls: "first"` explicitly.** The columns are nullable and Postgres sorts NULLS LAST on ASC, which would park a never-stamped row permanently behind the cap — the exact failure this arc exists to remove, reintroduced one layer down.
-- **The three selections were deliberately not extracted into a shared helper.** They share a concept, not a shape: schema needs two queries across two tables, rarity needs one with a relation gate, enrichment computes in memory over a candidate list that includes wishlist appids with no row. A generic `dueForRefresh()` would take more arguments than each call site has lines.
+- **The three selections were deliberately not extracted into a shared helper.** They share a concept, not a shape: schema needs two queries across two tables, rarity needs two across two release-age cohorts with a relation gate, enrichment computes in memory over a candidate list that includes wishlist appids with no row. A generic `dueForRefresh()` would take more arguments than each call site has lines — and the shapes have diverged further since, not converged.
 
 ## Remaining
 
