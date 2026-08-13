@@ -6,6 +6,34 @@ datasource db {
   provider = "postgresql"
 }
 
+// The tracked-accounts roster: which Riot accounts the API is allowed to
+// sync, which slug each answers to on the web, and which of them are the
+// owner's own. Read once at boot into `IdentityService`'s cache.
+model LolAccount {
+  slug      String   @id
+  gameName  String
+  tagLine   String
+  region    String
+  isOwner   Boolean  @default(false)
+  isPrimary Boolean  @default(false)
+  // Reads sort on `createdAt`, so this doubles as roster display order —
+  // the nav renders accounts in the order they were added.
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // One Riot ID, one slug. Registering the same account twice would split
+  // its match history across two pages that each look half-synced.
+  @@unique([gameName, tagLine, region])
+}
+
+model SteamAccount {
+  steamId64 String   @id
+  // Steam has no non-owner equivalent of the LoL test accounts yet, so a
+  // row exists only because it is the owner's.
+  isOwner   Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
 model Summoner {
   puuid            String    @id
   gameName         String

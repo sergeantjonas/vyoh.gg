@@ -17,7 +17,7 @@ export class HomeTodayService {
   async getToday(): Promise<HomeToday> {
     // Owner-filtered — see HomeChronotypeService for rationale. The today
     // chip lives in the conclusion alongside the other owner-only lenses,
-    // so non-owner test accounts in accounts.json must not contribute.
+    // so non-owner test accounts in the roster must not contribute.
     const ownerPuuids = await this.identity.getOwnerPuuids();
     const now = new Date();
     const dayStart = startOfLocalDay(now, OWNER_TIME_ZONE);

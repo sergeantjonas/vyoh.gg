@@ -28,7 +28,7 @@ Same sweep window, but needs the live box rather than the repo: verify SSE in pr
 
 ## Cheaper before launch than against live data
 
-- **Accounts-admin chunk 1** (accounts.json → `LolAccount`/`SteamAccount` tables) — a clean seed migration now; a careful live-data cutover later. Chunks 2–3 depended on owner-auth, which shipped 2026-08-13, so the whole arc is unblocked. → [accounts-admin.md](accounts-admin.md)
+- ~~**Accounts-admin chunk 1** (accounts.json → `LolAccount`/`SteamAccount` tables)~~ — taken pre-launch as intended, shipped 2026-08-14 as a clean seed migration rather than a live-data cutover. Chunks 2–3 remain, unblocked since owner-auth shipped 2026-08-13, and carry no launch coupling. → [accounts-admin.md](accounts-admin.md)
 - ~~Queue-id migration chunks 3a/3b~~ — resolved pre-launch 2026-08-01: the `queueType` column and wire field are already dropped. Remaining chunk 4 is additive map entries, no launch coupling. → [queue-id-migration.md](../lol/queue-id-migration.md)
 
 ## Standing rules once prod exists (risk-class changes, not gates)

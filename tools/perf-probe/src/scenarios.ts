@@ -33,7 +33,7 @@ export interface Scenario {
   screenshotMoments: ScreenshotMoment[];
 }
 
-// Owner slug. Mirrors the primary owner from apps/api/accounts.json.
+// Owner slug. Mirrors the primary owner in the api's `LolAccount` roster.
 const OWNER_SLUG = "ahri";
 
 export const SCENARIOS: Scenario[] = [

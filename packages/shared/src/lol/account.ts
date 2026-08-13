@@ -3,7 +3,7 @@ export interface LolAccount {
   gameName: string;
   tagLine: string;
   region: string;
-  // `accounts.json` doubles as the API's sync whitelist (test accounts pull
+  // The roster doubles as the API's sync whitelist (test accounts pull
   // real match data for parity checks) and as the recap arc's data source.
   // These flags split the two roles without forking the list: anything the
   // recap reads is `isOwner: true`; everything else still syncs and is
@@ -13,8 +13,8 @@ export interface LolAccount {
   // surface that wants only the owner's data.
   isOwner?: boolean;
   // Exactly one owner account should carry `isPrimary: true`. Drives the
-  // Ahri subject chapter and any "main account" framing on `/`. Asserted at
-  // config load — see `assertAccountOwnerInvariants`.
+  // Ahri subject chapter and any "main account" framing on `/`. Asserted on
+  // every roster write — see `assertAccountOwnerInvariants`.
   isPrimary?: boolean;
 }
 
@@ -30,9 +30,9 @@ export function getPrimaryAccount<T extends LolAccount>(accounts: T[]): T | null
   return accounts.find((a) => a.isPrimary === true) ?? null;
 }
 
-// Domain invariants for the owner/primary flags. Called at config load so a
-// malformed accounts.json fails fast instead of silently producing an empty
-// recap or a wrong-account "main" subject chapter.
+// Domain invariants for the owner/primary flags. Called before every roster
+// write so a malformed roster is rejected at the boundary instead of silently
+// producing an empty recap or a wrong-account "main" subject chapter.
 export function assertAccountOwnerInvariants(accounts: LolAccount[]): void {
   const owners = accounts.filter(isOwnerAccount);
   const primaries = accounts.filter((a) => a.isPrimary === true);

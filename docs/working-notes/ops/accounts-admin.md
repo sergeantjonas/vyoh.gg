@@ -1,8 +1,8 @@
 # Accounts — move from JSON config to DB-backed admin surface
 
-**Status:** Active — pre-deploy work, planned 2026-06-06. Chunk 0 (owner filter fix) shipped 2026-06-09 (`1f33d7fc`); chunks 1–3 not started. Pairs with [owner-auth.md](owner-auth.md) (its chunk 1 is a prerequisite — `OwnerGuard` ships dormant there, this arc applies it). Replaces the "Live-config edits" forward-looking item catalogued in [owner-auth.md § Forward-looking gated surfaces](owner-auth.md).
+**Status:** Active — chunk 0 shipped 2026-06-09 (`1f33d7fc`), chunk 1 shipped 2026-08-14; chunks 2–3 not started. Owner-auth shipped in full 2026-08-13, so the prerequisite is closed and chunk 2 can start whenever. Pairs with [owner-auth.md](owner-auth.md) (`OwnerGuard` ships there, this arc applies it to the admin endpoints). Replaces the "Live-config edits" forward-looking item catalogued in [owner-auth.md § Forward-looking gated surfaces](owner-auth.md).
 
-Today the tracked-accounts roster lives in [apps/api/accounts.json](../../../apps/api/accounts.json) — read at boot in [identity.module.ts:11-14](../../../apps/api/src/identity/identity.module.ts#L11-L14), held in memory by [identity.service.ts](../../../apps/api/src/identity/identity.service.ts), hot-reloaded via `fs.watch`. The file ships committed to git, so every roster change (add a Steam friend's library, flip an `isOwner` flag, retire a test account) is a deploy. Once hosting lands this stops being a non-issue and becomes a real friction. The arc swaps the JSON for two Prisma tables, adds an `OwnerGuard`-protected admin section on the status page, and keeps every existing synchronous `IdentityService` call site unchanged.
+The tracked-accounts roster lives in the `LolAccount` + `SteamAccount` tables, read at boot into [identity.service.ts](../../../apps/api/src/identity/identity.service.ts)'s cache by `reload()`. Until 2026-08-14 it was a committed `apps/api/accounts.json` hot-reloaded via `fs.watch`, which made every roster change (add a Steam friend's library, flip an `isOwner` flag, retire a test account) a deploy. The remaining arc adds an `OwnerGuard`-protected admin section on the status page; every existing synchronous `IdentityService` call site is unchanged.
 
 Sibling docs: [owner-auth.md](owner-auth.md) (prerequisite), [hosting.md](hosting.md) (the deploy friction this removes is hosting-coupled), [security.md](security.md) (CodeQL was deferred against the auth surface; this lands one more mutating endpoint group under it).
 
@@ -56,15 +56,15 @@ Notes:
 - `@@unique([gameName, tagLine, region])` guards against the same Riot ID being registered under two slugs (which would split match history across two pages).
 - `SteamAccount.isOwner` defaults `true` to mirror the current JSON's implicit assumption (every entry is "the owner's"). Anticipates a future "track a friend's library" use case without changing the shape later.
 
-### `IdentityService` changes
+### `IdentityService` changes — shipped 2026-08-14
 
-- Constructor drops the `ACCOUNTS_CONFIG` provider. Replaces it with a `cache: { lol: LolAccount[]; steam: SteamAccount[] }` populated by an async `reload()` method.
-- `onModuleInit` → `await this.reload()`.
-- `onModuleDestroy` + `fs.watch` block + `assertUniqueSlugs` boot check deleted (uniqueness moves to the DB constraint + write-side check).
-- `assertAccountOwnerInvariants` (multi-primary, primary-without-owner, owner-without-primary) **moves to the write side** — the admin controller calls it against the proposed post-write state and 400s on violation. Invariants stay; only the enforcement point shifts.
-- `IdentityModule` factory swaps from `JSON.parse(readFileSync)` to providing the service directly — no `useFactory`.
+- Constructor takes only `PrismaService`; the `ACCOUNTS_CONFIG` provider and `loadAccountsConfig` are gone. The cache is `{ lol: LolAccount[]; steam: string[] }`, populated by an async `reload()` and empty until it first resolves.
+- `onModuleInit` → `await this.reload()`. `onModuleDestroy` + the `fs.watch` block are deleted, and `IdentityModule` provides the service directly with no `useFactory`.
+- `reload()` reads both tables ordered by `createdAt` and projects field-by-field, so the roster keeps a stable order and `createdAt`/`updatedAt` never reach the `/me` payload.
+- `assertAccountOwnerInvariants` **moved to the write side**, wrapped by `assertRosterInvariants(next)` — chunk 2's admin controller calls it against the proposed post-write roster and 400s on violation.
+- Two deviations from the plan above, both deliberate. `assertUniqueSlugs` was **kept**, moved into `assertRosterInvariants` rather than deleted: the `slug` primary key is case-sensitive and `findBySlug` is not, so `Ahri` and `ahri` are two legal rows resolving to whichever the roster lists first — a gap the DB constraint cannot close. And `reload()` runs the invariants over what it loaded and **logs a warning** on breach instead of throwing; a hand-edited row otherwise surfaces only as a silently empty recap, but refusing to boot over one bad flag would take the whole API down.
 
-Every existing call site (`getLolAccounts`, `getOwnerPuuids`, `getLolAccountsWithSummary`, `findBySlug`, `isLolAccountAllowed`, `getSteamIds`) keeps its current signature.
+Every existing call site (`getLolAccounts`, `getOwnerPuuids`, `getLolAccountsWithSummary`, `findBySlug`, `isLolAccountAllowed`, `getSteamIds`) kept its signature.
 
 ### New `AdminAccountsModule` (apps/api/src/admin/)
 
@@ -130,18 +130,13 @@ Each chunk is independently committable and fits a single session window.
 
 Landed three days after this plan was written, without this note being updated; closed 2026-08-01. The match query is scoped via `getOwnerPuuids()` at [home-first-played.service.ts:192](../../../apps/api/src/home/home-first-played.service.ts#L192) with the owner-only rationale in a comment. The class spec mocks `getOwnerPuuids`; a where-clause regression pin (non-owner puuids cannot re-enter the query) was added 2026-08-01.
 
-### Chunk 1 — Schema + cutover (no admin endpoints yet)
+### Chunk 1 — Schema + cutover (no admin endpoints yet) — ✅ shipped 2026-08-14
 
-- Prisma migration: add `LolAccount` + `SteamAccount` tables.
-- Seed migration: insert existing `accounts.json` rows on first apply.
-- `IdentityService` swap: cache populated by `reload()` from DB, `fs.watch` block deleted, `IdentityModule` factory updated.
-- Delete `apps/api/accounts.json` + `loadAccountsConfig` in the same commit.
-- Add `assertAccountOwnerInvariants` call to an internal write-side hook ready for chunk 2 (no public mutation routes yet).
-- Verify all existing identity specs still pass; add one new spec covering DB-backed reload semantics.
+Migration `20260813230117_accounts_roster_tables` creates both tables and seeds the nine roster rows the JSON carried, with `createdAt` staggered one second apart in config order so the read's `ORDER BY createdAt` reproduces the order `/me` always had. `apps/api/accounts.json`, `loadAccountsConfig`, and the `COPY` that put the JSON in the api image are all deleted.
 
-Files: 1 new migration, ~3 modified API files, 1 deleted JSON, ~1 new spec. No frontend changes. Public behavior unchanged — verify by running the existing test suite green.
+The identity spec was reworked against a Prisma stub instead of a temp-dir `accounts.json`: the three `fs.watch` lifecycle tests are gone, and reload semantics are covered instead — cache empty until the first reload, `orderBy` pinned, bookkeeping columns dropped, a second reload replacing rather than appending, and a breached invariant warning without failing boot. `assertRosterInvariants` has its own describe block. Net +3 tests on the api (1528 → 1531); shared and web untouched.
 
-**Prerequisite: owner-auth chunk 1.** If owner-auth hasn't started by the time this is ready to land, ship owner-auth chunk 1 first (it's a dormant capability — no UX change, just `OwnerGuard` available).
+Public behaviour is unchanged with one cosmetic exception: `/me` now spells `"isOwner": false` / `"isPrimary": false` on accounts that previously omitted the keys, because the columns are `NOT NULL DEFAULT false`. Every consumer tests `=== true`, so nothing reads differently. Verified live against the dev server after the cutover: all nine accounts, original order, homoglyph Riot IDs (`Νine Tailed Fox`, `TIFΑ`) intact, every summary still resolving.
 
 ### Chunk 2 — Admin endpoints + status-page UI
 

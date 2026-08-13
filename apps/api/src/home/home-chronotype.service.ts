@@ -53,7 +53,7 @@ export class HomeChronotypeService {
 
   async getChronotype(count = 500): Promise<HomeChronotype> {
     // Owner-filtered: "when I play" is a self-portrait surface; matches
-    // from non-owner accounts tracked in accounts.json (friends, pros)
+    // from non-owner accounts tracked in the roster (friends, pros)
     // would pollute the hour bucketing. Steam unlocks already live under
     // STEAM_OWNER_ID so no filter is needed there.
     const ownerPuuids = await this.identity.getOwnerPuuids();

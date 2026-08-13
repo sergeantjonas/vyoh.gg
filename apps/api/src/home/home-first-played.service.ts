@@ -184,7 +184,7 @@ export class HomeFirstPlayedService {
 
     // Restrict to the owner's own puuids. The first-played tile is a `/`
     // self-portrait surface, so it must reflect the owner's play history —
-    // not every tracked account (friends/pros in accounts.json have their own
+    // not every tracked account (friends/pros in the roster have their own
     // pages and chapters). getOwnerPuuids() resolves isOwner accounts via the
     // Summoner denorm and inherently excludes orphan/seed puuids (unresolved
     // accounts return no row), so matches under those puuids never compete for

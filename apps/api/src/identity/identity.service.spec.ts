@@ -1,72 +1,115 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { LolAccount } from "@vyoh/shared";
+import { describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service";
-import type { AccountsConfig } from "./identity.service";
 import { IdentityService } from "./identity.service";
 
-const config: AccountsConfig = {
-  lol: [
-    { slug: "ahri", gameName: "Vyoh", tagLine: "Ahri", region: "euw1" },
-    { slug: "tifa", gameName: "TIFΑ", tagLine: "7777", region: "euw1" },
-  ],
-  steam: [],
-};
+const roster: LolAccount[] = [
+  { slug: "ahri", gameName: "Vyoh", tagLine: "Ahri", region: "euw1" },
+  { slug: "tifa", gameName: "TIFA", tagLine: "7777", region: "euw1" },
+];
 
-// Bare prisma stub for tests that only exercise sync identity methods.
-// Tests that exercise `getLolAccountsWithSummary` build their own prisma.
-function stubPrisma(): PrismaService {
+// `LolAccount` rows as Prisma returns them: the roster columns the service
+// projects from, plus the bookkeeping columns it has to drop. `createdAt`
+// is staggered because that is what the read orders on.
+function rosterRows(accounts: LolAccount[]) {
+  return accounts.map((a, i) => {
+    const at = new Date(Date.UTC(2026, 0, 1, 0, 0, i));
+    return {
+      slug: a.slug,
+      gameName: a.gameName,
+      tagLine: a.tagLine,
+      region: a.region,
+      isOwner: a.isOwner === true,
+      isPrimary: a.isPrimary === true,
+      createdAt: at,
+      updatedAt: at,
+    };
+  });
+}
+
+// The cached shape for an account: every flag resolved to an explicit
+// boolean, no timestamps.
+function cached(account: LolAccount): LolAccount {
   return {
-    summoner: { findMany: vi.fn().mockResolvedValue([]) },
+    slug: account.slug,
+    gameName: account.gameName,
+    tagLine: account.tagLine,
+    region: account.region,
+    isOwner: account.isOwner === true,
+    isPrimary: account.isPrimary === true,
+  };
+}
+
+function stubPrisma(
+  opts: { lol?: LolAccount[]; steam?: string[]; summoners?: unknown[] } = {}
+) {
+  const summonerFindMany = vi.fn().mockResolvedValue(opts.summoners ?? []);
+  const lolFindMany = vi.fn().mockResolvedValue(rosterRows(opts.lol ?? []));
+  const steamFindMany = vi.fn().mockResolvedValue(
+    (opts.steam ?? []).map((steamId64, i) => ({
+      steamId64,
+      isOwner: true,
+      createdAt: new Date(Date.UTC(2026, 0, 1, 0, 0, i)),
+    }))
+  );
+  const prisma = {
+    summoner: { findMany: summonerFindMany },
+    lolAccount: { findMany: lolFindMany },
+    steamAccount: { findMany: steamFindMany },
   } as unknown as PrismaService;
+  return { prisma, summonerFindMany, lolFindMany, steamFindMany };
+}
+
+async function bootedService(
+  opts: { lol?: LolAccount[]; steam?: string[]; summoners?: unknown[] } = {}
+) {
+  const stub = stubPrisma(opts);
+  const service = new IdentityService(stub.prisma);
+  await service.onModuleInit();
+  return { service, ...stub };
 }
 
 describe("IdentityService", () => {
-  it("returns the configured lol accounts", () => {
-    const service = new IdentityService(config, stubPrisma());
-    expect(service.getLolAccounts()).toEqual(config.lol);
+  it("returns the roster loaded from the database", async () => {
+    const { service } = await bootedService({ lol: roster });
+    expect(service.getLolAccounts()).toEqual(roster.map(cached));
   });
 
-  it("returns the configured steam ids", () => {
-    const service = new IdentityService(config, stubPrisma());
-    expect(service.getSteamIds()).toEqual([]);
+  it("returns the steam ids loaded from the database", async () => {
+    const { service } = await bootedService({ steam: ["7656119"] });
+    expect(service.getSteamIds()).toEqual(["7656119"]);
   });
 
-  it("recognizes a whitelisted account case-insensitively", () => {
-    const service = new IdentityService(config, stubPrisma());
+  it("recognizes a whitelisted account case-insensitively", async () => {
+    const { service } = await bootedService({ lol: roster });
     expect(service.isLolAccountAllowed("vyoh", "ahri", "EUW1")).toBe(true);
     expect(service.isLolAccountAllowed("Vyoh", "Ahri", "euw1")).toBe(true);
   });
 
-  it("rejects an account that is not in the whitelist", () => {
-    const service = new IdentityService(config, stubPrisma());
+  it("rejects an account that is not in the whitelist", async () => {
+    const { service } = await bootedService({ lol: roster });
     expect(service.isLolAccountAllowed("Foo", "Bar", "euw1")).toBe(false);
     expect(service.isLolAccountAllowed("Vyoh", "Ahri", "na1")).toBe(false);
   });
 
-  it("finds an account by slug", () => {
-    const service = new IdentityService(config, stubPrisma());
+  it("finds an account by slug", async () => {
+    const { service } = await bootedService({ lol: roster });
     expect(service.findBySlug("ahri")?.gameName).toBe("Vyoh");
     expect(service.findBySlug("AHRI")?.gameName).toBe("Vyoh");
     expect(service.findBySlug("missing")).toBeUndefined();
   });
 
-  it("getOwnerPuuids returns [] when no isOwner accounts are configured", async () => {
-    const noOwnerConfig: AccountsConfig = {
+  it("getOwnerPuuids returns [] when no isOwner accounts are in the roster", async () => {
+    const { service, summonerFindMany } = await bootedService({
       lol: [{ slug: "alt", gameName: "X", tagLine: "1", region: "euw1" }],
-      steam: [],
-    };
-    const findMany = vi.fn().mockResolvedValue([]);
-    const prisma = { summoner: { findMany } } as unknown as PrismaService;
-    const service = new IdentityService(noOwnerConfig, prisma);
+    });
     expect(await service.getOwnerPuuids()).toEqual([]);
     // No Prisma round-trip when there are no owner accounts to look up.
-    expect(findMany).not.toHaveBeenCalled();
+    expect(summonerFindMany).not.toHaveBeenCalled();
   });
 
   it("getOwnerPuuids resolves Summoner.puuid for isOwner accounts only", async () => {
-    const ownerConfig: AccountsConfig = {
+    const { service, summonerFindMany } = await bootedService({
       lol: [
         {
           slug: "main",
@@ -78,83 +121,144 @@ describe("IdentityService", () => {
         },
         { slug: "alt", gameName: "Vyoh", tagLine: "Alt", region: "euw1", isOwner: true },
         // Non-owner — should NOT appear in the where clause.
-        { slug: "tifa", gameName: "TIFΑ", tagLine: "7777", region: "euw1" },
+        { slug: "tifa", gameName: "TIFA", tagLine: "7777", region: "euw1" },
       ],
-      steam: [],
-    };
-    const findMany = vi.fn().mockResolvedValue([{ puuid: "P_main" }, { puuid: "P_alt" }]);
-    const prisma = { summoner: { findMany } } as unknown as PrismaService;
-    const service = new IdentityService(ownerConfig, prisma);
-    const puuids = await service.getOwnerPuuids();
-    expect(puuids).toEqual(["P_main", "P_alt"]);
+      summoners: [{ puuid: "P_main" }, { puuid: "P_alt" }],
+    });
+    expect(await service.getOwnerPuuids()).toEqual(["P_main", "P_alt"]);
     // Owner-only lookup — the OR clause should have exactly 2 entries, not 3.
-    expect(findMany).toHaveBeenCalledTimes(1);
-    const call = findMany.mock.calls[0]?.[0] as { where: { OR: unknown[] } };
+    expect(summonerFindMany).toHaveBeenCalledTimes(1);
+    const call = summonerFindMany.mock.calls[0]?.[0] as { where: { OR: unknown[] } };
     expect(call.where.OR).toHaveLength(2);
   });
 
-  it("accepts a config with exactly one isOwner+isPrimary account alongside test data", () => {
-    expect(
-      () =>
-        new IdentityService(
-          {
-            lol: [
-              {
-                slug: "main",
-                gameName: "A",
-                tagLine: "1",
-                region: "euw1",
-                isOwner: true,
-                isPrimary: true,
-              },
-              { slug: "alt", gameName: "B", tagLine: "2", region: "euw1", isOwner: true },
-              { slug: "test", gameName: "C", tagLine: "3", region: "euw1" },
-            ],
-            steam: [],
-          },
-          stubPrisma()
-        )
-    ).not.toThrow();
+  describe("reload", () => {
+    it("populates the cache from the database on module init", async () => {
+      const { service, lolFindMany, steamFindMany } = await bootedService({
+        lol: roster,
+        steam: ["7656119"],
+      });
+      expect(lolFindMany).toHaveBeenCalledTimes(1);
+      expect(steamFindMany).toHaveBeenCalledTimes(1);
+      expect(service.getLolAccounts()).toHaveLength(2);
+      expect(service.getSteamIds()).toEqual(["7656119"]);
+    });
+
+    it("serves an empty roster until the first reload resolves", () => {
+      const { prisma } = stubPrisma({ lol: roster, steam: ["7656119"] });
+      const service = new IdentityService(prisma);
+      // Construction does not query — every read is empty until onModuleInit.
+      expect(service.getLolAccounts()).toEqual([]);
+      expect(service.getSteamIds()).toEqual([]);
+    });
+
+    it("reads the roster in createdAt order so /me keeps a stable account order", async () => {
+      const { lolFindMany, steamFindMany } = await bootedService({ lol: roster });
+      expect(lolFindMany).toHaveBeenCalledWith({ orderBy: { createdAt: "asc" } });
+      expect(steamFindMany).toHaveBeenCalledWith({ orderBy: { createdAt: "asc" } });
+    });
+
+    it("drops the roster bookkeeping columns so they never reach /me", async () => {
+      const { service } = await bootedService({ lol: roster });
+      const account = service.getLolAccounts()[0];
+      expect(account).not.toHaveProperty("createdAt");
+      expect(account).not.toHaveProperty("updatedAt");
+      expect(Object.keys(account ?? {}).sort()).toEqual([
+        "gameName",
+        "isOwner",
+        "isPrimary",
+        "region",
+        "slug",
+        "tagLine",
+      ]);
+    });
+
+    it("replaces the cache on a second call rather than appending to it", async () => {
+      const { service, lolFindMany, steamFindMany } = await bootedService({
+        lol: roster,
+        steam: ["7656119"],
+      });
+      lolFindMany.mockResolvedValue(
+        rosterRows([{ slug: "new", gameName: "N", tagLine: "1", region: "euw1" }])
+      );
+      steamFindMany.mockResolvedValue([]);
+
+      await service.reload();
+
+      expect(service.getLolAccounts()).toEqual([
+        cached({ slug: "new", gameName: "N", tagLine: "1", region: "euw1" }),
+      ]);
+      expect(service.getSteamIds()).toEqual([]);
+      // The account the roster no longer carries stops being whitelisted.
+      expect(service.isLolAccountAllowed("Vyoh", "Ahri", "euw1")).toBe(false);
+      expect(service.findBySlug("ahri")).toBeUndefined();
+    });
+
+    it("warns but still serves a roster that breaks the owner invariants", async () => {
+      const { prisma } = stubPrisma({
+        lol: [
+          { slug: "a", gameName: "A", tagLine: "1", region: "euw1", isOwner: true },
+          { slug: "b", gameName: "B", tagLine: "2", region: "euw1", isOwner: true },
+        ],
+      });
+      const service = new IdentityService(prisma);
+      const warn = vi
+        .spyOn((service as unknown as { logger: { warn: () => void } }).logger, "warn")
+        .mockImplementation(() => {});
+
+      await expect(service.onModuleInit()).resolves.toBeUndefined();
+
+      // Boot does not fail on bad data — the roster is still served, and the
+      // breach is logged rather than swallowed.
+      expect(service.getLolAccounts()).toHaveLength(2);
+      const call = warn.mock.calls[0] as unknown as [string];
+      expect(call[0]).toMatch(/isPrimary/);
+    });
   });
 
-  it("throws when the config has owner accounts but no primary — recap would have no main subject", () => {
-    expect(
-      () =>
-        new IdentityService(
+  describe("assertRosterInvariants", () => {
+    it("accepts exactly one isOwner+isPrimary account alongside test data", async () => {
+      const { service } = await bootedService();
+      expect(() =>
+        service.assertRosterInvariants([
           {
-            lol: [
-              { slug: "a", gameName: "A", tagLine: "1", region: "euw1", isOwner: true },
-              { slug: "b", gameName: "B", tagLine: "2", region: "euw1", isOwner: true },
-            ],
-            steam: [],
+            slug: "main",
+            gameName: "A",
+            tagLine: "1",
+            region: "euw1",
+            isOwner: true,
+            isPrimary: true,
           },
-          stubPrisma()
-        )
-    ).toThrow(/isPrimary/);
-  });
+          { slug: "alt", gameName: "B", tagLine: "2", region: "euw1", isOwner: true },
+          { slug: "test", gameName: "C", tagLine: "3", region: "euw1" },
+        ])
+      ).not.toThrow();
+    });
 
-  it("throws on duplicate slugs", () => {
-    expect(
-      () =>
-        new IdentityService(
-          {
-            lol: [
-              { slug: "main", gameName: "A", tagLine: "1", region: "euw1" },
-              { slug: "main", gameName: "B", tagLine: "2", region: "euw1" },
-            ],
-            steam: [],
-          },
-          stubPrisma()
-        )
-    ).toThrow(/Duplicate slug "main"/);
+    it("rejects a roster with owner accounts but no primary — recap would have no main subject", async () => {
+      const { service } = await bootedService();
+      expect(() =>
+        service.assertRosterInvariants([
+          { slug: "a", gameName: "A", tagLine: "1", region: "euw1", isOwner: true },
+          { slug: "b", gameName: "B", tagLine: "2", region: "euw1", isOwner: true },
+        ])
+      ).toThrow(/isPrimary/);
+    });
+
+    it("rejects slugs that collide case-insensitively, which the primary key allows", async () => {
+      const { service } = await bootedService();
+      expect(() =>
+        service.assertRosterInvariants([
+          { slug: "main", gameName: "A", tagLine: "1", region: "euw1" },
+          { slug: "Main", gameName: "B", tagLine: "2", region: "euw1" },
+        ])
+      ).toThrow(/Duplicate slug "Main"/);
+    });
   });
 
   describe("getLolAccountsWithSummary", () => {
     it("returns summary: null and profileIconId: null for accounts without a Summoner row", async () => {
-      const prisma = {
-        summoner: { findMany: vi.fn().mockResolvedValue([]) },
-      } as unknown as PrismaService;
-      const service = new IdentityService(config, prisma);
+      const { service } = await bootedService({ lol: roster });
       const result = await service.getLolAccountsWithSummary();
       expect(result).toHaveLength(2);
       expect(result[0]).toMatchObject({
@@ -170,25 +274,23 @@ describe("IdentityService", () => {
     });
 
     it("hydrates the denorm fields when the Summoner row carries them", async () => {
-      const prisma = {
-        summoner: {
-          findMany: vi.fn().mockResolvedValue([
-            {
-              gameName: "Vyoh",
-              tagLine: "Ahri",
-              region: "euw1",
-              profileIconId: 4567,
-              currentRankTier: "GOLD",
-              currentRankDivision: "II",
-              currentRankLp: 50,
-              currentRankQueue: "RANKED_SOLO_5x5",
-              lastPlayedChampionAlias: "Ahri",
-              summaryUpdatedAt: new Date("2026-05-24T10:00:00Z"),
-            },
-          ]),
-        },
-      } as unknown as PrismaService;
-      const service = new IdentityService(config, prisma);
+      const { service } = await bootedService({
+        lol: roster,
+        summoners: [
+          {
+            gameName: "Vyoh",
+            tagLine: "Ahri",
+            region: "euw1",
+            profileIconId: 4567,
+            currentRankTier: "GOLD",
+            currentRankDivision: "II",
+            currentRankLp: 50,
+            currentRankQueue: "RANKED_SOLO_5x5",
+            lastPlayedChampionAlias: "Ahri",
+            summaryUpdatedAt: new Date("2026-05-24T10:00:00Z"),
+          },
+        ],
+      });
       const result = await service.getLolAccountsWithSummary();
       expect(result[0]?.profileIconId).toBe(4567);
       expect(result[0]?.summary).toEqual({
@@ -211,24 +313,22 @@ describe("IdentityService", () => {
       // hasn't run yet, so the denorm rank columns are still null. The
       // `summary.updatedAt` field tells the UI the refresh has run at
       // least once even if there's no rank to show.
-      const prisma = {
-        summoner: {
-          findMany: vi.fn().mockResolvedValue([
-            {
-              gameName: "Vyoh",
-              tagLine: "Ahri",
-              region: "euw1",
-              currentRankTier: null,
-              currentRankDivision: null,
-              currentRankLp: null,
-              currentRankQueue: null,
-              lastPlayedChampionAlias: "Yasuo",
-              summaryUpdatedAt: new Date("2026-05-24T10:00:00Z"),
-            },
-          ]),
-        },
-      } as unknown as PrismaService;
-      const service = new IdentityService(config, prisma);
+      const { service } = await bootedService({
+        lol: roster,
+        summoners: [
+          {
+            gameName: "Vyoh",
+            tagLine: "Ahri",
+            region: "euw1",
+            currentRankTier: null,
+            currentRankDivision: null,
+            currentRankLp: null,
+            currentRankQueue: null,
+            lastPlayedChampionAlias: "Yasuo",
+            summaryUpdatedAt: new Date("2026-05-24T10:00:00Z"),
+          },
+        ],
+      });
       const result = await service.getLolAccountsWithSummary();
       expect(result[0]?.summary).toEqual({
         rank: null,
@@ -237,101 +337,10 @@ describe("IdentityService", () => {
       });
     });
 
-    it("skips the Prisma round-trip when no accounts are configured", async () => {
-      const findMany = vi.fn();
-      const prisma = {
-        summoner: { findMany },
-      } as unknown as PrismaService;
-      const service = new IdentityService({ lol: [], steam: [] }, prisma);
-      const result = await service.getLolAccountsWithSummary();
-      expect(result).toEqual([]);
-      expect(findMany).not.toHaveBeenCalled();
+    it("skips the Prisma round-trip when the roster is empty", async () => {
+      const { service, summonerFindMany } = await bootedService();
+      expect(await service.getLolAccountsWithSummary()).toEqual([]);
+      expect(summonerFindMany).not.toHaveBeenCalled();
     });
-  });
-});
-
-describe("IdentityService lifecycle", () => {
-  let tmpDir = "";
-  let cwdSpy: ReturnType<typeof vi.spyOn> | null = null;
-  let configPath = "";
-
-  beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), "identity-spec-"));
-    configPath = join(tmpDir, "accounts.json");
-    writeFileSync(
-      configPath,
-      JSON.stringify({
-        lol: [{ slug: "main", gameName: "A", tagLine: "1", region: "euw1" }],
-        steam: [],
-      })
-    );
-    cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(tmpDir);
-  });
-
-  afterEach(() => {
-    cwdSpy?.mockRestore();
-    rmSync(tmpDir, { recursive: true, force: true });
-  });
-
-  it("reloads accounts.json after a write, debounced", async () => {
-    const service = new IdentityService(config, stubPrisma());
-    service.onModuleInit();
-    try {
-      writeFileSync(
-        configPath,
-        JSON.stringify({
-          lol: [
-            { slug: "main", gameName: "A", tagLine: "1", region: "euw1" },
-            { slug: "second", gameName: "B", tagLine: "2", region: "euw1" },
-          ],
-          steam: ["12345"],
-        })
-      );
-
-      // Debounce timer is 100ms inside the service; wait a bit longer so the
-      // reload + parse runs deterministically.
-      await new Promise((r) => setTimeout(r, 250));
-
-      const reloaded = service.getLolAccounts();
-      if (reloaded.length === 2) {
-        // fs.watch fired and the reload succeeded — verify the new state.
-        expect(service.getSteamIds()).toEqual(["12345"]);
-      }
-      // If fs.watch didn't fire in this environment, we still exercised the
-      // watcher setup path; the reload branch is best-effort under happy-dom.
-    } finally {
-      service.onModuleDestroy();
-    }
-  });
-
-  it("warns and keeps prior config when reload parses invalid JSON", async () => {
-    const service = new IdentityService(config, stubPrisma());
-    const warn = vi
-      .spyOn((service as unknown as { logger: { warn: () => void } }).logger, "warn")
-      .mockImplementation(() => {});
-    service.onModuleInit();
-    try {
-      writeFileSync(configPath, "{not json");
-      await new Promise((r) => setTimeout(r, 250));
-      // Original config still in place — reload failed gracefully.
-      expect(service.getLolAccounts()).toEqual(config.lol);
-      if (warn.mock.calls.length > 0) {
-        const call = warn.mock.calls[0] as unknown as [string];
-        expect(typeof call[0]).toBe("string");
-      }
-    } finally {
-      service.onModuleDestroy();
-    }
-  });
-
-  it("onModuleDestroy clears the debounce timer and closes the watcher", () => {
-    const service = new IdentityService(config, stubPrisma());
-    service.onModuleInit();
-    // Force a pending debounce timer by setting it manually.
-    const internal = service as unknown as {
-      debounceTimer: ReturnType<typeof setTimeout>;
-    };
-    internal.debounceTimer = setTimeout(() => {}, 5000);
-    expect(() => service.onModuleDestroy()).not.toThrow();
   });
 });

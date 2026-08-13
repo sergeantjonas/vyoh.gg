@@ -71,9 +71,8 @@ COPY --from=build --chown=node:node /repo/apps/api/dist ./apps/api/dist
 COPY --from=build --chown=node:node /repo/apps/api/package.json ./apps/api/package.json
 COPY --from=build --chown=node:node /repo/apps/api/prisma ./apps/api/prisma
 COPY --from=build --chown=node:node /repo/apps/api/prisma.config.ts ./apps/api/prisma.config.ts
-# Read from `process.cwd()` and from a path relative to it, which is why the
-# entrypoint chdirs into apps/api rather than running from /app.
-COPY --from=build --chown=node:node /repo/apps/api/accounts.json ./apps/api/accounts.json
+# Read from a path relative to `process.cwd()`, which is why the entrypoint
+# chdirs into apps/api rather than running from /app.
 COPY --from=build --chown=node:node /repo/apps/api/models ./apps/api/models
 COPY --chown=node:node apps/api/docker-entrypoint.sh ./apps/api/docker-entrypoint.sh
 

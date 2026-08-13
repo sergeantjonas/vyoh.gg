@@ -13,7 +13,7 @@ KB anchors: [13-seo.md](~/.claude/knowledge/frontend-2026/13-seo.md), [05-framew
 1. **Aspect ratio: `1200×630` everywhere.** OG standard. Match card retrofitted from its initial 1200×400 to match. No per-endpoint aspect-ratio overrides.
 2. **All endpoints render dynamically per request — no committed PNGs, no build-time pregeneration.** Owner constraint: adding a new champion to Riot's roster, a new game to the Steam library, etc., must not require a redeploy. Each endpoint takes its identifier as a URL param and renders on demand. Perf strategy is the existing HTTP cache layer + CDN — same `Cache-Control: public, max-age=86400, s-maxage=2592000` the match endpoint already uses. Home OG follows the same pattern for shape-uniformity, even though its content is fully static.
 3. **All upstream asset fetches go through the image proxy.** Splash art, champion icons, Steam hero images — every external asset URL the Satori template references resolves through the API's own `/lol/image/...` (or Steam equivalent) proxy. Single-call latency between OG service and image proxy is negligible (co-located), and the proxy's cache headers still apply downstream. No template references upstream CDNs directly.
-4. **Profile display name: always `gameName#tagLine`.** Read from `accounts.json` via the identity service; never the slug, never a shortened form.
+4. **Profile display name: always `gameName#tagLine`.** Read from the roster via the identity service; never the slug, never a shortened form.
 
 ---
 
@@ -84,7 +84,7 @@ Splash via image proxy (`/lol/image/splash/:alias` or whichever family the proxy
 └────────────────────────────────────────────────┘
 ```
 
-Account identity from `accounts.json` (gameName#tagLine, never the slug). Rank from the existing profile-rank service. KPI strip from the existing summary aggregator.
+Account identity from the roster (gameName#tagLine, never the slug). Rank from the existing profile-rank service. KPI strip from the existing summary aggregator.
 
 ### Home OG (`/og/home.png`) — Chunk 3
 

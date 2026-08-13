@@ -1,12 +1,4 @@
-import { readFileSync, watch } from "node:fs";
-import { join } from "node:path";
-import {
-  Inject,
-  Injectable,
-  Logger,
-  type OnModuleDestroy,
-  type OnModuleInit,
-} from "@nestjs/common";
+import { Injectable, Logger, type OnModuleInit } from "@nestjs/common";
 import {
   type LolAccount,
   type LolAccountWithSummary,
@@ -14,54 +6,94 @@ import {
 } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 
-export const ACCOUNTS_CONFIG = Symbol("ACCOUNTS_CONFIG");
-
-export interface AccountsConfig {
+interface AccountsCache {
   lol: LolAccount[];
   steam: string[];
 }
 
 @Injectable()
-export class IdentityService implements OnModuleInit, OnModuleDestroy {
+export class IdentityService implements OnModuleInit {
   private readonly logger = new Logger(IdentityService.name);
-  private watcher: ReturnType<typeof watch> | null = null;
-  private debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private cache: AccountsCache = { lol: [], steam: [] };
 
-  constructor(
-    @Inject(ACCOUNTS_CONFIG) private config: AccountsConfig,
-    private readonly prisma: PrismaService
-  ) {
-    this.assertUniqueSlugs(this.config);
-    assertAccountOwnerInvariants(this.config.lol);
+  constructor(private readonly prisma: PrismaService) {}
+
+  async onModuleInit(): Promise<void> {
+    await this.reload();
   }
 
-  onModuleInit(): void {
-    const path = join(process.cwd(), "accounts.json");
-    this.watcher = watch(path, () => {
-      if (this.debounceTimer) clearTimeout(this.debounceTimer);
-      this.debounceTimer = setTimeout(() => {
-        try {
-          const next: AccountsConfig = JSON.parse(readFileSync(path, "utf-8"));
-          this.assertUniqueSlugs(next);
-          assertAccountOwnerInvariants(next.lol);
-          this.config = next;
-          this.logger.log(`accounts.json reloaded — ${next.lol.length} LoL account(s)`);
-        } catch (err) {
-          this.logger.warn(
-            `accounts.json reload failed: ${err instanceof Error ? err.message : String(err)}`
-          );
-        }
-      }, 100);
-    });
+  /**
+   * Repopulates the roster cache from the DB. Every read on this service is
+   * synchronous against that cache — the whitelist check sits in the hot
+   * path of `resolveSummoner` and can't afford a query per call — so any
+   * write to `LolAccount`/`SteamAccount` has to call this after committing
+   * or the API keeps serving the pre-write roster until the next boot.
+   *
+   * Rows are ordered by `createdAt`, which is what gives `/me` (and so the
+   * nav) a stable roster order.
+   */
+  async reload(): Promise<void> {
+    const [lol, steam] = await Promise.all([
+      this.prisma.lolAccount.findMany({ orderBy: { createdAt: "asc" } }),
+      this.prisma.steamAccount.findMany({ orderBy: { createdAt: "asc" } }),
+    ]);
+    // Projected field-by-field rather than spread: `createdAt`/`updatedAt`
+    // are roster bookkeeping and must not leak into the `/me` payload.
+    this.cache = {
+      lol: lol.map((a) => ({
+        slug: a.slug,
+        gameName: a.gameName,
+        tagLine: a.tagLine,
+        region: a.region,
+        isOwner: a.isOwner,
+        isPrimary: a.isPrimary,
+      })),
+      steam: steam.map((s) => s.steamId64),
+    };
+    try {
+      this.assertRosterInvariants(this.cache.lol);
+    } catch (err) {
+      // Loud but non-fatal. A roster that breaks these invariants produces a
+      // silently empty recap or a wrong "main account" subject, which is
+      // near-impossible to trace back from the symptom — but refusing to boot
+      // over it would take the whole API down for a bad flag on one row.
+      this.logger.warn(
+        `roster invariant violated: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+    this.logger.log(`roster loaded — ${this.cache.lol.length} LoL account(s)`);
   }
 
-  onModuleDestroy(): void {
-    if (this.debounceTimer) clearTimeout(this.debounceTimer);
-    this.watcher?.close();
+  /**
+   * Write-side guard: called with the roster a mutation is about to produce,
+   * before it commits. This is the only place a bad roster is rejected —
+   * `reload()` merely warns — and both checks are ones Postgres can't make
+   * on its own. "Exactly one primary, and it must be an owner" isn't
+   * expressible as a constraint, and the `slug` primary key is
+   * case-sensitive while `findBySlug` is not, so `Ahri` and `ahri` are two
+   * legal rows that resolve to whichever the roster happens to list first.
+   */
+  assertRosterInvariants(next: LolAccount[]): void {
+    this.assertUniqueSlugs(next);
+    assertAccountOwnerInvariants(next);
+  }
+
+  private assertUniqueSlugs(accounts: LolAccount[]): void {
+    const seen = new Map<string, LolAccount>();
+    for (const account of accounts) {
+      const key = account.slug.toLowerCase();
+      const existing = seen.get(key);
+      if (existing) {
+        throw new Error(
+          `Duplicate slug "${account.slug}" — both ${existing.gameName}#${existing.tagLine} and ${account.gameName}#${account.tagLine} use it. Slugs must be unique.`
+        );
+      }
+      seen.set(key, account);
+    }
   }
 
   getLolAccounts(): LolAccount[] {
-    return this.config.lol;
+    return this.cache.lol;
   }
 
   // Hydrate the whitelist with the Summoner denorm snapshot in a single
@@ -74,7 +106,7 @@ export class IdentityService implements OnModuleInit, OnModuleDestroy {
   // signal to render the simple Riot-ID row instead of an empty rich
   // row.
   async getLolAccountsWithSummary(): Promise<LolAccountWithSummary[]> {
-    const accounts = this.config.lol;
+    const accounts = this.cache.lol;
     if (accounts.length === 0) return [];
     const summoners = await this.prisma.summoner.findMany({
       where: {
@@ -128,18 +160,17 @@ export class IdentityService implements OnModuleInit, OnModuleDestroy {
   }
 
   getSteamIds(): string[] {
-    return this.config.steam;
+    return this.cache.steam;
   }
 
   /**
-   * PUUIDs of LoL accounts flagged `isOwner: true` in `accounts.json`,
-   * resolved via the `Summoner` denorm. Used by self-portrait surfaces
-   * (the `/` conclusion bands: rhythm, lifetime totals) to filter LoL
-   * aggregations to the owner's own play history rather than every
-   * tracked account in the config. Other surfaces — recap, match list,
-   * champion stats — intentionally do NOT use this filter; they remain
-   * broad so non-owner accounts in the config (friends, pros) still
-   * surface their own pages and chapters.
+   * PUUIDs of LoL accounts flagged `isOwner` in the roster, resolved via the
+   * `Summoner` denorm. Used by self-portrait surfaces (the `/` conclusion
+   * bands: rhythm, lifetime totals) to filter LoL aggregations to the
+   * owner's own play history rather than every tracked account. Other
+   * surfaces — recap, match list, champion stats — intentionally do NOT use
+   * this filter; they remain broad so non-owner accounts in the roster
+   * (friends, pros) still surface their own pages and chapters.
    *
    * Returns `[]` when no owner accounts are configured, or when none of
    * the configured owner accounts have resolved a `Summoner` row yet
@@ -148,7 +179,7 @@ export class IdentityService implements OnModuleInit, OnModuleDestroy {
    * catches up).
    */
   async getOwnerPuuids(): Promise<string[]> {
-    const ownerAccounts = this.config.lol.filter((a) => a.isOwner);
+    const ownerAccounts = this.cache.lol.filter((a) => a.isOwner);
     if (ownerAccounts.length === 0) return [];
     const summoners = await this.prisma.summoner.findMany({
       where: {
@@ -164,29 +195,15 @@ export class IdentityService implements OnModuleInit, OnModuleDestroy {
   }
 
   findBySlug(slug: string): LolAccount | undefined {
-    return this.config.lol.find((a) => a.slug.toLowerCase() === slug.toLowerCase());
+    return this.cache.lol.find((a) => a.slug.toLowerCase() === slug.toLowerCase());
   }
 
   isLolAccountAllowed(gameName: string, tagLine: string, region: string): boolean {
-    return this.config.lol.some(
+    return this.cache.lol.some(
       (a) =>
         a.gameName.toLowerCase() === gameName.toLowerCase() &&
         a.tagLine.toLowerCase() === tagLine.toLowerCase() &&
         a.region.toLowerCase() === region.toLowerCase()
     );
-  }
-
-  private assertUniqueSlugs(config: AccountsConfig): void {
-    const seen = new Map<string, LolAccount>();
-    for (const account of config.lol) {
-      const key = account.slug.toLowerCase();
-      const existing = seen.get(key);
-      if (existing) {
-        throw new Error(
-          `Duplicate slug "${account.slug}" — both ${existing.gameName}#${existing.tagLine} and ${account.gameName}#${account.tagLine} use it. Slugs must be unique.`
-        );
-      }
-      seen.set(key, account);
-    }
   }
 }

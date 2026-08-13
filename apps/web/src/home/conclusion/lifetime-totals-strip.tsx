@@ -80,7 +80,7 @@ function pickEarliest(a: string | null, b: string | null): string | null {
  * Conclusion lifetime totals strip. Alltime self-portrait totals: LoL
  * match count + playtime, Steam playtime, and the dates of the oldest
  * tracked match / unlock. Owner-filtered server-side so non-owner
- * accounts in `accounts.json` don't pollute the alltime numbers.
+ * accounts in the roster don't pollute the alltime numbers.
  */
 export function LifetimeTotalsStrip() {
   const query = useHomeLifetimeTotals();
