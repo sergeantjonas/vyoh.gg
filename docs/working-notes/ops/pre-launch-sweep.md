@@ -1,6 +1,8 @@
 # Pre-launch sweep — gates before vyoh.gg serves real traffic
 
-**Status:** Active — gate list assembled 2026-08-01 from the docs survey's prod-risk pass. Launch is blocked on buying the VPS; this note is the canonical ordering of everything that must land before or alongside that, plus the standing rules that change once prod exists. One-line pointers only — detail lives in the owning notes, and items are struck here in the same commit that lands them.
+**Status:** Active — gate list assembled 2026-08-01 from the docs survey's prod-risk pass. **Seven of the eleven gates are closed as of 2026-08-13, and owner-auth is the only remaining one that is code**; backups, DNS/`VITE_API_URL` and branch protection all need the box or the GitHub settings page rather than the repo. Launch is blocked on buying the VPS. This note is the canonical ordering of everything that must land before or alongside that, plus the standing rules that change once prod exists. One-line pointers only — detail lives in the owning notes, and items are struck here in the same commit that lands them.
+
+Two gates were re-audited on 2026-08-13 after reading as open for longer than they were: the strike is the trail of evidence, so if a gate here looks open, confirm it against the code before scoping work around it.
 
 Several notes reference "the pre-launch sweep" as one deliberate arc; this file is that arc's checklist. [hosting.md](hosting.md) owns the deploy machinery — its checklist items 4–6 are gates here by reference.
 
@@ -9,15 +11,15 @@ Several notes reference "the pre-launch sweep" as one deliberate arc; this file 
 | Gate | Why it can't wait | Owner |
 |---|---|---|
 | Owner-auth chunks 1–2 | The three status POSTs (sync-now / pause / resume) are ungated; public means anyone can burn the dev-tier Riot budget or pause syncs. | [owner-auth.md](owner-auth.md) |
-| Owner allowlist on the three ungated LoL routes | `baselines`, `narrative` and `narrative/lifetime` reach `resolveSummoner` without the check 27 other call sites make, so any Riot ID can be resolved upstream and written to `Summoner`. Owner-auth does not cover this — these are public GETs that stay public. | [api-exposure-audit.md § F-1](api-exposure-audit.md) |
-| Clamp the match miss-path to owner data | `GET /lol/matches/:matchId` fetches Riot live and inserts a cache row for any enumerable id, which is both a quota/disk attack and an open Riot proxy under Riot's terms. | [api-exposure-audit.md § F-2](api-exposure-audit.md) |
-| Rate limiting at the edge | The multiplier on every expensive-GET finding; `limit_req` + `limit_conn` calibrated so a real page-load fan-out never trips it. Supersedes security.md's "out of scope" line. | [api-exposure-audit.md § F-4](api-exposure-audit.md) |
-| Validate `tier`, cap redirects, key the `/img` cache | Path traversal into four trusted upstreams, unrestricted redirect-following, and a cache key that includes inputs the app ignores. | [api-exposure-audit.md § F-7–F-9](api-exposure-audit.md) |
-| Generic error text in `/status` | Raw exception messages are served in a 200 body and over SSE, publishing internal DB host/port on any transient failure. | [api-exposure-audit.md § F-13](api-exposure-audit.md) |
-| ValidationPipe V3 (POST/PUT/PATCH bodies) | Unvalidated write bodies on a public API; sequences with owner-auth. | [project-hygiene-2026-05-18.md § Chunked plan](../cross-cutting/project-hygiene-2026-05-18.md) |
+| ~~Owner allowlist on the three ungated LoL routes~~ | **Closed 2026-08-03/05 (F-1).** The check moved into `resolveSummoner` itself, so it is a choke point rather than a 28th hand-written call site, and `conventions.spec.ts` pins it there. | [api-exposure-audit.md § F-1](api-exposure-audit.md) |
+| ~~Clamp the match miss-path to owner data~~ | **Closed 2026-08-03/05 (F-2).** | [api-exposure-audit.md § F-2](api-exposure-audit.md) |
+| ~~Rate limiting at the edge~~ | **Closed 2026-08-03/05 (F-4).** nginx config committed and behaviourally tested; `limit_req_zone` must be installed to `conf.d/` before the vhost that references it. | [api-exposure-audit.md § F-4](api-exposure-audit.md) |
+| ~~Validate `tier`, cap redirects, key the `/img` cache~~ | **Closed 2026-08-03/05 (F-7–F-9).** | [api-exposure-audit.md § F-7–F-9](api-exposure-audit.md) |
+| ~~Generic error text in `/status`~~ | **Closed 2026-08-03/05 (F-13).** | [api-exposure-audit.md § F-13](api-exposure-audit.md) |
+| ~~ValidationPipe V3 (POST/PUT/PATCH bodies)~~ | **Verified closed 2026-08-13.** A global `ValidationPipe({ transform, whitelist, forbidNonWhitelisted })` is installed in `main.ts`, and all five write routes bind DTOs or no body at all (the only `@Body` is `NarrativeWindowDto`). | [project-hygiene-2026-05-18.md § Chunked plan](../cross-cutting/project-hygiene-2026-05-18.md) |
 | Backups live + one restore drill | The Postgres volume is the only irreplaceable artefact in the stack — LP-history snapshots, Steam playtime snapshots, and matches beyond Riot's retention window cannot be re-fetched. | [hosting.md § 6](hosting.md) |
 | DNS + `VITE_API_URL`; CORS/env re-verified on the real box | hosting checklist item 4; items 2–3 shipped in code but their values get set for real here. | [hosting.md](hosting.md) |
-| timeZone pinned in the date formatters (~25 sites) | Every non-Brussels visitor gets a hydration mismatch that discards the server tree on date-bearing routes — and the dates are semantically wrong for them regardless. | [open-work.md § Pre-deploy](../open-work.md) · [tanstack-start-migration.md](../cross-cutting/tanstack-start-migration.md) |
+| ~~timeZone pinned in the date formatters (~25 sites)~~ | **Verified closed 2026-08-13** — 0 of 37 date-formatter call sites across 28 files lack a `timeZone`. The "~25 sites" figure predates the sweep that fixed them. Note the audit must exclude `Number.prototype.toLocaleString`: five files match a naive `toLocaleString` grep while formatting counts, not dates. | [open-work.md § Pre-deploy](../open-work.md) · [tanstack-start-migration.md](../cross-cutting/tanstack-start-migration.md) |
 | Branch protection on `main` | Decided 2026-07-26: enable as part of this sweep, at which point direct-push stops being appropriate anyway. | [open-work.md § Pre-deploy](../open-work.md) |
 
 Same sweep window, but needs the live box rather than the repo: verify SSE in production ([hosting.md § 5](hosting.md)).
