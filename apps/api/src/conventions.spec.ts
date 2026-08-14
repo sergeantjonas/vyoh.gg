@@ -105,20 +105,36 @@ function methodBody(text: string, name: string): string | null {
   return next === -1 ? rest : rest.slice(0, next + 1);
 }
 
-// Every mutating route in the api, keyed by the file that declares it. The
-// literal is the argument to `@Post(...)`, so a renamed route surfaces as a
-// failing lint rather than a silently-unguarded endpoint.
+// Every owner-only route in the api, keyed by the file that declares it. Each
+// entry is the route decorator verbatim, minus the `@`, so a renamed route or a
+// verb changed under it surfaces as a failing lint rather than a silently
+// unguarded endpoint.
 const GUARDED_ROUTES: Record<string, string[]> = {
-  "apps/api/src/status/status.controller.ts": ["sync", "sync/pause", "sync/resume"],
-  "apps/api/src/lol/lol.controller.ts": ["matches/sync"],
+  "apps/api/src/status/status.controller.ts": [
+    'Post("sync")',
+    'Post("sync/pause")',
+    'Post("sync/resume")',
+  ],
+  "apps/api/src/lol/lol.controller.ts": ['Post("matches/sync")'],
+  // The admin reads are gated too, unlike every other read in the api: they
+  // carry `hiddenAt`/`syncPausedAt`, which `/me` deliberately withholds.
+  "apps/api/src/admin/admin-accounts.controller.ts": [
+    'Get("lol-accounts")',
+    'Post("lol-accounts")',
+    'Patch("lol-accounts/:slug")',
+    'Delete("lol-accounts/:slug")',
+    'Get("steam-accounts")',
+    'Post("steam-accounts")',
+    'Delete("steam-accounts/:steamId64")',
+  ],
 };
 
-// The decorator lines attached to one `@Post("<route>")`, walking down to the
+// The decorator lines attached to one route decorator, walking down to the
 // method signature. Scoped rather than a whole-file `includes()` for the same
 // reason `methodBody` is: a guard on a neighbouring route would satisfy the
 // loose version, and that is exactly the regression being linted for.
 function decoratorsFor(text: string, route: string): string[] {
-  const start = text.indexOf(`@Post("${route}")`);
+  const start = text.indexOf(`@${route}`);
   if (start === -1) return [];
   const out: string[] = [];
   for (const raw of text.slice(start).split("\n")) {
@@ -494,21 +510,22 @@ describe("project conventions (structural lints)", () => {
   // owner-auth.md: `OwnerGuard` is applied per route, which is the right shape
   // (a public-by-design site should read every gate as a deliberate exception)
   // but leaves nothing structural stopping a decorator from being dropped in a
-  // refactor. These four routes are the entire mutating surface of the api, and
-  // an ungated one means an anonymous visitor can burn the dev-tier Riot budget
-  // or pause syncs. A missing decorator is invisible in review and silent at
-  // runtime — the route just works, for everyone.
+  // refactor. These are every owner-only route in the api, and an ungated one
+  // means an anonymous visitor can burn the dev-tier Riot budget, pause syncs,
+  // or rewrite the roster. A missing decorator is invisible in review and silent
+  // at runtime — the route just works, for everyone.
   //
   // Named routes, not a "every @Post is guarded" rule: `/auth/logout` is a POST
   // that must stay open, so the general version would need an allowlist and the
-  // allowlist would grow.
-  it("every mutating route carries OwnerGuard", () => {
+  // allowlist would grow. The admin module is also why the rule can't key off
+  // the verb at all — two of its gated routes are `@Get`.
+  it("every owner-only route carries OwnerGuard", () => {
     for (const [file, routes] of Object.entries(GUARDED_ROUTES)) {
       const text = readFileSync(path.join(WORKSPACE_ROOT, file), "utf8");
       for (const route of routes) {
         expect(
           decoratorsFor(text, route),
-          `${file} — @Post("${route}") must be decorated with @UseGuards(OwnerGuard)`
+          `${file} — @${route} must be decorated with @UseGuards(OwnerGuard)`
         ).toContain("@UseGuards(OwnerGuard)");
       }
     }
@@ -516,12 +533,12 @@ describe("project conventions (structural lints)", () => {
 
   it("the guard lint reads decorators on the annotated route only", () => {
     const guarded = '  @Post("sync")\n  @UseGuards(OwnerGuard)\n  triggerSync() {}\n';
-    expect(decoratorsFor(guarded, "sync")).toContain("@UseGuards(OwnerGuard)");
+    expect(decoratorsFor(guarded, 'Post("sync")')).toContain("@UseGuards(OwnerGuard)");
 
     // Order-independent: `@HttpCode` sits between the two on lol.controller.
     const interleaved =
       '  @Post("matches/sync")\n  @UseGuards(OwnerGuard)\n  @HttpCode(200)\n  async syncMatches() {}\n';
-    expect(decoratorsFor(interleaved, "matches/sync")).toContain(
+    expect(decoratorsFor(interleaved, 'Post("matches/sync")')).toContain(
       "@UseGuards(OwnerGuard)"
     );
 
@@ -529,10 +546,18 @@ describe("project conventions (structural lints)", () => {
     // the regression, so a lint that accepted it would pass against the defect.
     const misplaced =
       '  @Post("other")\n  @UseGuards(OwnerGuard)\n  other() {}\n\n  @Post("sync")\n  triggerSync() {}\n';
-    expect(decoratorsFor(misplaced, "sync")).not.toContain("@UseGuards(OwnerGuard)");
+    expect(decoratorsFor(misplaced, 'Post("sync")')).not.toContain(
+      "@UseGuards(OwnerGuard)"
+    );
+
+    // The verb is part of the key: swapping `@Delete` for `@Post` under the same
+    // path is a different route, and the lint must not accept the substitution.
+    const wrongVerb =
+      '  @Post("lol-accounts/:slug")\n  @UseGuards(OwnerGuard)\n  x() {}\n';
+    expect(decoratorsFor(wrongVerb, 'Delete("lol-accounts/:slug")')).toEqual([]);
 
     // A renamed or deleted route fails loudly rather than vacuously passing.
-    expect(decoratorsFor("class X {}", "sync")).toEqual([]);
+    expect(decoratorsFor("class X {}", 'Post("sync")')).toEqual([]);
   });
 
   // repo-conventions.md: "The production image is a different environment" —

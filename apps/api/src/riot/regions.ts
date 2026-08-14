@@ -39,6 +39,12 @@ const PLATFORM_TO_REGIONAL: Record<Platform, Regional> = {
   vn2: "sea",
 };
 
+// The runtime platform list, derived from the map above rather than written out
+// again: `Record<Platform, Regional>` makes the map exhaustive by construction,
+// so a new platform can't be added to the union without landing here too.
+// Request DTOs validate a `region` param against this.
+export const PLATFORMS: readonly string[] = Object.keys(PLATFORM_TO_REGIONAL);
+
 export function platformToRegional(platform: string): Regional {
   const lower = platform.toLowerCase();
   const regional = PLATFORM_TO_REGIONAL[lower as Platform];

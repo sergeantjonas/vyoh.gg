@@ -1,6 +1,6 @@
 # Accounts — move from JSON config to DB-backed admin surface
 
-**Status:** Active — chunk 0 shipped 2026-06-09 (`1f33d7fc`), chunk 1 shipped 2026-08-14 (`ac3907fa`), chunk 2a shipped 2026-08-14; **chunk 2b is next**, chunk 3 after it. Owner-auth shipped in full 2026-08-13, so the prerequisite is closed. Chunk 2's scope was widened 2026-08-14 from delete-only to **hide / pause / delete** on two independent axes, and chunk 3 now carries the opt-in **purge**. Pairs with [owner-auth.md](owner-auth.md) (`OwnerGuard` ships there, this arc applies it to the admin endpoints). Replaces the "Live-config edits" forward-looking item catalogued in [owner-auth.md § Forward-looking gated surfaces](owner-auth.md).
+**Status:** Active — chunk 0 shipped 2026-06-09 (`1f33d7fc`), chunk 1 shipped 2026-08-14 (`ac3907fa`), chunks 2a and 2b-i shipped 2026-08-14; **chunk 2b-ii (the status-page UI) is next**, chunk 3 after it. Owner-auth shipped in full 2026-08-13, so the prerequisite is closed. Chunk 2's scope was widened 2026-08-14 from delete-only to **hide / pause / delete** on two independent axes, and chunk 3 now carries the opt-in **purge**. Pairs with [owner-auth.md](owner-auth.md) (`OwnerGuard` ships there, this arc applies it to the admin endpoints). Replaces the "Live-config edits" forward-looking item catalogued in [owner-auth.md § Forward-looking gated surfaces](owner-auth.md).
 
 The tracked-accounts roster lives in the `LolAccount` + `SteamAccount` tables, read at boot into [identity.service.ts](../../../apps/api/src/identity/identity.service.ts)'s cache by `reload()`. Until 2026-08-14 it was a committed `apps/api/accounts.json` hot-reloaded via `fs.watch`, which made every roster change (add a Steam friend's library, flip an `isOwner` flag, retire a test account) a deploy. The remaining arc adds an `OwnerGuard`-protected admin section on the status page. Every existing `IdentityService` read keeps its signature and its semantics; the one structural change is that the two sync-worklist call sites move off `getLolAccounts()` onto a new `getSyncableLolAccounts()` (see [the read-path table](#read-path-which-reads-filter-on-what)).
 
@@ -130,9 +130,9 @@ Purge writes one structured log line (slug, resolved puuid, per-table counts). T
 
 Every existing call site (`getLolAccounts`, `getOwnerPuuids`, `getLolAccountsWithSummary`, `findBySlug`, `isLolAccountAllowed`, `getSteamIds`) kept its signature.
 
-### New `AdminAccountsModule` (apps/api/src/admin/)
+### New `AdminAccountsModule` (apps/api/src/admin/) — shipped 2026-08-14 (chunk 2b-i)
 
-All routes carry `@UseGuards(OwnerGuard)`:
+All routes carry `@UseGuards(OwnerGuard)`, reads included — `conventions.spec.ts` pins all seven by name:
 
 - `GET /admin/lol-accounts` — the full roster including `hiddenAt`/`syncPausedAt`, which `/me` doesn't carry. The admin table reads this, not `/me`.
 - `POST /admin/lol-accounts` — body `{ slug, gameName, tagLine, region, isOwner, isPrimary }`. Validates Riot ID via account-v1, asserts post-write invariants, inserts, calls `identity.reload()`. Returns the new row.
@@ -140,6 +140,15 @@ All routes carry `@UseGuards(OwnerGuard)`:
 - `DELETE /admin/lol-accounts/:slug` — roster row only; history untouched. Refuses to delete the primary (invariant). When the account still has `Match` rows, the response tells the caller how many and points at hide/pause instead — the row is the only handle on that data, so removing it strands the history rather than cleaning it up. A `?force=true` param overrides for the typo case.
 - `POST /admin/steam-accounts` — body `{ steamId64, isOwner }`. Length/digit validation. Inserts, reloads.
 - `DELETE /admin/steam-accounts/:steamId64` — deletes, reloads. Same Steam-data-untouched semantics.
+
+Four things the sketch above didn't anticipate, all settled while implementing:
+
+- **A seventh route, `GET /admin/steam-accounts`.** The plan listed six and a `use-steam-accounts.ts` hook reading "the `/admin/*` reads", which don't exist for Steam under the six. `/me` carries Steam as a bare `string[]`, so without this route the Steam table can render an id and nothing else — no `isOwner`, no added-on date.
+- **Promotion is a paired write, in both create and patch.** Setting `isPrimary` clears it from the incumbent in the same transaction. As two requests it would pass through a two-primary state, which is exactly what `assertRosterInvariants` rejects — so the intermediate write would 400 rather than briefly misbehave. The demotion is a no-op unless the row actually claims primary; demoting on every write proposes a roster with owners and no primary, and an ordinary create then 400s on a rule it never touched. That bug existed for one test run.
+- **The flag timestamps are idempotent in both directions.** Re-sending `hidden: true` keeps the original `hiddenAt` rather than restamping it — "hidden since when" is the whole reason these are timestamps and not booleans, and a double-clicked toggle would quietly destroy the answer. Needs a read inside the transaction, because the roster cache cannot answer "was it already paused": `syncPausedAt` has no counterpart in the public projection at all.
+- **`PLATFORMS` moved into `regions.ts`** and is derived from `PLATFORM_TO_REGIONAL`'s keys, so the `Record<Platform, Regional>` exhaustiveness check is what keeps it complete. `account-params.dto.ts` had been carrying a hand-written mirror with a keep-in-sync comment; the admin create DTO would have been the third copy.
+
+Note the Steam table is legitimately empty on the dev DB: the pre-cutover `accounts.json` already had `steam: []`, and `getSteamIds()` feeds only `/me` — the Steam integration resolves the owner elsewhere. An empty Steam admin table in 2b-ii is faithful, not a bug.
 
 Chunk 3 adds two more:
 
@@ -227,13 +236,19 @@ Verified against the real database, not just the Prisma stub: with `tifa` hidden
 
 One correction fell out of implementing it: `live-game-poller.service.ts:180` was listed as a third sync site and is not one — see the `getLolAccounts()` row of the read-path table. It now carries a comment saying so, because it is exactly the kind of line a later reader would "fix".
 
-### Chunk 2b — Admin endpoints + status-page UI
+### Chunk 2b-i — Admin endpoints — ✅ shipped 2026-08-14
 
-`AdminAccountsModule` with the six routes, all `@UseGuards(OwnerGuard)`. Riot account-v1 validation in the LoL POST. `apps/web/src/admin/`: hooks + tables + dialogs. "Tracked accounts" zone on the status page, disable-with-tooltip when `viewer.isOwner === false`. Same-commit specs (backend per-endpoint + frontend table + axe).
+`AdminAccountsModule` with seven guarded routes (see above for the four deviations from plan), Riot account-v1 validation on create, and the four asserts-then-writes-then-reloads mutations. 35 new api tests across a service spec, a DTO spec, and a thin controller spec; the guard lint generalised from `@Post`-only to any route decorator, since two of the seven gated routes are `@Get`.
 
-Files: ~5 new backend + ~6 new frontend + ~1 modified status page + ~8 new specs. The visible UX change is the new tables on `/status`.
+**The gap 2a left open is closed.** Verified live against the dev api with a hand-minted owner session (insert a `Session` row with the configured `githubUserId`, hash the token the way `hashToken` does — the OAuth round-trip isn't reachable headlessly): `PATCH /admin/lol-accounts/twix {hidden, syncPaused}` stamped both columns, and public `/me` reported `hidden: true` **with no restart**. Also confirmed live: re-sending `hidden: true` left `hiddenAt` unmoved; hiding the primary 400'd with the invariant message; deleting `twix` 409'd naming 1,153 match rows — the same count the chunk-3 baseline measured, which incidentally proves the tuple → `Summoner.puuid` → `Match` join resolves the right account; an unknown Riot ID 400'd; the same Riot ID under different casing with a new slug 409'd before reaching Riot; and the full Steam create → `/me` → delete round-trip. Every dev-DB change was reverted and the session row deleted.
 
-Note what 2a deliberately left undone: **nothing calls `reload()` yet**, so a roster written straight to the DB is not picked up until the api restarts. That is the gap these endpoints close, and it is why 2a's live verification had to construct the service directly rather than curl `/me`.
+`?force=true` is unit-tested only — exercising it live means stranding 1,153 real match rows.
+
+### Chunk 2b-ii — Status-page UI
+
+`apps/web/src/admin/`: hooks + tables + dialogs. "Tracked accounts" zone on the status page, disable-with-tooltip when `viewer.isOwner === false`. Same-commit specs (frontend table + axe + the nav pair).
+
+Files: ~6 new frontend + ~1 modified status page. The visible UX change is the new tables on `/status`.
 
 ### Chunk 3 — Purge + polish
 
