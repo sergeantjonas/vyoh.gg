@@ -6,59 +6,17 @@ import type {
   AdminLolAccountDeleteResult,
   AdminSteamAccount,
   AdminSteamAccountDeleteResult,
-  LolAccount,
 } from "@vyoh/shared";
 
 export const adminLolAccountsQueryKey = ["admin", "lol-accounts"] as const;
 export const adminSteamAccountsQueryKey = ["admin", "steam-accounts"] as const;
 
 /**
- * One row of the roster table: the public account, plus the owner-only detail
- * when the admin read has resolved.
- *
- * The split exists because `/admin/*` 401s for everyone but the owner while the
- * roster itself is already public — the nav lists it. So the table renders for
- * any visitor from `/me` and gains its two timestamp columns once the owner's
- * read lands. `detail: null` is the locked view, and the columns that would read
- * from it aren't rendered at all rather than filled with a placeholder that
- * would claim an account is syncing when it might be paused.
- */
-export interface RosterRow {
-  account: LolAccount;
-  detail: AdminLolAccount | null;
-}
-
-export interface SteamRosterRow {
-  steamId64: string;
-  detail: AdminSteamAccount | null;
-}
-
-export function mergeRoster(
-  accounts: readonly LolAccount[],
-  detail: readonly AdminLolAccount[] | undefined
-): RosterRow[] {
-  const bySlug = new Map((detail ?? []).map((d) => [d.slug, d]));
-  return accounts.map((account) => ({
-    account,
-    detail: bySlug.get(account.slug) ?? null,
-  }));
-}
-
-export function mergeSteamRoster(
-  steamIds: readonly string[],
-  detail: readonly AdminSteamAccount[] | undefined
-): SteamRosterRow[] {
-  const byId = new Map((detail ?? []).map((d) => [d.steamId64, d]));
-  return steamIds.map((steamId64) => ({
-    steamId64,
-    detail: byId.get(steamId64) ?? null,
-  }));
-}
-
-/**
  * `enabled` rather than a caught 401: the read is gated, so for a signed-out
  * visitor a request is known to fail before it is sent, and firing it anyway
  * would put a red 401 in everyone's network panel on every status-page visit.
+ * The surface these feed is owner-only too, so this is belt-and-braces — but the
+ * hooks have to be called before that gate to keep hook order stable.
  */
 export function useAdminLolAccounts(enabled: boolean) {
   return useQuery({

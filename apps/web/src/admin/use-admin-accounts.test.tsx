@@ -1,12 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
-import type { AdminLolAccount, AdminSteamAccount, LolAccount } from "@vyoh/shared";
+import type { AdminLolAccount } from "@vyoh/shared";
 import { type ReactNode, createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   adminLolAccountsQueryKey,
-  mergeRoster,
-  mergeSteamRoster,
   useAdminLolAccounts,
   useDeleteLolAccount,
   useUpdateLolAccount,
@@ -42,42 +40,6 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
-});
-
-describe("mergeRoster", () => {
-  const accounts: LolAccount[] = [
-    { slug: "ahri", gameName: "Vyoh", tagLine: "Ahri", region: "euw1" },
-    { slug: "twix", gameName: "Twix", tagLine: "1234", region: "euw1" },
-  ];
-
-  it("keeps the public order and attaches detail by slug", () => {
-    const rows = mergeRoster(accounts, [detail({ slug: "twix", syncPausedAt: "x" })]);
-    expect(rows.map((r) => r.account.slug)).toEqual(["ahri", "twix"]);
-    expect(rows[0]?.detail).toBeNull();
-    expect(rows[1]?.detail?.syncPausedAt).toBe("x");
-  });
-
-  it("leaves every row detail-less when the owner read hasn't landed", () => {
-    // The locked view: `/admin/*` 401s for anyone but the owner, so the table
-    // still renders from `/me` and simply omits the columns it cannot fill.
-    expect(mergeRoster(accounts, undefined).every((r) => r.detail === null)).toBe(true);
-  });
-});
-
-describe("mergeSteamRoster", () => {
-  it("attaches detail by steam id", () => {
-    const steamDetail: AdminSteamAccount = {
-      steamId64: "76561198000000001",
-      isOwner: true,
-      createdAt: "2026-08-13T23:01:17.000Z",
-    };
-    const rows = mergeSteamRoster(
-      ["76561198000000001", "76561198000000002"],
-      [steamDetail]
-    );
-    expect(rows[0]?.detail).toEqual(steamDetail);
-    expect(rows[1]?.detail).toBeNull();
-  });
 });
 
 describe("useAdminLolAccounts", () => {

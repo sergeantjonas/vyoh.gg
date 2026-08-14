@@ -5,13 +5,13 @@ import { AddLolAccountDialog } from "./add-lol-account-dialog";
 
 vi.mock("@/lib/toast", () => ({ toastSuccess: vi.fn() }));
 
-function renderDialog(disabled = false) {
+function renderDialog() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
     <QueryClientProvider client={client}>
-      <AddLolAccountDialog disabled={disabled} />
+      <AddLolAccountDialog />
     </QueryClientProvider>
   );
 }
@@ -96,12 +96,5 @@ describe("AddLolAccountDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add account" }));
 
     await waitFor(() => expect(screen.queryByLabelText("Slug")).toBeNull());
-  });
-
-  it("cannot be opened by a visitor who is not the owner", () => {
-    renderDialog(true);
-    expect(
-      screen.getByRole("button", { name: /Add account/ }).hasAttribute("disabled")
-    ).toBe(true);
   });
 });

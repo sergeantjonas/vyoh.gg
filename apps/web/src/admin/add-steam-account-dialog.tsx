@@ -12,7 +12,7 @@ import { Plus } from "lucide-react";
 import { type SubmitEvent, useState } from "react";
 import { useCreateSteamAccount } from "./use-admin-accounts";
 
-export function AddSteamAccountDialog({ disabled }: { disabled: boolean }) {
+export function AddSteamAccountDialog() {
   const [open, setOpen] = useState(false);
   const [steamId64, setSteamId64] = useState("");
   const create = useCreateSteamAccount();
@@ -37,7 +37,7 @@ export function AddSteamAccountDialog({ disabled }: { disabled: boolean }) {
       }}
     >
       <DialogTrigger asChild>
-        <Button variant="outline" size="xs" disabled={disabled}>
+        <Button variant="outline" size="xs">
           <Plus />
           Add account
         </Button>

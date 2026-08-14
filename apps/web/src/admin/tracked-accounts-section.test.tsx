@@ -1,15 +1,13 @@
 import { useIsOwner } from "@/auth/use-viewer";
-import { useMe } from "@/identity/use-me";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
-import type { Me } from "@vyoh/shared";
+import { render, screen, waitFor } from "@testing-library/react";
+import type { AdminLolAccount } from "@vyoh/shared";
 import { configureAxe } from "jest-axe";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TrackedAccountsSection } from "./tracked-accounts-section";
 
-vi.mock("@/identity/use-me", () => ({ useMe: vi.fn() }));
 vi.mock("@/auth/use-viewer", () => ({ useIsOwner: vi.fn() }));
 
 const axe = configureAxe({
@@ -19,30 +17,30 @@ const axe = configureAxe({
   },
 });
 
-const me: Me = {
-  lol: [
-    {
-      slug: "ahri",
-      gameName: "Vyoh",
-      tagLine: "Ahri",
-      region: "euw1",
-      isOwner: true,
-      isPrimary: true,
-      profileIconId: null,
-      summary: null,
-    },
-    {
-      slug: "twix",
-      gameName: "Twix",
-      tagLine: "1234",
-      region: "euw1",
-      hidden: true,
-      profileIconId: null,
-      summary: null,
-    },
-  ],
-  steam: ["76561198000000001"],
-};
+const roster: AdminLolAccount[] = [
+  {
+    slug: "ahri",
+    gameName: "Vyoh",
+    tagLine: "Ahri",
+    region: "euw1",
+    isOwner: true,
+    isPrimary: true,
+    hiddenAt: null,
+    syncPausedAt: null,
+    createdAt: "2026-08-13T23:01:17.000Z",
+  },
+  {
+    slug: "twix",
+    gameName: "Twix",
+    tagLine: "1234",
+    region: "euw1",
+    isOwner: false,
+    isPrimary: false,
+    hiddenAt: "2026-03-03T10:00:00.000Z",
+    syncPausedAt: null,
+    createdAt: "2026-08-13T23:01:24.000Z",
+  },
+];
 
 function renderSection() {
   const client = new QueryClient({
@@ -59,8 +57,14 @@ function renderSection() {
 }
 
 beforeEach(() => {
-  vi.mocked(useMe).mockReturnValue({ data: me } as ReturnType<typeof useMe>);
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("[]")));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) =>
+      url.includes("lol-accounts")
+        ? new Response(JSON.stringify(roster))
+        : new Response("[]")
+    )
+  );
 });
 
 afterEach(() => {
@@ -69,59 +73,47 @@ afterEach(() => {
 });
 
 describe("TrackedAccountsSection", () => {
-  it("renders both rosters from the public payload", () => {
+  it("renders both rosters for the owner", async () => {
     vi.mocked(useIsOwner).mockReturnValue(true);
     renderSection();
 
     expect(screen.getByText("Tracked accounts")).toBeTruthy();
-    expect(screen.getByText("Vyoh#Ahri")).toBeTruthy();
-    expect(screen.getByText("76561198000000001")).toBeTruthy();
+    expect(await screen.findByText("Vyoh#Ahri")).toBeTruthy();
+    expect(screen.getByText("League accounts")).toBeTruthy();
+    expect(screen.getByText("Steam accounts")).toBeTruthy();
   });
 
-  it("reads the roster from /me, so a hidden account is still managed here", () => {
-    // The nav filters hidden accounts out; this table must not, or the only
-    // control that could un-hide one would disappear with it.
+  it("lists a hidden account — the nav drops it, the manager must not", async () => {
+    // Otherwise the only control that could un-hide an account disappears along
+    // with it.
     vi.mocked(useIsOwner).mockReturnValue(true);
     renderSection();
-    expect(screen.getByText("Twix#1234")).toBeTruthy();
+    expect(await screen.findByText("Twix#1234")).toBeTruthy();
     expect(screen.getByText("Hidden")).toBeTruthy();
   });
 
-  it("fetches the owner-only detail once the session is confirmed", () => {
-    vi.mocked(useIsOwner).mockReturnValue(true);
-    renderSection();
-    expect(fetch).toHaveBeenCalledWith(
-      "http://localhost:2010/admin/lol-accounts",
-      expect.objectContaining({ credentials: "include" })
-    );
-  });
-
-  it("asks for nothing and locks the cards for an anonymous visitor", () => {
+  it("renders nothing at all for a visitor who is not the owner", () => {
+    // Not a read-only variant: the account list is already in the nav, so a
+    // locked copy of it would be a duplicate wrapped in dead controls.
     vi.mocked(useIsOwner).mockReturnValue(false);
-    renderSection();
+    const { container } = renderSection();
 
-    // Two locks, one per card — not one per control, which would read as ten
-    // separate problems instead of one signed-out session.
-    expect(screen.getAllByLabelText("Read-only — owner sign-in required")).toHaveLength(
-      2
-    );
-    for (const button of screen.getAllByRole("button")) {
-      expect(button.hasAttribute("disabled")).toBe(true);
-    }
+    expect(container.innerHTML).toBe("");
+    expect(screen.queryByText("Tracked accounts")).toBeNull();
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("keeps the same layout signed out — the cards and headers stay", () => {
-    vi.mocked(useIsOwner).mockReturnValue(false);
+  it("says it is loading rather than claiming an empty roster", () => {
+    vi.mocked(useIsOwner).mockReturnValue(true);
+    vi.mocked(fetch).mockReturnValue(new Promise(() => {}) as Promise<Response>);
     renderSection();
-    expect(screen.getByText("League accounts")).toBeTruthy();
-    expect(screen.getByText("Steam accounts")).toBeTruthy();
-    expect(screen.getAllByText("Add account")).toHaveLength(2);
+    expect(screen.getAllByText("Loading roster…")).toHaveLength(2);
   });
 
   it("has no axe violations", async () => {
     vi.mocked(useIsOwner).mockReturnValue(true);
     const { container } = renderSection();
+    await waitFor(() => expect(screen.getByText("Vyoh#Ahri")).toBeTruthy());
     const results = await axe(container);
     expect(results.violations).toEqual([]);
   });

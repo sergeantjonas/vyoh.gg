@@ -1,9 +1,8 @@
-import { OwnerAction } from "@/auth/owner-action";
 import { Button } from "@/components/ui/button";
+import { ControlHint } from "@/components/ui/control-hint";
 import { cn } from "@/lib/utils";
-import { OWNER_TIME_ZONE } from "@vyoh/shared";
+import { type AdminLolAccount, OWNER_TIME_ZONE } from "@vyoh/shared";
 import { Crown, Eye, EyeOff, Pause, Play, Star, Trash2 } from "lucide-react";
-import type { RosterRow } from "./use-admin-accounts";
 import { useDeleteLolAccount, useUpdateLolAccount } from "./use-admin-accounts";
 
 const SINCE_FMT = new Intl.DateTimeFormat("en-GB", {
@@ -13,10 +12,6 @@ const SINCE_FMT = new Intl.DateTimeFormat("en-GB", {
   timeZone: OWNER_TIME_ZONE,
 });
 
-function since(iso: string | null): string {
-  return iso === null ? "" : SINCE_FMT.format(new Date(iso));
-}
-
 /**
  * The roster, one row per tracked Riot account.
  *
@@ -25,13 +20,7 @@ function since(iso: string | null): string {
  * "why is this account stale" turns into a debugging session. So both are
  * toggles carrying their own resting label, not verbs behind an overflow menu.
  */
-export function LolAccountsTable({
-  rows,
-  isOwner,
-}: {
-  rows: RosterRow[];
-  isOwner: boolean;
-}) {
+export function LolAccountsTable({ rows }: { rows: AdminLolAccount[] }) {
   const update = useUpdateLolAccount();
   const remove = useDeleteLolAccount();
   const busy = update.isPending || remove.isPending;
@@ -59,11 +48,9 @@ export function LolAccountsTable({
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ account, detail }) => {
-            const hidden = account.hidden === true;
-            const paused = detail?.syncPausedAt != null;
-            const primary = account.isPrimary === true;
-            const owner = account.isOwner === true;
+          {rows.map((account) => {
+            const hidden = account.hiddenAt !== null;
+            const paused = account.syncPausedAt !== null;
             const label = `${account.gameName}#${account.tagLine}`;
 
             return (
@@ -77,41 +64,47 @@ export function LolAccountsTable({
 
                 <td className="px-2 py-2">
                   <div className="flex items-center gap-1">
-                    <OwnerAction
-                      isOwner={isOwner}
-                      side="top"
-                      label={owner ? "Stop counting as mine" : "Count as one of mine"}
+                    <ControlHint
+                      label={
+                        account.isOwner ? "Stop counting as mine" : "Count as one of mine"
+                      }
                     >
                       <Button
                         variant="ghost"
                         size="icon-xs"
-                        aria-pressed={owner}
+                        aria-pressed={account.isOwner}
                         aria-label={`Owner account: ${label}`}
-                        disabled={!isOwner || busy}
+                        disabled={busy}
                         onClick={() =>
                           update.mutate({
                             slug: account.slug,
-                            patch: { isOwner: !owner },
+                            patch: { isOwner: !account.isOwner },
                           })
                         }
                       >
-                        <Star className={cn(owner && "fill-current text-foreground")} />
+                        <Star
+                          className={cn(
+                            account.isOwner && "fill-current text-foreground"
+                          )}
+                        />
                       </Button>
-                    </OwnerAction>
+                    </ControlHint>
                     {/* Promotion only. Clearing the flag would leave a roster with
                         owners and no primary, which the api rejects — moving it
                         means promoting another row, which demotes this one. */}
-                    <OwnerAction
-                      isOwner={isOwner}
-                      side="top"
-                      label={primary ? "The primary account" : "Make this the primary"}
+                    <ControlHint
+                      label={
+                        account.isPrimary
+                          ? "The primary account"
+                          : "Make this the primary"
+                      }
                     >
                       <Button
                         variant="ghost"
                         size="icon-xs"
-                        aria-pressed={primary}
+                        aria-pressed={account.isPrimary}
                         aria-label={`Primary account: ${label}`}
-                        disabled={!isOwner || busy || primary}
+                        disabled={busy || account.isPrimary}
                         onClick={() =>
                           update.mutate({
                             slug: account.slug,
@@ -120,17 +113,17 @@ export function LolAccountsTable({
                         }
                       >
                         <Crown
-                          className={cn(primary && "fill-current text-foreground")}
+                          className={cn(
+                            account.isPrimary && "fill-current text-foreground"
+                          )}
                         />
                       </Button>
-                    </OwnerAction>
+                    </ControlHint>
                   </div>
                 </td>
 
                 <td className="px-2 py-2">
-                  <OwnerAction
-                    isOwner={isOwner}
-                    side="top"
+                  <ControlHint
                     label={
                       hidden
                         ? "Show in the nav again"
@@ -141,7 +134,7 @@ export function LolAccountsTable({
                       variant="ghost"
                       size="xs"
                       aria-pressed={hidden}
-                      disabled={!isOwner || busy}
+                      disabled={busy}
                       onClick={() =>
                         update.mutate({ slug: account.slug, patch: { hidden: !hidden } })
                       }
@@ -151,58 +144,44 @@ export function LolAccountsTable({
                         {hidden ? "Hidden" : "Listed"}
                       </span>
                     </Button>
-                  </OwnerAction>
-                  {hidden && detail?.hiddenAt && (
+                  </ControlHint>
+                  {account.hiddenAt && (
                     <span className="ml-1 text-xs text-muted-foreground">
-                      since {since(detail.hiddenAt)}
+                      since {SINCE_FMT.format(new Date(account.hiddenAt))}
                     </span>
                   )}
                 </td>
 
                 <td className="px-2 py-2">
-                  {/* Withheld rather than guessed. `syncPausedAt` only reaches
-                      the owner, so without it this cell would render "Syncing"
-                      for a paused account — the one state whose whole purpose is
-                      to explain why an account looks stale. */}
-                  {detail === null ? (
-                    <span className="text-xs text-muted-foreground">
-                      —<span className="sr-only">Sync state is owner-only</span>
+                  <ControlHint
+                    label={
+                      paused
+                        ? "Resume fetching new games"
+                        : "Stop fetching — history stays browsable"
+                    }
+                  >
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      aria-pressed={paused}
+                      disabled={busy}
+                      onClick={() =>
+                        update.mutate({
+                          slug: account.slug,
+                          patch: { syncPaused: !paused },
+                        })
+                      }
+                    >
+                      {paused ? <Pause /> : <Play />}
+                      <span className={cn(!paused && "text-muted-foreground")}>
+                        {paused ? "Paused" : "Syncing"}
+                      </span>
+                    </Button>
+                  </ControlHint>
+                  {account.syncPausedAt && (
+                    <span className="ml-1 text-xs text-muted-foreground">
+                      since {SINCE_FMT.format(new Date(account.syncPausedAt))}
                     </span>
-                  ) : (
-                    <>
-                      <OwnerAction
-                        isOwner={isOwner}
-                        side="top"
-                        label={
-                          paused
-                            ? "Resume fetching new games"
-                            : "Stop fetching — history stays browsable"
-                        }
-                      >
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          aria-pressed={paused}
-                          disabled={!isOwner || busy}
-                          onClick={() =>
-                            update.mutate({
-                              slug: account.slug,
-                              patch: { syncPaused: !paused },
-                            })
-                          }
-                        >
-                          {paused ? <Pause /> : <Play />}
-                          <span className={cn(!paused && "text-muted-foreground")}>
-                            {paused ? "Paused" : "Syncing"}
-                          </span>
-                        </Button>
-                      </OwnerAction>
-                      {paused && detail.syncPausedAt && (
-                        <span className="ml-1 text-xs text-muted-foreground">
-                          since {since(detail.syncPausedAt)}
-                        </span>
-                      )}
-                    </>
                   )}
                 </td>
 
@@ -211,22 +190,18 @@ export function LolAccountsTable({
                       still has match rows, and re-adding the same Riot ID
                       re-attaches its history — the tuple is the join key — so
                       the reachable case is cheap to undo. */}
-                  <OwnerAction
-                    isOwner={isOwner}
-                    side="top"
-                    label="Remove from the roster"
-                  >
+                  <ControlHint label="Remove from the roster">
                     <Button
                       variant="ghost"
                       size="icon-xs"
                       className="text-muted-foreground hover:text-destructive"
                       aria-label={`Remove ${label}`}
-                      disabled={!isOwner || busy}
+                      disabled={busy}
                       onClick={() => remove.mutate(account.slug)}
                     >
                       <Trash2 />
                     </Button>
-                  </OwnerAction>
+                  </ControlHint>
                 </td>
               </tr>
             );

@@ -24,7 +24,7 @@ const EMPTY = { slug: "", gameName: "", tagLine: "", region: "euw1", isOwner: fa
  * Riot ID exists. Mirroring its rules here would mean two sets to keep in step,
  * and the client's copy would be the one that goes stale.
  */
-export function AddLolAccountDialog({ disabled }: { disabled: boolean }) {
+export function AddLolAccountDialog() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const create = useCreateLolAccount();
@@ -51,7 +51,7 @@ export function AddLolAccountDialog({ disabled }: { disabled: boolean }) {
       }}
     >
       <DialogTrigger asChild>
-        <Button variant="outline" size="xs" disabled={disabled}>
+        <Button variant="outline" size="xs">
           <Plus />
           Add account
         </Button>
