@@ -1,24 +1,15 @@
+import { PLATFORMS, type Platform } from "@vyoh/shared";
+
+// Re-exported so the api keeps importing its routing vocabulary from one place.
+// The list itself is shared: the web's add-account form offers the same
+// platforms this module maps.
+export { PLATFORMS };
+export type { Platform };
+
 export type Regional = "europe" | "americas" | "asia" | "sea";
 
-export type Platform =
-  | "euw1"
-  | "eun1"
-  | "tr1"
-  | "ru"
-  | "me1"
-  | "na1"
-  | "br1"
-  | "la1"
-  | "la2"
-  | "kr"
-  | "jp1"
-  | "oc1"
-  | "ph2"
-  | "sg2"
-  | "th2"
-  | "tw2"
-  | "vn2";
-
+// Exhaustive by construction — a platform added to the shared list has to be
+// mapped here or this stops type-checking.
 const PLATFORM_TO_REGIONAL: Record<Platform, Regional> = {
   euw1: "europe",
   eun1: "europe",
@@ -38,12 +29,6 @@ const PLATFORM_TO_REGIONAL: Record<Platform, Regional> = {
   tw2: "sea",
   vn2: "sea",
 };
-
-// The runtime platform list, derived from the map above rather than written out
-// again: `Record<Platform, Regional>` makes the map exhaustive by construction,
-// so a new platform can't be added to the union without landing here too.
-// Request DTOs validate a `region` param against this.
-export const PLATFORMS: readonly string[] = Object.keys(PLATFORM_TO_REGIONAL);
 
 export function platformToRegional(platform: string): Regional {
   const lower = platform.toLowerCase();

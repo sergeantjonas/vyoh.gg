@@ -1,11 +1,11 @@
+import { TrackedAccountsSection } from "@/admin/tracked-accounts-section";
+import { OwnerAction } from "@/auth/owner-action";
 import { useIsOwner } from "@/auth/use-viewer";
 import { Button } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
 import { useMe } from "@/identity/use-me";
 import { toastError, toastInfo, toastSuccess } from "@/lib/toast";
-import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
-import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Link } from "@tanstack/react-router";
 import {
   type AppWindowSnapshot,
@@ -61,6 +61,8 @@ export function StatusPage() {
         enabled={data.sync.enabled}
         running={data.sync.running}
       />
+
+      <TrackedAccountsSection />
 
       <section className="flex flex-col gap-3">
         <SectionTitle as="h2">Rate limiter — app windows</SectionTitle>
@@ -162,7 +164,7 @@ function SyncCard({
   const onSyncAccount = (slug: string) => {
     const account = me?.lol.find((a) => a.slug === slug);
     if (!account) {
-      void toastError(`Account "${slug}" not in identity config`);
+      void toastError(`Account "${slug}" is no longer on the roster`);
       return;
     }
     syncAccount.mutate(account, {
@@ -268,49 +270,6 @@ function SyncCard({
   );
 }
 
-const OWNER_ONLY_COPY = "Owner-only — sign in to enable.";
-
-/**
- * Tooltip shell for a control that only the owner may press.
- *
- * The control stays rendered and disabled rather than hidden, so the page still
- * describes what it can do and the owner sees the same layout signed in or out
- * — hiding it would make the status page silently change shape depending on who
- * is looking, which is the harder thing to reason about when something breaks.
- *
- * The `<span>` around the trigger is load-bearing: a disabled button swallows
- * pointer events, so Radix never sees the hover and the tooltip explaining
- * *why* it is disabled would be the one thing you cannot read.
- */
-function OwnerAction({
-  isOwner,
-  label,
-  side = "bottom",
-  children,
-}: {
-  isOwner: boolean;
-  label: string;
-  side?: "top" | "bottom";
-  children: React.ReactNode;
-}) {
-  return (
-    <TooltipPrimitive.Root>
-      <TooltipPrimitive.Trigger asChild>
-        <span className="inline-flex">{children}</span>
-      </TooltipPrimitive.Trigger>
-      <TooltipPrimitive.Portal>
-        <TooltipPrimitive.Content
-          side={side}
-          sideOffset={4}
-          className={TOOLTIP_CONTENT_COMPACT}
-        >
-          {isOwner ? label : OWNER_ONLY_COPY}
-        </TooltipPrimitive.Content>
-      </TooltipPrimitive.Portal>
-    </TooltipPrimitive.Root>
-  );
-}
-
 function AccountRow({
   account,
   onSync,
@@ -349,9 +308,7 @@ function AccountRow({
         <OwnerAction
           isOwner={isOwner}
           side="top"
-          label={
-            resolvable ? "Sync this account now" : "Account no longer in identity config"
-          }
+          label={resolvable ? "Sync this account now" : "Account no longer on the roster"}
         >
           <Button
             variant="ghost"

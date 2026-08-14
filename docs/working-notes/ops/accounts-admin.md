@@ -1,6 +1,6 @@
 # Accounts — move from JSON config to DB-backed admin surface
 
-**Status:** Active — chunk 0 shipped 2026-06-09 (`1f33d7fc`), chunk 1 shipped 2026-08-14 (`ac3907fa`), chunks 2a and 2b-i shipped 2026-08-14; **chunk 2b-ii (the status-page UI) is next**, chunk 3 after it. Owner-auth shipped in full 2026-08-13, so the prerequisite is closed. Chunk 2's scope was widened 2026-08-14 from delete-only to **hide / pause / delete** on two independent axes, and chunk 3 now carries the opt-in **purge**. Pairs with [owner-auth.md](owner-auth.md) (`OwnerGuard` ships there, this arc applies it to the admin endpoints). Replaces the "Live-config edits" forward-looking item catalogued in [owner-auth.md § Forward-looking gated surfaces](owner-auth.md).
+**Status:** Active — chunk 0 shipped 2026-06-09 (`1f33d7fc`), chunk 1 and chunks 2a/2b-i shipped 2026-08-14, chunk 2b-ii shipped 2026-08-15. **Chunk 2 is done: the roster is fully manageable from `/status`.** Only chunk 3 (purge) remains, and it is gated on a verified restore. Owner-auth shipped in full 2026-08-13, so the prerequisite is closed. Chunk 2's scope was widened 2026-08-14 from delete-only to **hide / pause / delete** on two independent axes, and chunk 3 now carries the opt-in **purge**. Pairs with [owner-auth.md](owner-auth.md) (`OwnerGuard` ships there, this arc applies it to the admin endpoints). Replaces the "Live-config edits" forward-looking item catalogued in [owner-auth.md § Forward-looking gated surfaces](owner-auth.md).
 
 The tracked-accounts roster lives in the `LolAccount` + `SteamAccount` tables, read at boot into [identity.service.ts](../../../apps/api/src/identity/identity.service.ts)'s cache by `reload()`. Until 2026-08-14 it was a committed `apps/api/accounts.json` hot-reloaded via `fs.watch`, which made every roster change (add a Steam friend's library, flip an `isOwner` flag, retire a test account) a deploy. The remaining arc adds an `OwnerGuard`-protected admin section on the status page. Every existing `IdentityService` read keeps its signature and its semantics; the one structural change is that the two sync-worklist call sites move off `getLolAccounts()` onto a new `getSyncableLolAccounts()` (see [the read-path table](#read-path-which-reads-filter-on-what)).
 
@@ -244,11 +244,21 @@ One correction fell out of implementing it: `live-game-poller.service.ts:180` wa
 
 `?force=true` is unit-tested only — exercising it live means stranding 1,153 real match rows.
 
-### Chunk 2b-ii — Status-page UI
+### Chunk 2b-ii — Status-page UI — ✅ shipped 2026-08-15
 
-`apps/web/src/admin/`: hooks + tables + dialogs. "Tracked accounts" zone on the status page, disable-with-tooltip when `viewer.isOwner === false`. Same-commit specs (frontend table + axe + the nav pair).
+`apps/web/src/admin/` (hooks, both tables, both add-dialogs, the zone) plus two extractions the surface forced: `OwnerAction` moved out of `status-page.tsx` into `apps/web/src/auth/owner-action.tsx`, and its `post()` helper into `apps/web/src/lib/owner-request.ts` — the admin hooks need the same 401-rewrite and `credentials: "include"`, and a second copy is how the two drift. 41 new web tests.
 
-Files: ~6 new frontend + ~1 modified status page. The visible UX change is the new tables on `/status`.
+Five decisions that departed from the sketch above:
+
+- **The tables render for everyone, from `/me`.** `/admin/*` 401s for anyone but the owner, so the plan's "read-only tables for non-owners" had no data behind it. The roster is already public — the nav lists it — so the rows come from `/me` and the owner's read merges its two timestamps in by slug (`mergeRoster`). Layout is identical signed in or out, which is the property `OwnerAction` exists to preserve.
+- **The sync column is withheld, not defaulted, when that merge finds nothing.** Caught by the browser probe, not by a test: `detail === null` fell through to the toggle's resting state and rendered "Syncing" for all nine rows to an anonymous visitor — including for an account that is paused, which is the one state whose entire purpose is explaining why an account looks stale. It now renders an em dash. Visibility stays readable for everyone because `hidden` rides on `/me`.
+- **Stacked cards, not two columns.** The LoL table carries four control columns across nine rows; the Steam card is one row of one field. Side-by-side starves the half that needs width.
+- **No confirm dialog on delete, and no force affordance.** The api refuses to remove an account that still has match rows, and re-adding the same Riot ID re-attaches its history — the tuple is the join key — so the reachable case is cheap to undo. `?force=true` stays a curl-level escape hatch: it exists for the typo case, and a typo'd account has no history to strand, so the button would only ever be reachable for the case where purge (chunk 3) is the right tool.
+- **One hooks file, not two**, since all six mutations share the same request helper and the same invalidation set. And no `react-hook-form`: two forms of four fields did not justify a dependency, so they are controlled state with the api's own validation messages surfaced inline.
+
+`PLATFORMS` moved again — from `apps/api/src/riot/regions.ts` (where 2b-i had just consolidated it) to `packages/shared/src/lol/platforms.ts`, with `Platform` derived from the list rather than declared beside it. The add-account form's region select needs the same list the api validates against; `regions.ts` re-exports it so no api import changed, and `Record<Platform, Regional>` still forces every platform to be mapped.
+
+Verified in a real browser against the dev api on both sessions. Anonymous: two locks (one per card, not one per control), every control disabled, and **no admin request fired at all** — the reads are `enabled: isOwner`, so a signed-out visit doesn't put a 401 in the network panel. Owner: hiding `twix` stamped `hiddenAt` and the nav dropdown dropped from nine accounts to eight with no reload, pausing it while hidden confirmed the axes are independent, both reverted, and hiding the primary produced a toast carrying the invariant's own message while the row stayed listed.
 
 ### Chunk 3 — Purge + polish
 

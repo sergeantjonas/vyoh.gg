@@ -31,6 +31,13 @@ vi.mock("./use-status", () => ({
 
 vi.mock("@/identity/use-me", () => ({ useMe: vi.fn() }));
 
+// Stubbed rather than rendered: the section owns React Query hooks against the
+// admin routes and has its own spec. What matters here is that the page mounts
+// it, and where.
+vi.mock("@/admin/tracked-accounts-section", () => ({
+  TrackedAccountsSection: () => <section>Tracked accounts</section>,
+}));
+
 vi.mock("@/auth/use-viewer", () => ({ useIsOwner: vi.fn() }));
 
 // The page renders no router-aware component beyond the sign-in link, so a

@@ -11,6 +11,7 @@ import { useEffect } from "react";
 import { viewerQueryKey } from "@/auth/use-viewer";
 import { API_URL } from "@/lib/api-url";
 import { HttpError } from "@/lib/http-error";
+import { ownerRequest } from "@/lib/owner-request";
 
 async function fetchStatus(): Promise<StatusSnapshot> {
   const res = await fetch(`${API_URL}/status`);
@@ -18,30 +19,7 @@ async function fetchStatus(): Promise<StatusSnapshot> {
   return res.json();
 }
 
-async function post<T>(path: string): Promise<T> {
-  // Every route below this is behind `OwnerGuard`, and in dev the api answers
-  // on a different port — a different *origin*, so the session cookie is only
-  // attached when the request asks for it.
-  const res = await fetch(`${API_URL}${path}`, {
-    method: "POST",
-    credentials: "include",
-  });
-  if (!res.ok) {
-    // The guard's own "Owner session required" is accurate but reads as an
-    // internal error; the user's situation is that they were signed in a moment
-    // ago and are not now.
-    if (res.status === 401) throw new HttpError(401, "Session expired — sign in again");
-    let message = `HTTP ${res.status}`;
-    try {
-      const body = await res.json();
-      if (typeof body?.message === "string") message = body.message;
-    } catch {
-      // not JSON
-    }
-    throw new HttpError(res.status, message);
-  }
-  return res.json();
-}
+const post = <T>(path: string): Promise<T> => ownerRequest<T>("POST", path);
 
 /**
  * Re-lock the UI when a write comes back 401.

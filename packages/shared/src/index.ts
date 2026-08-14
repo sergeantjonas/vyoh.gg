@@ -76,6 +76,8 @@ export type {
   PaletteShareVerb,
 } from "./command-palette/parse-palette-verb.ts";
 export type { Me } from "./identity.ts";
+export { PLATFORMS } from "./lol/platforms.ts";
+export type { Platform } from "./lol/platforms.ts";
 export type { Viewer } from "./auth/viewer.ts";
 export type {
   AdminLolAccount,

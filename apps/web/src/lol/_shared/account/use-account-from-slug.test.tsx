@@ -51,6 +51,17 @@ describe("useAccountFromSlug", () => {
     expect(result.current).toBe(vyoh);
   });
 
+  // The other half of what "hidden" means. The nav filters these out, and this
+  // hook must not: hiding removes the link, not the page, and `/me` carries a
+  // flag rather than omitting the row precisely so `/lol/<hidden-slug>/*` keeps
+  // resolving for anyone holding the URL.
+  it("resolves a hidden account — hiding drops the nav link, not the route", () => {
+    const hidden: LolAccount = { ...vyoh, hidden: true };
+    mockMe([ahri, hidden]);
+    const { result } = renderHook(() => useAccountFromSlug("vyoh"));
+    expect(result.current).toBe(hidden);
+  });
+
   // Slugs arrive from the URL, so a capitalised path segment must still match.
   it("matches case-insensitively in both directions", () => {
     mockMe([ahri, vyoh]);
