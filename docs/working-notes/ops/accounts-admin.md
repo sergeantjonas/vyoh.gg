@@ -1,8 +1,8 @@
 # Accounts — move from JSON config to DB-backed admin surface
 
-**Status:** Active — chunk 0 shipped 2026-06-09 (`1f33d7fc`), chunk 1 shipped 2026-08-14; chunks 2–3 not started. Owner-auth shipped in full 2026-08-13, so the prerequisite is closed and chunk 2 can start whenever. Pairs with [owner-auth.md](owner-auth.md) (`OwnerGuard` ships there, this arc applies it to the admin endpoints). Replaces the "Live-config edits" forward-looking item catalogued in [owner-auth.md § Forward-looking gated surfaces](owner-auth.md).
+**Status:** Active — chunk 0 shipped 2026-06-09 (`1f33d7fc`), chunk 1 shipped 2026-08-14 (`ac3907fa`); chunks 2–3 not started. Owner-auth shipped in full 2026-08-13, so the prerequisite is closed and chunk 2 can start whenever. Chunk 2's scope was widened 2026-08-14 from delete-only to **hide / pause / delete** on two independent axes, and chunk 3 now carries the opt-in **purge**. Pairs with [owner-auth.md](owner-auth.md) (`OwnerGuard` ships there, this arc applies it to the admin endpoints). Replaces the "Live-config edits" forward-looking item catalogued in [owner-auth.md § Forward-looking gated surfaces](owner-auth.md).
 
-The tracked-accounts roster lives in the `LolAccount` + `SteamAccount` tables, read at boot into [identity.service.ts](../../../apps/api/src/identity/identity.service.ts)'s cache by `reload()`. Until 2026-08-14 it was a committed `apps/api/accounts.json` hot-reloaded via `fs.watch`, which made every roster change (add a Steam friend's library, flip an `isOwner` flag, retire a test account) a deploy. The remaining arc adds an `OwnerGuard`-protected admin section on the status page; every existing synchronous `IdentityService` call site is unchanged.
+The tracked-accounts roster lives in the `LolAccount` + `SteamAccount` tables, read at boot into [identity.service.ts](../../../apps/api/src/identity/identity.service.ts)'s cache by `reload()`. Until 2026-08-14 it was a committed `apps/api/accounts.json` hot-reloaded via `fs.watch`, which made every roster change (add a Steam friend's library, flip an `isOwner` flag, retire a test account) a deploy. The remaining arc adds an `OwnerGuard`-protected admin section on the status page. Every existing `IdentityService` read keeps its signature and its semantics; the one structural change is that the three sync-worklist call sites move off `getLolAccounts()` onto a new `getSyncableLolAccounts()` (see [the read-path table](#read-path-which-reads-filter-on-what)).
 
 Sibling docs: [owner-auth.md](owner-auth.md) (prerequisite), [hosting.md](hosting.md) (the deploy friction this removes is hosting-coupled), [security.md](security.md) (CodeQL was deferred against the auth surface; this lands one more mutating endpoint group under it).
 
@@ -16,6 +16,9 @@ Sibling docs: [owner-auth.md](owner-auth.md) (prerequisite), [hosting.md](hostin
 - **Admin surface lives on the status page**, gated by the same `OwnerGuard`. Owner-auth chunk 2 will disable-with-tooltip the existing Sync/Pause/Resume buttons for non-owner visitors; the accounts table follows the same pattern.
 - **No slug renames in v1.** Slugs appear in URLs (`/lol/$accountSlug/...`); rename without redirect handling breaks bookmarks. Park as a follow-up.
 - **Riot ID validated on add** by calling account-v1 server-side before persisting — catches typos that would silently produce empty `/lol/$accountSlug` pages. Steam IDs validated by length/digit shape only.
+- **Visibility and sync are two independent axes, not one lifecycle** (decided 2026-08-14). `hiddenAt` controls whether an account is *advertised*; `syncPausedAt` controls whether it is *fetched*. The current roster already occupies one corner that a single enum can't express — the five non-owner accounts are things the owner wants syncing but arguably not fronted in the nav — and a temporarily-tracked friend's account wants the opposite corner: still browsable, no longer polled. Two nullable timestamps, four legal states, no ordering between them.
+- **Delete shrinks to typo cleanup.** Once hide and pause exist, the only honest reason to remove a roster row is that it should never have been added. That matters because **the roster row is the only handle on the data**: there is no foreign key from `LolAccount` to `Summoner`/`Match`, so the `gameName + tagLine + region` tuple on the row is the sole thing that can name an account's history. Delete-to-hide would leave 1,961 Agurin matches unreachable by any admin surface or future purge.
+- **Purge is opt-in, separate, and gated on a verified restore** (decided 2026-08-14). It is the one irreversible action in the arc — hide, pause, and roster-row delete are all recoverable — so it gets its own endpoint rather than a flag on `DELETE`, and it lands in chunk 3 under the standing backup rule in [pre-launch-sweep.md](pre-launch-sweep.md).
 
 ---
 
@@ -29,7 +32,9 @@ Sibling docs: [owner-auth.md](owner-auth.md) (prerequisite), [hosting.md](hostin
 
 ## Backend shape
 
-### New Prisma models
+### Prisma models — shipped 2026-08-14
+
+Shipped as sketched here, plus a `createdAt`-as-display-order contract the sketch didn't anticipate (see chunk 1):
 
 ```prisma
 model LolAccount {
@@ -56,6 +61,65 @@ Notes:
 - `@@unique([gameName, tagLine, region])` guards against the same Riot ID being registered under two slugs (which would split match history across two pages).
 - `SteamAccount.isOwner` defaults `true` to mirror the current JSON's implicit assumption (every entry is "the owner's"). Anticipates a future "track a friend's library" use case without changing the shape later.
 
+### Chunk 2 adds two nullable timestamps
+
+```prisma
+model LolAccount {
+  // …shipped columns…
+  hiddenAt      DateTime?
+  syncPausedAt  DateTime?
+}
+```
+
+Timestamps rather than booleans, because "hidden since when" is the question actually asked when reviewing a roster months later, and a nullable timestamp answers both it and the boolean for free. No `hiddenBy`/`pausedBy` — single owner, same call as the audit-log decision below.
+
+`SteamAccount` gets neither in chunk 2. A single Steam library is either tracked or it isn't, and there is no Steam equivalent of "browse a friend's history" surface to keep alive; add them when a second Steam row exists.
+
+### Read path: which reads filter on what
+
+This is the load-bearing table for chunk 2. Both columns are **opt-in per read** — the default is to ignore them, and only three call sites change.
+
+| Read | `hiddenAt` | `syncPausedAt` | Why |
+|---|---|---|---|
+| `getSyncableLolAccounts()` *(new)* | ignores | **excludes** | The only new method. Backs the match-sync cron ([match-sync.service.ts:104](../../../apps/api/src/lol/match-sync.service.ts#L104)) and the live-game poller ([live-game-poller.service.ts:85](../../../apps/api/src/lol/live-game-poller.service.ts#L85), [:180](../../../apps/api/src/lol/live-game-poller.service.ts#L180)). Pause means "stop fetching new data", and this is the entire set of places new data enters. |
+| `getLolAccounts()` | ignores | ignores | Stays the unfiltered roster. The reverse puuid→slug lookup at [home-first-played.service.ts:244](../../../apps/api/src/home/home-first-played.service.ts#L244) and the four backfill scripts all iterate it; filtering here would make maintenance work skip accounts silently, which is exactly the failure mode that is hardest to notice. |
+| `isLolAccountAllowed()` | ignores | ignores | Gates 24 read endpoints across `lol.service`, `lol-analytics.service`, and `lol-champion-analytics.service`. Filtering here would 403 a hidden *or* paused account's own pages — the opposite of the point, which is that the data stays browsable. |
+| `findBySlug()` | ignores | ignores | Resolves URLs and OG images. A bookmark to a hidden account must keep working; hiding removes the link, not the page. |
+| `getLolAccountsWithSummary()` → `/me` | **flags, never drops** | ignores | Verified 2026-08-14: [use-account-from-slug.ts](../../../apps/web/src/lol/_shared/account/use-account-from-slug.ts) resolves the *page's own* account object out of the `/me` payload, so omitting hidden rows breaks every `/lol/<hidden-slug>/*` route while the API happily serves the data behind it. Ship `hidden: boolean` on the payload and let [nav.tsx](../../../apps/web/src/components/nav.tsx) filter. Pause stays out of `/me` — it's an ops state, not public content. |
+| `getOwnerPuuids()` | ignores | ignores | Decided: hiding is presentation, authorship is `isOwner`. A nav toggle must not silently rewrite `/`'s lifetime totals; if an account should leave the self-portrait, clear `isOwner`. |
+| `resolveOwnerPuuids()` *(private, [lol.service.ts:1097](../../../apps/api/src/lol/lol.service.ts#L1097))* | ignores | ignores | Misleadingly named — it resolves *every* roster account, and deliberately so: it feeds `projectMatchForStorage`'s keep-full-fields set, so filtering it would strip a tracked account's own damage/heal fields out of newly cached match details. Leave it alone. |
+
+The `hidden: boolean` addition means `LolAccount` in `@vyoh/shared` grows a field, so it stays the projected-field-by-field shape chunk 1 established — the timestamps themselves never leave the api.
+
+### Purge — full data removal, opt-in (chunk 3)
+
+`POST /admin/lol-accounts/:slug/purge` removes the roster row **and** everything the account's history occupies. Separate route from `DELETE`, not a `?purge=true` flag: two risk classes deserve two endpoints, and a distinct path is harder to reach by accident than a query param appended while debugging.
+
+There are exactly three `puuid`-bearing tables (`Summoner`, `RankSnapshot`, `Match`) and no slug-keyed cache, so the operation is bounded. Order is forced by the schema — `Match.summoner` ([schema.prisma:587](../../../apps/api/prisma/schema.prisma#L587)) and `RankSnapshot.summoner` ([:79](../../../apps/api/prisma/schema.prisma#L79)) are required relations with no `onDelete`, so Prisma's default `Restrict` blocks deleting the `Summoner` first:
+
+1. Resolve the target `puuid` through the `gameName + tagLine + region` → `Summoner` join. There is no FK from `LolAccount`, so this join *is* the handle — which is why the roster row has to outlive the decision to purge.
+2. `DELETE FROM "Match" WHERE puuid = $1`
+3. `DELETE FROM "RankSnapshot" WHERE puuid = $1`
+4. `DELETE FROM "Summoner" WHERE puuid = $1`
+5. Orphan sweep: `DELETE FROM "MatchDetailCache" WHERE "matchId" NOT IN (SELECT "matchId" FROM "Match")`, same for `MatchTimelineCache`.
+6. `DELETE FROM "LolAccount" WHERE slug = $1`, then `identity.reload()`.
+
+Steps 2–6 run in one transaction.
+
+**Step 5 is why this is safe.** Both cache tables are keyed on `matchId` alone, so in principle they are shared across roster accounts that played the same game. Framing the eviction as an orphan sweep *after* step 2 makes that a non-issue with no special-casing: a match two roster accounts share keeps its cache row automatically, because the other account's `Match` row still references it. The same query also self-heals any cache rows orphaned by earlier deletes. Measured 2026-08-14: exactly **1** `matchId` in the whole DB is shared by 2+ roster accounts, so per-account purge is empirically almost perfectly clean — but the sweep is written to be correct rather than to rely on that.
+
+**Preview before confirm.** `GET /admin/lol-accounts/:slug/purge-preview` returns the row counts and byte estimate the purge would free; the dialog calls it on open, and the POST requires the slug typed back. The numbers are what make the decision informed rather than nervous — measured baseline 2026-08-14:
+
+| Table | Rows | Size |
+|---|---|---|
+| `Match` | 6,024 | 11 MB |
+| `MatchDetailCache` | 6,017 | 57 MB |
+| `MatchTimelineCache` | 1,714 | 257 MB |
+
+Per-account `Match` rows, in roster order: ahri 565, vyoh 18, 9tails 0, miyeon 16, tifa 1,299, tifa2 419, tifa3 587, twix 1,153, agurin 1,961. The five non-owner accounts hold **5,419 of 6,024 rows — 90% of all match data**, and timelines average ~150 KB per row, so purging one large non-owner account frees tens of MB. That ratio is the argument for the feature existing at all.
+
+Purge writes one structured log line (slug, resolved puuid, per-table counts). That is not a reversal of the no-audit-log decision below — it's the minimum needed to answer "what did I delete" after the fact, and a log line is not a table.
+
 ### `IdentityService` changes — shipped 2026-08-14
 
 - Constructor takes only `PrismaService`; the `ACCOUNTS_CONFIG` provider and `loadAccountsConfig` are gone. The cache is `{ lol: LolAccount[]; steam: string[] }`, populated by an async `reload()` and empty until it first resolves.
@@ -70,13 +134,26 @@ Every existing call site (`getLolAccounts`, `getOwnerPuuids`, `getLolAccountsWit
 
 All routes carry `@UseGuards(OwnerGuard)`:
 
+- `GET /admin/lol-accounts` — the full roster including `hiddenAt`/`syncPausedAt`, which `/me` doesn't carry. The admin table reads this, not `/me`.
 - `POST /admin/lol-accounts` — body `{ slug, gameName, tagLine, region, isOwner, isPrimary }`. Validates Riot ID via account-v1, asserts post-write invariants, inserts, calls `identity.reload()`. Returns the new row.
-- `PATCH /admin/lol-accounts/:slug` — body subset of `{ isOwner, isPrimary }`. Slug, Riot ID tuple, and region are immutable in v1. Asserts invariants over proposed state, updates, reloads.
-- `DELETE /admin/lol-accounts/:slug` — refuses to delete the last primary (invariant), refuses if any Summoner/Match rows still reference it without a confirmation flag (a `?force=true` query param), deletes, reloads. Match data itself is untouched.
+- `PATCH /admin/lol-accounts/:slug` — body subset of `{ isOwner, isPrimary, hidden, syncPaused }`. The two booleans set or clear their timestamp; the api owns the clock, so the client never sends one. Slug, Riot ID tuple, and region stay immutable in v1. Asserts invariants over proposed state, updates, reloads.
+- `DELETE /admin/lol-accounts/:slug` — roster row only; history untouched. Refuses to delete the primary (invariant). When the account still has `Match` rows, the response tells the caller how many and points at hide/pause instead — the row is the only handle on that data, so removing it strands the history rather than cleaning it up. A `?force=true` param overrides for the typo case.
 - `POST /admin/steam-accounts` — body `{ steamId64, isOwner }`. Length/digit validation. Inserts, reloads.
 - `DELETE /admin/steam-accounts/:steamId64` — deletes, reloads. Same Steam-data-untouched semantics.
 
-`GET /me` stays public and unchanged.
+Chunk 3 adds two more:
+
+- `GET /admin/lol-accounts/:slug/purge-preview` — per-table counts + byte estimate. Safe, idempotent, called on dialog open.
+- `POST /admin/lol-accounts/:slug/purge` — body `{ confirm: "<slug>" }`. Runs the six steps above in a transaction, logs the counts, reloads.
+
+`GET /me` stays public, and gains exactly one field: `hidden: boolean` per LoL account.
+
+Two additions to `assertRosterInvariants`, both write-side like the ones chunk 1 established:
+
+- **The primary account cannot be hidden.** `/`'s OG image and the nav's default `?as=` lens both key off the primary; hiding it produces a roster whose front page is built around an account the nav can't reach.
+- **The last non-hidden owner account cannot be hidden.** Otherwise the nav's LoL section renders empty and the app looks broken rather than configured.
+
+Pausing carries no invariants — every account, primary included, is legitimately pausable.
 
 ### Bug fix bundled in — `home-first-played` uses the wrong filter
 
@@ -92,10 +169,13 @@ Lands as a **separate prerequisite commit (chunk 0)** before chunk 1 — indepen
 
 ### New `apps/web/src/admin/`
 
-- `use-lol-accounts.ts`, `use-steam-accounts.ts` — React Query hooks reading the same in-memory snapshot as `/me`. On owner-mutation success, invalidate both `me` and the admin queries.
-- `lol-accounts-table.tsx` — table with per-row delete + `isOwner`/`isPrimary` toggle, header "Add account" button opening a form dialog.
+- `use-lol-accounts.ts`, `use-steam-accounts.ts` — React Query hooks against the `/admin/*` reads (not `/me` — the admin table needs the two timestamps `/me` withholds). On mutation success, invalidate both `me` and the admin queries, since hiding an account changes the nav.
+- `lol-accounts-table.tsx` — per-row: `isOwner`/`isPrimary` toggles, **hide**, **pause**, delete. Header "Add account" button opening a form dialog.
 - `steam-accounts-table.tsx` — table with delete and add-form dialog.
 - `add-lol-account-dialog.tsx`, `add-steam-account-dialog.tsx` — Radix Dialog + react-hook-form, surfacing the Riot/Steam-side validation errors inline.
+- `purge-account-dialog.tsx` *(chunk 3)* — preview counts on open, slug typed back to enable the button.
+
+Hide and pause read as state, not as actions, so they're toggles with a visible resting state rather than buttons in a menu — a roster where three of nine rows are paused has to be legible at a glance, otherwise "why is this account stale" becomes a debugging session. Delete stays a destructive-styled action; purge (chunk 3) sits behind it in an overflow menu, since it should be reached deliberately.
 
 ### Status page integration
 
@@ -107,8 +187,8 @@ The owner-auth disable-with-tooltip pattern from owner-auth chunk 2 applies here
 
 Per [feedback_test_alongside_code](#) — same-commit coverage is the standing bar:
 
-- Backend: spec per admin endpoint (auth-gated, validation, invariant assertion, reload triggers).
-- Frontend: axe scan + add/delete/toggle flows for at least the LoL table; Steam mirrors the same shape so one example is enough.
+- Backend: spec per admin endpoint (auth-gated, validation, invariant assertion, reload triggers), plus one case per row of the read-path table above — that table is the test matrix, and a read that silently starts or stops honouring `hiddenAt` is the failure mode with no visible symptom.
+- Frontend: axe scan + add/delete/hide/pause/toggle flows for at least the LoL table; Steam mirrors the same shape so one example is enough. One nav test pinning the pair that matters: a hidden account leaves the dropdown while `/lol/<slug>` still resolves.
 
 ---
 
@@ -117,7 +197,9 @@ Per [feedback_test_alongside_code](#) — same-commit coverage is the standing b
 - **Slug rename.** Requires redirect handling on the URL surface. Park as a follow-up — separate note if it becomes real.
 - **Polling-interval / per-integration toggles.** Owner-auth catalogues these as forward-looking; they're a separate admin surface, not roster CRUD.
 - **Bulk import / CSV.** YAGNI — the roster is single digits.
-- **Audit log.** Single owner. Same call as owner-auth.
+- **Audit log.** Single owner. Same call as owner-auth. Purge logs one line; that isn't a log table.
+- **Bulk / TTL cache eviction.** Purge here is per-account and owner-triggered. Size-pressure-driven eviction across the whole cache is a different trigger with a different failure mode and stays in [match-cache-storage.md](../lol/match-cache-storage.md). The orphan-sweep query in step 5 is the piece the two arcs share.
+- **Steam `hiddenAt`/`syncPausedAt`.** One row, no browse surface to preserve. Add when a second Steam account exists.
 - **Multi-tenant / role split.** Out of scope of the whole `OwnerGuard` design; if a second identity ever becomes real, this design extends.
 
 ---
@@ -140,21 +222,23 @@ Public behaviour is unchanged with one cosmetic exception: `/me` now spells `"is
 
 ### Chunk 2 — Admin endpoints + status-page UI
 
-- `AdminAccountsModule` with the five endpoints above, all `@UseGuards(OwnerGuard)`.
-- Riot account-v1 validation in the LoL POST handler.
-- `apps/web/src/admin/` directory: hooks + tables + dialogs.
-- "Tracked accounts" zone on the status page, disable-with-tooltip when `viewer.isOwner === false`.
-- Same-commit specs (backend per-endpoint + frontend table + axe).
+Exceeds the large-task threshold on its own, so it wants its own chunk plan before any code — 2a/2b below are the natural seam, and 2a is independently useful (it's what makes pause real, which is the part the roster actually wants today).
 
-Files: ~5 new backend + ~6 new frontend + ~1 modified status page + ~8 new specs. Single PR; the visible UX change is the new tables appearing on `/status`.
+**2a — schema + reads.** Migration adding `hiddenAt` + `syncPausedAt`. `getSyncableLolAccounts()` on `IdentityService`, with the three sync call sites moved onto it. `hidden: boolean` added to the `/me` payload and to `LolAccount` in `@vyoh/shared`; nav filters on it. The two new write-side invariants. Specs: the read-path table above is the test matrix — one case per row asserting which reads see a hidden/paused account and which don't, plus a nav test that a hidden account leaves the dropdown while `/lol/<slug>` still resolves.
 
-### Chunk 3 — Polish
+**2b — endpoints + UI.** `AdminAccountsModule` with the six routes, all `@UseGuards(OwnerGuard)`. Riot account-v1 validation in the LoL POST. `apps/web/src/admin/`: hooks + tables + dialogs. "Tracked accounts" zone on the status page, disable-with-tooltip when `viewer.isOwner === false`. Same-commit specs (backend per-endpoint + frontend table + axe).
 
-- Refuse-delete-with-data confirmation flow on LoL accounts that still have Match rows (`?force=true` UX + toast).
+Files: ~5 new backend + ~6 new frontend + ~1 modified status page + ~8 new specs. The visible UX change is the new tables on `/status`, plus hidden accounts disappearing from the nav.
+
+### Chunk 3 — Purge + polish
+
+**Gated on a verified restore.** [pre-launch-sweep.md](pre-launch-sweep.md) already carries the standing rule that destructive data arcs don't run without one, and purge is squarely that class. Nothing here needs to ship with chunk 2 — the roster is fully manageable without it.
+
+- `purge-preview` + `purge` endpoints, the six-step transaction, the orphan sweep.
+- `purge-account-dialog.tsx` — preview counts, typed-slug confirmation.
+- Spec coverage for the ordering constraint specifically: a purge that tries `Summoner` before `Match` must fail, and the shared-`matchId` case must keep its cache row.
 - README section documenting the admin flow.
 - Optional: case-study candidate in [case-study-topics.md](../cross-cutting/case-study-topics.md) — "Roster as data, not config" pairs naturally with the owner-auth write-up.
-
-Files: docs + small UX polish. Lands once the pre-launch sweep is otherwise complete.
 
 ---
 
@@ -164,3 +248,15 @@ Files: docs + small UX polish. Lands once the pre-launch sweep is otherwise comp
 2. **`SteamAccount.isOwner`: default `true`, no v1 UI affordance to flip it.** Owner has no immediate plan to track non-owner Steam libraries; the field is provisioned for shape-consistency with `LolAccount` so a future Steam-friend use case doesn't require a migration. Admin form may omit the field on the Steam add dialog; backend accepts it and defaults to `true` when missing.
 3. **Chunk 0: immediate standalone commit.** The `home-first-played` filter fix ships independently of the rest of the arc — and did: `1f33d7fc`, 2026-06-09.
 4. **Riot ID validation: strict.** Account-v1 404 hard-fails the POST with an inline error on the form. Riot 5xx surfaces a retry hint in the error toast; the row is not persisted. Matches the API's posture elsewhere.
+
+---
+
+## Resolved decisions (2026-08-14)
+
+Chunk 1 shipped, then chunk 2's scope was reopened. All five settled in the same pass:
+
+1. **Four actions, not one lifecycle: hide, pause, delete, purge.** Hide and pause are orthogonal nullable timestamps; delete removes the roster row; purge removes the data. An enum was considered and rejected — the roster already wants hidden-and-syncing while a temporarily-tracked friend wants visible-and-paused, and those are opposite corners no single ordered state expresses.
+2. **`/me` flags hidden accounts, never omits them.** Forced by measurement, not preference: `useAccountFromSlug` resolves the page's account out of `/me`, so dropping the row breaks the hidden account's own route while the api keeps serving it. Filtering happens in the nav.
+3. **Hiding does not touch `getOwnerPuuids()`,** so it cannot move `/`'s lifetime totals. Presentation and authorship stay separate levers; `isOwner` is the one that changes the self-portrait.
+4. **Purge gets its own endpoint and its own chunk.** Not a `?purge=true` flag on `DELETE`. It is the only irreversible action in the arc, and the repo's own backup rule already covers this class of change.
+5. **Cache eviction stays an orphan sweep, not a match-id set diff.** `DELETE … WHERE "matchId" NOT IN (SELECT "matchId" FROM "Match")` after the account's `Match` rows are gone is correct for shared matches with no special-casing, and self-heals pre-existing orphans. Measured: 1 shared `matchId` across the whole roster, so the general form costs nothing.
