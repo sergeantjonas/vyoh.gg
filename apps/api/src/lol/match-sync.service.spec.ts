@@ -39,7 +39,8 @@ async function makeService(
     syncAccountMatches: vi.fn().mockImplementation(syncImpl),
     syncAccountHistorical: vi.fn().mockImplementation(historicalImpl),
   };
-  const identity = { getLolAccounts: vi.fn().mockReturnValue(accounts) };
+  // The cron syncs the paused-excluded subset, never the raw roster.
+  const identity = { getSyncableLolAccounts: vi.fn().mockReturnValue(accounts) };
   const events = { emitSyncTick: vi.fn() };
   const moduleRef = await Test.createTestingModule({
     providers: [

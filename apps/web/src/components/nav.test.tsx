@@ -29,6 +29,7 @@ type MockAccount = {
   gameName: string;
   tagLine: string;
   region: string;
+  hidden?: boolean;
   summary: MockSummary | null;
 };
 
@@ -272,6 +273,58 @@ describe("Nav", () => {
       expect(jonas.getAttribute("href")).toBe("/lol/jonas-euw");
       const alt = screen.getByRole("link", { name: /Alt/i });
       expect(alt.getAttribute("href")).toBe("/lol/alt-na");
+    });
+
+    it("omits hidden accounts from the menu", async () => {
+      vi.mocked(useRouterState).mockReturnValue("/" as never);
+      accountsRef.current = [
+        {
+          slug: "jonas-euw",
+          gameName: "Jonas",
+          tagLine: "EUW",
+          region: "europe",
+          summary: null,
+        },
+        {
+          slug: "retired",
+          gameName: "Retired",
+          tagLine: "EUW",
+          region: "europe",
+          hidden: true,
+          summary: null,
+        },
+      ];
+      renderNav();
+      openLolMenu();
+      await screen.findByRole("link", { name: /Jonas/i });
+      expect(screen.queryByRole("link", { name: /Retired/i })).toBeNull();
+    });
+
+    it("skips a hidden first account when pre-filling the Patches lens", async () => {
+      // The default lens reads the first *visible* account. Leaving the hidden
+      // row in place would point Patches at an account the menu never offers.
+      vi.mocked(useRouterState).mockReturnValue("/" as never);
+      accountsRef.current = [
+        {
+          slug: "retired",
+          gameName: "Retired",
+          tagLine: "EUW",
+          region: "europe",
+          hidden: true,
+          summary: null,
+        },
+        {
+          slug: "jonas-euw",
+          gameName: "Jonas",
+          tagLine: "EUW",
+          region: "europe",
+          summary: null,
+        },
+      ];
+      renderNav();
+      openLolMenu();
+      const item = await screen.findByRole("link", { name: /Patches/i });
+      expect(item.getAttribute("href")).toBe("/lol/patches?as=jonas-euw");
     });
 
     it("renders a rich row with rank text when the account summary is hydrated", async () => {

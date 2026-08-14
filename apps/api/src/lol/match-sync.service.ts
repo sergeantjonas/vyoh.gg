@@ -101,7 +101,7 @@ export class MatchSyncService implements OnApplicationBootstrap {
     const start = Date.now();
     const accountResults: SyncTickAccountResult[] = [];
     try {
-      const accounts = this.identity.getLolAccounts();
+      const accounts = this.identity.getSyncableLolAccounts();
       this.logger.log(`syncing ${accounts.length} account(s)`);
 
       // Sequential, not parallel — we lean on the rate limiter for backpressure

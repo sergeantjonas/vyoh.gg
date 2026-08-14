@@ -16,6 +16,13 @@ model LolAccount {
   region    String
   isOwner   Boolean  @default(false)
   isPrimary Boolean  @default(false)
+  // Visibility and sync are independent: `hiddenAt` drops an account from the
+  // nav while its pages stay reachable by URL, `syncPausedAt` stops it being
+  // fetched while its already-synced history stays browsable. Timestamps
+  // rather than booleans because "hidden since when" is the question actually
+  // asked when reviewing a roster months later.
+  hiddenAt     DateTime?
+  syncPausedAt DateTime?
   // Reads sort on `createdAt`, so this doubles as roster display order —
   // the nav renders accounts in the order they were added.
   createdAt DateTime @default(now())

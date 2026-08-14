@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   type LolAccount,
   assertAccountOwnerInvariants,
+  assertAccountVisibilityInvariants,
   getOwnerAccounts,
   getPrimaryAccount,
+  getVisibleAccounts,
+  isHiddenAccount,
   isOwnerAccount,
 } from "./account";
 
@@ -113,5 +116,74 @@ describe("assertAccountOwnerInvariants", () => {
         stub({ slug: "b", isOwner: true }),
       ])
     ).toThrow(/"a" is flagged isPrimary without isOwner/);
+  });
+});
+
+describe("isHiddenAccount", () => {
+  it("returns true only when hidden is explicitly true", () => {
+    expect(isHiddenAccount(stub({ hidden: true }))).toBe(true);
+    expect(isHiddenAccount(stub({ hidden: false }))).toBe(false);
+    expect(isHiddenAccount(stub({}))).toBe(false);
+  });
+});
+
+describe("getVisibleAccounts", () => {
+  it("drops hidden entries while preserving order", () => {
+    expect(
+      getVisibleAccounts([
+        stub({ slug: "a" }),
+        stub({ slug: "b", hidden: true }),
+        stub({ slug: "c" }),
+      ]).map((a) => a.slug)
+    ).toEqual(["a", "c"]);
+  });
+
+  it("returns every account when none is hidden", () => {
+    expect(getVisibleAccounts([stub({ slug: "a" }), stub({ slug: "b" })])).toHaveLength(
+      2
+    );
+  });
+});
+
+describe("assertAccountVisibilityInvariants", () => {
+  it("throws when the primary account is hidden", () => {
+    expect(() =>
+      assertAccountVisibilityInvariants([
+        stub({ slug: "a", isOwner: true, isPrimary: true, hidden: true }),
+      ])
+    ).toThrow(/"a" is flagged isPrimary and hidden/);
+  });
+
+  it("passes when a non-primary owner account is hidden", () => {
+    expect(() =>
+      assertAccountVisibilityInvariants([
+        stub({ slug: "a", isOwner: true, isPrimary: true }),
+        stub({ slug: "b", isOwner: true, hidden: true }),
+      ])
+    ).not.toThrow();
+  });
+
+  it("passes when a non-owner account is hidden", () => {
+    expect(() =>
+      assertAccountVisibilityInvariants([
+        stub({ slug: "a", isOwner: true, isPrimary: true }),
+        stub({ slug: "b", hidden: true }),
+      ])
+    ).not.toThrow();
+  });
+
+  it("cannot be satisfied by a fully hidden owner set once both asserts run", () => {
+    // "At least one owner stays visible" has no check of its own: the owner
+    // invariants demand a primary whenever an owner exists, and this assert
+    // refuses to hide it. Pinned here so removing either one is a test failure
+    // rather than a silently reachable state.
+    const allOwnersHidden = [
+      stub({ slug: "a", isOwner: true, isPrimary: true, hidden: true }),
+      stub({ slug: "b", isOwner: true, hidden: true }),
+    ];
+    expect(() => {
+      assertAccountOwnerInvariants(allOwnersHidden);
+      assertAccountVisibilityInvariants(allOwnersHidden);
+    }).toThrow();
   });
 });

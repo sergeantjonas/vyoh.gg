@@ -32,6 +32,7 @@ import {
   type LolAccountWithSummary,
   RANKED_QUEUE_TYPE_TO_KEY,
   type RankedQueueKey,
+  getVisibleAccounts,
 } from "@vyoh/shared";
 import { formatRank } from "@vyoh/shared/lol/rank-history";
 import { Activity, Home, ScrollText, Search } from "lucide-react";
@@ -83,7 +84,10 @@ export function Nav() {
   const { setOpen } = useCommandPalette();
   const me = useMe();
   const queryClient = useQueryClient();
-  const accounts: readonly NavLolAccount[] = me.data?.lol ?? [];
+  // Hidden accounts are absent from the nav but still reachable by URL — the
+  // roster keeps serving them, it just stops advertising them. This filter is
+  // the whole of what "hidden" means on the web.
+  const accounts: readonly NavLolAccount[] = getVisibleAccounts(me.data?.lol ?? []);
   const prefetchSteamLibrary = () => {
     queryClient.prefetchQuery(steamOwnedGamesQueryOptions());
   };

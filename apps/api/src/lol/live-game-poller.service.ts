@@ -82,7 +82,7 @@ export class LiveGamePollerService implements OnApplicationBootstrap, OnModuleDe
   }
 
   private async poll(): Promise<void> {
-    const accounts = this.identity.getLolAccounts();
+    const accounts = this.identity.getSyncableLolAccounts();
     for (const account of accounts) {
       try {
         await this.pollAccount(account);
@@ -175,7 +175,11 @@ export class LiveGamePollerService implements OnApplicationBootstrap, OnModuleDe
     const entry = this.cache.get(ownerPuuid);
     if (!entry || entry.gameId !== game.gameId) return;
 
-    // Resolve which participant puuids are whitelisted accounts (have match history in DB)
+    // Resolve which participant puuids are whitelisted accounts (have match history in DB).
+    // Deliberately the full roster, not `getSyncableLolAccounts()`: this labels
+    // participants of a game someone else is being polled for, against the local
+    // DB only. A paused account sitting in the same lobby is still a tracked
+    // account, and nothing here fetches on its behalf.
     const whitelistedSet = new Set<string>();
     for (const a of this.identity.getLolAccounts()) {
       const s = await this.prisma.summoner.findUnique({

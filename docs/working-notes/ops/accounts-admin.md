@@ -1,8 +1,8 @@
 # Accounts — move from JSON config to DB-backed admin surface
 
-**Status:** Active — chunk 0 shipped 2026-06-09 (`1f33d7fc`), chunk 1 shipped 2026-08-14 (`ac3907fa`); chunks 2–3 not started. Owner-auth shipped in full 2026-08-13, so the prerequisite is closed and chunk 2 can start whenever. Chunk 2's scope was widened 2026-08-14 from delete-only to **hide / pause / delete** on two independent axes, and chunk 3 now carries the opt-in **purge**. Pairs with [owner-auth.md](owner-auth.md) (`OwnerGuard` ships there, this arc applies it to the admin endpoints). Replaces the "Live-config edits" forward-looking item catalogued in [owner-auth.md § Forward-looking gated surfaces](owner-auth.md).
+**Status:** Active — chunk 0 shipped 2026-06-09 (`1f33d7fc`), chunk 1 shipped 2026-08-14 (`ac3907fa`), chunk 2a shipped 2026-08-14; **chunk 2b is next**, chunk 3 after it. Owner-auth shipped in full 2026-08-13, so the prerequisite is closed. Chunk 2's scope was widened 2026-08-14 from delete-only to **hide / pause / delete** on two independent axes, and chunk 3 now carries the opt-in **purge**. Pairs with [owner-auth.md](owner-auth.md) (`OwnerGuard` ships there, this arc applies it to the admin endpoints). Replaces the "Live-config edits" forward-looking item catalogued in [owner-auth.md § Forward-looking gated surfaces](owner-auth.md).
 
-The tracked-accounts roster lives in the `LolAccount` + `SteamAccount` tables, read at boot into [identity.service.ts](../../../apps/api/src/identity/identity.service.ts)'s cache by `reload()`. Until 2026-08-14 it was a committed `apps/api/accounts.json` hot-reloaded via `fs.watch`, which made every roster change (add a Steam friend's library, flip an `isOwner` flag, retire a test account) a deploy. The remaining arc adds an `OwnerGuard`-protected admin section on the status page. Every existing `IdentityService` read keeps its signature and its semantics; the one structural change is that the three sync-worklist call sites move off `getLolAccounts()` onto a new `getSyncableLolAccounts()` (see [the read-path table](#read-path-which-reads-filter-on-what)).
+The tracked-accounts roster lives in the `LolAccount` + `SteamAccount` tables, read at boot into [identity.service.ts](../../../apps/api/src/identity/identity.service.ts)'s cache by `reload()`. Until 2026-08-14 it was a committed `apps/api/accounts.json` hot-reloaded via `fs.watch`, which made every roster change (add a Steam friend's library, flip an `isOwner` flag, retire a test account) a deploy. The remaining arc adds an `OwnerGuard`-protected admin section on the status page. Every existing `IdentityService` read keeps its signature and its semantics; the one structural change is that the two sync-worklist call sites move off `getLolAccounts()` onto a new `getSyncableLolAccounts()` (see [the read-path table](#read-path-which-reads-filter-on-what)).
 
 Sibling docs: [owner-auth.md](owner-auth.md) (prerequisite), [hosting.md](hosting.md) (the deploy friction this removes is hosting-coupled), [security.md](security.md) (CodeQL was deferred against the auth surface; this lands one more mutating endpoint group under it).
 
@@ -61,19 +61,19 @@ Notes:
 - `@@unique([gameName, tagLine, region])` guards against the same Riot ID being registered under two slugs (which would split match history across two pages).
 - `SteamAccount.isOwner` defaults `true` to mirror the current JSON's implicit assumption (every entry is "the owner's"). Anticipates a future "track a friend's library" use case without changing the shape later.
 
-### Chunk 2 adds two nullable timestamps
+### Visibility + pause columns — shipped 2026-08-14 (chunk 2a)
 
 ```prisma
 model LolAccount {
-  // …shipped columns…
-  hiddenAt      DateTime?
-  syncPausedAt  DateTime?
+  // …roster columns…
+  hiddenAt     DateTime?
+  syncPausedAt DateTime?
 }
 ```
 
 Timestamps rather than booleans, because "hidden since when" is the question actually asked when reviewing a roster months later, and a nullable timestamp answers both it and the boolean for free. No `hiddenBy`/`pausedBy` — single owner, same call as the audit-log decision below.
 
-`SteamAccount` gets neither in chunk 2. A single Steam library is either tracked or it isn't, and there is no Steam equivalent of "browse a friend's history" surface to keep alive; add them when a second Steam row exists.
+`SteamAccount` gets neither. A single Steam library is either tracked or it isn't, and there is no Steam equivalent of a "browse a friend's history" surface to keep alive; add them when a second Steam row exists.
 
 ### Read path: which reads filter on what
 
@@ -81,8 +81,8 @@ This is the load-bearing table for chunk 2. Both columns are **opt-in per read**
 
 | Read | `hiddenAt` | `syncPausedAt` | Why |
 |---|---|---|---|
-| `getSyncableLolAccounts()` *(new)* | ignores | **excludes** | The only new method. Backs the match-sync cron ([match-sync.service.ts:104](../../../apps/api/src/lol/match-sync.service.ts#L104)) and the live-game poller ([live-game-poller.service.ts:85](../../../apps/api/src/lol/live-game-poller.service.ts#L85), [:180](../../../apps/api/src/lol/live-game-poller.service.ts#L180)). Pause means "stop fetching new data", and this is the entire set of places new data enters. |
-| `getLolAccounts()` | ignores | ignores | Stays the unfiltered roster. The reverse puuid→slug lookup at [home-first-played.service.ts:244](../../../apps/api/src/home/home-first-played.service.ts#L244) and the four backfill scripts all iterate it; filtering here would make maintenance work skip accounts silently, which is exactly the failure mode that is hardest to notice. |
+| `getSyncableLolAccounts()` *(new)* | ignores | **excludes** | The only new method, and **two** call sites — the match-sync cron ([match-sync.service.ts:104](../../../apps/api/src/lol/match-sync.service.ts#L104)) and the live-game poller's account loop ([live-game-poller.service.ts:85](../../../apps/api/src/lol/live-game-poller.service.ts#L85)). Between them that is every place new LoL data enters, which is exactly what pause promises to stop. |
+| `getLolAccounts()` | ignores | ignores | Stays the unfiltered roster. The reverse puuid→slug lookup at [home-first-played.service.ts:244](../../../apps/api/src/home/home-first-played.service.ts#L244), the four backfill scripts, and the live-game participant labelling at [live-game-poller.service.ts:180](../../../apps/api/src/lol/live-game-poller.service.ts#L180) all iterate it. The labelling site was mis-classified as a sync worklist when this table was first written: it decides which *participants of an in-progress game* are tracked accounts, reads only the local DB, and fetches nothing — so a paused account in the same lobby should still be labelled. Filtering any of these would make work skip accounts silently, the failure mode hardest to notice. |
 | `isLolAccountAllowed()` | ignores | ignores | Gates 24 read endpoints across `lol.service`, `lol-analytics.service`, and `lol-champion-analytics.service`. Filtering here would 403 a hidden *or* paused account's own pages — the opposite of the point, which is that the data stays browsable. |
 | `findBySlug()` | ignores | ignores | Resolves URLs and OG images. A bookmark to a hidden account must keep working; hiding removes the link, not the page. |
 | `getLolAccountsWithSummary()` → `/me` | **flags, never drops** | ignores | Verified 2026-08-14: [use-account-from-slug.ts](../../../apps/web/src/lol/_shared/account/use-account-from-slug.ts) resolves the *page's own* account object out of the `/me` payload, so omitting hidden rows breaks every `/lol/<hidden-slug>/*` route while the API happily serves the data behind it. Ship `hidden: boolean` on the payload and let [nav.tsx](../../../apps/web/src/components/nav.tsx) filter. Pause stays out of `/me` — it's an ops state, not public content. |
@@ -148,10 +148,9 @@ Chunk 3 adds two more:
 
 `GET /me` stays public, and gains exactly one field: `hidden: boolean` per LoL account.
 
-Two additions to `assertRosterInvariants`, both write-side like the ones chunk 1 established:
+One addition to `assertRosterInvariants`, write-side like the ones chunk 1 established: **the primary account cannot be hidden.** `/`'s OG image and the nav's default `?as=` lens both key off the primary, so hiding it produces a roster whose front page is built around an account the nav can't reach. Lives in `@vyoh/shared` as `assertAccountVisibilityInvariants`, beside the owner/primary set.
 
-- **The primary account cannot be hidden.** `/`'s OG image and the nav's default `?as=` lens both key off the primary; hiding it produces a roster whose front page is built around an account the nav can't reach.
-- **The last non-hidden owner account cannot be hidden.** Otherwise the nav's LoL section renders empty and the app looks broken rather than configured.
+"The last non-hidden owner account cannot be hidden" was planned as a second check and **dropped as provably redundant**: `assertAccountOwnerInvariants` already requires a primary whenever any owner exists and requires that primary to be an owner, so refusing to hide the primary means a fully-hidden owner set is unreachable. A test pins the composition rather than the dead branch, so removing either assert fails the suite.
 
 Pausing carries no invariants — every account, primary included, is legitimately pausable.
 
@@ -220,15 +219,21 @@ The identity spec was reworked against a Prisma stub instead of a temp-dir `acco
 
 Public behaviour is unchanged with one cosmetic exception: `/me` now spells `"isOwner": false` / `"isPrimary": false` on accounts that previously omitted the keys, because the columns are `NOT NULL DEFAULT false`. Every consumer tests `=== true`, so nothing reads differently. Verified live against the dev server after the cutover: all nine accounts, original order, homoglyph Riot IDs (`Νine Tailed Fox`, `TIFΑ`) intact, every summary still resolving.
 
-### Chunk 2 — Admin endpoints + status-page UI
+### Chunk 2a — Visibility + pause columns and the reads that honour them — ✅ shipped 2026-08-14
 
-Exceeds the large-task threshold on its own, so it wants its own chunk plan before any code — 2a/2b below are the natural seam, and 2a is independently useful (it's what makes pause real, which is the part the roster actually wants today).
+Migration `20260814185752_account_visibility_and_sync_pause` adds both nullable timestamps. `reload()` carries `syncPausedAt` just long enough to partition the roster into `cache.lol` and a precomputed `cache.syncableLol`, then drops it — so the pause state cannot reach `/me` even by accident, while `hidden` is projected deliberately. `getSyncableLolAccounts()` backs the two fetch sites; [nav.tsx](../../../apps/web/src/components/nav.tsx) filters through the new `getVisibleAccounts()` from `@vyoh/shared`, which also fixes the default `?as=` lens for free (it reads the first *visible* account, so a hidden first row no longer aims Patches at an account the menu never offers).
 
-**2a — schema + reads.** Migration adding `hiddenAt` + `syncPausedAt`. `getSyncableLolAccounts()` on `IdentityService`, with the three sync call sites moved onto it. `hidden: boolean` added to the `/me` payload and to `LolAccount` in `@vyoh/shared`; nav filters on it. The two new write-side invariants. Specs: the read-path table above is the test matrix — one case per row asserting which reads see a hidden/paused account and which don't, plus a nav test that a hidden account leaves the dropdown while `/lol/<slug>` still resolves.
+Verified against the real database, not just the Prisma stub: with `tifa` hidden and `twix` paused, `tifa` stayed syncable and kept resolving through `findBySlug` and `isLolAccountAllowed`, `twix` left the worklist while its reads stayed open, no row leaked a pause field, and owner puuids held at 4. Net +19 tests (shared 530 → 537, api 1531 → 1541, web 3043 → 3045).
 
-**2b — endpoints + UI.** `AdminAccountsModule` with the six routes, all `@UseGuards(OwnerGuard)`. Riot account-v1 validation in the LoL POST. `apps/web/src/admin/`: hooks + tables + dialogs. "Tracked accounts" zone on the status page, disable-with-tooltip when `viewer.isOwner === false`. Same-commit specs (backend per-endpoint + frontend table + axe).
+One correction fell out of implementing it: `live-game-poller.service.ts:180` was listed as a third sync site and is not one — see the `getLolAccounts()` row of the read-path table. It now carries a comment saying so, because it is exactly the kind of line a later reader would "fix".
 
-Files: ~5 new backend + ~6 new frontend + ~1 modified status page + ~8 new specs. The visible UX change is the new tables on `/status`, plus hidden accounts disappearing from the nav.
+### Chunk 2b — Admin endpoints + status-page UI
+
+`AdminAccountsModule` with the six routes, all `@UseGuards(OwnerGuard)`. Riot account-v1 validation in the LoL POST. `apps/web/src/admin/`: hooks + tables + dialogs. "Tracked accounts" zone on the status page, disable-with-tooltip when `viewer.isOwner === false`. Same-commit specs (backend per-endpoint + frontend table + axe).
+
+Files: ~5 new backend + ~6 new frontend + ~1 modified status page + ~8 new specs. The visible UX change is the new tables on `/status`.
+
+Note what 2a deliberately left undone: **nothing calls `reload()` yet**, so a roster written straight to the DB is not picked up until the api restarts. That is the gap these endpoints close, and it is why 2a's live verification had to construct the service directly rather than curl `/me`.
 
 ### Chunk 3 — Purge + polish
 

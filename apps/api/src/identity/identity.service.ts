@@ -3,18 +3,23 @@ import {
   type LolAccount,
   type LolAccountWithSummary,
   assertAccountOwnerInvariants,
+  assertAccountVisibilityInvariants,
 } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 
 interface AccountsCache {
   lol: LolAccount[];
+  // Precomputed rather than filtered per read: the sync worklist is asked for
+  // on every cron tick and every poller pass. Derived from the same rows as
+  // `lol` inside `reload()`, so the two cannot drift out of agreement.
+  syncableLol: LolAccount[];
   steam: string[];
 }
 
 @Injectable()
 export class IdentityService implements OnModuleInit {
   private readonly logger = new Logger(IdentityService.name);
-  private cache: AccountsCache = { lol: [], steam: [] };
+  private cache: AccountsCache = { lol: [], syncableLol: [], steam: [] };
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -37,17 +42,25 @@ export class IdentityService implements OnModuleInit {
       this.prisma.lolAccount.findMany({ orderBy: { createdAt: "asc" } }),
       this.prisma.steamAccount.findMany({ orderBy: { createdAt: "asc" } }),
     ]);
-    // Projected field-by-field rather than spread: `createdAt`/`updatedAt`
-    // are roster bookkeeping and must not leak into the `/me` payload.
-    this.cache = {
-      lol: lol.map((a) => ({
+    // Projected field-by-field rather than spread: `createdAt`/`updatedAt` are
+    // roster bookkeeping and must not leak into the `/me` payload, and
+    // `syncPausedAt` must not either — it is carried alongside the projection
+    // just long enough to partition the roster, then dropped.
+    const projected = lol.map((a) => ({
+      account: {
         slug: a.slug,
         gameName: a.gameName,
         tagLine: a.tagLine,
         region: a.region,
         isOwner: a.isOwner,
         isPrimary: a.isPrimary,
-      })),
+        hidden: a.hiddenAt !== null,
+      },
+      syncPaused: a.syncPausedAt !== null,
+    }));
+    this.cache = {
+      lol: projected.map((p) => p.account),
+      syncableLol: projected.filter((p) => !p.syncPaused).map((p) => p.account),
       steam: steam.map((s) => s.steamId64),
     };
     try {
@@ -82,6 +95,7 @@ export class IdentityService implements OnModuleInit {
   assertRosterInvariants(next: LolAccount[]): void {
     this.assertUniqueSlugs(next);
     assertAccountOwnerInvariants(next);
+    assertAccountVisibilityInvariants(next);
   }
 
   private assertUniqueSlugs(accounts: LolAccount[]): void {
@@ -100,6 +114,22 @@ export class IdentityService implements OnModuleInit {
 
   getLolAccounts(): LolAccount[] {
     return this.cache.lol;
+  }
+
+  /**
+   * The roster minus paused accounts — the worklist for anything that *fetches*
+   * new data from Riot. Pausing an account is the promise that nothing will be
+   * pulled for it; every other read stays deliberately unfiltered so its
+   * already-synced history keeps serving.
+   *
+   * Read by the match-sync cron and the live-game poller's account loop, which
+   * between them are the only places new LoL data enters. Note this is not the
+   * same as "accounts the live-game poller cares about": resolving which
+   * *participants* of an in-progress game are roster accounts is display
+   * labelling against the local DB, and stays on `getLolAccounts()`.
+   */
+  getSyncableLolAccounts(): LolAccount[] {
+    return this.cache.syncableLol;
   }
 
   // Hydrate the whitelist with the Summoner denorm snapshot in a single

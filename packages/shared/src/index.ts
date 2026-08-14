@@ -84,8 +84,11 @@ export type {
 } from "./lol/account.ts";
 export {
   assertAccountOwnerInvariants,
+  assertAccountVisibilityInvariants,
   getOwnerAccounts,
   getPrimaryAccount,
+  getVisibleAccounts,
+  isHiddenAccount,
   isOwnerAccount,
 } from "./lol/account.ts";
 export type { CachedMatchesResult } from "./lol/cached-matches.ts";

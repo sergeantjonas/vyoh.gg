@@ -8,10 +8,14 @@ const roster: LolAccount[] = [
   { slug: "tifa", gameName: "TIFA", tagLine: "7777", region: "euw1" },
 ];
 
+// `syncPaused` has no counterpart on `LolAccount` by design — it never reaches
+// the payload — so fixtures need their own shape to express a paused row.
+type RosterFixture = LolAccount & { syncPaused?: boolean };
+
 // `LolAccount` rows as Prisma returns them: the roster columns the service
 // projects from, plus the bookkeeping columns it has to drop. `createdAt`
 // is staggered because that is what the read orders on.
-function rosterRows(accounts: LolAccount[]) {
+function rosterRows(accounts: RosterFixture[]) {
   return accounts.map((a, i) => {
     const at = new Date(Date.UTC(2026, 0, 1, 0, 0, i));
     return {
@@ -21,6 +25,8 @@ function rosterRows(accounts: LolAccount[]) {
       region: a.region,
       isOwner: a.isOwner === true,
       isPrimary: a.isPrimary === true,
+      hiddenAt: a.hidden === true ? at : null,
+      syncPausedAt: a.syncPaused === true ? at : null,
       createdAt: at,
       updatedAt: at,
     };
@@ -29,7 +35,7 @@ function rosterRows(accounts: LolAccount[]) {
 
 // The cached shape for an account: every flag resolved to an explicit
 // boolean, no timestamps.
-function cached(account: LolAccount): LolAccount {
+function cached(account: RosterFixture): LolAccount {
   return {
     slug: account.slug,
     gameName: account.gameName,
@@ -37,11 +43,12 @@ function cached(account: LolAccount): LolAccount {
     region: account.region,
     isOwner: account.isOwner === true,
     isPrimary: account.isPrimary === true,
+    hidden: account.hidden === true,
   };
 }
 
 function stubPrisma(
-  opts: { lol?: LolAccount[]; steam?: string[]; summoners?: unknown[] } = {}
+  opts: { lol?: RosterFixture[]; steam?: string[]; summoners?: unknown[] } = {}
 ) {
   const summonerFindMany = vi.fn().mockResolvedValue(opts.summoners ?? []);
   const lolFindMany = vi.fn().mockResolvedValue(rosterRows(opts.lol ?? []));
@@ -61,7 +68,7 @@ function stubPrisma(
 }
 
 async function bootedService(
-  opts: { lol?: LolAccount[]; steam?: string[]; summoners?: unknown[] } = {}
+  opts: { lol?: RosterFixture[]; steam?: string[]; summoners?: unknown[] } = {}
 ) {
   const stub = stubPrisma(opts);
   const service = new IdentityService(stub.prisma);
@@ -165,11 +172,35 @@ describe("IdentityService", () => {
       expect(account).not.toHaveProperty("updatedAt");
       expect(Object.keys(account ?? {}).sort()).toEqual([
         "gameName",
+        "hidden",
         "isOwner",
         "isPrimary",
         "region",
         "slug",
         "tagLine",
+      ]);
+    });
+
+    it("keeps the pause state out of the projection entirely", async () => {
+      // `hidden` is public — the nav needs it. Whether an account is still
+      // being fetched is an ops detail with no place in a visitor's payload,
+      // so neither the column nor a derived flag may survive the projection.
+      const { service } = await bootedService({
+        lol: [{ ...roster[0], syncPaused: true } as RosterFixture],
+      });
+      const account = service.getLolAccounts()[0];
+      expect(account).not.toHaveProperty("syncPausedAt");
+      expect(account).not.toHaveProperty("syncPaused");
+      expect(account).toHaveProperty("hidden", false);
+    });
+
+    it("derives hidden from the hiddenAt timestamp", async () => {
+      const { service } = await bootedService({
+        lol: [roster[0] as LolAccount, { ...roster[1], hidden: true } as RosterFixture],
+      });
+      expect(service.getLolAccounts().map((a) => [a.slug, a.hidden])).toEqual([
+        ["ahri", false],
+        ["tifa", true],
       ]);
     });
 
@@ -253,6 +284,126 @@ describe("IdentityService", () => {
           { slug: "Main", gameName: "B", tagLine: "2", region: "euw1" },
         ])
       ).toThrow(/Duplicate slug "Main"/);
+    });
+
+    it("rejects hiding the primary account, whose page the landing page is built on", async () => {
+      const { service } = await bootedService();
+      expect(() =>
+        service.assertRosterInvariants([
+          {
+            slug: "main",
+            gameName: "A",
+            tagLine: "1",
+            region: "euw1",
+            isOwner: true,
+            isPrimary: true,
+            hidden: true,
+          },
+        ])
+      ).toThrow(/must stay visible/);
+    });
+
+    it("accepts hiding a non-primary owner account", async () => {
+      const { service } = await bootedService();
+      expect(() =>
+        service.assertRosterInvariants([
+          {
+            slug: "main",
+            gameName: "A",
+            tagLine: "1",
+            region: "euw1",
+            isOwner: true,
+            isPrimary: true,
+          },
+          {
+            slug: "alt",
+            gameName: "B",
+            tagLine: "2",
+            region: "euw1",
+            isOwner: true,
+            hidden: true,
+          },
+        ])
+      ).not.toThrow();
+    });
+  });
+
+  // One case per row of the read-path table in accounts-admin.md. Only the sync
+  // worklist narrows; every other read stays deliberately blind to both columns,
+  // and a read that silently starts or stops honouring them has no symptom a
+  // visitor would ever report.
+  describe("hidden and paused accounts across the read path", () => {
+    const mixed: RosterFixture[] = [
+      { slug: "visible", gameName: "A", tagLine: "1", region: "euw1" },
+      { slug: "hidden", gameName: "B", tagLine: "2", region: "euw1", hidden: true },
+      { slug: "paused", gameName: "C", tagLine: "3", region: "euw1", syncPaused: true },
+    ];
+
+    it("getSyncableLolAccounts excludes paused accounts and keeps hidden ones", async () => {
+      const { service } = await bootedService({ lol: mixed });
+      expect(service.getSyncableLolAccounts().map((a) => a.slug)).toEqual([
+        "visible",
+        "hidden",
+      ]);
+    });
+
+    it("getLolAccounts stays the unfiltered roster", async () => {
+      // The backfill scripts and the puuid→slug reverse lookup iterate this;
+      // narrowing it would make maintenance work skip accounts in silence.
+      const { service } = await bootedService({ lol: mixed });
+      expect(service.getLolAccounts().map((a) => a.slug)).toEqual([
+        "visible",
+        "hidden",
+        "paused",
+      ]);
+    });
+
+    it("isLolAccountAllowed admits hidden and paused accounts", async () => {
+      // Both states keep every page serving. Gating reads here would 404 the
+      // very history the two features exist to preserve.
+      const { service } = await bootedService({ lol: mixed });
+      expect(service.isLolAccountAllowed("B", "2", "euw1")).toBe(true);
+      expect(service.isLolAccountAllowed("C", "3", "euw1")).toBe(true);
+    });
+
+    it("findBySlug resolves hidden and paused accounts so bookmarks keep working", async () => {
+      const { service } = await bootedService({ lol: mixed });
+      expect(service.findBySlug("hidden")?.slug).toBe("hidden");
+      expect(service.findBySlug("paused")?.slug).toBe("paused");
+    });
+
+    it("getOwnerPuuids ignores hidden, so hiding cannot move the landing page totals", async () => {
+      const { service } = await bootedService({
+        lol: [
+          {
+            slug: "main",
+            gameName: "A",
+            tagLine: "1",
+            region: "euw1",
+            isOwner: true,
+            isPrimary: true,
+          },
+          {
+            slug: "alt",
+            gameName: "B",
+            tagLine: "2",
+            region: "euw1",
+            isOwner: true,
+            hidden: true,
+          },
+        ],
+        summoners: [{ puuid: "p-main" }, { puuid: "p-alt" }],
+      });
+      expect(await service.getOwnerPuuids()).toEqual(["p-main", "p-alt"]);
+    });
+
+    it("a paused account still leaves the worklist after it resumes", async () => {
+      const { service, lolFindMany } = await bootedService({ lol: mixed });
+      lolFindMany.mockResolvedValue(
+        rosterRows(mixed.map((a) => ({ ...a, syncPaused: false })))
+      );
+      await service.reload();
+      expect(service.getSyncableLolAccounts()).toHaveLength(3);
     });
   });
 

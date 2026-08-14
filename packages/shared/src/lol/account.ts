@@ -16,6 +16,24 @@ export interface LolAccount {
   // Ahri subject chapter and any "main account" framing on `/`. Asserted on
   // every roster write — see `assertAccountOwnerInvariants`.
   isPrimary?: boolean;
+  // Hidden accounts are dropped from the nav but keep serving every route
+  // they always did — hiding removes the link, not the page. Which is why
+  // this is a flag on the payload rather than an omission from it: the web
+  // resolves a route's own account object out of `/me`, so a missing row
+  // breaks the very pages that are meant to stay reachable.
+  //
+  // The paired `syncPausedAt` column deliberately has no counterpart here.
+  // Whether an account is still being fetched is an ops concern with no
+  // bearing on what a visitor sees, so it stays inside the API.
+  hidden?: boolean;
+}
+
+export function isHiddenAccount(account: LolAccount): boolean {
+  return account.hidden === true;
+}
+
+export function getVisibleAccounts<T extends LolAccount>(accounts: T[]): T[] {
+  return accounts.filter((a) => !isHiddenAccount(a));
 }
 
 export function isOwnerAccount(account: LolAccount): boolean {
@@ -51,6 +69,24 @@ export function assertAccountOwnerInvariants(accounts: LolAccount[]): void {
     if (!isOwnerAccount(p)) {
       throw new Error(
         `Account "${p.slug}" is flagged isPrimary without isOwner. Primary accounts must also be owner accounts.`
+      );
+    }
+  }
+}
+
+// The primary account is the subject of `/` — it supplies the OG image and the
+// nav's default lens — so hiding it yields a roster whose front page is built
+// around an account the nav cannot reach.
+//
+// "At least one owner account stays visible" needs no check of its own: it
+// follows from this one plus `assertAccountOwnerInvariants`, which already
+// requires a primary whenever any owner exists and requires that primary to be
+// an owner. Run both and a fully-hidden owner set is unreachable.
+export function assertAccountVisibilityInvariants(accounts: LolAccount[]): void {
+  for (const p of accounts.filter((a) => a.isPrimary === true)) {
+    if (isHiddenAccount(p)) {
+      throw new Error(
+        `Account "${p.slug}" is flagged isPrimary and hidden. The primary account is the subject of the landing page and must stay visible.`
       );
     }
   }

@@ -59,6 +59,7 @@ interface RiotStubs {
 
 interface IdentityStubs {
   getLolAccounts: ReturnType<typeof vi.fn>;
+  getSyncableLolAccounts: ReturnType<typeof vi.fn>;
 }
 
 interface EventsStubs {
@@ -81,8 +82,20 @@ function makeStubs(): {
       getLeagueEntriesByPuuid: vi.fn().mockResolvedValue([]),
       getChampionMasteryByChampion: vi.fn().mockResolvedValue(null),
     },
-    identity: { getLolAccounts: vi.fn().mockReturnValue([]) },
+    identity: makeIdentityStubs(),
     events: { emitLiveGame: vi.fn() },
+  };
+}
+
+// The poller reads two different rosters: the syncable subset decides who gets
+// polled, the full roster decides which participants of a game get labelled as
+// tracked accounts. Tests that only care about "this account exists" set the
+// roster once and get both; the case where they diverge has its own test.
+function makeIdentityStubs(): IdentityStubs {
+  const getLolAccounts = vi.fn().mockReturnValue([]);
+  return {
+    getLolAccounts,
+    getSyncableLolAccounts: vi.fn(() => getLolAccounts()),
   };
 }
 
