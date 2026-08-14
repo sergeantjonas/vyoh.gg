@@ -67,11 +67,17 @@ export class IdentityService implements OnModuleInit {
   /**
    * Write-side guard: called with the roster a mutation is about to produce,
    * before it commits. This is the only place a bad roster is rejected —
-   * `reload()` merely warns — and both checks are ones Postgres can't make
-   * on its own. "Exactly one primary, and it must be an owner" isn't
-   * expressible as a constraint, and the `slug` primary key is
-   * case-sensitive while `findBySlug` is not, so `Ahri` and `ahri` are two
-   * legal rows that resolve to whichever the roster happens to list first.
+   * `reload()` merely warns.
+   *
+   * The check that genuinely has to live here is "at least one primary
+   * whenever an owner account exists": it is a cross-row existence assertion,
+   * and Postgres has no constraint shape for it. Its two neighbours could be
+   * pushed into the schema — a partial unique index for at-most-one primary,
+   * a CHECK for primary-implies-owner — and are kept here anyway so a bad
+   * write reports every violation at once instead of whichever the DB happens
+   * to reject first. Slug uniqueness has no choice either way: the `slug`
+   * primary key is case-sensitive while `findBySlug` is not, so `Ahri` and
+   * `ahri` are two legal rows that resolve to whichever the roster lists first.
    */
   assertRosterInvariants(next: LolAccount[]): void {
     this.assertUniqueSlugs(next);
