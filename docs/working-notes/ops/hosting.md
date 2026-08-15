@@ -1,6 +1,6 @@
 # Hosting plan and pre-deploy checklist
 
-**Status:** Active — **Option C (Hetzner VPS + Docker Compose) chosen 2026-07-26**, and **the machinery is written and verified as of 2026-07-27** ([Start migration](../cross-cutting/tanstack-start-migration.md) chunk 6). Nginx routes `vyoh.gg` and `api.vyoh.gg` as separate vhosts on the one VM; "same-origin" in the earlier drafts meant one machine, not one origin. Checklist items 1–3 are done in code; **4–6 remain — 4 and 5 need a VPS that does not exist yet, and 6 (backups, added 2026-08-01) must be live before launch** — nothing here is blocked on the repo any more, it is blocked on buying the box. The full launch-gate list (owner auth, ValidationPipe V3, timeZone sweep, branch protection, and this file's items 4–6) lives in [pre-launch-sweep.md](pre-launch-sweep.md).
+**Status:** Active — **Option C (Hetzner VPS + Docker Compose) chosen 2026-07-26**, and **the machinery is written and verified as of 2026-07-27** ([Start migration](../cross-cutting/tanstack-start-migration.md) chunk 6). Nginx routes `vyoh.gg` and `api.vyoh.gg` as separate vhosts on the one VM; "same-origin" in the earlier drafts meant one machine, not one origin. Checklist items 1–3 are done in code; **4–7 remain — 4, 5 and 7 need a VPS that does not exist yet, and 6 (backups, added 2026-08-01) is written and locally verified but not yet installed anywhere** — nothing here is blocked on the repo any more, it is blocked on buying the box. Item 7 (seeding prod from the dev database, added 2026-08-16) is a launch step rather than a gate, but it is the reason launch is not the same thing as an empty database. The full launch-gate list (owner auth, ValidationPipe V3, timeZone sweep, branch protection, and this file's items 4–6) lives in [pre-launch-sweep.md](pre-launch-sweep.md).
 
 **What exists in-repo now:** [`apps/api/Dockerfile`](../../../apps/api/Dockerfile), [`apps/web/Dockerfile`](../../../apps/web/Dockerfile), [`compose.prod.yaml`](../../../compose.prod.yaml), [`deploy/nginx/`](../../../deploy/nginx/) (two vhosts + the `proxy_cache_path` file + install/TLS instructions), [`deploy/systemd/`](../../../deploy/systemd/) (the nightly backup timer + install instructions), [`scripts/deploy.sh`](../../../scripts/deploy.sh), and [`scripts/backup.sh`](../../../scripts/backup.sh) + [`scripts/restore.sh`](../../../scripts/restore.sh). The whole stack was brought up locally on shifted ports and probed end to end: 60 migrations applied from empty, 12 routes hydrating clean, CORS answering for the configured origin and refusing another. What has *not* been exercised is anything that needs the real box — TLS, DNS, certbot, and the Steam CM egress question below.
 
@@ -217,6 +217,68 @@ This also unblocks the parked destructive data arcs: match-cache tiers 1B/2/3
 and the Tier-5 TTL eviction ([match-cache-storage.md](../lol/match-cache-storage.md))
 are irreversible transforms whose trigger (DB size pressure) will fire on prod —
 none of them should run without a verified restore.
+
+### 7. Seed production from the dev database — added 2026-08-16
+
+Production does not start empty. It starts as a restore of the dev database,
+using the same `restore.sh --into` path the backups already depend on.
+
+The reason is that most of what makes this site worth looking at cannot be
+re-fetched from anywhere. Roughly 25,000 rows are manufactured by the poller
+running over months, and no upstream will return them:
+
+| Table | Rows (2026-08-15) | Why it cannot be re-fetched |
+|---|---|---|
+| `SteamPlaytimeSnapshot` | 12,705 | Steam returns a current total, not a history |
+| `SteamAchievementRarityHistory` | 11,341 | Global rarity is a point-in-time read |
+| `RankSnapshot` | 823 | Riot returns current LP, not the curve |
+| `SteamPlaySession` | 47 | Derived from playtime deltas between polls |
+
+Match data (6,038 rows plus its two caches) is a weaker case — re-fetchable in
+principle, but only inside Riot's retention window and at a quota cost that
+runs straight into the standing warning about backfills competing with live
+traffic ([pre-launch-sweep.md](pre-launch-sweep.md)). A restore costs zero
+upstream calls.
+
+Launching empty would mean shipping the LP curve, the playtime trends and the
+rarity history as blank surfaces on a site whose whole premise is an always-on
+Wrapped. The data is the product here, not a cache in front of one.
+
+Sequence, and the order matters — seeding before the stack is known-good just
+gives you two variables at once:
+
+1. `scripts/deploy.sh`, then confirm the empty stack serves.
+2. Dump dev: `VYOH_COMPOSE_FILE=compose.yaml VYOH_BACKUP_DIR=~/dumps scripts/backup.sh`
+3. `scp` it to the box.
+4. `docker compose -f compose.prod.yaml stop api` — `restore.sh` refuses while
+   clients are connected, by design.
+5. `scripts/restore.sh --into vyoh <dump>`
+6. Start the api, verify, then `delete from "Session";`
+
+Three things this depends on:
+
+- **Naive timestamps line up.** All 51 `DateTime` columns are naive
+  `timestamp` — zero `@db.Timestamptz` — so their stored value is whatever
+  wall clock the writer had. `compose.prod.yaml` sets `TZ=Europe/Brussels` on
+  api and web, which is what the devcontainer runs, and Postgres is UTC on both
+  sides. Dev and prod therefore read these columns identically and the restore
+  needs no conversion. **If that TZ ever diverges, this stops being safe** and
+  every historical timestamp shifts.
+- **Migration parity.** The dump carries `_prisma_migrations` and replaces
+  prod's. Deploy the same commit the dump was taken against, and check dev is
+  at head first, or prod's schema history describes something the code does not
+  expect.
+- **The dev `Session` row.** Harmless — the cookie is scoped to `localhost` and
+  is never sent to `vyoh.gg` — but it is stale state with no reason to exist on
+  a fresh box.
+
+This is not a substitute for the drill in § 6. Seeding proves a dev dump
+restores; the drill proves that *prod's own nightly dumps* restore, which is
+the thing actually reached for during an incident. Seeding does de-risk it
+substantially, and it happens first.
+
+Anything in the seeded roster that should not be public comes out through the
+accounts arc's purge rather than by hand ([accounts-admin.md](accounts-admin.md)).
 
 ---
 
