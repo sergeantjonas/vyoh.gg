@@ -3,7 +3,6 @@ import { validateSync } from "class-validator";
 import { describe, expect, it } from "vitest";
 import {
   CreateLolAccountDto,
-  CreateSteamAccountDto,
   DeleteLolAccountQueryDto,
   LolAccountSlugParamDto,
   UpdateLolAccountDto,
@@ -107,29 +106,5 @@ describe("DeleteLolAccountQueryDto", () => {
     // the one destructive route in the module.
     expect(failedFields(DeleteLolAccountQueryDto, { force: "1" })).toEqual(["force"]);
     expect(failedFields(DeleteLolAccountQueryDto, { force: "yes" })).toEqual(["force"]);
-  });
-});
-
-describe("CreateSteamAccountDto", () => {
-  it("takes a 17-digit id and an optional owner flag", () => {
-    expect(
-      failedFields(CreateSteamAccountDto, { steamId64: "76561198000000001" })
-    ).toEqual([]);
-    expect(
-      failedFields(CreateSteamAccountDto, {
-        steamId64: "76561198000000001",
-        isOwner: false,
-      })
-    ).toEqual([]);
-  });
-
-  it("rejects ids that aren't 17 digits", () => {
-    for (const steamId64 of [
-      "7656119800000000",
-      "765611980000000012",
-      "abcdefghijklmnopq",
-    ]) {
-      expect(failedFields(CreateSteamAccountDto, { steamId64 })).toEqual(["steamId64"]);
-    }
   });
 });

@@ -9,19 +9,12 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
-import type {
-  AdminLolAccount,
-  AdminLolAccountDeleteResult,
-  AdminSteamAccount,
-  AdminSteamAccountDeleteResult,
-} from "@vyoh/shared";
+import type { AdminLolAccount, AdminLolAccountDeleteResult } from "@vyoh/shared";
 import { OwnerGuard } from "../auth/owner.guard";
 import {
   CreateLolAccountDto,
-  CreateSteamAccountDto,
   DeleteLolAccountQueryDto,
   LolAccountSlugParamDto,
-  SteamAccountIdParamDto,
   UpdateLolAccountDto,
 } from "./admin-accounts.dto";
 import { AdminAccountsService } from "./admin-accounts.service";
@@ -33,7 +26,11 @@ import { AdminAccountsService } from "./admin-accounts.service";
  * visitor is owed. Each carries its own `@UseGuards` rather than one decorator
  * on the class, matching the per-route posture `OwnerGuard` documents: on a
  * site that is public by design, a gate should read as a deliberate exception at
- * the definition it applies to. `conventions.spec.ts` pins all seven by name.
+ * the definition it applies to. `conventions.spec.ts` pins all four by name.
+ *
+ * League only, by design. `SteamAccount` exists as a table but no read path
+ * consults it — every Steam surface resolves the owner from `STEAM_OWNER_ID` in
+ * `steam.config.ts` — so roster endpoints for it would write rows nobody reads.
  */
 @Controller("admin")
 export class AdminAccountsController {
@@ -67,25 +64,5 @@ export class AdminAccountsController {
     @Query() { force }: DeleteLolAccountQueryDto
   ): Promise<AdminLolAccountDeleteResult> {
     return this.admin.deleteLolAccount(slug, force === "true");
-  }
-
-  @Get("steam-accounts")
-  @UseGuards(OwnerGuard)
-  listSteamAccounts(): Promise<AdminSteamAccount[]> {
-    return this.admin.listSteamAccounts();
-  }
-
-  @Post("steam-accounts")
-  @UseGuards(OwnerGuard)
-  createSteamAccount(@Body() dto: CreateSteamAccountDto): Promise<AdminSteamAccount> {
-    return this.admin.createSteamAccount(dto);
-  }
-
-  @Delete("steam-accounts/:steamId64")
-  @UseGuards(OwnerGuard)
-  deleteSteamAccount(
-    @Param() { steamId64 }: SteamAccountIdParamDto
-  ): Promise<AdminSteamAccountDeleteResult> {
-    return this.admin.deleteSteamAccount(steamId64);
   }
 }

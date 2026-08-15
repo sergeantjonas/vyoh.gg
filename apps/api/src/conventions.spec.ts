@@ -123,9 +123,6 @@ const GUARDED_ROUTES: Record<string, string[]> = {
     'Post("lol-accounts")',
     'Patch("lol-accounts/:slug")',
     'Delete("lol-accounts/:slug")',
-    'Get("steam-accounts")',
-    'Post("steam-accounts")',
-    'Delete("steam-accounts/:steamId64")',
   ],
 };
 

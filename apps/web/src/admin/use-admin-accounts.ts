@@ -1,15 +1,9 @@
 import { meQueryOptions } from "@/identity/use-me";
 import { ownerRequest } from "@/lib/owner-request";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type {
-  AdminLolAccount,
-  AdminLolAccountDeleteResult,
-  AdminSteamAccount,
-  AdminSteamAccountDeleteResult,
-} from "@vyoh/shared";
+import type { AdminLolAccount, AdminLolAccountDeleteResult } from "@vyoh/shared";
 
 export const adminLolAccountsQueryKey = ["admin", "lol-accounts"] as const;
-export const adminSteamAccountsQueryKey = ["admin", "steam-accounts"] as const;
 
 /**
  * `enabled` rather than a caught 401: the read is gated, so for a signed-out
@@ -27,17 +21,8 @@ export function useAdminLolAccounts(enabled: boolean) {
   });
 }
 
-export function useAdminSteamAccounts(enabled: boolean) {
-  return useQuery({
-    queryKey: adminSteamAccountsQueryKey,
-    queryFn: () => ownerRequest<AdminSteamAccount[]>("GET", "/admin/steam-accounts"),
-    enabled,
-    staleTime: 30_000,
-  });
-}
-
 /**
- * Both admin reads plus `/me`, after any roster write.
+ * The admin read plus `/me`, after any roster write.
  *
  * `/me` is in the set because hiding an account changes the nav, and the nav is
  * built from `/me` — a write that refreshed only the admin table would leave the
@@ -48,7 +33,6 @@ function useInvalidateRoster() {
   return () =>
     Promise.all([
       queryClient.invalidateQueries({ queryKey: adminLolAccountsQueryKey }),
-      queryClient.invalidateQueries({ queryKey: adminSteamAccountsQueryKey }),
       queryClient.invalidateQueries({ queryKey: meQueryOptions().queryKey }),
     ]);
 }
@@ -101,27 +85,6 @@ export function useDeleteLolAccount() {
       ownerRequest<AdminLolAccountDeleteResult>(
         "DELETE",
         `/admin/lol-accounts/${encodeURIComponent(slug)}`
-      ),
-    onSuccess: invalidate,
-  });
-}
-
-export function useCreateSteamAccount() {
-  const invalidate = useInvalidateRoster();
-  return useMutation<AdminSteamAccount, Error, string>({
-    mutationFn: (steamId64) =>
-      ownerRequest<AdminSteamAccount>("POST", "/admin/steam-accounts", { steamId64 }),
-    onSuccess: invalidate,
-  });
-}
-
-export function useDeleteSteamAccount() {
-  const invalidate = useInvalidateRoster();
-  return useMutation<AdminSteamAccountDeleteResult, Error, string>({
-    mutationFn: (steamId64) =>
-      ownerRequest<AdminSteamAccountDeleteResult>(
-        "DELETE",
-        `/admin/steam-accounts/${encodeURIComponent(steamId64)}`
       ),
     onSuccess: invalidate,
   });

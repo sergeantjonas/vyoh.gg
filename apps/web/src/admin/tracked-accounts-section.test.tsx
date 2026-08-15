@@ -59,11 +59,7 @@ function renderSection() {
 beforeEach(() => {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (url: string) =>
-      url.includes("lol-accounts")
-        ? new Response(JSON.stringify(roster))
-        : new Response("[]")
-    )
+    vi.fn(async () => new Response(JSON.stringify(roster)))
   );
 });
 
@@ -73,14 +69,24 @@ afterEach(() => {
 });
 
 describe("TrackedAccountsSection", () => {
-  it("renders both rosters for the owner", async () => {
+  it("renders the roster for the owner", async () => {
     vi.mocked(useIsOwner).mockReturnValue(true);
     renderSection();
 
     expect(screen.getByText("Tracked accounts")).toBeTruthy();
     expect(await screen.findByText("Vyoh#Ahri")).toBeTruthy();
-    expect(screen.getByText("League accounts")).toBeTruthy();
-    expect(screen.getByText("Steam accounts")).toBeTruthy();
+  });
+
+  it("reads the League roster and nothing else", async () => {
+    // Steam's single id is resolved from config by every surface that needs it,
+    // so there is no second roster to manage and no second request to make.
+    vi.mocked(useIsOwner).mockReturnValue(true);
+    renderSection();
+
+    await screen.findByText("Vyoh#Ahri");
+    expect(vi.mocked(fetch).mock.calls.map(([url]) => url)).toEqual([
+      "http://localhost:2010/admin/lol-accounts",
+    ]);
   });
 
   it("lists a hidden account — the nav drops it, the manager must not", async () => {
@@ -107,7 +113,7 @@ describe("TrackedAccountsSection", () => {
     vi.mocked(useIsOwner).mockReturnValue(true);
     vi.mocked(fetch).mockReturnValue(new Promise(() => {}) as Promise<Response>);
     renderSection();
-    expect(screen.getAllByText("Loading roster…")).toHaveLength(2);
+    expect(screen.getByText("Loading roster…")).toBeTruthy();
   });
 
   it("has no axe violations", async () => {

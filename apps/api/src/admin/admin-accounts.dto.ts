@@ -7,12 +7,6 @@ import { PLATFORMS } from "../riot/regions";
 // resolve to nothing, and reads as fine in the admin table.
 const SLUG = /^[a-z0-9][a-z0-9-]{0,29}$/;
 
-// 17 digits, no prefix assertion. Individual Steam IDs are `76561197960265728 +
-// accountId`, so today's all begin `7656119` — but a high enough accountId rolls
-// that prefix over, and a validator that rejects a valid future ID is worse than
-// one that accepts a typo the insert will reject anyway.
-const STEAM_ID_64 = /^\d{17}$/;
-
 export class CreateLolAccountDto {
   @IsString()
   @Matches(SLUG)
@@ -86,20 +80,4 @@ export class DeleteLolAccountQueryDto {
   @IsOptional()
   @IsIn(["true", "false"])
   force?: string;
-}
-
-export class CreateSteamAccountDto {
-  @IsString()
-  @Matches(STEAM_ID_64)
-  steamId64!: string;
-
-  @IsOptional()
-  @IsBoolean()
-  isOwner?: boolean;
-}
-
-export class SteamAccountIdParamDto {
-  @IsString()
-  @Matches(STEAM_ID_64)
-  steamId64!: string;
 }

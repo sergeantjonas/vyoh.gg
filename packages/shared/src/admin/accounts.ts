@@ -22,12 +22,6 @@ export interface AdminLolAccount {
   createdAt: string;
 }
 
-export interface AdminSteamAccount {
-  steamId64: string;
-  isOwner: boolean;
-  createdAt: string;
-}
-
 export interface AdminLolAccountDeleteResult {
   slug: string;
   /**
@@ -37,8 +31,4 @@ export interface AdminLolAccountDeleteResult {
    * client can say how much was stranded and point at purge.
    */
   matchRows: number;
-}
-
-export interface AdminSteamAccountDeleteResult {
-  steamId64: string;
 }

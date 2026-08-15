@@ -21,8 +21,6 @@ interface RowSeed {
   syncPausedAt?: Date | null;
 }
 
-const AT = new Date(Date.UTC(2026, 0, 1, 12, 0, 0));
-
 function rows(seed: RowSeed[]) {
   return seed.map((s, i) => ({
     slug: s.slug,
@@ -48,7 +46,6 @@ function rows(seed: RowSeed[]) {
 function stubPrisma(
   seed: {
     lol?: RowSeed[];
-    steam?: string[];
     puuids?: string[];
     matchRows?: number;
   } = {}
@@ -80,22 +77,10 @@ function stubPrisma(
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       delete: vi.fn().mockResolvedValue(undefined),
     },
-    steamAccount: {
-      findMany: vi.fn().mockResolvedValue(
-        (seed.steam ?? []).map((steamId64, i) => ({
-          steamId64,
-          isOwner: true,
-          createdAt: new Date(Date.UTC(2026, 0, 1, 0, 0, i)),
-        }))
-      ),
-      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({
-        steamId64: "0",
-        isOwner: true,
-        createdAt: AT,
-        ...data,
-      })),
-      delete: vi.fn().mockResolvedValue(undefined),
-    },
+    // Nothing in this service touches Steam — this is here because these tests
+    // run against a real `IdentityService`, and every `reload()` reads both
+    // tables to rebuild its cache.
+    steamAccount: { findMany: vi.fn().mockResolvedValue([]) },
     summoner: {
       findMany: vi
         .fn()
@@ -171,13 +156,6 @@ describe("AdminAccountsService", () => {
       // `hidden` boolean and no timestamp at all, so an ISO string here can only
       // have come from the row.
       expect(listed[0]?.hiddenAt).toBeNull();
-    });
-
-    it("serves steam rows in insertion order", async () => {
-      const { service } = await build({ steam: ["76561198000000001"] });
-      expect(await service.listSteamAccounts()).toEqual([
-        { steamId64: "76561198000000001", isOwner: true, createdAt: expect.any(String) },
-      ]);
     });
   });
 
@@ -456,43 +434,6 @@ describe("AdminAccountsService", () => {
       expect(prisma.lolAccount.delete).toHaveBeenCalledWith({
         where: { slug: "twix" },
       });
-    });
-  });
-
-  describe("steam accounts", () => {
-    it("defaults a new account to owner-owned", async () => {
-      const { service, prisma, reload } = await build();
-      await service.createSteamAccount({ steamId64: "76561198000000001" });
-      expect(prisma.steamAccount.create).toHaveBeenCalledWith({
-        data: { steamId64: "76561198000000001", isOwner: true },
-      });
-      expect(reload).toHaveBeenCalledOnce();
-    });
-
-    it("rejects a duplicate steam id", async () => {
-      const { service } = await build({ steam: ["76561198000000001"] });
-      await expect(
-        service.createSteamAccount({ steamId64: "76561198000000001" })
-      ).rejects.toThrow(ConflictException);
-    });
-
-    it("404s deleting an untracked steam id", async () => {
-      const { service, prisma } = await build({ steam: ["76561198000000001"] });
-      await expect(service.deleteSteamAccount("76561198000000009")).rejects.toThrow(
-        NotFoundException
-      );
-      expect(prisma.steamAccount.delete).not.toHaveBeenCalled();
-    });
-
-    it("deletes a tracked steam id and reloads", async () => {
-      const { service, prisma, reload } = await build({ steam: ["76561198000000001"] });
-      expect(await service.deleteSteamAccount("76561198000000001")).toEqual({
-        steamId64: "76561198000000001",
-      });
-      expect(prisma.steamAccount.delete).toHaveBeenCalledWith({
-        where: { steamId64: "76561198000000001" },
-      });
-      expect(reload).toHaveBeenCalledOnce();
     });
   });
 });

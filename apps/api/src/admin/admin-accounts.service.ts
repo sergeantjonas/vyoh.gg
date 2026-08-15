@@ -8,8 +8,6 @@ import {
 import type {
   AdminLolAccount,
   AdminLolAccountDeleteResult,
-  AdminSteamAccount,
-  AdminSteamAccountDeleteResult,
   LolAccount,
 } from "@vyoh/shared";
 import { IdentityService } from "../identity/identity.service";
@@ -17,11 +15,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { platformToRegional } from "../riot/regions";
 import { RiotError } from "../riot/riot.error";
 import { RiotService } from "../riot/riot.service";
-import type {
-  CreateLolAccountDto,
-  CreateSteamAccountDto,
-  UpdateLolAccountDto,
-} from "./admin-accounts.dto";
+import type { CreateLolAccountDto, UpdateLolAccountDto } from "./admin-accounts.dto";
 
 interface LolAccountRow {
   slug: string;
@@ -32,12 +26,6 @@ interface LolAccountRow {
   isPrimary: boolean;
   hiddenAt: Date | null;
   syncPausedAt: Date | null;
-  createdAt: Date;
-}
-
-interface SteamAccountRow {
-  steamId64: string;
-  isOwner: boolean;
   createdAt: Date;
 }
 
@@ -64,14 +52,6 @@ function toAdminLolAccount(row: LolAccountRow): AdminLolAccount {
 function stampFlag(next: boolean, current: Date | null, now: Date): Date | null {
   if (!next) return null;
   return current ?? now;
-}
-
-function toAdminSteamAccount(row: SteamAccountRow): AdminSteamAccount {
-  return {
-    steamId64: row.steamId64,
-    isOwner: row.isOwner,
-    createdAt: row.createdAt.toISOString(),
-  };
 }
 
 /**
@@ -104,13 +84,6 @@ export class AdminAccountsService {
       orderBy: { createdAt: "asc" },
     });
     return rows.map(toAdminLolAccount);
-  }
-
-  async listSteamAccounts(): Promise<AdminSteamAccount[]> {
-    const rows = await this.prisma.steamAccount.findMany({
-      orderBy: { createdAt: "asc" },
-    });
-    return rows.map(toAdminSteamAccount);
   }
 
   async createLolAccount(dto: CreateLolAccountDto): Promise<AdminLolAccount> {
@@ -250,26 +223,6 @@ export class AdminAccountsService {
     await this.identity.reload();
     this.logger.log(`roster - ${current.slug} (${matchRows} match row(s) left in place)`);
     return { slug: current.slug, matchRows };
-  }
-
-  async createSteamAccount(dto: CreateSteamAccountDto): Promise<AdminSteamAccount> {
-    if (this.identity.getSteamIds().includes(dto.steamId64)) {
-      throw new ConflictException(`${dto.steamId64} is already tracked.`);
-    }
-    const row = await this.prisma.steamAccount.create({
-      data: { steamId64: dto.steamId64, isOwner: dto.isOwner ?? true },
-    });
-    await this.identity.reload();
-    return toAdminSteamAccount(row);
-  }
-
-  async deleteSteamAccount(steamId64: string): Promise<AdminSteamAccountDeleteResult> {
-    if (!this.identity.getSteamIds().includes(steamId64)) {
-      throw new NotFoundException(`No Steam account tracked with id ${steamId64}.`);
-    }
-    await this.prisma.steamAccount.delete({ where: { steamId64 } });
-    await this.identity.reload();
-    return { steamId64 };
   }
 
   private requireAccount(slug: string): LolAccount {

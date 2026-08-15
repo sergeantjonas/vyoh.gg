@@ -82,8 +82,6 @@ export type { Viewer } from "./auth/viewer.ts";
 export type {
   AdminLolAccount,
   AdminLolAccountDeleteResult,
-  AdminSteamAccount,
-  AdminSteamAccountDeleteResult,
 } from "./admin/accounts.ts";
 export type {
   LolAccount,

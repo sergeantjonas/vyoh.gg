@@ -43,24 +43,12 @@ describe("AdminAccountsController", () => {
     expect(deleteLolAccount).toHaveBeenLastCalledWith("twix", false);
   });
 
-  it("unwraps the steam id from the route param", async () => {
-    const deleteSteamAccount = vi.fn().mockResolvedValue({ steamId64: "1" });
-    const controller = await buildController({ deleteSteamAccount });
-
-    await controller.deleteSteamAccount({ steamId64: "76561198000000001" });
-
-    expect(deleteSteamAccount).toHaveBeenCalledWith("76561198000000001");
-  });
-
-  it("delegates the reads without reshaping them", async () => {
+  it("delegates the read without reshaping it", async () => {
     const lol = [{ slug: "ahri" }];
-    const steam = [{ steamId64: "1" }];
     const controller = await buildController({
       listLolAccounts: vi.fn().mockResolvedValue(lol),
-      listSteamAccounts: vi.fn().mockResolvedValue(steam),
     });
 
     expect(await controller.listLolAccounts()).toBe(lol);
-    expect(await controller.listSteamAccounts()).toBe(steam);
   });
 });

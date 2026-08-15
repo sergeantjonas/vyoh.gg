@@ -1,6 +1,6 @@
 # Accounts — move from JSON config to DB-backed admin surface
 
-**Status:** Active — chunk 0 shipped 2026-06-09 (`1f33d7fc`), chunk 1 and chunks 2a/2b-i shipped 2026-08-14, chunk 2b-ii shipped 2026-08-15. **Chunk 2 is done: the roster is fully manageable from `/status`.** Only chunk 3 (purge) remains, and it is gated on a verified restore. Owner-auth shipped in full 2026-08-13, so the prerequisite is closed. Chunk 2's scope was widened 2026-08-14 from delete-only to **hide / pause / delete** on two independent axes, and chunk 3 now carries the opt-in **purge**. Pairs with [owner-auth.md](owner-auth.md) (`OwnerGuard` ships there, this arc applies it to the admin endpoints). Replaces the "Live-config edits" forward-looking item catalogued in [owner-auth.md § Forward-looking gated surfaces](owner-auth.md).
+**Status:** Active — chunk 0 shipped 2026-06-09 (`1f33d7fc`), chunk 1 and chunks 2a/2b-i shipped 2026-08-14, chunk 2b-ii shipped 2026-08-15 and had its Steam half removed the same day (see 2b-iii). **Chunk 2 is done: the LoL roster is fully manageable from `/status`, and Steam is deliberately not.** Only chunk 3 (purge) remains, and it is gated on a verified restore. Owner-auth shipped in full 2026-08-13, so the prerequisite is closed. Chunk 2's scope was widened 2026-08-14 from delete-only to **hide / pause / delete** on two independent axes, and chunk 3 now carries the opt-in **purge**. Pairs with [owner-auth.md](owner-auth.md) (`OwnerGuard` ships there, this arc applies it to the admin endpoints). Replaces the "Live-config edits" forward-looking item catalogued in [owner-auth.md § Forward-looking gated surfaces](owner-auth.md).
 
 The tracked-accounts roster lives in the `LolAccount` + `SteamAccount` tables, read at boot into [identity.service.ts](../../../apps/api/src/identity/identity.service.ts)'s cache by `reload()`. Until 2026-08-14 it was a committed `apps/api/accounts.json` hot-reloaded via `fs.watch`, which made every roster change (add a Steam friend's library, flip an `isOwner` flag, retire a test account) a deploy. The remaining arc adds an `OwnerGuard`-protected admin section on the status page. Every existing `IdentityService` read keeps its signature and its semantics; the one structural change is that the two sync-worklist call sites move off `getLolAccounts()` onto a new `getSyncableLolAccounts()` (see [the read-path table](#read-path-which-reads-filter-on-what)).
 
@@ -132,23 +132,23 @@ Every existing call site (`getLolAccounts`, `getOwnerPuuids`, `getLolAccountsWit
 
 ### New `AdminAccountsModule` (apps/api/src/admin/) — shipped 2026-08-14 (chunk 2b-i)
 
-All routes carry `@UseGuards(OwnerGuard)`, reads included — `conventions.spec.ts` pins all seven by name:
+All routes carry `@UseGuards(OwnerGuard)`, reads included — `conventions.spec.ts` pins each by name. The three Steam routes below shipped in 2b-i and were removed in 2b-iii; they are kept here because the reasoning that produced them is what 2b-iii overturned:
 
 - `GET /admin/lol-accounts` — the full roster including `hiddenAt`/`syncPausedAt`, which `/me` doesn't carry. The admin table reads this, not `/me`.
 - `POST /admin/lol-accounts` — body `{ slug, gameName, tagLine, region, isOwner, isPrimary }`. Validates Riot ID via account-v1, asserts post-write invariants, inserts, calls `identity.reload()`. Returns the new row.
 - `PATCH /admin/lol-accounts/:slug` — body subset of `{ isOwner, isPrimary, hidden, syncPaused }`. The two booleans set or clear their timestamp; the api owns the clock, so the client never sends one. Slug, Riot ID tuple, and region stay immutable in v1. Asserts invariants over proposed state, updates, reloads.
 - `DELETE /admin/lol-accounts/:slug` — roster row only; history untouched. Refuses to delete the primary (invariant). When the account still has `Match` rows, the response tells the caller how many and points at hide/pause instead — the row is the only handle on that data, so removing it strands the history rather than cleaning it up. A `?force=true` param overrides for the typo case.
-- `POST /admin/steam-accounts` — body `{ steamId64, isOwner }`. Length/digit validation. Inserts, reloads.
-- `DELETE /admin/steam-accounts/:steamId64` — deletes, reloads. Same Steam-data-untouched semantics.
+- ~~`POST /admin/steam-accounts`~~ — body `{ steamId64, isOwner }`. Length/digit validation. Inserts, reloads. *Removed 2b-iii.*
+- ~~`DELETE /admin/steam-accounts/:steamId64`~~ — deletes, reloads. Same Steam-data-untouched semantics. *Removed 2b-iii.*
 
 Four things the sketch above didn't anticipate, all settled while implementing:
 
-- **A seventh route, `GET /admin/steam-accounts`.** The plan listed six and a `use-steam-accounts.ts` hook reading "the `/admin/*` reads", which don't exist for Steam under the six. `/me` carries Steam as a bare `string[]`, so without this route the Steam table can render an id and nothing else — no `isOwner`, no added-on date.
+- **A seventh route, ~~`GET /admin/steam-accounts`~~.** The plan listed six and a `use-steam-accounts.ts` hook reading "the `/admin/*` reads", which don't exist for Steam under the six. `/me` carries Steam as a bare `string[]`, so without this route the Steam table can render an id and nothing else — no `isOwner`, no added-on date. *Removed 2b-iii — the right answer to "the table has nothing to render" was that there should be no table.*
 - **Promotion is a paired write, in both create and patch.** Setting `isPrimary` clears it from the incumbent in the same transaction. As two requests it would pass through a two-primary state, which is exactly what `assertRosterInvariants` rejects — so the intermediate write would 400 rather than briefly misbehave. The demotion is a no-op unless the row actually claims primary; demoting on every write proposes a roster with owners and no primary, and an ordinary create then 400s on a rule it never touched. That bug existed for one test run.
 - **The flag timestamps are idempotent in both directions.** Re-sending `hidden: true` keeps the original `hiddenAt` rather than restamping it — "hidden since when" is the whole reason these are timestamps and not booleans, and a double-clicked toggle would quietly destroy the answer. Needs a read inside the transaction, because the roster cache cannot answer "was it already paused": `syncPausedAt` has no counterpart in the public projection at all.
 - **`PLATFORMS` moved into `regions.ts`** and is derived from `PLATFORM_TO_REGIONAL`'s keys, so the `Record<Platform, Regional>` exhaustiveness check is what keeps it complete. `account-params.dto.ts` had been carrying a hand-written mirror with a keep-in-sync comment; the admin create DTO would have been the third copy.
 
-Note the Steam table is legitimately empty on the dev DB: the pre-cutover `accounts.json` already had `steam: []`, and `getSteamIds()` feeds only `/me` — the Steam integration resolves the owner elsewhere. An empty Steam admin table in 2b-ii is faithful, not a bug.
+Note the Steam table is legitimately empty on the dev DB: the pre-cutover `accounts.json` already had `steam: []`, and `getSteamIds()` feeds only `/me` — the Steam integration resolves the owner elsewhere. An empty Steam admin table in 2b-ii is faithful, not a bug. *2b-iii read the same fact the other way: a manager whose faithful state is empty forever is managing nothing.*
 
 Chunk 3 adds two more:
 
@@ -177,26 +177,27 @@ Lands as a **separate prerequisite commit (chunk 0)** before chunk 1 — indepen
 
 ### New `apps/web/src/admin/`
 
-- `use-lol-accounts.ts`, `use-steam-accounts.ts` — React Query hooks against the `/admin/*` reads (not `/me` — the admin table needs the two timestamps `/me` withholds). On mutation success, invalidate both `me` and the admin queries, since hiding an account changes the nav.
+Shipped as one `use-admin-accounts.ts` rather than the per-stream split sketched here, and without the Steam half (2b-iii):
+
+- `use-admin-accounts.ts` — React Query hooks against the `/admin/*` reads (not `/me` — the admin table needs the two timestamps `/me` withholds). On mutation success, invalidate both `me` and the admin queries, since hiding an account changes the nav.
 - `lol-accounts-table.tsx` — per-row: `isOwner`/`isPrimary` toggles, **hide**, **pause**, delete. Header "Add account" button opening a form dialog.
-- `steam-accounts-table.tsx` — table with delete and add-form dialog.
-- `add-lol-account-dialog.tsx`, `add-steam-account-dialog.tsx` — Radix Dialog + react-hook-form, surfacing the Riot/Steam-side validation errors inline.
+- `add-lol-account-dialog.tsx` — Radix Dialog + controlled state, surfacing the Riot-side validation errors inline.
 - `purge-account-dialog.tsx` *(chunk 3)* — preview counts on open, slug typed back to enable the button.
 
 Hide and pause read as state, not as actions, so they're toggles with a visible resting state rather than buttons in a menu — a roster where three of nine rows are paused has to be legible at a glance, otherwise "why is this account stale" becomes a debugging session. Delete stays a destructive-styled action; purge (chunk 3) sits behind it in an overflow menu, since it should be reached deliberately.
 
 ### Status page integration
 
-Add a new **"Tracked accounts"** `SectionTitle` zone in [status-page.tsx](../../../apps/web/src/status/status-page.tsx), placed below the existing Sync/Pause/Resume block. Two cards side-by-side at md+ (LoL, Steam), stacked on mobile.
+A **"Tracked accounts"** `SectionTitle` zone in [status-page.tsx](../../../apps/web/src/status/status-page.tsx), below the existing Sync/Pause/Resume block. The sketch put two cards side-by-side at md+ (LoL, Steam); with Steam gone (2b-iii) the surviving card had no sibling, so the zone is the League roster directly — one `SectionTitle` with the add-button on its row, matching the shape of every other section on the page. The `CardTitle` layer comes back if a second roster ever does.
 
-The owner-auth disable-with-tooltip pattern from owner-auth chunk 2 applies here: when `viewer.isOwner === false`, the tables render read-only (no toggle, no delete, no add button) with a single `TooltipPrimitive` lock icon in the header. Per the [`CardTitle` / `SectionTitle` convention](../repo-conventions-web.md#header-primitives-sectiontitle-vs-cardtitle--pick-by-chrome-not-by-content): each card carries its own chrome → use `CardTitle` for the per-card headers, `SectionTitle` for the zone divider above them.
+The sketch also carried over owner-auth's disable-with-tooltip pattern for signed-out visitors; that was rejected on review — see 2b-ii.
 
 ### Tests in same commit
 
 Per [feedback_test_alongside_code](#) — same-commit coverage is the standing bar:
 
 - Backend: spec per admin endpoint (auth-gated, validation, invariant assertion, reload triggers), plus one case per row of the read-path table above — that table is the test matrix, and a read that silently starts or stops honouring `hiddenAt` is the failure mode with no visible symptom.
-- Frontend: axe scan + add/delete/hide/pause/toggle flows for at least the LoL table; Steam mirrors the same shape so one example is enough. One nav test pinning the pair that matters: a hidden account leaves the dropdown while `/lol/<slug>` still resolves.
+- Frontend: axe scan + add/delete/hide/pause/toggle flows for the LoL table. One nav test pinning the pair that matters: a hidden account leaves the dropdown while `/lol/<slug>` still resolves.
 
 ---
 
@@ -207,7 +208,8 @@ Per [feedback_test_alongside_code](#) — same-commit coverage is the standing b
 - **Bulk import / CSV.** YAGNI — the roster is single digits.
 - **Audit log.** Single owner. Same call as owner-auth. Purge logs one line; that isn't a log table.
 - **Bulk / TTL cache eviction.** Purge here is per-account and owner-triggered. Size-pressure-driven eviction across the whole cache is a different trigger with a different failure mode and stays in [match-cache-storage.md](../lol/match-cache-storage.md). The orphan-sweep query in step 5 is the piece the two arcs share.
-- **Steam `hiddenAt`/`syncPausedAt`.** One row, no browse surface to preserve. Add when a second Steam account exists.
+- **Steam roster management, at all.** Removed in 2b-iii. `STEAM_OWNER_ID` in [steam.config.ts](../../../apps/api/src/steam/steam.config.ts) is where every Steam surface resolves the owner, so a `SteamAccount` manager edits a table nothing reads. The `SteamAccount` model stays as chunk 1 provisioned it; `getSteamIds()` still feeds `/me`.
+- **Steam `hiddenAt`/`syncPausedAt`.** Same reason, plus: one row, no browse surface to preserve.
 - **Multi-tenant / role split.** Out of scope of the whole `OwnerGuard` design; if a second identity ever becomes real, this design extends.
 
 ---
@@ -254,13 +256,23 @@ Five decisions that departed from the sketch above:
 
   The first cut *did* ship the read-only variant, which forced a dual-source design: rows from `/me` (public) merged with the owner's admin read by slug, because `/admin/*` 401s for everyone else. Gating the section deleted the merge, both row types, the `isOwner` prop threaded through every control, and a whole class of "what does this cell show when the detail is missing" question. The tables now read `AdminLolAccount[]` straight from the query. **Removing the locked view made the code smaller, not larger** — worth remembering the next time the disable-with-tooltip pattern looks like the default.
 - **A browser probe caught what the tests could not, in the read-only cut.** With `detail === null`, the sync cell fell through to the toggle's resting state and rendered "Syncing" for all nine rows to an anonymous visitor — including for a paused account, the one state that column exists to explain. The fix at the time was an em dash; gating the section removed the branch entirely. The lesson survives the code: a component test written against the same wrong assumption as the component agrees with it.
-- **Stacked cards, not two columns.** The LoL table carries four control columns across nine rows; the Steam card is one row of one field. Side-by-side starves the half that needs width.
+- **Stacked cards, not two columns.** The LoL table carries four control columns across nine rows; the Steam card is one row of one field. Side-by-side starves the half that needs width. *Moot after 2b-iii.*
 - **No confirm dialog on delete, and no force affordance.** The api refuses to remove an account that still has match rows, and re-adding the same Riot ID re-attaches its history — the tuple is the join key — so the reachable case is cheap to undo. `?force=true` stays a curl-level escape hatch: it exists for the typo case, and a typo'd account has no history to strand, so the button would only ever be reachable for the case where purge (chunk 3) is the right tool.
 - **One hooks file, not two**, since all six mutations share the same request helper and the same invalidation set. And no `react-hook-form`: two forms of four fields did not justify a dependency, so they are controlled state with the api's own validation messages surfaced inline.
 
 `PLATFORMS` moved again — from `apps/api/src/riot/regions.ts` (where 2b-i had just consolidated it) to `packages/shared/src/lol/platforms.ts`, with `Platform` derived from the list rather than declared beside it. The add-account form's region select needs the same list the api validates against; `regions.ts` re-exports it so no api import changed, and `Record<Platform, Regional>` still forces every platform to be mapped.
 
 Verified in a real browser against the dev api on both sessions. Anonymous: the zone is absent entirely, **no admin request fires**, and the sync card above keeps its locked controls — so the page still says "this is an ops dashboard with owner actions" without inventing a roster manager nobody can use. Owner: two cards, both add-buttons live, hiding `twix` stamped `hiddenAt` and the nav dropdown dropped from nine accounts to eight with no reload, pausing it while hidden confirmed the axes are independent, both reverted, and hiding the primary produced a toast carrying the invariant's own message while the row stayed listed.
+
+### Chunk 2b-iii — Drop the Steam roster surface — ✅ shipped 2026-08-15
+
+Removes what 2b-i and 2b-ii shipped for Steam: the three `/admin/steam-accounts` routes and their service methods and DTOs, `AdminSteamAccount` + `AdminSteamAccountDeleteResult` from `@vyoh/shared`, `steam-accounts-table.tsx`, `add-steam-account-dialog.tsx`, the three hooks, and the matching specs. The `SteamAccount` model and `getSteamIds()` stay exactly as chunk 1 left them.
+
+**Why it was wrong to ship.** `STEAM_OWNER_ID` is a `const` in [steam.config.ts](../../../apps/api/src/steam/steam.config.ts), read at 13 call sites across 7 files, and nothing on the web consumes `me.steam`. So the card managed a table with no reader: adding a row changed nothing, and the honest empty state had to say so out loud ("the library and achievement surfaces resolve their own owner, so this list stays empty"). A control whose own copy explains that it does nothing is the tell.
+
+**Why not wire Steam to the roster instead** (the alternative considered, scoped as "S-1": seed the row, resolve it through `IdentityService`, swap the 13 call sites). Deferred, and the deferral is close to free — the constant is already centralized in one file, so the swap is an import change whenever it happens, and nothing accrues against it. The expensive part of multi-Steam is untouched either way: `SteamOwnedGame`, `SteamPlayerUnlock`, `SteamPlaySession` and `SteamPlaytimeSnapshot` carry **no owner column at all**, so a second account is a schema arc, not a missing picker. Doing S-1 now would only split that arc across months. The parked "Steam nav account-showcase" item in [steam-lol-parity.md](../cross-cutting/steam-lol-parity.md) is trigger-gated on the nav dropdown a second account would create, so it stays parked on the same trigger.
+
+**The generalisable bit:** the roster arc's own framing ("accounts are data, not config") is true for LoL, where nine rows drive the nav, the sync loop and the URL space. Applying it to Steam by symmetry produced a surface for a table of one row that no read path consults. Parity between streams is worth having where the streams are actually parallel; here they aren't, and the card was the proof.
 
 ### Chunk 3 — Purge + polish
 
