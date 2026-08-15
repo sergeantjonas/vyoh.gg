@@ -46,6 +46,12 @@ cyan "→ sync ${PWD} → ${host}:${remote} (${commit})"
 # .env is excluded rather than synced: production secrets live on the VPS and
 # have no local counterpart. Everything else here is either rebuilt in the
 # image or has no business leaving the dev box.
+#
+# backups/ is excluded for a sharper reason than the rest: it has no local
+# counterpart either, so --delete would remove it from the server. Backups
+# default to /var/backups/vyoh, outside the synced tree, and this line is only
+# here so that pointing VYOH_BACKUP_DIR inside the checkout is a bad idea
+# rather than a silent one.
 rsync -az --delete \
   --exclude '.git/' \
   --exclude 'node_modules/' \
@@ -54,6 +60,7 @@ rsync -az --delete \
   --exclude '.pnpm-store/' \
   --exclude '.postgres-data/' \
   --exclude '.cache/' \
+  --exclude 'backups/' \
   --exclude '.env' \
   --exclude '**/.env' \
   ./ "${host}:${remote}/"

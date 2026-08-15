@@ -163,13 +163,38 @@ and the upstreams.
 
 Minimum shape before the site is public:
 
-- Nightly `pg_dump` (custom format) via cron/systemd timer on the VPS, ~14 days
-  retained. The dump reads through `docker compose exec postgres pg_dump`;
-  `deploy.sh` and compose stay backup-agnostic.
+- ~~Nightly `pg_dump` (custom format), ~14 days retained, reading through
+  `docker compose exec postgres pg_dump`.~~ **`scripts/backup.sh`, 2026-08-15.**
+  The script exists and is exercised; the timer that runs it nightly does not.
 - A copy **off the box** (Hetzner Storage Box or object storage) — a backup on
   the same disk it protects is not one.
-- One restore drill against a scratch database before launch, so the first
-  restore is not performed during an incident.
+- ~~One restore drill against a scratch database before launch, so the first
+  restore is not performed during an incident.~~ **`scripts/restore.sh`,
+  2026-08-15** — rehearsed against the dev database, 29 tables at exact
+  row-count parity. The drill still has to run once on the box itself.
+
+`backup.sh` writes `vyoh-<UTC stamp>.dump` to `/var/backups/vyoh`, verifies it,
+then prunes to the newest `VYOH_BACKUP_KEEP` (default 14). `restore.sh` defaults
+to restoring into a scratch database and diffing exact per-table row counts
+against the live one; going over a real database needs `--into`, the name typed
+back, and no clients connected.
+
+Two things the rehearsal settled, both of which produce a check that passes
+without checking anything:
+
+- **`pg_restore --list` is not a verification.** A custom-format archive keeps
+  its table of contents in the header, so `--list` accepts a file truncated to
+  3% of its length. `backup.sh` decodes the whole archive to `/dev/null`
+  instead — ~2s against 130 MB, and it does reject the truncated file.
+- **`n_live_tup` is not a row count.** It is an estimate autovacuum maintains,
+  and a freshly restored database has not been analysed, so it reads zero
+  everywhere — a comparison built on it would pass by agreeing that both sides
+  are empty. The drill counts exactly, via `query_to_xml`.
+
+`deploy.sh` stays backup-agnostic apart from one `--exclude 'backups/'`. The
+default backup directory is outside the synced tree precisely so `rsync
+--delete` cannot reach it; the exclude only covers overriding `VYOH_BACKUP_DIR`
+to a path inside the checkout.
 
 This also unblocks the parked destructive data arcs: match-cache tiers 1B/2/3
 and the Tier-5 TTL eviction ([match-cache-storage.md](../lol/match-cache-storage.md))
