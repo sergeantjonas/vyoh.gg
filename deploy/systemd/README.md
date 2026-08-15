@@ -28,13 +28,20 @@ Run it once by hand before trusting the schedule, then drill the result:
 ```sh
 sudo systemctl start vyoh-backup.service
 sudo journalctl -u vyoh-backup.service -n 30 --no-pager
-sudo scripts/restore.sh /var/backups/vyoh/$(ls -1 /var/backups/vyoh | tail -1)
+sudo bash -c 'cd /srv/vyoh && scripts/restore.sh "$(ls -1d /var/backups/vyoh/*.dump | tail -1)"'
 ```
 
+The last one runs the whole thing under root on purpose. The backup directory
+is mode 700, so a `$(ls …)` written outside the `bash -c` would be expanded by
+the calling shell, fail to read the directory, and hand `restore.sh` an empty
+path.
+
 `restore.sh` with no flags restores into a throwaway database, compares exact
-per-table row counts against the live one, and drops the copy. Row counts that
-drift *upward* are expected on a live box — the dump is a snapshot and the
-pollers keep writing. Anything reported `GONE` or `EMPTY` is not.
+per-table row counts against the live one, and drops the copy. It needs room
+for a second copy of the database while it runs — the dump is compressed, the
+restore is not. Row counts that drift *upward* are expected on a live box: the
+dump is a snapshot and the pollers keep writing. Anything reported `GONE` or
+`EMPTY` is not.
 
 ## Checking it is still working
 
