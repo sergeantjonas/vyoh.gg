@@ -1,0 +1,17 @@
+# Nightly trigger for vyoh-backup.service.
+
+[Unit]
+Description=Nightly vyoh.gg database backup
+
+[Timer]
+# The box runs UTC, so this is roughly 04:30–05:30 Brussels depending on DST.
+# Either way it is the quietest part of the day for both the site and Riot's
+# pollers.
+OnCalendar=*-*-* 03:30:00
+
+# A VPS that was rebooting or powered down at 03:30 should still take the
+# backup once it is up, rather than skipping a day in silence.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

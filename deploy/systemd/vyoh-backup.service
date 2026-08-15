@@ -1,0 +1,27 @@
+# Runs scripts/backup.sh once. Scheduling lives in the paired .timer.
+#
+# Root, because the unit talks to the docker socket and writes under
+# /var/backups. Nothing here needs the repo's Node toolchain — the dump happens
+# inside the postgres container.
+
+[Unit]
+Description=vyoh.gg database backup
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/srv/vyoh/scripts/backup.sh
+
+Environment=VYOH_COMPOSE_FILE=compose.prod.yaml
+Environment=VYOH_BACKUP_DIR=/var/backups/vyoh
+Environment=VYOH_BACKUP_KEEP=14
+
+# The dump and its verification both read the whole database. On a shared
+# 4-core box that is worth yielding to anything actually serving a request.
+Nice=10
+IOSchedulingClass=idle
+
+# A pg_dump that hangs should fail the unit rather than hold the timer open
+# until the next one is due.
+TimeoutStartSec=30min

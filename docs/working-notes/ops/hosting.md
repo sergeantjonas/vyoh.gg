@@ -2,7 +2,7 @@
 
 **Status:** Active — **Option C (Hetzner VPS + Docker Compose) chosen 2026-07-26**, and **the machinery is written and verified as of 2026-07-27** ([Start migration](../cross-cutting/tanstack-start-migration.md) chunk 6). Nginx routes `vyoh.gg` and `api.vyoh.gg` as separate vhosts on the one VM; "same-origin" in the earlier drafts meant one machine, not one origin. Checklist items 1–3 are done in code; **4–6 remain — 4 and 5 need a VPS that does not exist yet, and 6 (backups, added 2026-08-01) must be live before launch** — nothing here is blocked on the repo any more, it is blocked on buying the box. The full launch-gate list (owner auth, ValidationPipe V3, timeZone sweep, branch protection, and this file's items 4–6) lives in [pre-launch-sweep.md](pre-launch-sweep.md).
 
-**What exists in-repo now:** [`apps/api/Dockerfile`](../../../apps/api/Dockerfile), [`apps/web/Dockerfile`](../../../apps/web/Dockerfile), [`compose.prod.yaml`](../../../compose.prod.yaml), [`deploy/nginx/`](../../../deploy/nginx/) (two vhosts + the `proxy_cache_path` file + install/TLS instructions), and [`scripts/deploy.sh`](../../../scripts/deploy.sh). The whole stack was brought up locally on shifted ports and probed end to end: 60 migrations applied from empty, 12 routes hydrating clean, CORS answering for the configured origin and refusing another. What has *not* been exercised is anything that needs the real box — TLS, DNS, certbot, and the Steam CM egress question below.
+**What exists in-repo now:** [`apps/api/Dockerfile`](../../../apps/api/Dockerfile), [`apps/web/Dockerfile`](../../../apps/web/Dockerfile), [`compose.prod.yaml`](../../../compose.prod.yaml), [`deploy/nginx/`](../../../deploy/nginx/) (two vhosts + the `proxy_cache_path` file + install/TLS instructions), [`deploy/systemd/`](../../../deploy/systemd/) (the nightly backup timer + install instructions), [`scripts/deploy.sh`](../../../scripts/deploy.sh), and [`scripts/backup.sh`](../../../scripts/backup.sh) + [`scripts/restore.sh`](../../../scripts/restore.sh). The whole stack was brought up locally on shifted ports and probed end to end: 60 migrations applied from empty, 12 routes hydrating clean, CORS answering for the configured origin and refusing another. What has *not* been exercised is anything that needs the real box — TLS, DNS, certbot, and the Steam CM egress question below.
 
 ## Options under consideration
 
@@ -164,14 +164,26 @@ and the upstreams.
 Minimum shape before the site is public:
 
 - ~~Nightly `pg_dump` (custom format), ~14 days retained, reading through
-  `docker compose exec postgres pg_dump`.~~ **`scripts/backup.sh`, 2026-08-15.**
-  The script exists and is exercised; the timer that runs it nightly does not.
+  `docker compose exec postgres pg_dump`.~~ **`scripts/backup.sh` +
+  `deploy/systemd/vyoh-backup.{service,timer}`, 2026-08-15.** Installing the
+  timer is a box-side step; the units and their instructions are in-repo.
 - A copy **off the box** (Hetzner Storage Box or object storage) — a backup on
-  the same disk it protects is not one.
+  the same disk it protects is not one. **Deferred 2026-08-15**, decided rather
+  than forgotten: nothing about the target can be tested before the VPS exists,
+  and guessing at one produces a script whose only real test is the incident.
+  Until it lands, the backups survive a bad migration, a dropped table, or a
+  botched restore, and do not survive losing the disk. **This gate stays open.**
 - ~~One restore drill against a scratch database before launch, so the first
   restore is not performed during an incident.~~ **`scripts/restore.sh`,
   2026-08-15** — rehearsed against the dev database, 29 tables at exact
   row-count parity. The drill still has to run once on the box itself.
+
+The archives are unencrypted, decided 2026-08-15. They hold this project's own
+data, the owner's GitHub id, and `Session` rows whose tokens are already hashed
+— no third-party PII. On storage the owner controls, a passphrase is mostly one
+more thing to lose, and losing it converts a recoverable incident into an
+unrecoverable one. Revisit if this database ever holds anyone else's data, and
+revisit alongside the off-box target if that target is not owner-controlled.
 
 `backup.sh` writes `vyoh-<UTC stamp>.dump` to `/var/backups/vyoh`, verifies it,
 then prunes to the newest `VYOH_BACKUP_KEEP` (default 14). `restore.sh` defaults
@@ -195,6 +207,11 @@ without checking anything:
 default backup directory is outside the synced tree precisely so `rsync
 --delete` cannot reach it; the exclude only covers overriding `VYOH_BACKUP_DIR`
 to a path inside the checkout.
+
+Nothing surfaces backup health. A timer that has quietly stopped firing looks
+identical to one that is working, so the two checks in
+[deploy/systemd/README.md](../../../deploy/systemd/README.md) are manual. Dump
+freshness on `/status` is the obvious follow-up and is not scoped.
 
 This also unblocks the parked destructive data arcs: match-cache tiers 1B/2/3
 and the Tier-5 TTL eviction ([match-cache-storage.md](../lol/match-cache-storage.md))
