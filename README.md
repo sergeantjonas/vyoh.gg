@@ -97,6 +97,23 @@ Two things are worth knowing about the build, both learned by getting them wrong
 - **`VITE_API_URL` is a build argument, not an environment variable.** It is baked into the bundle and into the markup `head()` emits, so moving the api means rebuilding the image. Its runtime counterpart, `API_INTERNAL_URL`, lets SSR loaders reach the api over the compose network instead of back out through the public hostname.
 - **The container is a different environment from the dev box** — no `.git`, no timezone, and unset build args arrive as empty strings rather than as undefined. All three produced silent, shipping-quality defects on the first containerised build; the mechanisms are written up in [`docs/repo-conventions.md`](docs/repo-conventions-web.md#the-production-image-is-a-different-environment-and-three-things-diverge-there).
 
+## Managing the tracked roster
+
+Which Riot accounts the site follows used to be a committed `accounts.json`, so adding a friend's account was a deploy. It is now a database table with an owner-only admin zone on `/status`, behind the same GitHub-OAuth session that gates every mutating route.
+
+Four actions, on two independent axes — the roster genuinely wants hidden-and-syncing (an alt that shouldn't clutter the nav) and visible-and-paused (a friend who stopped playing), which no single ordered lifecycle expresses:
+
+| Action | Effect | Reversible |
+|---|---|---|
+| **Hide** | Drops the account from the nav. Its pages stay reachable and its data still counts. | Yes |
+| **Pause** | Stops fetching new games. History stays browsable. | Yes |
+| **Remove** | Deletes the roster row only. | Yes — re-adding the same Riot ID re-attaches the history |
+| **Purge** | Deletes the roster row *and* every match, snapshot and cached detail behind it. | **No** |
+
+The asymmetry in that last column is the whole design. There is no foreign key from the roster to the history: an account's Riot-ID tuple is the only handle on its data, so removing the row strands it rather than cleaning it up — which is why remove is cheap and needs no confirmation, and why purge exists at all.
+
+Purge is a separate endpoint rather than `DELETE …?purge=true`, wants the slug typed back *and* repeated in the request body, and shows exact per-table counts before it will run. Cache eviction is framed as an orphan sweep — delete the rows no `Match` still references, after the account's matches are gone — so a game two tracked accounts both played keeps its cached detail with no special-casing. It also shipped only once [`scripts/backup.sh`](scripts/backup.sh) and a verified restore drill existed, per the repo's standing rule that destructive data arcs gate on backups.
+
 ## Tracked metrics
 
 Web bundle size is a deliberate, ongoing budget. Each layer of the bootstrap was recorded so future regressions show up against a real baseline rather than a vibe:

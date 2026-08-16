@@ -1,7 +1,12 @@
 import { meQueryOptions } from "@/identity/use-me";
 import { ownerRequest } from "@/lib/owner-request";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AdminLolAccount, AdminLolAccountDeleteResult } from "@vyoh/shared";
+import type {
+  AdminLolAccount,
+  AdminLolAccountDeleteResult,
+  AdminPurgePreview,
+  AdminPurgeResult,
+} from "@vyoh/shared";
 
 export const adminLolAccountsQueryKey = ["admin", "lol-accounts"] as const;
 
@@ -85,6 +90,49 @@ export function useDeleteLolAccount() {
       ownerRequest<AdminLolAccountDeleteResult>(
         "DELETE",
         `/admin/lol-accounts/${encodeURIComponent(slug)}`
+      ),
+    onSuccess: invalidate,
+  });
+}
+
+/**
+ * What purging `slug` would remove. `null` while no dialog is open, so the
+ * query stays idle until there is an account to ask about.
+ *
+ * `staleTime: 0` against the 30s the roster read uses. These counts are the
+ * only thing standing between the operator and an irreversible delete, and a
+ * cached figure from a previous dialog — taken before a sync tick, or before
+ * another account was purged out from under the shared-match arithmetic —
+ * would be a confident wrong number at exactly the wrong moment.
+ */
+export function useAdminPurgePreview(slug: string | null) {
+  return useQuery({
+    queryKey: ["admin", "lol-accounts", slug, "purge-preview"] as const,
+    queryFn: () =>
+      ownerRequest<AdminPurgePreview>(
+        "GET",
+        `/admin/lol-accounts/${encodeURIComponent(slug ?? "")}/purge-preview`
+      ),
+    enabled: slug !== null,
+    staleTime: 0,
+    gcTime: 0,
+  });
+}
+
+/**
+ * Purge sends the slug twice — once in the path, once as the confirmation the
+ * api checks it against. Not redundant: the api rejects a mismatch, so this is
+ * the wire half of the typed-slug step, and passing anything but what the
+ * operator typed would defeat it.
+ */
+export function usePurgeAccount() {
+  const invalidate = useInvalidateRoster();
+  return useMutation<AdminPurgeResult, Error, { slug: string; confirm: string }>({
+    mutationFn: ({ slug, confirm }) =>
+      ownerRequest<AdminPurgeResult>(
+        "POST",
+        `/admin/lol-accounts/${encodeURIComponent(slug)}/purge`,
+        { confirm }
       ),
     onSuccess: invalidate,
   });

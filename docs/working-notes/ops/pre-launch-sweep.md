@@ -28,7 +28,7 @@ Same sweep window, but needs the live box rather than the repo: verify SSE in pr
 
 ## Cheaper before launch than against live data
 
-- ~~**Accounts-admin chunk 1** (accounts.json → `LolAccount`/`SteamAccount` tables)~~ — taken pre-launch as intended, shipped 2026-08-14 as a clean seed migration rather than a live-data cutover. Chunk 2 closed 2026-08-15 and chunk 3a (the purge backend) 2026-08-16, once the backup scripts cleared the destructive-arc gate below. Only chunk 3b (the dialog) remains, and it carries no launch coupling. → [accounts-admin.md](accounts-admin.md)
+- ~~**Accounts-admin chunk 1** (accounts.json → `LolAccount`/`SteamAccount` tables)~~ — taken pre-launch as intended, shipped 2026-08-14 as a clean seed migration rather than a live-data cutover. Chunk 2 closed 2026-08-15 and chunk 3 (purge, endpoints and dialog) 2026-08-16, once the backup scripts cleared the destructive-arc gate below. **The arc is complete.** → [accounts-admin.md](accounts-admin.md)
 - ~~Queue-id migration chunks 3a/3b~~ — resolved pre-launch 2026-08-01: the `queueType` column and wire field are already dropped. Remaining chunk 4 is additive map entries, no launch coupling. → [queue-id-migration.md](../lol/queue-id-migration.md)
 
 ## Standing rules once prod exists (risk-class changes, not gates)

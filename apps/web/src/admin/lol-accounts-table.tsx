@@ -2,7 +2,9 @@ import { Button } from "@/components/ui/button";
 import { ControlHint } from "@/components/ui/control-hint";
 import { cn } from "@/lib/utils";
 import { type AdminLolAccount, OWNER_TIME_ZONE } from "@vyoh/shared";
-import { Crown, Eye, EyeOff, Pause, Play, Star, Trash2 } from "lucide-react";
+import { Crown, Eye, EyeOff, Flame, Pause, Play, Star, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { PurgeAccountDialog } from "./purge-account-dialog";
 import { useDeleteLolAccount, useUpdateLolAccount } from "./use-admin-accounts";
 
 const SINCE_FMT = new Intl.DateTimeFormat("en-GB", {
@@ -23,6 +25,9 @@ const SINCE_FMT = new Intl.DateTimeFormat("en-GB", {
 export function LolAccountsTable({ rows }: { rows: AdminLolAccount[] }) {
   const update = useUpdateLolAccount();
   const remove = useDeleteLolAccount();
+  // Held here rather than per row: purging invalidates the roster, so the row
+  // that opened the dialog is gone by the time the dialog closes itself.
+  const [purging, setPurging] = useState<AdminLolAccount | null>(null);
   const busy = update.isPending || remove.isPending;
 
   if (rows.length === 0) {
@@ -186,28 +191,46 @@ export function LolAccountsTable({ rows }: { rows: AdminLolAccount[] }) {
                 </td>
 
                 <td className="py-2 pl-2 text-right">
-                  {/* No confirm step. The api refuses to remove an account that
-                      still has match rows, and re-adding the same Riot ID
-                      re-attaches its history — the tuple is the join key — so
-                      the reachable case is cheap to undo. */}
-                  <ControlHint label="Remove from the roster">
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      className="text-muted-foreground hover:text-destructive"
-                      aria-label={`Remove ${label}`}
-                      disabled={busy}
-                      onClick={() => remove.mutate(account.slug)}
-                    >
-                      <Trash2 />
-                    </Button>
-                  </ControlHint>
+                  <div className="flex items-center justify-end gap-1">
+                    {/* No confirm step. The api refuses to remove an account that
+                        still has match rows, and re-adding the same Riot ID
+                        re-attaches its history — the tuple is the join key — so
+                        the reachable case is cheap to undo. */}
+                    <ControlHint label="Remove from the roster — history stays">
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="text-muted-foreground hover:text-destructive"
+                        aria-label={`Remove ${label}`}
+                        disabled={busy}
+                        onClick={() => remove.mutate(account.slug)}
+                      >
+                        <Trash2 />
+                      </Button>
+                    </ControlHint>
+                    {/* The confirm step the neighbouring button doesn't need.
+                        This one has nothing to re-attach afterwards. */}
+                    <ControlHint label="Delete the account and all its data">
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="text-muted-foreground hover:text-destructive"
+                        aria-label={`Purge ${label}`}
+                        disabled={busy}
+                        onClick={() => setPurging(account)}
+                      >
+                        <Flame />
+                      </Button>
+                    </ControlHint>
+                  </div>
                 </td>
               </tr>
             );
           })}
         </tbody>
       </table>
+
+      <PurgeAccountDialog account={purging} onClose={() => setPurging(null)} />
     </div>
   );
 }
