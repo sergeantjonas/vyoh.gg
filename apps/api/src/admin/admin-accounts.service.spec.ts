@@ -21,6 +21,36 @@ interface RowSeed {
   syncPausedAt?: Date | null;
 }
 
+type PurgeStep =
+  | "match"
+  | "rankSnapshot"
+  | "summoner"
+  | "detailCache"
+  | "timelineCache"
+  | "rosterRow";
+
+interface PreviewRow {
+  matches: number;
+  rankSnapshots: number;
+  detailCacheRows: number;
+  timelineCacheRows: number;
+  matchAvgBytes: number;
+  rankSnapshotAvgBytes: number;
+  detailAvgBytes: number;
+  timelineAvgBytes: number;
+}
+
+const EMPTY_PREVIEW: PreviewRow = {
+  matches: 0,
+  rankSnapshots: 0,
+  detailCacheRows: 0,
+  timelineCacheRows: 0,
+  matchAvgBytes: 0,
+  rankSnapshotAvgBytes: 0,
+  detailAvgBytes: 0,
+  timelineAvgBytes: 0,
+};
+
 function rows(seed: RowSeed[]) {
   return seed.map((s, i) => ({
     slug: s.slug,
@@ -48,12 +78,26 @@ function stubPrisma(
     lol?: RowSeed[];
     puuids?: string[];
     matchRows?: number;
+    preview?: Partial<PreviewRow>;
+    purged?: Partial<Record<PurgeStep, number>>;
   } = {}
 ) {
   const lolRows = rows(seed.lol ?? []);
   const find = (slug: string) => lolRows.find((r) => r.slug === slug);
 
+  // Purge's correctness is an ordering property — the schema refuses a
+  // `Summoner` that still has matches, and the cache sweep only spares a shared
+  // game if it runs *after* the match delete. Neither survives a stubbed
+  // Prisma, which happily executes the steps in any order, so the tests assert
+  // the sequence the service issues and this log is what they read.
+  const steps: PurgeStep[] = [];
+  const count = (step: PurgeStep) => {
+    steps.push(step);
+    return seed.purged?.[step] ?? 0;
+  };
+
   const prisma = {
+    steps,
     lolAccount: {
       findMany: vi.fn().mockResolvedValue(lolRows),
       findUniqueOrThrow: vi.fn(async ({ where }: { where: { slug: string } }) => {
@@ -75,7 +119,10 @@ function stubPrisma(
         }) => ({ ...rows([{ slug: where.slug }])[0], ...find(where.slug), ...data })
       ),
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
-      delete: vi.fn().mockResolvedValue(undefined),
+      delete: vi.fn(async () => {
+        steps.push("rosterRow");
+        return undefined;
+      }),
     },
     // Nothing in this service touches Steam — this is here because these tests
     // run against a real `IdentityService`, and every `reload()` reads both
@@ -85,14 +132,28 @@ function stubPrisma(
       findMany: vi
         .fn()
         .mockResolvedValue((seed.puuids ?? []).map((puuid) => ({ puuid }))),
+      deleteMany: vi.fn(async () => ({ count: count("summoner") })),
     },
-    match: { count: vi.fn().mockResolvedValue(seed.matchRows ?? 0) },
+    match: {
+      count: vi.fn().mockResolvedValue(seed.matchRows ?? 0),
+      deleteMany: vi.fn(async () => ({ count: count("match") })),
+    },
+    rankSnapshot: {
+      deleteMany: vi.fn(async () => ({ count: count("rankSnapshot") })),
+    },
+    $queryRaw: vi.fn().mockResolvedValue([{ ...EMPTY_PREVIEW, ...seed.preview }]),
+    // Both cache sweeps are the same call with different SQL, so the step they
+    // record has to come from the statement rather than from which mock ran.
+    $executeRaw: vi.fn(async (sql: TemplateStringsArray) =>
+      count(sql.join("").includes("MatchTimelineCache") ? "timelineCache" : "detailCache")
+    ),
     // The callback receives the same stub, so a write inside the transaction
     // lands on the same mocks the assertions read.
     $transaction: vi.fn(),
   };
   prisma.$transaction = vi.fn(
-    async (fn: (tx: typeof prisma) => Promise<unknown>) => await fn(prisma)
+    async (fn: (tx: typeof prisma) => Promise<unknown>, _options?: unknown) =>
+      await fn(prisma)
   );
   return prisma;
 }
@@ -431,6 +492,172 @@ describe("AdminAccountsService", () => {
       // so deleting by what arrived can miss the row that was just validated.
       const { service, prisma } = await build({ lol: ROSTER });
       await service.deleteLolAccount("TWIX", false);
+      expect(prisma.lolAccount.delete).toHaveBeenCalledWith({
+        where: { slug: "twix" },
+      });
+    });
+  });
+
+  describe("purgePreview", () => {
+    it("404s an unknown slug", async () => {
+      const { service } = await build({ lol: ROSTER });
+      await expect(service.purgePreview("nobody")).rejects.toThrow(NotFoundException);
+    });
+
+    it("reports per-table counts and sizes the deletes at average row width", async () => {
+      const { service } = await build({
+        lol: ROSTER,
+        puuids: ["p-twix"],
+        preview: {
+          matches: 1153,
+          rankSnapshots: 300,
+          detailCacheRows: 1152,
+          timelineCacheRows: 600,
+          matchAvgBytes: 1890,
+          rankSnapshotAvgBytes: 100,
+          detailAvgBytes: 9000,
+          timelineAvgBytes: 157115,
+        },
+      });
+
+      expect(await service.purgePreview("twix")).toEqual({
+        slug: "twix",
+        gameName: "Twix",
+        tagLine: "1234",
+        region: "euw1",
+        summoners: 1,
+        matches: 1153,
+        rankSnapshots: 300,
+        detailCacheRows: 1152,
+        timelineCacheRows: 600,
+        estimatedBytes: 1153 * 1890 + 300 * 100 + 1152 * 9000 + 600 * 157115,
+      });
+    });
+
+    it("previews an account that never resolved a summoner as empty", async () => {
+      const { service } = await build({ lol: ROSTER, puuids: [] });
+      expect(await service.purgePreview("twix")).toMatchObject({
+        summoners: 0,
+        matches: 0,
+        estimatedBytes: 0,
+      });
+    });
+  });
+
+  describe("purgeAccount", () => {
+    const HISTORY = {
+      lol: ROSTER,
+      puuids: ["p-twix"],
+      purged: {
+        match: 1153,
+        rankSnapshot: 300,
+        summoner: 1,
+        detailCache: 1152,
+        timelineCache: 600,
+      },
+    };
+
+    it("404s an unknown slug", async () => {
+      const { service } = await build({ lol: ROSTER });
+      await expect(service.purgeAccount("nobody", "nobody")).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it("refuses a confirmation that names a different account", async () => {
+      const { service, prisma } = await build(HISTORY);
+      await expect(service.purgeAccount("twix", "ahri")).rejects.toThrow(
+        BadRequestException
+      );
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("refuses to purge the primary while another owner remains", async () => {
+      const { service, prisma } = await build({
+        lol: [...ROSTER, { slug: "alt", isOwner: true }],
+      });
+      await expect(service.purgeAccount("ahri", "ahri")).rejects.toThrow(
+        /none is flagged isPrimary/
+      );
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    // The order is what the schema enforces and what the sweep depends on, and
+    // it is the one property of this operation a stubbed Prisma can still see:
+    // `Match` before `Summoner` because `Match_puuid_fkey` blocks the reverse,
+    // and both cache sweeps after `Match` because a sweep that ran first would
+    // find every row still referenced and delete nothing.
+    it("deletes in the order the schema and the sweep require", async () => {
+      const { service, prisma } = await build(HISTORY);
+      await service.purgeAccount("twix", "twix");
+      expect(prisma.steps).toEqual([
+        "match",
+        "rankSnapshot",
+        "summoner",
+        "detailCache",
+        "timelineCache",
+        "rosterRow",
+      ]);
+    });
+
+    it("runs every delete in one transaction, with room to finish it", async () => {
+      const { service, prisma } = await build(HISTORY);
+      await service.purgeAccount("twix", "twix");
+
+      expect(prisma.$transaction).toHaveBeenCalledOnce();
+      // Above the ceiling the pool's own 10s `statement_timeout` implies across
+      // these five statements, so the interactive-transaction default can never
+      // be what stops a purge — Postgres killing one runaway statement is the
+      // failure this should degrade to, not Prisma abandoning all of them.
+      const [, options] = prisma.$transaction.mock.calls[0] ?? [];
+      expect((options as { timeout?: number } | undefined)?.timeout).toBeGreaterThan(
+        50_000
+      );
+    });
+
+    it("sweeps the cache tables by orphan, not by the account's match ids", async () => {
+      const { service, prisma } = await build(HISTORY);
+      await service.purgeAccount("twix", "twix");
+
+      // Whether a shared game keeps its cache row is decided entirely by this
+      // predicate: `NOT IN (SELECT "matchId" FROM "Match")` spares one the other
+      // roster account still references, while deleting by the purged account's
+      // own match ids would take it. Verified against dev in a rolled-back
+      // transaction — purging a 1,973-match account swept 1,972 detail rows.
+      for (const [sql] of prisma.$executeRaw.mock.calls) {
+        expect(sql.join("")).toMatch(/NOT IN \(\s*SELECT "matchId" FROM "Match"\s*\)/);
+      }
+    });
+
+    it("reports what each step removed and reloads the roster", async () => {
+      const { service, reload } = await build(HISTORY);
+
+      expect(await service.purgeAccount("twix", "twix")).toEqual({
+        slug: "twix",
+        summoners: 1,
+        matches: 1153,
+        rankSnapshots: 300,
+        detailCacheRows: 1152,
+        timelineCacheRows: 600,
+      });
+      expect(reload).toHaveBeenCalledOnce();
+    });
+
+    it("removes the roster row of an account that never synced", async () => {
+      const { service, prisma } = await build({ lol: ROSTER, puuids: [] });
+
+      expect(await service.purgeAccount("twix", "twix")).toMatchObject({
+        summoners: 0,
+        matches: 0,
+      });
+      expect(prisma.lolAccount.delete).toHaveBeenCalledWith({
+        where: { slug: "twix" },
+      });
+    });
+
+    it("purges by the stored slug, not the casing the caller used", async () => {
+      const { service, prisma } = await build(HISTORY);
+      await service.purgeAccount("TWIX", "twix");
       expect(prisma.lolAccount.delete).toHaveBeenCalledWith({
         where: { slug: "twix" },
       });

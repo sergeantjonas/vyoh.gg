@@ -81,3 +81,17 @@ export class DeleteLolAccountQueryDto {
   @IsIn(["true", "false"])
   force?: string;
 }
+
+/**
+ * Purge asks for the slug back in the body, and the service checks it against
+ * the path segment. The dialog already makes the operator type it, so this adds
+ * nothing to the UI — it exists for everything that is not the dialog. Purge is
+ * the only irreversible route in the api, and a path-only POST is one stray
+ * `curl` away from destroying an account's history; requiring the name in two
+ * places means the request has to be about a specific account on purpose.
+ */
+export class PurgeLolAccountDto {
+  @IsString()
+  @Matches(SLUG)
+  confirm!: string;
+}

@@ -1,6 +1,6 @@
 # Accounts — move from JSON config to DB-backed admin surface
 
-**Status:** Active — chunk 0 shipped 2026-06-09 (`1f33d7fc`), chunk 1 and chunks 2a/2b-i shipped 2026-08-14, chunk 2b-ii shipped 2026-08-15 and had its Steam half removed the same day (see 2b-iii). **Chunk 2 is done: the LoL roster is fully manageable from `/status`, and Steam is deliberately not.** Only chunk 3 (purge) remains, and it is gated on a verified restore. Owner-auth shipped in full 2026-08-13, so the prerequisite is closed. Chunk 2's scope was widened 2026-08-14 from delete-only to **hide / pause / delete** on two independent axes, and chunk 3 now carries the opt-in **purge**. Pairs with [owner-auth.md](owner-auth.md) (`OwnerGuard` ships there, this arc applies it to the admin endpoints). Replaces the "Live-config edits" forward-looking item catalogued in [owner-auth.md § Forward-looking gated surfaces](owner-auth.md).
+**Status:** Active — chunk 0 shipped 2026-06-09 (`1f33d7fc`), chunk 1 and chunks 2a/2b-i shipped 2026-08-14, chunk 2b-ii shipped 2026-08-15 and had its Steam half removed the same day (see 2b-iii). **Chunk 2 is done: the LoL roster is fully manageable from `/status`, and Steam is deliberately not.** **Chunk 3a — the purge backend — shipped 2026-08-16**, unblocked by the backup scripts landing 2026-08-15. Only chunk 3b (the dialog) remains; the endpoints are live and reachable, so purge is usable by hand before the UI exists. Owner-auth shipped in full 2026-08-13, so the prerequisite is closed. Chunk 2's scope was widened 2026-08-14 from delete-only to **hide / pause / delete** on two independent axes, and chunk 3 now carries the opt-in **purge**. Pairs with [owner-auth.md](owner-auth.md) (`OwnerGuard` ships there, this arc applies it to the admin endpoints). Replaces the "Live-config edits" forward-looking item catalogued in [owner-auth.md § Forward-looking gated surfaces](owner-auth.md).
 
 The tracked-accounts roster lives in the `LolAccount` + `SteamAccount` tables, read at boot into [identity.service.ts](../../../apps/api/src/identity/identity.service.ts)'s cache by `reload()`. Until 2026-08-14 it was a committed `apps/api/accounts.json` hot-reloaded via `fs.watch`, which made every roster change (add a Steam friend's library, flip an `isOwner` flag, retire a test account) a deploy. The remaining arc adds an `OwnerGuard`-protected admin section on the status page. Every existing `IdentityService` read keeps its signature and its semantics; the one structural change is that the two sync-worklist call sites move off `getLolAccounts()` onto a new `getSyncableLolAccounts()` (see [the read-path table](#read-path-which-reads-filter-on-what)).
 
@@ -276,13 +276,29 @@ Removes what 2b-i and 2b-ii shipped for Steam: the three `/admin/steam-accounts`
 
 ### Chunk 3 — Purge + polish
 
-**Gated on a verified restore.** [pre-launch-sweep.md](pre-launch-sweep.md) already carries the standing rule that destructive data arcs don't run without one, and purge is squarely that class. Nothing here needs to ship with chunk 2 — the roster is fully manageable without it.
+**Gate cleared 2026-08-15**, when `scripts/backup.sh` + `scripts/restore.sh` landed and the restore drill ran at exact row-count parity. [pre-launch-sweep.md](pre-launch-sweep.md) carries the standing rule that destructive data arcs don't run without one, and purge is squarely that class.
 
-- `purge-preview` + `purge` endpoints, the six-step transaction, the orphan sweep.
-- `purge-account-dialog.tsx` — preview counts, typed-slug confirmation.
-- Spec coverage for the ordering constraint specifically: a purge that tries `Summoner` before `Match` must fail, and the shared-`matchId` case must keep its cache row.
-- README section documenting the admin flow.
+- ~~`purge-preview` + `purge` endpoints, the six-step transaction, the orphan sweep.~~ **Shipped 2026-08-16 (3a).**
+- ~~Spec coverage for the ordering constraint.~~ **Shipped 2026-08-16 (3a)**, though not in the form this bullet asked for — see below.
+- `purge-account-dialog.tsx` — preview counts, typed-slug confirmation. **(3b, open.)**
+- README section documenting the admin flow. **(3b, open.)**
 - Optional: case-study candidate in [case-study-topics.md](../cross-cutting/case-study-topics.md) — "Roster as data, not config" pairs naturally with the owner-auth write-up.
+
+**The two ordering guarantees are verified, but not by the unit tests.** This bullet asked for specs proving that `Summoner` before `Match` fails and that a shared `matchId` keeps its cache row. Both are Postgres behaviours — an FK constraint and `NOT IN` semantics — and `apps/api` has no real-database test path at all (`admin-accounts.service.spec.ts` stubs Prisma down to `$transaction`, which just invokes the callback against the same stub). Written against that harness, either "test" would assert the mock.
+
+So they were split. The specs assert what a stub can actually see — the **order** the service issues its deletes in, and that both sweeps use the `NOT IN (SELECT "matchId" FROM "Match")` predicate rather than the account's own match ids — which is what a future refactor would break. The database behaviour was verified **empirically against dev on 2026-08-16**, in a rolled-back transaction:
+
+- Deleting `Summoner` first raises `ERROR: update or delete on table "Summoner" violates foreign key constraint "Match_puuid_fkey"`. The forced ordering is real, not inferred from the schema.
+- Purging Agurin (1,973 matches) deleted 1,973 `Match` rows and swept **1,972** `MatchDetailCache` rows. The off-by-one is the proof: `EUW1_7746378614`, the single `matchId` two roster accounts share, kept its cache row because TIFΑ's `Match` row still references it.
+- `GET …/purge-preview` returns exactly what the rehearsal deleted — 1,973 / 458 / 1,972 / 937 — so the preview is not an approximation of the purge, it is the same anti-join.
+
+If a real-database test path ever lands, these two are the first cases to move into it.
+
+**Measured while building it (2026-08-16, dev):** the whole sequence runs in **1.2 s** for the largest account, the timeline sweep taking 996 ms of that. `PrismaService` caps every statement at 10 s via the pool's `statement_timeout`, so that — not Prisma's 5 s interactive-transaction default — is the limit that should stop a pathological purge. The explicit `timeout: 120_000` exists only to keep the default from binding first.
+
+**Preview sizing is an estimate, and says so.** `estimatedBytes` is average row width × row count, from `pg_total_relation_size`. The exact figure would mean `pg_column_size` over every targeted row — a full read of ~257 MB of TOASTed timeline JSON to answer a question the dialog needs one significant figure for. Agurin previews at ~163 MB.
+
+**The POST requires the slug in the body too.** Not in the original design, which put the typed-slug confirmation in the dialog only. The dialog still does that; `PurgeLolAccountDto.confirm` is checked against the path segment server-side, so the one irreversible route in the api cannot be fired by a path-only `curl`.
 
 ---
 

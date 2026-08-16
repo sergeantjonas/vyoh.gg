@@ -32,3 +32,41 @@ export interface AdminLolAccountDeleteResult {
    */
   matchRows: number;
 }
+
+/**
+ * Per-table row counts a purge would remove, and roughly how much disk that
+ * frees. Both endpoints report the same shape so the dialog can put the
+ * estimate it showed next to what actually happened.
+ */
+export interface AdminPurgeCounts {
+  summoners: number;
+  matches: number;
+  rankSnapshots: number;
+  /**
+   * Cache rows the orphan sweep removes — matches *this* account holds that no
+   * other roster account also played. Not equal to `matches`: a shared game
+   * keeps its cache row, because the other account's `Match` row still
+   * references it.
+   */
+  detailCacheRows: number;
+  timelineCacheRows: number;
+}
+
+export interface AdminPurgePreview extends AdminPurgeCounts {
+  slug: string;
+  gameName: string;
+  tagLine: string;
+  region: string;
+  /**
+   * Average row size × row count, per table — an estimate, and labelled as one
+   * wherever it renders. The exact figure would mean summing `pg_column_size`
+   * over every targeted row, which for `MatchTimelineCache` reads ~150 KB of
+   * TOASTed JSON per row to answer a question the dialog only needs an order of
+   * magnitude for.
+   */
+  estimatedBytes: number;
+}
+
+export interface AdminPurgeResult extends AdminPurgeCounts {
+  slug: string;
+}

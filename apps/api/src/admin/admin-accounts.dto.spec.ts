@@ -5,6 +5,7 @@ import {
   CreateLolAccountDto,
   DeleteLolAccountQueryDto,
   LolAccountSlugParamDto,
+  PurgeLolAccountDto,
   UpdateLolAccountDto,
 } from "./admin-accounts.dto";
 
@@ -106,5 +107,16 @@ describe("DeleteLolAccountQueryDto", () => {
     // the one destructive route in the module.
     expect(failedFields(DeleteLolAccountQueryDto, { force: "1" })).toEqual(["force"]);
     expect(failedFields(DeleteLolAccountQueryDto, { force: "yes" })).toEqual(["force"]);
+  });
+});
+
+describe("PurgeLolAccountDto", () => {
+  it("requires the confirmation and shapes it like a slug", () => {
+    expect(failedFields(PurgeLolAccountDto, { confirm: "twix" })).toEqual([]);
+    // Absent, not merely empty: a body-less POST must not reach the service,
+    // where an undefined confirmation would compare unequal and 400 anyway —
+    // but as a validation error rather than as luck.
+    expect(failedFields(PurgeLolAccountDto, {})).toEqual(["confirm"]);
+    expect(failedFields(PurgeLolAccountDto, { confirm: "" })).toEqual(["confirm"]);
   });
 });

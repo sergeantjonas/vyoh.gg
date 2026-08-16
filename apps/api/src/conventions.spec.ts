@@ -123,6 +123,8 @@ const GUARDED_ROUTES: Record<string, string[]> = {
     'Post("lol-accounts")',
     'Patch("lol-accounts/:slug")',
     'Delete("lol-accounts/:slug")',
+    'Get("lol-accounts/:slug/purge-preview")',
+    'Post("lol-accounts/:slug/purge")',
   ],
 };
 

@@ -9,12 +9,18 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
-import type { AdminLolAccount, AdminLolAccountDeleteResult } from "@vyoh/shared";
+import type {
+  AdminLolAccount,
+  AdminLolAccountDeleteResult,
+  AdminPurgePreview,
+  AdminPurgeResult,
+} from "@vyoh/shared";
 import { OwnerGuard } from "../auth/owner.guard";
 import {
   CreateLolAccountDto,
   DeleteLolAccountQueryDto,
   LolAccountSlugParamDto,
+  PurgeLolAccountDto,
   UpdateLolAccountDto,
 } from "./admin-accounts.dto";
 import { AdminAccountsService } from "./admin-accounts.service";
@@ -64,5 +70,27 @@ export class AdminAccountsController {
     @Query() { force }: DeleteLolAccountQueryDto
   ): Promise<AdminLolAccountDeleteResult> {
     return this.admin.deleteLolAccount(slug, force === "true");
+  }
+
+  /**
+   * Purge is a second route rather than `DELETE …?purge=true`, and the two
+   * verbs are not interchangeable. `DELETE` un-tracks an account and strands
+   * its history; this erases the history. A query param on the milder one would
+   * put both behind a string that is easy to append while debugging and easy to
+   * miss while reading — a distinct path has to be typed on purpose.
+   */
+  @Get("lol-accounts/:slug/purge-preview")
+  @UseGuards(OwnerGuard)
+  purgePreview(@Param() { slug }: LolAccountSlugParamDto): Promise<AdminPurgePreview> {
+    return this.admin.purgePreview(slug);
+  }
+
+  @Post("lol-accounts/:slug/purge")
+  @UseGuards(OwnerGuard)
+  purgeLolAccount(
+    @Param() { slug }: LolAccountSlugParamDto,
+    @Body() { confirm }: PurgeLolAccountDto
+  ): Promise<AdminPurgeResult> {
+    return this.admin.purgeAccount(slug, confirm);
   }
 }

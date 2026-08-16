@@ -5,9 +5,13 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import type {
   AdminLolAccount,
   AdminLolAccountDeleteResult,
+  AdminPurgeCounts,
+  AdminPurgePreview,
+  AdminPurgeResult,
   LolAccount,
 } from "@vyoh/shared";
 import { IdentityService } from "../identity/identity.service";
@@ -42,6 +46,50 @@ function toAdminLolAccount(row: LolAccountRow): AdminLolAccount {
     createdAt: row.createdAt.toISOString(),
   };
 }
+
+interface PurgePreviewRow {
+  matches: number;
+  rankSnapshots: number;
+  detailCacheRows: number;
+  timelineCacheRows: number;
+  matchAvgBytes: number;
+  rankSnapshotAvgBytes: number;
+  detailAvgBytes: number;
+  timelineAvgBytes: number;
+}
+
+/**
+ * The purge's target puuids as a one-column relation, so the preview query can
+ * reference them from four subqueries without repeating the list.
+ *
+ * An account with no synced history has none, and `unnest(ARRAY[]::text[])`
+ * cannot be written through a parameter list that is empty — hence the
+ * degenerate branch, which produces the same shape and no rows.
+ */
+function puuidSet(puuids: string[]): Prisma.Sql {
+  if (puuids.length === 0) return Prisma.sql`SELECT NULL::text AS puuid WHERE false`;
+  return Prisma.sql`SELECT unnest(ARRAY[${Prisma.join(puuids)}]::text[]) AS puuid`;
+}
+
+/**
+ * Bytes per row, per table, from the relation sizes Postgres already tracks.
+ * `pg_total_relation_size` is the right one of the family here: it counts
+ * indexes and TOAST, and for `MatchTimelineCache` the TOAST *is* the data.
+ *
+ * Table names are literals rather than parameters because a `FROM` clause
+ * cannot be parameterised, and keeping them literal keeps `Prisma.raw` — and
+ * the injection surface it opens — out of this file entirely.
+ */
+const AVG_ROW_BYTES = Prisma.sql`
+  COALESCE(pg_total_relation_size('"Match"')::float8
+    / NULLIF((SELECT count(*) FROM "Match"), 0), 0) AS "matchAvgBytes",
+  COALESCE(pg_total_relation_size('"RankSnapshot"')::float8
+    / NULLIF((SELECT count(*) FROM "RankSnapshot"), 0), 0) AS "rankSnapshotAvgBytes",
+  COALESCE(pg_total_relation_size('"MatchDetailCache"')::float8
+    / NULLIF((SELECT count(*) FROM "MatchDetailCache"), 0), 0) AS "detailAvgBytes",
+  COALESCE(pg_total_relation_size('"MatchTimelineCache"')::float8
+    / NULLIF((SELECT count(*) FROM "MatchTimelineCache"), 0), 0) AS "timelineAvgBytes"
+`;
 
 /**
  * Set-or-clear, idempotent in both directions. Re-sending `hidden: true` keeps
@@ -225,6 +273,142 @@ export class AdminAccountsService {
     return { slug: current.slug, matchRows };
   }
 
+  /**
+   * What a purge would remove, so the dialog can show it before the operator
+   * commits. Read-only, and deliberately computed with the same anti-join the
+   * sweep uses rather than an approximation of it: a preview that counts every
+   * cache row for every match would overstate the shared ones, and the whole
+   * point of the number is that it is trustworthy.
+   */
+  async purgePreview(slug: string): Promise<AdminPurgePreview> {
+    const current = this.requireAccount(slug);
+    const puuids = await this.resolvePuuids(current);
+
+    // A tuple, not an array: the final SELECT has no FROM, so it returns
+    // exactly one row and the destructure below cannot come up empty.
+    const [row] = await this.prisma.$queryRaw<[PurgePreviewRow]>`
+      WITH target AS (${puuidSet(puuids)}),
+      mine AS (
+        SELECT DISTINCT "matchId" FROM "Match" WHERE puuid IN (SELECT puuid FROM target)
+      ),
+      orphan AS (
+        SELECT m."matchId" FROM mine m
+        WHERE NOT EXISTS (
+          SELECT 1 FROM "Match" o
+          WHERE o."matchId" = m."matchId"
+            AND o.puuid NOT IN (SELECT puuid FROM target)
+        )
+      )
+      SELECT
+        (SELECT count(*) FROM "Match"
+          WHERE puuid IN (SELECT puuid FROM target))::int AS matches,
+        (SELECT count(*) FROM "RankSnapshot"
+          WHERE puuid IN (SELECT puuid FROM target))::int AS "rankSnapshots",
+        (SELECT count(*) FROM "MatchDetailCache"
+          WHERE "matchId" IN (SELECT "matchId" FROM orphan))::int AS "detailCacheRows",
+        (SELECT count(*) FROM "MatchTimelineCache"
+          WHERE "matchId" IN (SELECT "matchId" FROM orphan))::int AS "timelineCacheRows",
+        ${AVG_ROW_BYTES}
+    `;
+
+    return {
+      slug: current.slug,
+      gameName: current.gameName,
+      tagLine: current.tagLine,
+      region: current.region,
+      summoners: puuids.length,
+      matches: row.matches,
+      rankSnapshots: row.rankSnapshots,
+      detailCacheRows: row.detailCacheRows,
+      timelineCacheRows: row.timelineCacheRows,
+      estimatedBytes: Math.round(
+        row.matches * row.matchAvgBytes +
+          row.rankSnapshots * row.rankSnapshotAvgBytes +
+          row.detailCacheRows * row.detailAvgBytes +
+          row.timelineCacheRows * row.timelineAvgBytes
+      ),
+    };
+  }
+
+  /**
+   * Removes the roster row *and* the history behind it. Irreversible, and the
+   * only route in the api that is.
+   *
+   * The delete order is not a preference — `Match.summoner` and
+   * `RankSnapshot.summoner` are required relations with no `onDelete`, so
+   * Prisma's default `Restrict` makes Postgres refuse a `Summoner` that still
+   * has either. Verified against dev rather than assumed: reversing the first
+   * two steps raises `Match_puuid_fkey`.
+   *
+   * The cache sweep is why the shared-match case needs no special handling. Framing
+   * cache eviction as "delete rows no `Match` references any more", run *after*
+   * the match delete, keeps a game two roster accounts both played — the other
+   * account's row still points at it — and incidentally re-collects anything
+   * earlier deletes stranded. Rehearsed against dev in a rolled-back
+   * transaction: purging a 1,973-match account swept 1,972 detail rows, and the
+   * one it left is the single `matchId` two roster accounts share.
+   */
+  async purgeAccount(slug: string, confirm: string): Promise<AdminPurgeResult> {
+    const current = this.requireAccount(slug);
+    if (confirm !== current.slug) {
+      throw new BadRequestException(
+        `Purge confirmation "${confirm}" does not match "${current.slug}".`
+      );
+    }
+    this.assertProposedRoster(
+      this.identity.getLolAccounts().filter((a) => a.slug !== current.slug)
+    );
+
+    const puuids = await this.resolvePuuids(current);
+
+    const counts = await this.prisma.$transaction(
+      async (tx): Promise<AdminPurgeCounts> => {
+        const matches = await tx.match.deleteMany({ where: { puuid: { in: puuids } } });
+        const rankSnapshots = await tx.rankSnapshot.deleteMany({
+          where: { puuid: { in: puuids } },
+        });
+        const summoners = await tx.summoner.deleteMany({
+          where: { puuid: { in: puuids } },
+        });
+        const detailCacheRows = await tx.$executeRaw`
+          DELETE FROM "MatchDetailCache"
+          WHERE "matchId" NOT IN (SELECT "matchId" FROM "Match")
+        `;
+        const timelineCacheRows = await tx.$executeRaw`
+          DELETE FROM "MatchTimelineCache"
+          WHERE "matchId" NOT IN (SELECT "matchId" FROM "Match")
+        `;
+        await tx.lolAccount.delete({ where: { slug: current.slug } });
+
+        return {
+          summoners: summoners.count,
+          matches: matches.count,
+          rankSnapshots: rankSnapshots.count,
+          detailCacheRows,
+          timelineCacheRows,
+        };
+      },
+      // Well past what this needs, and deliberately so. Dev's largest account
+      // — 1,973 matches, ~163 MB — runs the whole sequence in 1.2s, the
+      // timeline sweep taking 996ms of it. But Prisma's default is 5s, the
+      // margin above a measurement taken on one dataset is not a guarantee, and
+      // `PrismaService` already caps each individual statement at 10s via the
+      // pool's `statement_timeout`. That is the limit that should stop a
+      // pathological purge; this one exists only so the interactive-transaction
+      // default cannot roll back a purge the operator already confirmed.
+      { timeout: 120_000, maxWait: 15_000 }
+    );
+
+    await this.identity.reload();
+    this.logger.log(
+      `purge - ${current.slug} (${puuids.join(", ") || "no summoner"}): ` +
+        `${counts.matches} match, ${counts.rankSnapshots} snapshot, ` +
+        `${counts.summoners} summoner, ${counts.detailCacheRows} detail-cache, ` +
+        `${counts.timelineCacheRows} timeline-cache row(s)`
+    );
+    return { slug: current.slug, ...counts };
+  }
+
   private requireAccount(slug: string): LolAccount {
     const account = this.identity.findBySlug(slug);
     if (!account) throw new NotFoundException(`No account with slug "${slug}".`);
@@ -262,16 +446,21 @@ export class AdminAccountsService {
   }
 
   /**
-   * How many `Match` rows the account's history holds. There is no foreign key
-   * to follow: the roster's Riot-ID tuple resolves to a `Summoner.puuid` in
-   * application code, and matches are keyed on that puuid.
+   * The `Summoner.puuid`s a roster row's history hangs off. There is no foreign
+   * key to follow: the roster's Riot-ID tuple resolves to a puuid in
+   * application code, and every history table is keyed on that puuid.
    *
    * Matched case-insensitively, like `getOwnerPuuids` does. `resolveSummoner`
    * writes `Summoner` rows using Riot's canonical casing rather than the
    * roster's, so accounts added before this module existed can legitimately
    * differ in case from their own history rows.
+   *
+   * Normally one, and not guaranteed to be: the `@@unique` is on the tuple, so
+   * a Riot ID that changed hands, or a row written before a rename, leaves a
+   * second `Summoner` under the same name. Purge has to take all of them or it
+   * would leave history behind that no roster row can reach.
    */
-  private async countMatchRows(account: LolAccount): Promise<number> {
+  private async resolvePuuids(account: LolAccount): Promise<string[]> {
     const summoners = await this.prisma.summoner.findMany({
       where: {
         gameName: { equals: account.gameName, mode: "insensitive" },
@@ -280,10 +469,13 @@ export class AdminAccountsService {
       },
       select: { puuid: true },
     });
-    if (summoners.length === 0) return 0;
-    return this.prisma.match.count({
-      where: { puuid: { in: summoners.map((s) => s.puuid) } },
-    });
+    return summoners.map((s) => s.puuid);
+  }
+
+  private async countMatchRows(account: LolAccount): Promise<number> {
+    const puuids = await this.resolvePuuids(account);
+    if (puuids.length === 0) return 0;
+    return this.prisma.match.count({ where: { puuid: { in: puuids } } });
   }
 
   /**

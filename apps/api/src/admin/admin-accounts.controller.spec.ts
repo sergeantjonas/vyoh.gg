@@ -12,7 +12,7 @@ async function buildController(stub: Partial<AdminAccountsService> = {}) {
       // `OwnerGuard` on every route injects this. The tests below call the
       // handlers directly so the guard never runs — it only has to resolve for
       // the module to compile. Guard behaviour is owned by owner.guard.spec.ts,
-      // and its presence on all seven routes by conventions.spec.ts.
+      // and its presence on each route by conventions.spec.ts.
       { provide: AuthService, useValue: {} },
     ],
   }).compile();
@@ -41,6 +41,18 @@ describe("AdminAccountsController", () => {
 
     await controller.deleteLolAccount({ slug: "twix" }, {});
     expect(deleteLolAccount).toHaveBeenLastCalledWith("twix", false);
+  });
+
+  it("hands purge the confirmation separately from the path slug", async () => {
+    // The service compares the two. Folding them together here — passing the
+    // path slug twice, say — would make the check tautological and leave the
+    // one irreversible route in the api effectively unconfirmed.
+    const purgeAccount = vi.fn().mockResolvedValue({ slug: "twix" });
+    const controller = await buildController({ purgeAccount });
+
+    await controller.purgeLolAccount({ slug: "twix" }, { confirm: "ahri" });
+
+    expect(purgeAccount).toHaveBeenCalledWith("twix", "ahri");
   });
 
   it("delegates the read without reshaping it", async () => {

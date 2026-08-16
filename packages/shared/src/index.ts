@@ -82,6 +82,9 @@ export type { Viewer } from "./auth/viewer.ts";
 export type {
   AdminLolAccount,
   AdminLolAccountDeleteResult,
+  AdminPurgeCounts,
+  AdminPurgePreview,
+  AdminPurgeResult,
 } from "./admin/accounts.ts";
 export type {
   LolAccount,
