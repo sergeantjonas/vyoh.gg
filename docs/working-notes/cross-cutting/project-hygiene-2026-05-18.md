@@ -1,6 +1,6 @@
 # Project hygiene audit — 2026-05-18
 
-**Status:** Reference — full-repo hygiene sweep covering folder structure, duplication, industry-standard adherence, and dependency/build hygiene. Actionable items lifted into [open-work.md](../open-work.md) live there; this note is the source-of-record for what was checked, what passed, and the verification corrections that matter for future audits. **Chunks shipped: F1 (2026-05-18), R1 (2026-05-18), R2 (2026-05-18), V1 (2026-05-18), V2 (2026-05-18), T1 (2026-05-18), T2 (2026-05-18), T3 (2026-05-18), T4 (2026-05-18), T5 (2026-05-18). Remaining: V3.**
+**Status:** Reference — full-repo hygiene sweep covering folder structure, duplication, industry-standard adherence, and dependency/build hygiene. Actionable items lifted into [open-work.md](../open-work.md) live there; this note is the source-of-record for what was checked, what passed, and the verification corrections that matter for future audits. **Chunks shipped: F1, R1, R2, V1, V2, T1, T2, T3, T4, T5 (all 2026-05-18); V3 closed 2026-08-13 without a dedicated chunk and re-confirmed 2026-08-16. Nothing remains.**
 
 Run as a multi-subagent sweep: one Explore pass for each of structure, duplication, standards, and dependency hygiene, then verified against `git ls-files` and direct file reads before reporting. **Headline finding:** the repo is unusually disciplined for a single-author monorepo. Real gaps cluster in web-side test coverage, API input validation, and a handful of formatter utilities that drifted into 3–6 copies.
 
@@ -121,9 +121,13 @@ For each controller using string params (`gameName`, `tagLine`, `champion`, `mat
 
 Validate with `verify:cc`; test that valid params pass and invalid params return 400.
 
-### V3 — Body DTOs for POST/PUT/PATCH (1 chunk, sequenced with owner-auth)
+### V3 — Body DTOs for POST/PUT/PATCH ✓ closed 2026-08-13, re-confirmed 2026-08-16
 
-Defer scoping until V1 + V2 land and the owner-auth surface is concrete. Per the audit's sequencing note, this pairs with the owner-auth pre-deploy item — may be small/empty depending on the write surface at that point.
+"May be small/empty depending on the write surface" turned out to be right, and it closed without a dedicated chunk. Deferring the scoping is what made that possible: every write surface built after V1 landed inherited the global pipe as an existing constraint, so each one shipped its DTO as part of its own work rather than as a retrofit.
+
+Re-counted 2026-08-16, after the accounts-admin arc roughly doubled the write surface: **10 write routes, 4 of which take a body, and all 4 bind a validated DTO** — `NarrativeWindowDto`, `CreateLolAccountDto`, `UpdateLolAccountDto`, `PurgeLolAccountDto`. The other six take none. `main.ts` still installs `ValidationPipe({ transform, whitelist, forbidNonWhitelisted })` globally, so `forbidNonWhitelisted` means an unbound body field is a 400 rather than a silent pass-through.
+
+This is unlinted, and the same "holds by review, not by tooling" caveat applies as to the controller-return-type convention. The natural place to close it, if body DTOs ever drift, is a `conventions.spec.ts` assertion that every `@Body()` binds a class from a `*.dto.ts`.
 
 ### T1 — `@types/node` unification (micro, 1 line)
 
