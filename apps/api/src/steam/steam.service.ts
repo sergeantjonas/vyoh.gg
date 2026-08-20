@@ -5,7 +5,7 @@ import type {
   SteamWishlist,
   SteamWishlistItem,
 } from "@vyoh/shared";
-import { excludeHiddenGames } from "@vyoh/shared";
+import { excludeHiddenGames, isHiddenGame } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamClientService } from "./steam-client.service";
 import { STEAM_OWNER_ID } from "./steam.config";
@@ -73,7 +73,7 @@ export class SteamService {
     private readonly prisma: PrismaService
   ) {}
 
-  async getOwnerSummary(): Promise<SteamSummary> {
+  async getOwnerSummary(curation: SteamCurationSets): Promise<SteamSummary> {
     // Fetch player + equipped items + community level in parallel. Only the
     // player payload is must-have; items and level are optional — a failure on
     // either leaves the corresponding fields undefined rather than blocking the
@@ -118,7 +118,7 @@ export class SteamService {
             return null;
           })
         : null;
-    return mapPlayerToSummary(player, items, level, levelPercentile);
+    return mapPlayerToSummary(player, items, level, levelPercentile, curation);
   }
 
   async getOwnerWishlist(curation: SteamCurationSets): Promise<SteamWishlist> {
@@ -289,15 +289,21 @@ function mapPlayerToSummary(
   player: SteamPlayerRaw,
   items: SteamGetProfileItemsEquippedResponse["response"] | null,
   steamLevel: number | null,
-  steamLevelPercentile: number | null
+  steamLevelPercentile: number | null,
+  curation: SteamCurationSets
 ): SteamSummary {
   const profilePublic = player.communityvisibilitystate === 3;
   // Game-details visibility can't be verified from GetPlayerSummaries — that
   // probe requires GetOwnedGames, which lands in S3. Surface "unknown" rather
   // than guessing so the frontend can render honest copy.
+  // Same suppression as `getPlayerState`: a session in a hidden game reads as
+  // no session. This endpoint is the live one — it calls Steam per request
+  // rather than reading the poller's row — so both paths have to drop it or the
+  // "Now playing" surface and the summary disagree about the same moment.
+  const liveAppid = player.gameid === undefined ? null : Number(player.gameid);
   const currentGame =
-    player.gameid !== undefined
-      ? { appid: Number(player.gameid), name: player.gameextrainfo ?? "" }
+    liveAppid !== null && !isHiddenGame(liveAppid, curation)
+      ? { appid: liveAppid, name: player.gameextrainfo ?? "" }
       : null;
 
   // Steam serves animated avatars as a .gif at `image_small` (the name refers

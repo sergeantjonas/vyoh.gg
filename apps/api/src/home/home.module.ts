@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { PrismaModule } from "../prisma/prisma.module";
+import { SteamModule } from "../steam/steam.module";
 import { HomeActivityIntensityService } from "./home-activity-intensity.service";
 import { HomeChronotypeService } from "./home-chronotype.service";
 import { HomeDaySplitService } from "./home-day-split.service";
@@ -11,7 +12,9 @@ import { HomeWeeklyTotalsService } from "./home-weekly-totals.service";
 import { HomeController } from "./home.controller";
 
 @Module({
-  imports: [PrismaModule],
+  // `SteamModule` for `SteamGameCurationService` — the first-played tile can
+  // name a Steam game, so it has to know which ones it may name.
+  imports: [PrismaModule, SteamModule],
   controllers: [HomeController],
   providers: [
     HomeChronotypeService,

@@ -1,6 +1,8 @@
+import { NO_CURATION } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
 import type { IdentityService } from "../identity/identity.service";
 import type { PrismaService } from "../prisma/prisma.service";
+import type { SteamGameCurationService } from "../steam/game-curation.service";
 import { HomeFirstPlayedService } from "./home-first-played.service";
 
 function makeService(opts: {
@@ -29,7 +31,12 @@ function makeService(opts: {
   return {
     service: new HomeFirstPlayedService(
       prisma as unknown as PrismaService,
-      identity as unknown as IdentityService
+      identity as unknown as IdentityService,
+      // The tile reads the public overlay, never a viewer's. Empty here so the
+      // existing expectations about which game wins the slot still hold.
+      {
+        getCuration: vi.fn().mockResolvedValue(NO_CURATION),
+      } as unknown as SteamGameCurationService
     ),
     prisma,
     identity,

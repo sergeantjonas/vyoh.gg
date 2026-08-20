@@ -1,3 +1,4 @@
+import { NO_CURATION } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service";
 import { SteamPortraitService, pickBaselineDate } from "./portrait.service";
@@ -88,7 +89,7 @@ describe("SteamPortraitService.getPortrait", () => {
   it("returns an empty portrait rather than throwing before the first poll", async () => {
     const prisma = mockPrisma({ dates: [], snapshots: [], enrichment: [] });
 
-    const portrait = await new SteamPortraitService(prisma).getPortrait();
+    const portrait = await new SteamPortraitService(prisma).getPortrait(NO_CURATION);
 
     expect(portrait.lastSyncedAt).toBeNull();
     expect(portrait.recent).toBeNull();
@@ -111,7 +112,7 @@ describe("SteamPortraitService.getPortrait", () => {
       ],
     });
 
-    const portrait = await new SteamPortraitService(prisma).getPortrait();
+    const portrait = await new SteamPortraitService(prisma).getPortrait(NO_CURATION);
 
     expect(portrait.lifetime.genres.map((g) => g.tag)).toEqual(["Souls-like"]);
     expect(portrait.posture).toEqual({
@@ -137,7 +138,7 @@ describe("SteamPortraitService.getPortrait", () => {
       ],
     });
 
-    const portrait = await new SteamPortraitService(prisma).getPortrait();
+    const portrait = await new SteamPortraitService(prisma).getPortrait(NO_CURATION);
 
     expect(portrait.posture.ownedCount).toBe(1);
     expect(portrait.lifetime.genres.map((g) => g.tag)).toEqual(["Souls-like"]);
@@ -161,7 +162,7 @@ describe("SteamPortraitService.getPortrait", () => {
       ],
     });
 
-    const portrait = await new SteamPortraitService(prisma).getPortrait();
+    const portrait = await new SteamPortraitService(prisma).getPortrait(NO_CURATION);
 
     expect(portrait.lifetime.genres[0]?.tag).toBe("Souls-like");
     expect(portrait.recent?.fingerprint.genres[0]?.tag).toBe("Roguelite");
@@ -188,7 +189,7 @@ describe("SteamPortraitService.getPortrait", () => {
       ],
     });
 
-    const portrait = await new SteamPortraitService(prisma).getPortrait();
+    const portrait = await new SteamPortraitService(prisma).getPortrait(NO_CURATION);
 
     expect(portrait.recent?.fingerprint.genres).toEqual([
       {
@@ -214,7 +215,7 @@ describe("SteamPortraitService.getPortrait", () => {
       enrichment: [{ appid: 1, appType: 0, tagIds: [1] }],
     });
 
-    const portrait = await new SteamPortraitService(prisma).getPortrait();
+    const portrait = await new SteamPortraitService(prisma).getPortrait(NO_CURATION);
 
     expect(portrait.lifetime.genres.map((g) => g.tag)).toEqual(["Souls-like"]);
     expect(portrait.recent?.fingerprint.genres).toEqual([]);
@@ -240,7 +241,7 @@ describe("SteamPortraitService.getPortrait", () => {
       unlocks: { 1: 10, 2: 2, 3: 10 },
     });
 
-    const portrait = await new SteamPortraitService(prisma).getPortrait();
+    const portrait = await new SteamPortraitService(prisma).getPortrait(NO_CURATION);
 
     expect(portrait.completion).toEqual({
       cohortCount: 2,
@@ -273,7 +274,7 @@ describe("SteamPortraitService.getPortrait", () => {
       names: { 2: "Path of Exile", 3: "NieR Replicant" },
     });
 
-    const portrait = await new SteamPortraitService(prisma).getPortrait();
+    const portrait = await new SteamPortraitService(prisma).getPortrait(NO_CURATION);
 
     expect(portrait.anti.tasted.count).toBe(2);
     expect(portrait.anti.tasted.totalMinutes).toBe(23);
@@ -307,7 +308,7 @@ describe("SteamPortraitService.getPortrait", () => {
       names: { 1: "Monster Hunter: World" },
     });
 
-    const portrait = await new SteamPortraitService(prisma).getPortrait();
+    const portrait = await new SteamPortraitService(prisma).getPortrait(NO_CURATION);
 
     expect(portrait.anti.singleAchievement).toEqual({
       games: [{ appid: 1, name: "Monster Hunter: World", minutes: 3_000 }],
@@ -337,7 +338,7 @@ describe("SteamPortraitService.getPortrait", () => {
       },
     });
 
-    const portrait = await new SteamPortraitService(prisma).getPortrait();
+    const portrait = await new SteamPortraitService(prisma).getPortrait(NO_CURATION);
 
     // appid 3 is older still, but half an hour in it is an abandon rather
     // than a cold streak, so the meaningful cohort has already dropped it.
@@ -356,7 +357,7 @@ describe("SteamPortraitService.getPortrait", () => {
       enrichment: [{ appid: 1, appType: 0, tagIds: [1] }],
     });
 
-    const portrait = await new SteamPortraitService(prisma).getPortrait();
+    const portrait = await new SteamPortraitService(prisma).getPortrait(NO_CURATION);
 
     expect(portrait.anti.coldest).toBeNull();
   });
@@ -368,9 +369,56 @@ describe("SteamPortraitService.getPortrait", () => {
       enrichment: [{ appid: 1, appType: 0, tagIds: [1] }],
     });
 
-    const portrait = await new SteamPortraitService(prisma).getPortrait();
+    const portrait = await new SteamPortraitService(prisma).getPortrait(NO_CURATION);
 
     expect(portrait.recent).toBeNull();
     expect(portrait.lastSyncedAt).toBe(LATEST.toISOString());
+  });
+});
+
+// The portrait is the one surface where the two rules meet: it carries pure
+// aggregates *and* cards that name titles, and the two answer differently.
+describe("SteamPortraitService curation", () => {
+  const HIDDEN = 1091500;
+
+  function fixture() {
+    return mockPrisma({
+      dates: [LATEST],
+      snapshots: [
+        { appid: HIDDEN, snapshotDate: LATEST, playtimeForeverMinutes: 3_000 },
+        { appid: 2, snapshotDate: LATEST, playtimeForeverMinutes: 3_000 },
+      ],
+      enrichment: [
+        { appid: HIDDEN, appType: 0, tagIds: [1] },
+        { appid: 2, appType: 0, tagIds: [1] },
+      ],
+      names: { [HIDDEN]: "Something Private", 2: "Elden Ring" },
+      schemas: { [HIDDEN]: 10, 2: 10 },
+      unlocks: { [HIDDEN]: 10, 2: 10 },
+    });
+  }
+
+  const hidden = { hidden: new Set([HIDDEN]), unfeatured: new Set<number>() };
+
+  it("keeps counting a hidden game in the posture and the fingerprint", async () => {
+    const portrait = await new SteamPortraitService(fixture()).getPortrait(hidden);
+    expect(portrait.posture.ownedCount).toBe(2);
+    expect(portrait.posture.totalMinutes).toBe(6_000);
+    expect(portrait.lifetime.gamesCounted).toBe(2);
+  });
+
+  it("never names it in the cards that name titles", async () => {
+    const portrait = await new SteamPortraitService(fixture()).getPortrait(hidden);
+    const named = JSON.stringify([portrait.anti, portrait.backlog, portrait.completion]);
+    expect(named).not.toContain("Something Private");
+    expect(named).not.toContain(String(HIDDEN));
+    expect(portrait.completion.finished.map((g) => g.name)).toEqual(["Elden Ring"]);
+  });
+
+  it("names it for the owner", async () => {
+    const portrait = await new SteamPortraitService(fixture()).getPortrait(NO_CURATION);
+    expect(portrait.completion.finished.map((g) => g.name)).toContain(
+      "Something Private"
+    );
   });
 });

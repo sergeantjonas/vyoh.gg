@@ -69,7 +69,7 @@ describe("SteamController", () => {
     }).compile();
 
     const controller = moduleRef.get(SteamController);
-    await expect(controller.getSummary()).resolves.toBe(summary);
+    await expect(controller.getSummary(false)).resolves.toBe(summary);
     expect(stub).toHaveBeenCalledOnce();
   });
 
@@ -316,7 +316,7 @@ describe("SteamController", () => {
     }).compile();
 
     const controller = moduleRef.get(SteamController);
-    await expect(controller.getPortrait()).resolves.toBe(portrait);
+    await expect(controller.getPortrait(false)).resolves.toBe(portrait);
     expect(stub).toHaveBeenCalledOnce();
   });
 
@@ -490,7 +490,7 @@ describe("SteamController", () => {
     }).compile();
 
     const controller = moduleRef.get(SteamController);
-    await expect(controller.getPlayerState()).resolves.toBe(state);
+    await expect(controller.getPlayerState(false)).resolves.toBe(state);
     expect(stub).toHaveBeenCalledOnce();
   });
 
@@ -682,6 +682,8 @@ describe("SteamController", () => {
     }).compile();
 
     const controller = moduleRef.get(SteamController);
-    await expect(controller.getPlayerState()).rejects.toBeInstanceOf(NotFoundException);
+    await expect(controller.getPlayerState(false)).rejects.toBeInstanceOf(
+      NotFoundException
+    );
   });
 });

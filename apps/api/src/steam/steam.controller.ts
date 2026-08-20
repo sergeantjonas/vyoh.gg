@@ -63,8 +63,9 @@ export class SteamController {
   ) {}
 
   @Get("summary")
-  async getSummary(): Promise<SteamSummary> {
-    return this.steam.getOwnerSummary();
+  @WithViewer()
+  async getSummary(@ViewerIsOwner() isOwner: boolean): Promise<SteamSummary> {
+    return this.steam.getOwnerSummary(await this.curation.getCurationFor(isOwner));
   }
 
   // Cached presence snapshot, refreshed every 2 min by the player-state
@@ -72,8 +73,11 @@ export class SteamController {
   // equipped cosmetics): this is the path frontend surfaces poll on a
   // 30–60s stale-time to drive "Now playing" without amplifying Steam load.
   @Get("player-state")
-  async getPlayerState(): Promise<SteamPlayerState> {
-    const state = await this.playerState.getPlayerState();
+  @WithViewer()
+  async getPlayerState(@ViewerIsOwner() isOwner: boolean): Promise<SteamPlayerState> {
+    const state = await this.playerState.getPlayerState(
+      await this.curation.getCurationFor(isOwner)
+    );
     if (!state) {
       // Boot backfill should close this gap immediately — a 404 here means
       // the table is genuinely empty (fresh DB, poller hasn't finished its
@@ -143,8 +147,9 @@ export class SteamController {
   }
 
   @Get("portrait")
-  async getPortrait(): Promise<SteamPortrait> {
-    return this.portrait.getPortrait();
+  @WithViewer()
+  async getPortrait(@ViewerIsOwner() isOwner: boolean): Promise<SteamPortrait> {
+    return this.portrait.getPortrait(await this.curation.getCurationFor(isOwner));
   }
 
   @Get("owned-games")

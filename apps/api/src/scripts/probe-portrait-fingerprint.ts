@@ -15,6 +15,7 @@
 
 import "dotenv/config";
 import { NestFactory } from "@nestjs/core";
+import { NO_CURATION } from "@vyoh/shared";
 import {
   COMPLETIONIST_PLAYTIME_MINUTES,
   GENRE_TAG_RANK_LIMIT,
@@ -234,7 +235,10 @@ async function main() {
     // Timed because the SSR priming rule in docs/repo-conventions.md turns on
     // latency, and reading the code cannot answer it.
     const startedAt = performance.now();
-    const portrait = await app.get(SteamPortraitService).getPortrait();
+    // `NO_CURATION`: the probe exists to read the owner's own numbers, and its
+    // whole job is to disagree with the independent reading below when the
+    // endpoint is wrong. A filtered view would make them disagree by design.
+    const portrait = await app.get(SteamPortraitService).getPortrait(NO_CURATION);
     const elapsedMs = performance.now() - startedAt;
 
     console.log("\n── GET /api/steam/portrait ──────────────────────────");

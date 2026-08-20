@@ -1,3 +1,4 @@
+import { NO_CURATION } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service";
 import type { SteamPlaySessionsService } from "./play-sessions.service";
@@ -40,7 +41,7 @@ describe("SteamPlayerStateService.getPlayerState", () => {
     const prisma = makePrisma();
     prisma.steamPlayerState.findUnique.mockResolvedValue(null);
 
-    await expect(makeService(prisma).getPlayerState()).resolves.toBeNull();
+    await expect(makeService(prisma).getPlayerState(NO_CURATION)).resolves.toBeNull();
     expect(prisma.steamPlaytimeSnapshot.findFirst).not.toHaveBeenCalled();
   });
 
@@ -51,7 +52,7 @@ describe("SteamPlayerStateService.getPlayerState", () => {
       personaState: "offline",
     });
 
-    const state = await makeService(prisma).getPlayerState();
+    const state = await makeService(prisma).getPlayerState(NO_CURATION);
     expect(state).toEqual({
       steamId: BASE_ROW.steamId,
       personaName: "Vyoh",
@@ -76,7 +77,7 @@ describe("SteamPlayerStateService.getPlayerState", () => {
       playtimeForeverMinutes: 4_320,
     });
 
-    const state = await makeService(prisma).getPlayerState();
+    const state = await makeService(prisma).getPlayerState(NO_CURATION);
     expect(state).toMatchObject({
       currentGame: { appid: 730, name: "Counter-Strike 2" },
       currentGamePlaytimeForeverMinutes: 4_320,
@@ -97,7 +98,7 @@ describe("SteamPlayerStateService.getPlayerState", () => {
     });
     prisma.steamPlaytimeSnapshot.findFirst.mockResolvedValue(null);
 
-    const state = await makeService(prisma).getPlayerState();
+    const state = await makeService(prisma).getPlayerState(NO_CURATION);
     expect(state?.currentGame).toEqual({ appid: 730, name: "App 730" });
     // Snapshot lookup returned nothing (family-share / demo / fresh-DB) →
     // playtime stays null.

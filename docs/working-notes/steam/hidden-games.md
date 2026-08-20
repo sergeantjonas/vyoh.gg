@@ -1,6 +1,6 @@
 # Steam — per-game privacy (hidden games)
 
-**Status:** Active — **chunks 1, 2 and 3 shipped 2026-08-20.** The feature works end-to-end on the api's Steam surface: hiding a game removes it from the library, the wishlist, the upcoming calendar, both achievement feeds, library completion, the recap's chapter candidates and its OG card, and 404s every `game/:appid/*` route for a visitor. Chunk 4 (the live now-playing leak, the portrait's game refs, first-played) is next — until it lands, a hidden game can still be named by `/steam/player-state`, `/steam/summary` and `/steam/portrait`.
+**Status:** Active — **chunks 1–4 shipped 2026-08-20.** The api no longer names a hidden game on any surface: not the library, wishlist, upcoming calendar, achievement feeds, library completion, the recap's chapters, the OG card, the portrait's naming cards, the home first-played tile, or the live now-playing strip, and every `game/:appid/*` route 404s for a visitor. Aggregates still count hidden games anonymously, as chosen. Chunk 5 (retire the two hardcoded curation lists onto the `unfeatured` axis) is next; nothing is user-reachable until chunks 7–8 build the UI.
 
 Read this when: touching any Steam read path that names a game, the recap's subject-chapter selection, the now-playing strip, or the owned-games poller.
 
@@ -87,6 +87,16 @@ Rows the owner creates by hand are `reviewedAt`-stamped on arrival — a hand-ma
 
 **Internal callers had to choose explicitly**, which is what the required argument bought. The enrichment poller, the enrichment backfill script and the image prewarm all pass `NO_CURATION`: they are data maintenance on the owner's real library, and hiding a game from visitors is not a decision to stop tracking it.
 
+## The live and named surfaces (chunk 4)
+
+**Two independent copies of the now-playing leak**, and both had to be closed or the surfaces disagree about the same moment. `/steam/player-state` reads the poller's cached row; `/steam/summary` calls Steam per request. Neither returns a redacted placeholder — the session reads as *no session*, so the owner appears online and playing nothing. "Playing something private" would announce, at the exact moment it is happening, that there is something to hide, which is a worse tell than the title. The poller keeps writing the row and the play session; only the projection drops it, so the hours survive for the aggregates.
+
+**The portrait splits on a line the feature already drew.** `lifetime`, `recent` and `posture` are pure aggregates — genre shares, counts, minutes — and keep counting hidden games. `anti`, `backlog` and `completion` name titles and see only the visible set. `backlog` is still *scored* against the unfiltered lifetime fingerprint: the recommendation stays calibrated on everything the owner actually plays, it just cannot name a hidden game as the pick.
+
+One knowing inconsistency: the naming cards' own inner counts (tasted count, completion cohort size) run over the visible set, so they narrow while `posture` does not. That is the right way round — a card whose purpose is to put names next to a number should not count what it cannot name — but it does mean `posture.tastedCount` and `anti.tasted.count` can disagree by the number of hidden games in that cohort.
+
+**The home first-played tile takes the public curation unconditionally**, like the recap's chapter selection and for the same reason: it names one game as the headline fact on `/`, and hiding a game rules it out of that slot for the owner too. Neither surface is viewer-aware, which also keeps every `/home/*` endpoint out of the viewer-aware set.
+
 ## Accepted leaks
 
 Recorded so they don't get re-raised as defects:
@@ -101,7 +111,7 @@ Recorded so they don't get re-raised as defects:
 | 1 | `SteamGameCuration` migration, `packages/shared/src/steam/curation.ts` filter contract, cached `SteamGameCurationService` | **Shipped 2026-08-20** |
 | 2 | Viewer resolution that never 401s + owner-gated `admin/steam-games` controller | **Shipped 2026-08-20** |
 | 3 | Filter the itemized read paths — owned-games, achievements (recent / rarest / completion), wishlist + upcoming, game-recap, wishlist-hero, and a refusal gate on every `game/:appid/*` route | **Shipped 2026-08-20** |
-| 4 | The identity leaks outside the list endpoints: suppress `currentGame` in [player-state.service.ts](../../../apps/api/src/steam/player-state.service.ts), the game refs in [portrait.service.ts](../../../apps/api/src/steam/portrait.service.ts), and the Steam branch of `home-first-played.service.ts` | |
+| 4 | The identity leaks outside the list endpoints: `currentGame` on both live surfaces, the portrait's naming cards, the home first-played tile | **Shipped 2026-08-20** |
 | 5 | Retire the two hardcoded lists onto the **unfeatured** axis; point [steam-moments.service.ts](../../../apps/api/src/recap/steam-moments.service.ts) and [recap-subjects.service.ts](../../../apps/api/src/recap/recap-subjects.service.ts) at the service, and drop the hand-mirrored web copy | |
 | 6 | Quarantine newly-inserted rows in the owned-games poller | |
 | 7 | Web: viewer-aware query keys + an in-context hide toggle on the library tile/row and game detail | |

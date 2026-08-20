@@ -298,3 +298,79 @@ describe("per-app routes", () => {
     await expect(c.getGameDescription(VISIBLE, false)).resolves.toEqual({ ok: true });
   });
 });
+
+describe("the live now-playing surfaces", () => {
+  function stateService(currentAppid: number | null) {
+    const prisma = {
+      steamPlayerState: {
+        findUnique: vi.fn().mockResolvedValue({
+          steamId: "76561198020053778",
+          personaName: "Vyoh",
+          avatarUrl: "https://avatar",
+          personaState: "online",
+          profileVisibility: 3,
+          currentAppid,
+          currentGameName: "Something Private",
+          lastPolledAt: SNAPSHOT_DATE,
+        }),
+      },
+      steamPlaytimeSnapshot: {
+        findFirst: vi.fn().mockResolvedValue({ playtimeForeverMinutes: 4_000 }),
+      },
+    } as unknown as PrismaService;
+    return new SteamPlayerStateService(prisma, ...([{}, {}] as never as [never, never]));
+  }
+
+  // "Playing something private" would announce, at the exact moment it is
+  // happening, that there is something to hide — a worse tell than the title.
+  // So the session reads as no session, and the owner reads as merely online.
+  it("reports no current game while the owner plays a hidden one", async () => {
+    const state = await stateService(HIDDEN).getPlayerState(curation());
+    expect(state?.currentGame).toBeNull();
+    expect(state?.personaState).toBe("online");
+  });
+
+  it("does not leak the hidden game's playtime either", async () => {
+    const state = await stateService(HIDDEN).getPlayerState(curation());
+    expect(state?.currentGamePlaytimeForeverMinutes).toBeNull();
+  });
+
+  it("shows it to the owner", async () => {
+    const state = await stateService(HIDDEN).getPlayerState(NO_CURATION);
+    expect(state?.currentGame).toEqual({ appid: HIDDEN, name: "Something Private" });
+    expect(state?.currentGamePlaytimeForeverMinutes).toBe(4_000);
+  });
+
+  it("leaves a visible session alone", async () => {
+    const state = await stateService(VISIBLE).getPlayerState(curation());
+    expect(state?.currentGame?.appid).toBe(VISIBLE);
+  });
+
+  // `/summary` calls Steam per request rather than reading the poller's row, so
+  // it is a second, independent copy of the same leak. Both have to suppress or
+  // the two surfaces disagree about the same moment.
+  it("suppresses the live summary's currentGame as well", async () => {
+    const client = {
+      getPlayerSummary: vi.fn().mockResolvedValue({
+        steamid: "76561198020053778",
+        personaname: "Vyoh",
+        avatarfull: "https://avatar",
+        personastate: 1,
+        communityvisibilitystate: 3,
+        profileurl: "https://profile",
+        gameid: String(HIDDEN),
+        gameextrainfo: "Something Private",
+      }),
+      getProfileItemsEquipped: vi.fn().mockResolvedValue(null),
+      getSteamLevel: vi.fn().mockResolvedValue(null),
+      getSteamLevelDistribution: vi.fn().mockResolvedValue(null),
+    };
+    const svc = new SteamService(client as never, {} as PrismaService);
+
+    expect((await svc.getOwnerSummary(curation())).currentGame).toBeNull();
+    expect((await svc.getOwnerSummary(NO_CURATION)).currentGame).toEqual({
+      appid: HIDDEN,
+      name: "Something Private",
+    });
+  });
+});

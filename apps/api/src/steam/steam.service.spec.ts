@@ -70,7 +70,7 @@ const basePlayer: SteamPlayerRaw = {
 
 describe("SteamService.getOwnerSummary", () => {
   it("maps a public profile to a SteamSummary with privacyPrereqs.profilePublic=true", async () => {
-    const summary = await makeService(basePlayer).getOwnerSummary();
+    const summary = await makeService(basePlayer).getOwnerSummary(NO_CURATION);
     expect(summary).toMatchObject({
       steamId: "76561198020053778",
       personaName: "Vyoh",
@@ -84,7 +84,7 @@ describe("SteamService.getOwnerSummary", () => {
     const summary = await makeService({
       ...basePlayer,
       communityvisibilitystate: 1,
-    }).getOwnerSummary();
+    }).getOwnerSummary(NO_CURATION);
     expect(summary.privacyPrereqs.profilePublic).toBe(false);
     expect(summary.privacyPrereqs.gameDetailsPublic).toBe("unknown");
   });
@@ -94,12 +94,12 @@ describe("SteamService.getOwnerSummary", () => {
       ...basePlayer,
       gameid: "440",
       gameextrainfo: "Team Fortress 2",
-    }).getOwnerSummary();
+    }).getOwnerSummary(NO_CURATION);
     expect(summary.currentGame).toEqual({ appid: 440, name: "Team Fortress 2" });
   });
 
   it("throws when GetPlayerSummaries returns no players for the owner id", async () => {
-    await expect(makeService(null).getOwnerSummary()).rejects.toThrow(
+    await expect(makeService(null).getOwnerSummary(NO_CURATION)).rejects.toThrow(
       /Steam profile not found/
     );
   });
@@ -110,20 +110,22 @@ describe("SteamService.getOwnerSummary", () => {
       {},
       14,
       94.66
-    ).getOwnerSummary();
+    ).getOwnerSummary(NO_CURATION);
     expect(summary.memberSinceUnix).toBe(1263864425);
     expect(summary.steamLevel).toBe(14);
     expect(summary.steamLevelPercentile).toBe(94.66);
   });
 
   it("omits memberSinceUnix when timecreated is absent (privacy-locked)", async () => {
-    const summary = await makeService(basePlayer, {}, 14, 94.66).getOwnerSummary();
+    const summary = await makeService(basePlayer, {}, 14, 94.66).getOwnerSummary(
+      NO_CURATION
+    );
     expect(summary.memberSinceUnix).toBeUndefined();
     expect(summary.steamLevel).toBe(14);
   });
 
   it("omits level fields and skips the percentile call when level is unavailable", async () => {
-    const summary = await makeService(basePlayer, {}, null).getOwnerSummary();
+    const summary = await makeService(basePlayer, {}, null).getOwnerSummary(NO_CURATION);
     expect(summary.steamLevel).toBeUndefined();
     expect(summary.steamLevelPercentile).toBeUndefined();
   });
@@ -139,7 +141,7 @@ describe("SteamService.getOwnerSummary", () => {
         movie_webm: "items/2186680/bg.webm",
         movie_mp4: "items/2186680/bg.mp4",
       },
-    }).getOwnerSummary();
+    }).getOwnerSummary(NO_CURATION);
     expect(summary.animatedAvatarUrl).toBe(
       "https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/items/2186680/avatar.gif"
     );
@@ -154,7 +156,7 @@ describe("SteamService.getOwnerSummary", () => {
   it("falls back to animated_avatar.image_large when image_small is absent", async () => {
     const summary = await makeService(basePlayer, {
       animated_avatar: { image_large: "items/2186680/avatar_static.jpg" },
-    }).getOwnerSummary();
+    }).getOwnerSummary(NO_CURATION);
     expect(summary.animatedAvatarUrl).toBe(
       "https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/items/2186680/avatar_static.jpg"
     );
@@ -166,7 +168,7 @@ describe("SteamService.getOwnerSummary", () => {
         image_large: "items/2186680/bg.jpg",
         movie_mp4: "items/2186680/bg.mp4",
       },
-    }).getOwnerSummary();
+    }).getOwnerSummary(NO_CURATION);
     expect(summary.profileBackgroundVideoUrl).toBe(
       "https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/items/2186680/bg.mp4"
     );
@@ -175,7 +177,7 @@ describe("SteamService.getOwnerSummary", () => {
   it("leaves the background video undefined when the background is a static still", async () => {
     const summary = await makeService(basePlayer, {
       profile_background: { image_large: "items/2186680/bg.jpg" },
-    }).getOwnerSummary();
+    }).getOwnerSummary(NO_CURATION);
     expect(summary.profileBackgroundUrl).toBe(
       "https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/items/2186680/bg.jpg"
     );
@@ -183,7 +185,7 @@ describe("SteamService.getOwnerSummary", () => {
   });
 
   it("leaves cosmetic fields undefined when no items are equipped", async () => {
-    const summary = await makeService(basePlayer, {}).getOwnerSummary();
+    const summary = await makeService(basePlayer, {}).getOwnerSummary(NO_CURATION);
     expect(summary.animatedAvatarUrl).toBeUndefined();
     expect(summary.profileBackgroundUrl).toBeUndefined();
     expect(summary.profileBackgroundVideoUrl).toBeUndefined();

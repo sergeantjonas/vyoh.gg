@@ -12,6 +12,7 @@ import type {
   CompletionSummary,
   GenreFingerprint,
   ScoredCandidate,
+  SteamCurationSets,
   SteamPortrait,
   SteamPortraitAnti,
   SteamPortraitBacklog,
@@ -24,6 +25,7 @@ import {
   buildGenreFingerprint,
   excludeBarelyPlayedInWindow,
   excludeBarelyTouched,
+  excludeHiddenGames,
   isSteamGameAppType,
   selectBacklogCandidates,
   selectColdest,
@@ -125,7 +127,7 @@ export function pickBaselineDate(
 export class SteamPortraitService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getPortrait(): Promise<SteamPortrait> {
+  async getPortrait(curation: SteamCurationSets): Promise<SteamPortrait> {
     const dates = await this.prisma.steamPlaytimeSnapshot.findMany({
       select: { snapshotDate: true },
       distinct: ["snapshotDate"],
@@ -163,6 +165,21 @@ export class SteamPortraitService {
       cohort.map((game) => fingerprintInput(game, game.playtimeForeverMinutes))
     );
 
+    // The portrait splits cleanly along the line this feature cares about.
+    // `lifetime`, `recent` and `posture` are pure aggregates — genre shares,
+    // counts, minutes — and keep counting hidden games, which is the "count
+    // anonymously" decision. `anti`, `backlog` and `completion` name titles, so
+    // they see only what the viewer may be told about.
+    //
+    // `backlog` is still scored against the *unfiltered* `lifetime` fingerprint:
+    // a recommendation stays calibrated on everything the owner actually plays,
+    // it just can't name a hidden game as the pick. The named cards' own inner
+    // counts (tasted count, cohort size) therefore run over the visible set —
+    // the one place a count narrows, and it narrows because the card exists to
+    // put names next to it.
+    const visible = excludeHiddenGames(games, curation);
+    const visibleCohort = excludeHiddenGames(cohort, curation);
+
     return {
       lifetime,
       recent: baselineDate === null ? null : buildRecent(games, baselineDate, latestDate),
@@ -174,12 +191,12 @@ export class SteamPortraitService {
         totalMinutes: summary.totalMinutes,
         meaningfulMinutes: summary.meaningfulMinutes,
       },
-      anti: buildAnti(games, cohort),
-      backlog: buildBacklog(games, lifetime),
+      anti: buildAnti(visible, visibleCohort),
+      backlog: buildBacklog(visible, lifetime),
       // Deliberately over the whole library rather than the cleaned cohort:
       // the cohort floor is an hour and this one is ten, so filtering twice
       // would only ever remove games this filter already excludes.
-      completion: summariseCompletion(games),
+      completion: summariseCompletion(visible),
       lastSyncedAt: latestDate.toISOString(),
     };
   }

@@ -4,8 +4,10 @@ import type {
   HomeFirstPlayedLol,
   HomeFirstPlayedSteam,
 } from "@vyoh/shared";
+import { excludeHiddenGames } from "@vyoh/shared";
 import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { SteamGameCurationService } from "../steam/game-curation.service";
 
 const WINDOW_DAYS = 30;
 const STEAM_THRESHOLD_MINUTES = 30;
@@ -176,7 +178,8 @@ export function pickMostRecent(
 export class HomeFirstPlayedService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly identity: IdentityService
+    private readonly identity: IdentityService,
+    private readonly curation: SteamGameCurationService
   ) {}
 
   async getFirstPlayed(): Promise<HomeFirstPlayed> {
@@ -215,8 +218,14 @@ export class HomeFirstPlayedService {
     const detected = detectFirstLolChampion(matchRows, asOf, WINDOW_DAYS);
     const lol = detected ? await this.toLolDto(detected) : null;
 
+    // The public overlay regardless of who is asking, matching the recap's
+    // chapter selection: this tile names one game as the headline fact on `/`,
+    // and hiding a game rules it out of that slot for the owner too. The owner
+    // still finds it in their library, which is where "the owner sees hidden
+    // games" applies.
+    const steamCuration = await this.curation.getCuration();
     const steam = detectFirstSteamCrossing(
-      snapshotRows.map((r) => ({
+      excludeHiddenGames(snapshotRows, steamCuration).map((r) => ({
         appid: r.appid,
         name: r.game.name,
         snapshotDate: r.snapshotDate,

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
-import type { SteamPlayerState } from "@vyoh/shared";
+import type { SteamCurationSets, SteamPlayerState } from "@vyoh/shared";
+import { isHiddenGame } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamPlaySessionsService } from "./play-sessions.service";
 import { SteamClientService } from "./steam-client.service";
@@ -104,11 +105,21 @@ export class SteamPlayerStateService {
   // Null only between fresh-DB boot and the first successful sync — boot
   // backfill should close that gap in practice. Controller translates null
   // to a 404 so the frontend can render its loading state.
-  async getPlayerState(): Promise<SteamPlayerState | null> {
+  async getPlayerState(curation: SteamCurationSets): Promise<SteamPlayerState | null> {
     const row = await this.prisma.steamPlayerState.findUnique({
       where: { steamId: STEAM_OWNER_ID },
     });
     if (!row) return null;
+
+    // A session in a hidden game reads as no session at all — the owner is
+    // online, playing nothing. Deliberately not a redacted placeholder: "playing
+    // something private" states, at the exact moment it is happening, that there
+    // is something to hide, which is a worse tell than the title. The row is
+    // still written by the poller; only the projection drops it, so the session
+    // and its hours survive for the aggregates that count them anonymously.
+    const inHiddenGame =
+      row.currentAppid !== null && isHiddenGame(row.currentAppid, curation);
+    const currentAppid = inHiddenGame ? null : row.currentAppid;
 
     // Join the latest playtime snapshot for the in-game appid so the
     // "Now playing" surface can render "Xh lifetime" without forcing the
@@ -117,9 +128,9 @@ export class SteamPlayerStateService {
     // demo / pirate), and fresh-DB owned games the daily snapshotter
     // hasn't touched yet.
     let currentGamePlaytimeForeverMinutes: number | null = null;
-    if (row.currentAppid !== null) {
+    if (currentAppid !== null) {
       const snapshot = await this.prisma.steamPlaytimeSnapshot.findFirst({
-        where: { appid: row.currentAppid },
+        where: { appid: currentAppid },
         orderBy: { snapshotDate: "desc" },
         select: { playtimeForeverMinutes: true },
       });
@@ -133,10 +144,10 @@ export class SteamPlayerStateService {
       personaState: row.personaState as SteamPlayerState["personaState"],
       profileVisibility: row.profileVisibility as 1 | 2 | 3,
       currentGame:
-        row.currentAppid !== null
+        currentAppid !== null
           ? {
-              appid: row.currentAppid,
-              name: row.currentGameName ?? `App ${row.currentAppid}`,
+              appid: currentAppid,
+              name: row.currentGameName ?? `App ${currentAppid}`,
             }
           : null,
       currentGamePlaytimeForeverMinutes,
