@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ScheduleModule } from "@nestjs/schedule";
 import { AdminAccountsModule } from "./admin/admin-accounts.module";
+import { AdminSteamGamesModule } from "./admin/admin-steam-games.module";
 import { AuthModule } from "./auth/auth.module";
 import { HealthController } from "./health/health.controller";
 import { HomeModule } from "./home/home.module";
@@ -29,6 +30,7 @@ import { SteamModule } from "./steam/steam.module";
     HomeModule,
     RecapModule,
     AdminAccountsModule,
+    AdminSteamGamesModule,
   ],
   controllers: [HealthController],
 })

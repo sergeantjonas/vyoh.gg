@@ -87,6 +87,11 @@ export type {
   AdminPurgeResult,
 } from "./admin/accounts.ts";
 export type {
+  AdminSteamGame,
+  AdminSteamGameList,
+  AdminSteamReviewCount,
+} from "./admin/steam-games.ts";
+export type {
   LolAccount,
   LolAccountSummary,
   LolAccountWithSummary,

@@ -1,6 +1,6 @@
 # Steam — per-game privacy (hidden games)
 
-**Status:** Active — **chunk 1 shipped 2026-08-20** (`SteamGameCuration` table, the two-axis filter contract in `@vyoh/shared`, and the cached `SteamGameCurationService`). Nothing reads the overlay yet; chunks 3–5 are what make it visible. Chunk 2 (the owner-only write API) is next.
+**Status:** Active — **chunks 1 and 2 shipped 2026-08-20.** The data layer is in (`SteamGameCuration`, the two-axis filter contract in `@vyoh/shared`, the cached `SteamGameCurationService`) and so is the owner-only write API (`admin/steam-games`) plus the viewer-resolution mechanism (`ViewerGuard` / `@ViewerIsOwner()` / `@WithViewer()`) that the public read paths will hang off. No public surface filters yet; chunks 3–5 are what make it visible. Chunk 3 (filter the itemized read paths) is next.
 
 Read this when: touching any Steam read path that names a game, the recap's subject-chapter selection, the now-playing strip, or the owned-games poller.
 
@@ -46,6 +46,28 @@ So a naively viewer-aware endpoint would have the owner's browser hydrate the *p
 
 Cache-safety was checked rather than assumed: nginx `proxy_cache` is scoped to `/img/*` only, so no JSON endpoint is shared between viewers by a cache. Viewer-dependent responses still get `Cache-Control: private`.
 
+## Viewer resolution (chunk 2)
+
+`OwnerGuard` exists to reject; the public Steam routes need the opposite — *who is asking*, with no gate on the answer. That lives in [viewer.ts](../../../apps/api/src/auth/viewer.ts) as three pieces:
+
+- **`ViewerGuard`** is a guard only because a guard is the earliest hook that can inject `AuthService`. A param decorator receives just the `ExecutionContext` and cannot inject, so the resolution has to happen where DI reaches and be left on the request.
+- **`@ViewerIsOwner()`** reads it. It defaults to `false` when the guard never ran, so a route that declares the parameter but forgets `@WithViewer()` serves the *public* projection to everybody, owner included. That is the right way round — the mistake is visible to the only person who can fix it, and it never leaks.
+- **`@WithViewer()`** bundles the guard with `Cache-Control: private, no-cache`. Two viewers get different bytes from one URL, so a shared copy is the failure mode; nothing shared caches JSON today, and the header is what keeps that true when the caching layer changes.
+
+`ViewerGuard` swallows resolution errors and answers `false`. A public read path must not 500 because the session table was unreachable — the honest degraded answer is "not the owner", which is correct for every visitor and merely dull for the owner.
+
+## The write API (chunk 2)
+
+`admin/steam-games` is owner-gated on **reads too**, and for a sharper reason than the roster's: an enumeration of the games the owner hid is precisely the secret the hiding exists to keep. `no-store` throughout, and all four routes are pinned by name in `conventions.spec.ts` — an ungated read here would defeat the feature while every public surface kept filtering correctly, which is exactly the kind of failure that is invisible in review.
+
+Three shape decisions:
+
+- **One `PATCH` rather than hide/unhide/feature/approve verbs**, mirroring `updateLolAccount`. Booleans in the DTO against timestamp columns, because the api owns the clock — a client that could send its own "hidden since" could write a row hidden in the *future*, and a row hidden in the future is a row visible now.
+- **`reviewed` is its own field, not implied by a visibility change.** Approving a quarantined game and hiding it for good are both rulings and both clear the badge; they differ only on `hidden`. Folding review into visibility would make "leave it quarantined but write a note" unexpressible.
+- **`DELETE` is distinct from `{ hidden: false }`.** Un-hiding keeps the row, and with it the note and the record that a decision was made here; deleting returns the game to plain default.
+
+Rows the owner creates by hand are `reviewedAt`-stamped on arrival — a hand-made row *is* the ruling, so it must not land in the queue it came from. Only the poller mints unreviewed rows.
+
 ## Accepted leaks
 
 Recorded so they don't get re-raised as defects:
@@ -58,7 +80,7 @@ Recorded so they don't get re-raised as defects:
 | # | Scope | Status |
 |---|---|---|
 | 1 | `SteamGameCuration` migration, `packages/shared/src/steam/curation.ts` filter contract, cached `SteamGameCurationService` | **Shipped 2026-08-20** |
-| 2 | Optional-owner param decorator (resolves the viewer without ever 401ing) + owner-gated `admin-steam-games` controller: hide / unhide / unfeature / approve / list | |
+| 2 | Viewer resolution that never 401s + owner-gated `admin/steam-games` controller | **Shipped 2026-08-20** |
 | 3 | Filter the itemized read paths — owned-games, achievements (recent / rarest / completion), wishlist + upcoming, game-recap, wishlist-hero. Owner-gated `includeHidden`, `Cache-Control: private` | |
 | 4 | The identity leaks outside the list endpoints: suppress `currentGame` in [player-state.service.ts](../../../apps/api/src/steam/player-state.service.ts), the game refs in [portrait.service.ts](../../../apps/api/src/steam/portrait.service.ts), and the Steam branch of `home-first-played.service.ts` | |
 | 5 | Retire the two hardcoded lists onto the **unfeatured** axis; point [steam-moments.service.ts](../../../apps/api/src/recap/steam-moments.service.ts) and [recap-subjects.service.ts](../../../apps/api/src/recap/recap-subjects.service.ts) at the service, and drop the hand-mirrored web copy | |

@@ -126,6 +126,16 @@ const GUARDED_ROUTES: Record<string, string[]> = {
     'Get("lol-accounts/:slug/purge-preview")',
     'Post("lol-accounts/:slug/purge")',
   ],
+  // Gated harder than the roster, and for a sharper reason: an enumeration of
+  // the games the owner hid is precisely the secret the hiding exists to keep,
+  // so an ungated read here doesn't merely leak ops detail — it defeats the
+  // feature outright while every public surface keeps filtering correctly.
+  "apps/api/src/admin/admin-steam-games.controller.ts": [
+    "Get()",
+    'Get("review-count")',
+    'Patch(":appid")',
+    'Delete(":appid")',
+  ],
 };
 
 // The decorator lines attached to one route decorator, walking down to the
