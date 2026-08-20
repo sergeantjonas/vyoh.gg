@@ -74,6 +74,53 @@ COPY apps/api apps/api
 
 RUN pnpm --filter @vyoh/api build
 
+# Strip the build and test toolchain out of what the runtime stage will copy.
+#
+# The reason is the executable surface, not the disk. Before this the production
+# image put thirteen binaries on PATH and one of them belonged: biome, conc,
+# concurrently, nest, playwright, spack, swc, swcx, tsc, tsserver, tsx and
+# vitest, every one of them invokable inside a container serving public traffic.
+# A language server and a browser launcher are not things a Nest server needs at
+# runtime. Images are built on the VPS and never shipped anywhere, so the
+# megabytes this frees are incidental — `scripts/deploy.sh` rsyncs source.
+#
+# After the build, which needs nest and swc.
+#
+# Two mechanisms, and only one of them depends on the list. The `.bin` sweep is
+# an allowlist: everything except `prisma` goes, so a dependency added later
+# cannot reintroduce an executable no matter what the package list below says.
+# The package list is opportunistic cleanup of the code behind those binaries —
+# a name that vanishes upstream is harmless. Removals are echoed rather than
+# fataled, because the invariant is enforced structurally and drift in the list
+# shows up as image size rather than as a broken container.
+#
+# pnpm writes `.bin` entries as ~900-byte shim *scripts*, not symlinks, so
+# deleting a package leaves its shim behind looking perfectly runnable. The
+# sweep matches on name for that reason; `-xtype l` finds nothing here.
+#
+# `@prisma/studio-core` and `@prisma/dev` are deliberately absent. The CLI
+# requires both eagerly even for `migrate deploy` — hiding either one fails with
+# `Cannot find module '@prisma/studio-core/data/bff'` and
+# `'@prisma/dev/internal/state'` respectively — so 62 MB of Prisma Studio's data
+# layer cannot leave while this container is the thing that runs migrations.
+RUN set -eu; \
+    for pkg in '@biomejs+*' 'concurrently' 'playwright' 'playwright-core' \
+               'typescript' '@nestjs+cli' '@nestjs+schematics' '@swc+*' \
+               'unplugin-swc' 'tsx' 'esbuild' '@esbuild+*' 'vitest' '@vitest+*' \
+               'happy-dom' 'rolldown' '@rolldown+*' 'prettier' \
+               '@electric-sql+pglite'; do \
+      find node_modules/.pnpm -maxdepth 1 -type d -name "${pkg}@*" -exec rm -rf {} +; \
+    done; \
+    for bindir in node_modules/.bin apps/api/node_modules/.bin; do \
+      test -d "${bindir}" || continue; \
+      find "${bindir}" -maxdepth 1 ! -type d ! -name prisma \
+        -exec sh -c 'echo "  dropped executable: $(basename "$1")"' _ {} \; -delete; \
+    done; \
+    left="$(find node_modules/.bin apps/api/node_modules/.bin -maxdepth 1 \
+            ! -type d -exec basename {} \; | sort -u | tr '\n' ' ')"; \
+    echo "runtime executables: ${left}"; \
+    test "${left}" = "prisma "
+
 # ---------------------------------------------------------------------------
 
 FROM node:22-bookworm-slim AS runtime

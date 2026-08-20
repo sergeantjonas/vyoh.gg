@@ -282,8 +282,11 @@ accounts arc's purge rather than by hand ([accounts-admin.md](accounts-admin.md)
 
 ### 8. Trim the api image — added 2026-08-20
 
-**Chunk A shipped 2026-08-20: 1.77 GB → 1.43 GB.** `onnxruntime-node` went from
-259 MB to 20 MB. Chunk B (dev-tooling prune) is open.
+**Complete 2026-08-20: 1.77 GB → 1.14 GB**, in two commits. Chunk A pruned
+`onnxruntime-node` from 259 MB to 20 MB; chunk B removed the build and test
+toolchain, taking the container's executable surface from thirteen binaries to
+one. Chunk C (`pnpm deploy --prod`) is deliberately not done — reasoning at the
+end of this section.
 
 **Why the image is 1.77 GB at all**, since the inventory alone doesn't explain
 it: the runtime stage does one unpruned `COPY /repo/node_modules`, so it ships a
@@ -323,16 +326,65 @@ execute. And the trimmed image's real entrypoint applied **all 67 migrations,
 0 unfinished, 29 tables** against a throwaway database, so `migrate deploy` is
 unaffected.
 
-**Chunk B — prune the dev tooling.** ~180 MB of build/test toolchain (`@swc/core`
-31, `@biomejs/cli` 25, `typescript` ×2 47, vitest's `@rolldown/binding` 17 +
-`esbuild` 20, `happy-dom` 17, `playwright-core` 14, `prettier` 10) plus ~120 MB
-of Prisma CLI tail. **One trap:** `effect` looks like obvious dead weight at
-33 MB and is not — `prisma.config.ts` is copied into the runtime image and read
-by `@prisma/config` when the entrypoint runs `migrate deploy`, and that is what
-pulls it. Deleting it fails at container start, not at build. Same shape as the
-arch trap in A: both fail on the box rather than in CI, which is the argument for
-a smoke check that exercises subject anchoring and a migration rather than only
-pinging `/health`.
+**Chunk B shipped 2026-08-20: 1.43 GB → 1.14 GB, and 13 executables → 1.**
+
+**The justification is the executable surface, not the disk, and that only
+became clear after reading `deploy.sh`.** Images are built on the VPS — no
+registry, `rsync` sends source — so trimming saves neither bandwidth nor
+download, and 160 GB makes the disk argument thin. What it does fix is that
+`node_modules/.bin` held `biome conc concurrently nest playwright prisma spack
+swc swcx tsc tsserver tsx vitest`, all invokable in a container serving public
+traffic. A language server and a browser launcher in a production runtime is a
+finding on its own terms, in the same class as
+[api-exposure-audit.md](api-exposure-audit.md), and it is the reason to do this.
+The megabytes are a side effect. Anyone re-reading this to justify more
+size work should start from that.
+
+Implemented as two mechanisms with deliberately different guarantees. The `.bin`
+sweep is an **allowlist** — everything but `prisma` is deleted and the build
+asserts the result — so a dependency added next year cannot reintroduce an
+executable regardless of what the package list says. The package list is
+opportunistic removal of the code behind those binaries; a name that vanishes
+upstream is harmless, and drift shows up as image size rather than as a broken
+container.
+
+**Three findings, each of which cost a cycle:**
+
+- **`@prisma/studio-core` (43 MB) and `@prisma/dev` (19 MB) cannot be removed.**
+  The CLI requires both *eagerly*, even for `migrate deploy` — hiding them fails
+  with `Cannot find module '@prisma/studio-core/data/bff'` and
+  `'@prisma/dev/internal/state'`. So Prisma Studio's data layer ships to
+  production for as long as the api container is the thing that runs migrations.
+  The only escape is moving migrations out of it (a one-shot container, or
+  `deploy.sh` over ssh), which is a bigger decision than this chunk. `pglite`
+  (24 MB) *is* removable; `effect` (33 MB) is not, being reached through
+  `@prisma/config` when it reads `prisma.config.ts`.
+- **pnpm writes `.bin` entries as ~900-byte shim scripts, not symlinks.** The
+  first implementation deleted packages and then swept dangling links with
+  `find -xtype l`, which matched nothing — every shim survived, looking
+  perfectly runnable while its package was gone. The assert caught it. Sweep by
+  name here, not by brokenness.
+- **`find -name '@scope/pkg@*'` silently matches nothing in the pnpm store**,
+  because the store uses `+` as the scope separator (`@biomejs+biome@1.9.4`) and
+  `-name` cannot match a `/` in a basename. An early probe "passed" while
+  testing only the ten unscoped candidates. Any future store surgery should
+  spell scoped names with `+`.
+
+Also settled: `typescript`, `esbuild` and `tsx` are **not** needed to load
+`prisma.config.ts`. `@prisma/config` handles the TS config itself.
+
+**Verified against the built image, not a simulation** — four gates, all green:
+`migrate deploy` applied 67 migrations to a throwaway database; the Nest module
+graph resolved; onnx inference ran; and the real entrypoint booted to
+`/health` 200 in ~14s. That last one earned its place — the module graph
+resolving is *not* the same as the server starting, and only the boot gate
+exercises `main.ts`'s env validation.
+
+No smoke script was committed, because `deploy.sh` already smoke-checks the
+endpoints over ssh and exits non-zero, which is the durable net for exactly this
+failure mode. If a dependency change ever warrants re-running the gates by hand,
+the shape is: a scratch database, dummy values for the six vars `main.ts`
+requires, and `docker run` against the built image.
 
 **Why not restructure onto `pnpm deploy --prod` instead** (the "proper" fix).
 The Dockerfile gives two reasons and only one holds. The generated Prisma client
