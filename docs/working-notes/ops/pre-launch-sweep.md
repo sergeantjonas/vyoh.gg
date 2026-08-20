@@ -4,7 +4,7 @@
 
 Two gates were re-audited on 2026-08-13 after reading as open for longer than they were: the strike is the trail of evidence, so if a gate here looks open, confirm it against the code before scoping work around it.
 
-Several notes reference "the pre-launch sweep" as one deliberate arc; this file is that arc's checklist. [hosting.md](hosting.md) owns the deploy machinery — its checklist items 4–6 are gates here by reference.
+Several notes reference "the pre-launch sweep" as one deliberate arc; this file is that arc's checklist. [hosting.md](hosting.md) owns the deploy machinery — its checklist items 4–6 are gates here by reference, and its [launch runbook](hosting.md#launch-runbook--added-2026-08-20) is the ordered sequence to follow once the box exists. This file answers "what must be true before traffic"; the runbook answers "in what order do I do it".
 
 ## Launch gates — public traffic before these = incident
 

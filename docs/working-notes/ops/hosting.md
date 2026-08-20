@@ -2,6 +2,8 @@
 
 **Status:** Active — **Option C (Hetzner VPS + Docker Compose) chosen 2026-07-26**, and **the machinery is written and verified as of 2026-07-27** ([Start migration](../cross-cutting/tanstack-start-migration.md) chunk 6). Nginx routes `vyoh.gg` and `api.vyoh.gg` as separate vhosts on the one VM; "same-origin" in the earlier drafts meant one machine, not one origin. Checklist items 1–3 are done in code; **4–7 remain — 4, 5 and 7 need a VPS that does not exist yet, and 6 (backups, added 2026-08-01) is written and locally verified but not yet installed anywhere** — nothing here is blocked on the repo any more, it is blocked on buying the box. Item 7 (seeding prod from the dev database, added 2026-08-16) is a launch step rather than a gate, but it is the reason launch is not the same thing as an empty database. The full launch-gate list (owner auth, ValidationPipe V3, timeZone sweep, branch protection, and this file's items 4–6) lives in [pre-launch-sweep.md](pre-launch-sweep.md).
 
+**Read the [launch runbook](#launch-runbook--added-2026-08-20) first on the night.** The numbered items below it are reference detail on individual topics, not an order of operations, and three of them carry ordering constraints that only make sense once seen together — DNS before the first build because `VITE_API_URL` is baked in, `.env` on the box before the first deploy because compose refuses to start without it, and the backup drill after seeding rather than before so it tests a dump of real data. A 2026-08-20 audit of exactly this question found that every piece of the deploy was documented and the sequence was not, plus one hole that would have failed the first deploy outright (`compose.prod.yaml` never passed the owner-auth env vars).
+
 **What exists in-repo now:** [`apps/api/Dockerfile`](../../../apps/api/Dockerfile), [`apps/web/Dockerfile`](../../../apps/web/Dockerfile), [`compose.prod.yaml`](../../../compose.prod.yaml), [`deploy/nginx/`](../../../deploy/nginx/) (two vhosts + the `proxy_cache_path` file + install/TLS instructions), [`deploy/systemd/`](../../../deploy/systemd/) (the nightly backup timer + install instructions), [`scripts/deploy.sh`](../../../scripts/deploy.sh), and [`scripts/backup.sh`](../../../scripts/backup.sh) + [`scripts/restore.sh`](../../../scripts/restore.sh). The whole stack was brought up locally on shifted ports and probed end to end: 60 migrations applied from empty, 12 routes hydrating clean, CORS answering for the configured origin and refusing another. What has *not* been exercised is anything that needs the real box — TLS, DNS, certbot, and the Steam CM egress question below.
 
 ## Options under consideration
@@ -73,6 +75,53 @@ three options. Railway (A), Fly (B), and a VPS process (C) are all persistent
 long-running processes — no serverless timeout that would kill open connections.
 The browser opens an `EventSource` directly to the API host; the frontend CDN
 never proxies the stream.
+
+## Launch runbook — added 2026-08-20
+
+The ordered sequence, for the night it actually happens. Everything it refers to
+is documented in full elsewhere; this exists because the *order* was not written
+down anywhere, and several of these steps have hard constraints that are only
+discoverable by having read all of them. Follow it top to bottom.
+
+The numbered sections below this one are reference detail, not a sequence —
+1 through 3 are already shipped code, and 4 through 8 are topics rather than
+steps.
+
+**0. Buy the box.** Hetzner CAX31 per [option C](#option-c--hetzner-vps--docker-compose-full-control-cheapest). Docker, docker-compose-plugin, nginx, certbot. Nothing below works without it, and nothing above it in the repo is still blocking.
+
+**1. DNS first, before any image is built.** Point `vyoh.gg`, `www.vyoh.gg` and `api.vyoh.gg` at the box ([§ 4](#4-custom-domain)). This has to precede the first build rather than follow it: `VITE_API_URL` is a **build argument** baked into the bundle and into the markup `head()` emits, so changing the api hostname later means rebuilding the web image, not editing a file. The prod OAuth app in step 3 also needs the final api hostname before it can be registered.
+
+**2. Write `/srv/vyoh/.env` on the box, by hand.** `scripts/deploy.sh` excludes `.env` from its rsync — production secrets have no local counterpart — so it has to exist there before the first deploy, not after. `mkdir -p /srv/vyoh` and `scp` a filled-in copy of [`.env.example`](../../../.env.example).
+
+Compose now refuses to bring anything up when a required var is missing, naming
+it. That is deliberate and it means an incomplete `.env` fails in a legible way
+rather than as a restarting container — but it also means **step 5 cannot
+succeed until this file is complete**, including the four owner-auth values from
+step 3.
+
+**3. Register the production GitHub OAuth app.** A **separate** app from the dev one: the client secret is shared across every redirect URI on a registration, so reusing dev's makes a laptop leak a production credential. Callback URL is `https://api.vyoh.gg/auth/github/callback`. Put the id, the secret, a fresh `SESSION_SECRET` (`openssl rand -hex 32`) and `OWNER_GITHUB_USER_ID` into the `.env` from step 2. Detail in [owner-auth.md](owner-auth.md).
+
+**4. Install nginx config, then TLS.** [`deploy/nginx/README.md`](../../../deploy/nginx/README.md). One ordering trap inside it: `vyoh-cache.conf` goes into `conf.d/` **before** enabling the vhosts, because they reference the `limit_req_zone` it declares and nginx will refuse to load a vhost naming a zone that does not exist yet. Then `certbot --nginx -d vyoh.gg -d www.vyoh.gg -d api.vyoh.gg`.
+
+**5. First deploy — against an empty database.** `VYOH_DEPLOY_HOST=vyoh scripts/deploy.sh`. It rsyncs, builds both images on the box, restarts the stack and smoke-checks the loopback endpoints, exiting non-zero if they do not answer. The api's entrypoint applies all migrations on start, so this is also what creates the schema.
+
+Confirm the empty stack serves before putting data in it. [§ 7](#7-seed-production-from-the-dev-database--added-2026-08-16)
+is explicit about why: seeding first gives you two variables at once when
+something is wrong.
+
+**6. Seed from the dev database.** The six steps in [§ 7](#7-seed-production-from-the-dev-database--added-2026-08-16), which end with clearing the `Session` table. Check its three preconditions first — the `TZ` match is the one that silently corrupts every historical timestamp if it ever stops holding.
+
+**7. Install the backup timer and drill it.** [`deploy/systemd/README.md`](../../../deploy/systemd/README.md) and [§ 6](#6-backups--added-2026-08-01). Run the service once by hand rather than waiting for 03:30, then restore that dump into a scratch database. Doing this *after* step 6 is what makes the drill meaningful: it proves a dump of the real database restores, which is the thing actually reached for during an incident. A drill against an empty schema proves the script runs.
+
+**8. Verify SSE through nginx.** [§ 5](#5-verify-sse-in-production). Trigger a sync, watch for `EventStream` traffic. The symptom of a regression here is specific: the stream connects, stays open, and delivers nothing until a buffer flushes.
+
+**9. Enable branch protection on `main`.** A GitHub settings page, and the point at which direct-push stops being appropriate. Recorded as a decision rather than a gap in [pre-launch-sweep.md](pre-launch-sweep.md); this is where it flips.
+
+Things that are *not* in this list because they need no action: nginx rate
+limiting, the `/og` cache block and the image-proxy cache all ship with step 4;
+CORS and the api's env contract are enforced by the code rather than configured
+at deploy; the off-box backup copy stays open by decision, and step 7 leaves the
+archives on the same disk as the volume they protect until it closes.
 
 ## Pre-deploy checklist (applies to all options)
 
