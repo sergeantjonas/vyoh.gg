@@ -1,4 +1,5 @@
 import { NotFoundException } from "@nestjs/common";
+import { NO_CURATION } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service";
 import type { SteamAchievementSchemaService } from "./achievement-schema.service";
@@ -361,7 +362,7 @@ describe("SteamOwnedGamesService.getOwnedGames", () => {
       },
     };
 
-    await expect(makeService(prisma).getOwnedGames()).resolves.toEqual({
+    await expect(makeService(prisma).getOwnedGames(NO_CURATION)).resolves.toEqual({
       games: [],
       lastSyncedAt: null,
     });
@@ -419,7 +420,7 @@ describe("SteamOwnedGamesService.getOwnedGames", () => {
       },
     };
 
-    const { games, lastSyncedAt } = await makeService(prisma).getOwnedGames();
+    const { games, lastSyncedAt } = await makeService(prisma).getOwnedGames(NO_CURATION);
     expect(lastSyncedAt).toBe(snapshotDate.toISOString());
     expect(games).toEqual([
       {
@@ -487,7 +488,7 @@ describe("SteamOwnedGamesService.getOwnedGames", () => {
       },
     };
 
-    const { games } = await makeService(prisma).getOwnedGames();
+    const { games } = await makeService(prisma).getOwnedGames(NO_CURATION);
     expect(games[0]).toMatchObject({
       appid: 730,
       name: "Counter-Strike 2",
@@ -529,7 +530,7 @@ describe("SteamOwnedGamesService.getOwnedGames", () => {
       },
     };
 
-    await makeService(prisma).getOwnedGames();
+    await makeService(prisma).getOwnedGames(NO_CURATION);
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { snapshotDate, game: { removedAt: null } },

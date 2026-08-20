@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
-import type { SteamUpcoming, SteamUpcomingItem } from "@vyoh/shared";
+import type { SteamCurationSets, SteamUpcoming, SteamUpcomingItem } from "@vyoh/shared";
+import { excludeHiddenGames, isHiddenGame } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { STEAM_OWNER_ID } from "./steam.config";
 import { SteamService, buildStoreUrl } from "./steam.service";
@@ -19,10 +20,12 @@ export class SteamUpcomingService {
     private readonly prisma: PrismaService
   ) {}
 
-  async getUpcoming(): Promise<SteamUpcoming> {
+  async getUpcoming(curation: SteamCurationSets): Promise<SteamUpcoming> {
     const [wishlist, owned] = await Promise.all([
-      this.steam.getOwnerWishlist(),
-      this.ownedUnreleased(),
+      // Already filtered on the wishlist side; the owned arm is this service's
+      // own query, so it filters here.
+      this.steam.getOwnerWishlist(curation),
+      this.ownedUnreleased(curation),
     ]);
 
     const byAppid = new Map<number, SteamUpcomingItem>();
@@ -66,7 +69,16 @@ export class SteamUpcomingService {
   // arm goes first for two reasons: it answers out of our own DB, so a
   // pre-order still resolves while Steam is down, and it is the arm that wins a
   // collision in the merge above.
-  async membershipOf(appid: number): Promise<UpcomingSource | null> {
+  //
+  // Curation is checked first and answers `null`, so a hidden title is outside
+  // the set as far as the caller is concerned. That is deliberately the same
+  // answer as "never wishlisted": the route 404s either way, and a visitor
+  // cannot tell a hidden pre-order from an appid the owner has no interest in.
+  async membershipOf(
+    appid: number,
+    curation: SteamCurationSets
+  ): Promise<UpcomingSource | null> {
+    if (isHiddenGame(appid, curation)) return null;
     if (await this.isOwnedUnreleased(appid)) return "owned";
     return (await this.steam.isWishlisted(appid)) ? "wishlist" : null;
   }
@@ -92,17 +104,20 @@ export class SteamUpcomingService {
   // tiny (a handful of rows against ~230 owned games), then narrowed to titles
   // the owner currently holds — enrichment also covers wishlist-only appids,
   // and those are the live wishlist call's job, not this query's.
-  private async ownedUnreleased(): Promise<SteamUpcomingItem[]> {
+  private async ownedUnreleased(
+    curation: SteamCurationSets
+  ): Promise<SteamUpcomingItem[]> {
     const unreleased = await this.prisma.steamGameEnrichment.findMany({
       where: { comingSoon: true },
       select: { appid: true, releaseDate: true },
     });
     if (unreleased.length === 0) return [];
 
-    const owned = await this.prisma.steamOwnedGame.findMany({
+    const ownedRows = await this.prisma.steamOwnedGame.findMany({
       where: { appid: { in: unreleased.map((row) => row.appid) }, removedAt: null },
       select: { appid: true, name: true, firstSeenAt: true },
     });
+    const owned = excludeHiddenGames(ownedRows, curation);
     const releaseByAppid = new Map(unreleased.map((row) => [row.appid, row.releaseDate]));
 
     return owned.map((game) => ({

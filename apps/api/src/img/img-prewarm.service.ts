@@ -1,4 +1,5 @@
 import { Injectable, Logger, type OnApplicationBootstrap } from "@nestjs/common";
+import { NO_CURATION } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamService } from "../steam/steam.service";
 
@@ -142,7 +143,10 @@ export class ImgPrewarmService implements OnApplicationBootstrap {
     const ownedAppids = owned.map((g) => g.appid);
     let wishlistAppids: number[] = [];
     try {
-      const wishlist = await this.steam.getOwnerWishlist();
+      // `NO_CURATION` deliberately: prewarming is maintenance on the owner's
+      // real library, not a response to a viewer. Skipping a hidden game's art
+      // would only mean the owner waits for a cold fetch on their own page.
+      const wishlist = await this.steam.getOwnerWishlist(NO_CURATION);
       wishlistAppids = wishlist.items.map((i) => i.appid);
     } catch (err) {
       this.logger.warn(

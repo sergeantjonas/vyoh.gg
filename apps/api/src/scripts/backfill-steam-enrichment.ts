@@ -12,6 +12,7 @@
 import "dotenv/config";
 import { Logger } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
+import { NO_CURATION } from "@vyoh/shared";
 import { AppModule } from "../app.module";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamEnrichmentService } from "../steam/enrichment.service";
@@ -34,7 +35,9 @@ async function main() {
     });
     let wishlist: number[] = [];
     try {
-      const w = await steam.getOwnerWishlist();
+      // `NO_CURATION`: a backfill exists to repopulate every row, and a hidden
+      // game's row is still a row.
+      const w = await steam.getOwnerWishlist(NO_CURATION);
       wishlist = w.items.map((i) => i.appid);
     } catch (err) {
       logger.warn(`wishlist fetch failed (${String(err)}); proceeding with owned only`);

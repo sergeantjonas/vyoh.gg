@@ -1,4 +1,5 @@
 import type { SteamWishlist, SteamWishlistItem } from "@vyoh/shared";
+import { NO_CURATION } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service";
 import { STEAM_OWNER_ID } from "./steam.config";
@@ -45,7 +46,7 @@ function makeDeps(
 describe("SteamUpcomingService.getUpcoming", () => {
   it("carries wishlisted coming-soon titles through with their provenance", async () => {
     const { service } = makeDeps([wishlistItem({ appid: 42 })]);
-    const result = await service.getUpcoming();
+    const result = await service.getUpcoming(NO_CURATION);
     expect(result.steamId).toBe(STEAM_OWNER_ID);
     expect(result.items).toEqual([
       {
@@ -67,7 +68,7 @@ describe("SteamUpcomingService.getUpcoming", () => {
       wishlistItem({ appid: 42, comingSoon: false }),
       wishlistItem({ appid: 43 }),
     ]);
-    const result = await service.getUpcoming();
+    const result = await service.getUpcoming(NO_CURATION);
     expect(result.items.map((i) => i.appid)).toEqual([43]);
   });
 
@@ -85,7 +86,7 @@ describe("SteamUpcomingService.getUpcoming", () => {
         },
       ]
     );
-    const result = await service.getUpcoming();
+    const result = await service.getUpcoming(NO_CURATION);
     expect(result.items).toEqual([
       {
         appid: 2584270,
@@ -112,7 +113,7 @@ describe("SteamUpcomingService.getUpcoming", () => {
       ],
       [{ appid: 222, name: "Owned", firstSeenAt: new Date("2026-07-01T00:00:00Z") }]
     );
-    const result = await service.getUpcoming();
+    const result = await service.getUpcoming(NO_CURATION);
     expect(result.items.map((i) => i.appid)).toEqual([222]);
     expect(prisma.steamOwnedGame.findMany).toHaveBeenCalledWith({
       where: { appid: { in: [111, 222] }, removedAt: null },
@@ -122,7 +123,7 @@ describe("SteamUpcomingService.getUpcoming", () => {
 
   it("skips the library query when nothing is flagged coming-soon", async () => {
     const { service, prisma } = makeDeps([]);
-    await service.getUpcoming();
+    await service.getUpcoming(NO_CURATION);
     expect(prisma.steamOwnedGame.findMany).not.toHaveBeenCalled();
   });
 
@@ -134,7 +135,7 @@ describe("SteamUpcomingService.getUpcoming", () => {
       [{ appid: 42, releaseDate: new Date("2026-08-20T00:00:00Z") }],
       [{ appid: 42, name: "Bought", firstSeenAt: new Date("2026-07-31T00:00:00Z") }]
     );
-    const result = await service.getUpcoming();
+    const result = await service.getUpcoming(NO_CURATION);
     expect(result.items).toHaveLength(1);
     expect(result.items[0]?.source).toBe("owned");
     expect(result.items[0]?.name).toBe("Bought");
@@ -147,14 +148,14 @@ describe("SteamUpcomingService.getUpcoming", () => {
       wishlistItem({ appid: 3, releaseDate: null, dateAdded: 1_690_000_000 }),
       wishlistItem({ appid: 4, releaseDate: 1_790_000_000 }),
     ]);
-    const result = await service.getUpcoming();
+    const result = await service.getUpcoming(NO_CURATION);
     // Undated pile is most-recently-added first, matching the TBA bucket's order.
     expect(result.items.map((i) => i.appid)).toEqual([4, 2, 3, 1]);
   });
 
   it("reports the wishlist pull as the payload's fetch stamp", async () => {
     const { service } = makeDeps([wishlistItem()]);
-    await expect(service.getUpcoming()).resolves.toMatchObject({
+    await expect(service.getUpcoming(NO_CURATION)).resolves.toMatchObject({
       fetchedAt: 1_715_688_000_000,
     });
   });
@@ -168,7 +169,7 @@ describe("SteamUpcomingService.getUpcoming", () => {
       [{ appid: 42, releaseDate: null }],
       [{ appid: 42, name: "Someday", firstSeenAt: new Date("2026-07-01T00:00:00Z") }]
     );
-    const result = await service.getUpcoming();
+    const result = await service.getUpcoming(NO_CURATION);
     expect(result.items[0]).toMatchObject({ releaseDate: null, comingSoon: true });
   });
 });
@@ -201,19 +202,19 @@ function makeMembershipDeps(
 describe("SteamUpcomingService.membershipOf", () => {
   it("answers 'wishlist' for a title on the wishlist", async () => {
     const { service } = makeMembershipDeps({ wishlisted: true });
-    await expect(service.membershipOf(42)).resolves.toBe("wishlist");
+    await expect(service.membershipOf(42, NO_CURATION)).resolves.toBe("wishlist");
   });
 
   // The reason this check exists: the hero asks about a pre-order at the moment
   // it becomes the nearest release, and by then the wishlist has dropped it.
   it("answers 'owned' for a pre-order the wishlist no longer holds", async () => {
     const { service } = makeMembershipDeps({ comingSoon: true, owned: true });
-    await expect(service.membershipOf(42)).resolves.toBe("owned");
+    await expect(service.membershipOf(42, NO_CURATION)).resolves.toBe("owned");
   });
 
   it("refuses an appid in neither set", async () => {
     const { service } = makeMembershipDeps();
-    await expect(service.membershipOf(999_999)).resolves.toBeNull();
+    await expect(service.membershipOf(999_999, NO_CURATION)).resolves.toBeNull();
   });
 
   // Same precedence as the merge, so a title in both is described the same way
@@ -224,7 +225,7 @@ describe("SteamUpcomingService.membershipOf", () => {
       owned: true,
       wishlisted: true,
     });
-    await expect(service.membershipOf(42)).resolves.toBe("owned");
+    await expect(service.membershipOf(42, NO_CURATION)).resolves.toBe("owned");
   });
 
   // The library arm reads our own DB, so a pre-order still resolves through a
@@ -234,7 +235,7 @@ describe("SteamUpcomingService.membershipOf", () => {
       comingSoon: true,
       owned: true,
     });
-    await service.membershipOf(42);
+    await service.membershipOf(42, NO_CURATION);
     expect(isWishlisted).not.toHaveBeenCalled();
   });
 
@@ -242,7 +243,7 @@ describe("SteamUpcomingService.membershipOf", () => {
   // would admit games the owner has never held — the same narrowing the merge does.
   it("does not take a coming-soon row the owner does not own as ownership", async () => {
     const { service, prisma } = makeMembershipDeps({ comingSoon: true });
-    await expect(service.membershipOf(42)).resolves.toBeNull();
+    await expect(service.membershipOf(42, NO_CURATION)).resolves.toBeNull();
     expect(prisma.steamOwnedGame.findFirst).toHaveBeenCalledWith({
       where: { appid: 42, removedAt: null },
       select: { appid: true },
@@ -251,7 +252,7 @@ describe("SteamUpcomingService.membershipOf", () => {
 
   it("skips the library lookup for an appid with no coming-soon row", async () => {
     const { service, prisma } = makeMembershipDeps({ wishlisted: true });
-    await service.membershipOf(42);
+    await service.membershipOf(42, NO_CURATION);
     expect(prisma.steamOwnedGame.findFirst).not.toHaveBeenCalled();
   });
 });

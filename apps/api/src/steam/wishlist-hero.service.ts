@@ -1,5 +1,9 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
-import type { SteamGameRating, SteamWishlistHeroMeta } from "@vyoh/shared";
+import type {
+  SteamCurationSets,
+  SteamGameRating,
+  SteamWishlistHeroMeta,
+} from "@vyoh/shared";
 import { UpstreamError, fetchUpstreamChain } from "../img/upstream";
 import { PrismaService } from "../prisma/prisma.service";
 import { type EnrichmentUpsert, projectEnrichment } from "./enrichment.service";
@@ -45,12 +49,20 @@ export class SteamWishlistHeroService {
     private readonly prisma: PrismaService
   ) {}
 
-  async getHeroMeta(appid: number): Promise<SteamWishlistHeroMeta> {
+  async getHeroMeta(
+    appid: number,
+    curation: SteamCurationSets
+  ): Promise<SteamWishlistHeroMeta> {
     // Ahead of the cache read, not after it, so an appid off the upcoming set
     // never reaches the store call, the art fetch, the Vibrant pass, or the map.
     // The web only ever asks about an appid it read out of the upcoming
     // response, so this can't refuse a request the surface actually makes.
-    const source = await this.upcoming.membershipOf(appid);
+    //
+    // The membership check is also what enforces curation: it treats a hidden
+    // appid as absent, which matters here because the cache below is keyed on
+    // appid alone. A hidden entry can never be written to it, so there is no
+    // path by which a visitor reads one the owner warmed.
+    const source = await this.upcoming.membershipOf(appid, curation);
     if (source === null) {
       throw new NotFoundException(`Appid ${appid} is not an upcoming release.`);
     }

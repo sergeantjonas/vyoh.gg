@@ -268,6 +268,7 @@ export {
   excludeHiddenGames,
   excludeUnfeaturedGames,
   isHiddenGame,
+  visibleAppidFilter,
 } from "./steam/curation.ts";
 export type { SteamCurationSets } from "./steam/curation.ts";
 export type { SteamTagCatalog, SteamTagListEntry } from "./steam/tags.ts";

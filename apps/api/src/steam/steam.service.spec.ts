@@ -1,3 +1,4 @@
+import { NO_CURATION } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service";
 import type { SteamClientService } from "./steam-client.service";
@@ -213,7 +214,7 @@ describe("SteamService.getOwnerWishlist", () => {
       },
     ]);
 
-    const wishlist = await service.getOwnerWishlist();
+    const wishlist = await service.getOwnerWishlist(NO_CURATION);
 
     expect(wishlist.steamId).toBe("76561198020053778");
     expect(wishlist.items).toEqual([
@@ -252,7 +253,7 @@ describe("SteamService.getOwnerWishlist", () => {
       ]
     );
 
-    const wishlist = await service.getOwnerWishlist();
+    const wishlist = await service.getOwnerWishlist(NO_CURATION);
     expect(wishlist.items[0]).toMatchObject({
       appid: 999999,
       releaseDate: null,
@@ -271,7 +272,7 @@ describe("SteamService.getOwnerWishlist", () => {
       },
     ]);
 
-    const wishlist = await service.getOwnerWishlist();
+    const wishlist = await service.getOwnerWishlist(NO_CURATION);
     expect(wishlist.items[0]).toMatchObject({
       appid: 214490,
       name: null,
@@ -290,7 +291,7 @@ describe("SteamService.getOwnerWishlist", () => {
       },
     ]);
 
-    const wishlist = await service.getOwnerWishlist();
+    const wishlist = await service.getOwnerWishlist(NO_CURATION);
     expect(wishlist.items.map((i) => i.name)).toEqual(["Alien: Isolation", null]);
   });
 
@@ -310,8 +311,8 @@ describe("SteamService.getOwnerWishlist", () => {
       },
     ]);
 
-    await service.getOwnerWishlist();
-    await service.getOwnerWishlist();
+    await service.getOwnerWishlist(NO_CURATION);
+    await service.getOwnerWishlist(NO_CURATION);
 
     expect(stubs.getWishlist).toHaveBeenCalledOnce();
     expect(stubs.getStoreItemsFull).toHaveBeenCalledOnce();
@@ -334,8 +335,8 @@ describe("SteamService.getOwnerWishlist", () => {
     ]);
     service.wishlistTtlMs = 0;
 
-    await service.getOwnerWishlist();
-    await service.getOwnerWishlist();
+    await service.getOwnerWishlist(NO_CURATION);
+    await service.getOwnerWishlist(NO_CURATION);
 
     expect(stubs.getWishlist).toHaveBeenCalledTimes(2);
     // Names stay cached even when the wishlist refetches — name cache has its own TTL.
@@ -361,7 +362,7 @@ describe("SteamService.getOwnerWishlist", () => {
         },
       ]
     );
-    await service.getOwnerWishlist();
+    await service.getOwnerWishlist(NO_CURATION);
     expect(upsert).toHaveBeenCalledOnce();
     const call = upsert.mock.calls[0]?.[0];
     expect(call.where).toEqual({ appid: 214490 });
@@ -403,7 +404,7 @@ describe("SteamService.getOwnerWishlist", () => {
         },
       ]
     );
-    await service.getOwnerWishlist();
+    await service.getOwnerWishlist(NO_CURATION);
     const call = upsert.mock.calls[0]?.[0];
     expect(call.create).toMatchObject({
       appid: 1636440,
@@ -420,7 +421,7 @@ describe("SteamService.getOwnerWishlist", () => {
       [{ appid: 9999999, priority: 0, date_added: 1700000000 }],
       [{ appid: 9999999, success: 0 }]
     );
-    await service.getOwnerWishlist();
+    await service.getOwnerWishlist(NO_CURATION);
     expect(upsert).not.toHaveBeenCalled();
   });
 
@@ -439,7 +440,7 @@ describe("SteamService.getOwnerWishlist", () => {
         },
       ]
     );
-    await service.getOwnerWishlist();
+    await service.getOwnerWishlist(NO_CURATION);
     const call = upsert.mock.calls[0]?.[0];
     expect(call.create.assetTimestamp).toBeNull();
   });

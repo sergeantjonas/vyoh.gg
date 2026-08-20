@@ -1,3 +1,4 @@
+import { NO_CURATION } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service";
 import {
@@ -149,17 +150,17 @@ describe("SteamAchievementsService.getRecentUnlocks", () => {
     const prisma = makePrisma();
     prisma.steamPlayerUnlock.findMany.mockResolvedValue([]);
 
-    await makeService(prisma).getRecentUnlocks(0);
+    await makeService(prisma).getRecentUnlocks(0, NO_CURATION);
     expect(prisma.steamPlayerUnlock.findMany).toHaveBeenLastCalledWith(
       expect.objectContaining({ take: 1 })
     );
 
-    await makeService(prisma).getRecentUnlocks(99_999);
+    await makeService(prisma).getRecentUnlocks(99_999, NO_CURATION);
     expect(prisma.steamPlayerUnlock.findMany).toHaveBeenLastCalledWith(
       expect.objectContaining({ take: RECENT_UNLOCKS_MAX_LIMIT })
     );
 
-    await makeService(prisma).getRecentUnlocks(12.7);
+    await makeService(prisma).getRecentUnlocks(12.7, NO_CURATION);
     expect(prisma.steamPlayerUnlock.findMany).toHaveBeenLastCalledWith(
       expect.objectContaining({ take: 12 })
     );
@@ -196,7 +197,7 @@ describe("SteamAchievementsService.getRecentUnlocks", () => {
       },
     ]);
 
-    const { unlocks } = await makeService(prisma).getRecentUnlocks(10);
+    const { unlocks } = await makeService(prisma).getRecentUnlocks(10, NO_CURATION);
     expect(unlocks).toEqual([
       {
         appid: 367520,

@@ -1,6 +1,6 @@
 # Steam — per-game privacy (hidden games)
 
-**Status:** Active — **chunks 1 and 2 shipped 2026-08-20.** The data layer is in (`SteamGameCuration`, the two-axis filter contract in `@vyoh/shared`, the cached `SteamGameCurationService`) and so is the owner-only write API (`admin/steam-games`) plus the viewer-resolution mechanism (`ViewerGuard` / `@ViewerIsOwner()` / `@WithViewer()`) that the public read paths will hang off. No public surface filters yet; chunks 3–5 are what make it visible. Chunk 3 (filter the itemized read paths) is next.
+**Status:** Active — **chunks 1, 2 and 3 shipped 2026-08-20.** The feature works end-to-end on the api's Steam surface: hiding a game removes it from the library, the wishlist, the upcoming calendar, both achievement feeds, library completion, the recap's chapter candidates and its OG card, and 404s every `game/:appid/*` route for a visitor. Chunk 4 (the live now-playing leak, the portrait's game refs, first-played) is next — until it lands, a hidden game can still be named by `/steam/player-state`, `/steam/summary` and `/steam/portrait`.
 
 Read this when: touching any Steam read path that names a game, the recap's subject-chapter selection, the now-playing strip, or the owned-games poller.
 
@@ -68,6 +68,25 @@ Three shape decisions:
 
 Rows the owner creates by hand are `reviewedAt`-stamped on arrival — a hand-made row *is* the ruling, so it must not land in the queue it came from. Only the poller mints unreviewed rows.
 
+## Filtering the read paths (chunk 3)
+
+**No `includeHidden` param.** The plan called for one, owner-gated; the viewer mechanism made it redundant. Who is asking already determines the answer, and a query param would have been a second way to ask the same question — one that has to be re-checked at every call site.
+
+**The services take the curation sets as a required argument** rather than injecting the service and reaching for them. That is the load-bearing choice: a new read path does not compile until it has answered "whose view is this?". Injection would have let a new aggregation quietly default to the owner's view, which is the failure this whole feature is about. It also means one resolution per request is shared by a route that hits two services.
+
+**Filter placement matters more than it looks.** In `getOwnedGames` the filter runs before the enrichment and 30-day-sparkline queries, so a hidden game's art paths and playtime series are never fetched — not fetched-then-dropped. `getOwnerWishlist` filters before name resolution, which is an upstream call per unknown appid.
+
+**Limit-capped feeds filter in SQL, not in JS.** `achievements/recent` and `achievements/rarest` take a `limit`, and filtering after the `take` would return eight rows for a request for ten — a length that is itself the tell. Both use `visibleAppidFilter()`, a named `where`-fragment helper in the shared curation module, so the invariant still has one definition.
+
+**Per-app routes refuse rather than filter.** The four `game/:appid/*` routes shape their response from a single appid, so `assertVisible()` throws `NotFound`. An empty achievements payload would say "this game has none" — false, and a tell. `NotFound` is what those routes already return for an untracked appid, so a hidden game is indistinguishable from one the owner never bought. `game/:appid/recap` needed no gate at all: it looks the game up in `getOwnedGames`, which already filtered, and its existing not-in-library `NotFound` fires.
+
+**Two leaks found while wiring, not in the original survey:**
+
+- **`/steam/summary` carries `currentGame`**, not just `/steam/player-state`. Both are chunk 4.
+- **The Steam OG card** (`generateSteamGameCard`) renders the game's name into a public, cacheable, shareable image. It now reads the *public* curation unconditionally — an OG card has no viewer to be aware of, and a cached card naming a hidden game would be the one copy of that name to outlive the hiding.
+
+**Internal callers had to choose explicitly**, which is what the required argument bought. The enrichment poller, the enrichment backfill script and the image prewarm all pass `NO_CURATION`: they are data maintenance on the owner's real library, and hiding a game from visitors is not a decision to stop tracking it.
+
 ## Accepted leaks
 
 Recorded so they don't get re-raised as defects:
@@ -81,7 +100,7 @@ Recorded so they don't get re-raised as defects:
 |---|---|---|
 | 1 | `SteamGameCuration` migration, `packages/shared/src/steam/curation.ts` filter contract, cached `SteamGameCurationService` | **Shipped 2026-08-20** |
 | 2 | Viewer resolution that never 401s + owner-gated `admin/steam-games` controller | **Shipped 2026-08-20** |
-| 3 | Filter the itemized read paths — owned-games, achievements (recent / rarest / completion), wishlist + upcoming, game-recap, wishlist-hero. Owner-gated `includeHidden`, `Cache-Control: private` | |
+| 3 | Filter the itemized read paths — owned-games, achievements (recent / rarest / completion), wishlist + upcoming, game-recap, wishlist-hero, and a refusal gate on every `game/:appid/*` route | **Shipped 2026-08-20** |
 | 4 | The identity leaks outside the list endpoints: suppress `currentGame` in [player-state.service.ts](../../../apps/api/src/steam/player-state.service.ts), the game refs in [portrait.service.ts](../../../apps/api/src/steam/portrait.service.ts), and the Steam branch of `home-first-played.service.ts` | |
 | 5 | Retire the two hardcoded lists onto the **unfeatured** axis; point [steam-moments.service.ts](../../../apps/api/src/recap/steam-moments.service.ts) and [recap-subjects.service.ts](../../../apps/api/src/recap/recap-subjects.service.ts) at the service, and drop the hand-mirrored web copy | |
 | 6 | Quarantine newly-inserted rows in the owned-games poller | |

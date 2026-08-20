@@ -1,6 +1,6 @@
 import { Injectable, Logger, type OnModuleInit } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
-import { OWNER_TIME_ZONE } from "@vyoh/shared";
+import { NO_CURATION, OWNER_TIME_ZONE } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamEnrichmentService } from "./enrichment.service";
 import { SteamService } from "./steam.service";
@@ -133,7 +133,10 @@ export class SteamEnrichmentPoller implements OnModuleInit {
     });
     let wishlist: number[] = [];
     try {
-      const w = await this.steam.getOwnerWishlist();
+      // `NO_CURATION`: enrichment is data maintenance, and a hidden game still
+      // needs its row refreshed — hiding it from visitors is a display decision,
+      // not a decision to stop tracking it.
+      const w = await this.steam.getOwnerWishlist(NO_CURATION);
       wishlist = w.items.map((i) => i.appid);
     } catch (err) {
       this.logger.warn(

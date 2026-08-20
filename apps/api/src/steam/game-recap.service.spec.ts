@@ -1,4 +1,5 @@
 import { NotFoundException } from "@nestjs/common";
+import { NO_CURATION } from "@vyoh/shared";
 import type {
   SteamGameAchievements,
   SteamGameScreenshots,
@@ -106,7 +107,7 @@ describe("SteamGameRecapService.getGameRecap", () => {
     };
     const service = makeService(ownedGames, achievements);
 
-    const recap = await service.getGameRecap(367520);
+    const recap = await service.getGameRecap(367520, NO_CURATION);
 
     expect(recap.appid).toBe(367520);
     expect(recap.name).toBe("Hollow Knight");
@@ -126,7 +127,10 @@ describe("SteamGameRecapService.getGameRecap", () => {
     const achievements = {
       getGameAchievements: vi.fn().mockResolvedValue(makeAchievements([])),
     };
-    const recap = await makeService(ownedGames, achievements).getGameRecap(367520);
+    const recap = await makeService(ownedGames, achievements).getGameRecap(
+      367520,
+      NO_CURATION
+    );
     expect(recap.screenshots).toHaveLength(6);
     expect(recap.screenshots[0]?.filename).toContain("ss_0");
     expect(recap.screenshots[2]?.filename).toContain("mature_0");
@@ -140,7 +144,10 @@ describe("SteamGameRecapService.getGameRecap", () => {
     const achievements = {
       getGameAchievements: vi.fn().mockResolvedValue(makeAchievements([])),
     };
-    const recap = await makeService(ownedGames, achievements).getGameRecap(367520);
+    const recap = await makeService(ownedGames, achievements).getGameRecap(
+      367520,
+      NO_CURATION
+    );
     // Without the merge, 17+ titles with only mature screenshots showed
     // an empty closer strip — this asserts the fallback.
     expect(recap.screenshots).toHaveLength(3);
@@ -160,7 +167,9 @@ describe("SteamGameRecapService.getGameRecap", () => {
     };
     const service = makeService(ownedGames, achievements);
 
-    await expect(service.getGameRecap(367520)).rejects.toThrow(NotFoundException);
+    await expect(service.getGameRecap(367520, NO_CURATION)).rejects.toThrow(
+      NotFoundException
+    );
   });
 
   it("runs the three upstream calls in parallel", async () => {
@@ -188,7 +197,7 @@ describe("SteamGameRecapService.getGameRecap", () => {
       }),
     };
 
-    await makeService(ownedGames, achievements).getGameRecap(367520);
+    await makeService(ownedGames, achievements).getGameRecap(367520, NO_CURATION);
 
     // All three start before any finishes — confirms Promise.all parallelism.
     const startEvents = order.filter((e) => e.endsWith("-start"));

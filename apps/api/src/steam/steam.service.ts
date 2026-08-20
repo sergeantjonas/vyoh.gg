@@ -1,5 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common";
-import type { SteamSummary, SteamWishlist, SteamWishlistItem } from "@vyoh/shared";
+import type {
+  SteamCurationSets,
+  SteamSummary,
+  SteamWishlist,
+  SteamWishlistItem,
+} from "@vyoh/shared";
+import { excludeHiddenGames } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamClientService } from "./steam-client.service";
 import { STEAM_OWNER_ID } from "./steam.config";
@@ -115,9 +121,12 @@ export class SteamService {
     return mapPlayerToSummary(player, items, level, levelPercentile);
   }
 
-  async getOwnerWishlist(): Promise<SteamWishlist> {
+  async getOwnerWishlist(curation: SteamCurationSets): Promise<SteamWishlist> {
     const now = Date.now();
-    const raw = await this.loadWishlist(now);
+    // Filtered before the name resolution, which is an upstream call per
+    // unknown appid — a hidden title costs nothing and, more to the point,
+    // never has its name fetched on a visitor's request.
+    const raw = excludeHiddenGames(await this.loadWishlist(now), curation);
     const names = await this.resolveNames(
       raw.map((item) => item.appid),
       now

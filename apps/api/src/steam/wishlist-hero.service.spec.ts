@@ -1,4 +1,5 @@
 import { NotFoundException } from "@nestjs/common";
+import { NO_CURATION } from "@vyoh/shared";
 import type { SteamGameRating } from "@vyoh/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UpstreamError } from "../img/upstream";
@@ -95,7 +96,7 @@ beforeEach(() => {
 describe("SteamWishlistHeroService", () => {
   it("projects store data plus an on-read accent into the hero-meta shape", async () => {
     const { service } = makeService();
-    const meta = await service.getHeroMeta(1);
+    const meta = await service.getHeroMeta(1, NO_CURATION);
 
     expect(meta).toEqual({
       appid: 1,
@@ -113,20 +114,24 @@ describe("SteamWishlistHeroService", () => {
 
   it("caches by appid — a second call within the TTL skips the store fetch", async () => {
     const { service, getStoreItemsFull } = makeService();
-    await service.getHeroMeta(1);
-    await service.getHeroMeta(1);
+    await service.getHeroMeta(1, NO_CURATION);
+    await service.getHeroMeta(1, NO_CURATION);
     expect(getStoreItemsFull).toHaveBeenCalledTimes(1);
   });
 
   it("throws NotFound when the store page is unresolvable (success !== 1)", async () => {
     projectEnrichment.mockReturnValue(null);
     const { service } = makeService();
-    await expect(service.getHeroMeta(1)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.getHeroMeta(1, NO_CURATION)).rejects.toBeInstanceOf(
+      NotFoundException
+    );
   });
 
   it("refuses an appid outside the upcoming set before doing any work", async () => {
     const { service, getStoreItemsFull } = makeService({ source: null });
-    await expect(service.getHeroMeta(999_999)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.getHeroMeta(999_999, NO_CURATION)).rejects.toBeInstanceOf(
+      NotFoundException
+    );
     // The refusal is worth nothing if it lands after the spend it exists to
     // prevent — the store call and the art fetch are the cost, not the map write.
     expect(getStoreItemsFull).not.toHaveBeenCalled();
@@ -135,9 +140,11 @@ describe("SteamWishlistHeroService", () => {
 
   it("re-checks membership on a cache hit", async () => {
     const { service, membershipOf } = makeService();
-    await service.getHeroMeta(1);
+    await service.getHeroMeta(1, NO_CURATION);
     membershipOf.mockResolvedValue(null);
-    await expect(service.getHeroMeta(1)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.getHeroMeta(1, NO_CURATION)).rejects.toBeInstanceOf(
+      NotFoundException
+    );
   });
 
   it("falls back to a null accent when the hero art is unreachable", async () => {
@@ -145,7 +152,7 @@ describe("SteamWishlistHeroService", () => {
       new UpstreamError("https://hero", "404 across chain")
     );
     const { service } = makeService();
-    const meta = await service.getHeroMeta(1);
+    const meta = await service.getHeroMeta(1, NO_CURATION);
     expect(meta.dominantHex).toBeNull();
     // The rest of the metadata still resolves — the accent is best-effort.
     expect(meta.shortDescription).toBe("A bleak action RPG.");
@@ -155,7 +162,7 @@ describe("SteamWishlistHeroService", () => {
   it("narrows a missing assetTimestamp to null", async () => {
     projectEnrichment.mockReturnValue(projection({ assetTimestamp: null }));
     const { service } = makeService();
-    const meta = await service.getHeroMeta(1);
+    const meta = await service.getHeroMeta(1, NO_CURATION);
     expect(meta.assetTimestamp).toBeNull();
   });
 });
@@ -168,7 +175,7 @@ describe("SteamWishlistHeroService, for an owned title", () => {
       source: "owned",
       row: storedRow(),
     });
-    const meta = await service.getHeroMeta(2_584_270);
+    const meta = await service.getHeroMeta(2_584_270, NO_CURATION);
 
     expect(meta).toEqual({
       appid: 2_584_270,
@@ -193,7 +200,7 @@ describe("SteamWishlistHeroService, for an owned title", () => {
       source: "owned",
       row: storedRow({ dominantHex: null }),
     });
-    const meta = await service.getHeroMeta(2_584_270);
+    const meta = await service.getHeroMeta(2_584_270, NO_CURATION);
     expect(meta.dominantHex).toBeNull();
     expect(extractDominantHex).not.toHaveBeenCalled();
   });
@@ -205,14 +212,14 @@ describe("SteamWishlistHeroService, for an owned title", () => {
       source: "owned",
       row: storedRow(),
     });
-    await service.getHeroMeta(2_584_270);
-    await service.getHeroMeta(2_584_270);
+    await service.getHeroMeta(2_584_270, NO_CURATION);
+    await service.getHeroMeta(2_584_270, NO_CURATION);
     expect(findUnique).toHaveBeenCalledTimes(2);
   });
 
   it("falls back to the per-request projection when the row has gone", async () => {
     const { service, getStoreItemsFull } = makeService({ source: "owned", row: null });
-    await expect(service.getHeroMeta(1)).resolves.toMatchObject({
+    await expect(service.getHeroMeta(1, NO_CURATION)).resolves.toMatchObject({
       shortDescription: "A bleak action RPG.",
     });
     expect(getStoreItemsFull).toHaveBeenCalled();

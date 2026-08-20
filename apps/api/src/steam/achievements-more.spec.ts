@@ -1,3 +1,4 @@
+import { NO_CURATION } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service";
 import { SteamAchievementsService } from "./achievements.service";
@@ -29,7 +30,7 @@ function makeService(opts: {
 describe("SteamAchievementsService.getCrossGameRarest", () => {
   it("clamps a too-high limit to RAREST_UNLOCKS_MAX_LIMIT", async () => {
     const { service, prisma } = makeService({ unlockRows: [] });
-    await service.getCrossGameRarest(1_000_000);
+    await service.getCrossGameRarest(1_000_000, NO_CURATION);
     const call = prisma.steamPlayerUnlock.findMany.mock.calls[0]?.[0] as
       | { take: number }
       | undefined;
@@ -39,7 +40,7 @@ describe("SteamAchievementsService.getCrossGameRarest", () => {
 
   it("clamps a too-low limit to 1", async () => {
     const { service, prisma } = makeService({ unlockRows: [] });
-    await service.getCrossGameRarest(0);
+    await service.getCrossGameRarest(0, NO_CURATION);
     const call = prisma.steamPlayerUnlock.findMany.mock.calls[0]?.[0] as
       | { take: number }
       | undefined;
@@ -63,7 +64,7 @@ describe("SteamAchievementsService.getCrossGameRarest", () => {
         },
       ],
     });
-    const result = await service.getCrossGameRarest(10);
+    const result = await service.getCrossGameRarest(10, NO_CURATION);
     expect(result.unlocks).toHaveLength(1);
     expect(result.unlocks[0]?.gameName).toBe("Half-Life");
     expect(result.unlocks[0]?.globalPercent).toBe(0.4);
@@ -86,7 +87,7 @@ describe("SteamAchievementsService.getCrossGameRarest", () => {
         },
       ],
     });
-    const result = await service.getCrossGameRarest(10);
+    const result = await service.getCrossGameRarest(10, NO_CURATION);
     expect(result.unlocks[0]?.globalPercent).toBeNull();
   });
 });
@@ -136,7 +137,7 @@ describe("SteamAchievementsService.getUnlockTimeline", () => {
 describe("SteamAchievementsService.getLibraryCompletion", () => {
   it("returns empty stats when no totals are present", async () => {
     const { service } = makeService({});
-    const result = await service.getLibraryCompletion();
+    const result = await service.getLibraryCompletion(NO_CURATION);
     expect(result.stats).toEqual([]);
   });
 
@@ -154,7 +155,7 @@ describe("SteamAchievementsService.getLibraryCompletion", () => {
         },
       ],
     });
-    const result = await service.getLibraryCompletion();
+    const result = await service.getLibraryCompletion(NO_CURATION);
     expect(result.stats).toHaveLength(2);
     const ach42 = result.stats.find((s) => s.appid === 42);
     expect(ach42?.unlocked).toBe(7);

@@ -1,5 +1,7 @@
 import type { SteamOwnedGame, SteamOwnedGames } from "@vyoh/shared";
+import { NO_CURATION } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
+import type { SteamGameCurationService } from "../steam/game-curation.service";
 
 import type { PrismaService } from "../prisma/prisma.service";
 import type { SteamOwnedGamesService } from "../steam/owned-games.service";
@@ -107,8 +109,20 @@ function makeService(
   const steamMoments = {
     detectAll: vi.fn().mockResolvedValue([]),
   } as unknown as SteamMomentsService;
-  return new RecapSubjectsService(ownedGames, prisma, lolMoments, steamMoments);
+  return new RecapSubjectsService(
+    ownedGames,
+    prisma,
+    lolMoments,
+    steamMoments,
+    CURATION_STUB
+  );
 }
+
+// Chapter selection consults the overlay; an empty one keeps every existing
+// expectation about which games become chapters intact.
+const CURATION_STUB = {
+  getCuration: vi.fn().mockResolvedValue(NO_CURATION),
+} as unknown as SteamGameCurationService;
 
 describe("RecapSubjectsService.getChapters", () => {
   it("emits a steam-subject descriptor for a game with recent playtime and unlocks", async () => {
@@ -705,7 +719,8 @@ describe("RecapSubjectsService.getChapters", () => {
         ownedGames,
         prisma,
         lolMoments,
-        steamMoments
+        steamMoments,
+        CURATION_STUB
       );
 
       const chapters = await service.getChapters(NOW);
@@ -782,7 +797,8 @@ describe("RecapSubjectsService.getChapters", () => {
         ownedGames,
         prisma,
         lolMoments,
-        steamMoments
+        steamMoments,
+        CURATION_STUB
       );
 
       const chapters = await service.getChapters(NOW);
@@ -857,7 +873,8 @@ describe("RecapSubjectsService.getChapters", () => {
         ownedGames,
         prisma,
         lolMoments,
-        steamMoments
+        steamMoments,
+        CURATION_STUB
       );
 
       const chapters = await service.getChapters(NOW);
@@ -931,7 +948,8 @@ describe("RecapSubjectsService.getChapters", () => {
         ownedGames,
         prisma,
         lolMoments,
-        steamMoments
+        steamMoments,
+        CURATION_STUB
       );
 
       const chapters = await service.getChapters(NOW);
@@ -983,7 +1001,8 @@ describe("RecapSubjectsService.getChapters", () => {
         ownedGames,
         prisma,
         lolMoments,
-        steamMoments
+        steamMoments,
+        CURATION_STUB
       );
 
       const chapters = await service.getChapters(NOW);

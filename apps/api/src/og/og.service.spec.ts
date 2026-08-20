@@ -8,6 +8,7 @@ import {
   formatPercent,
   formatPlaytimeFromSeconds,
 } from "@vyoh/shared";
+import { NO_CURATION } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
 import type { HomeLifetimeTotalsService } from "../home/home-lifetime-totals.service";
 import type { IdentityService } from "../identity/identity.service";
@@ -16,6 +17,7 @@ import type { SteamImageService } from "../img/steam-image.service";
 import type { LolChampionAnalyticsService } from "../lol/lol-champion-analytics.service";
 import type { LolService } from "../lol/lol.service";
 import type { PrismaService } from "../prisma/prisma.service";
+import type { SteamGameCurationService } from "../steam/game-curation.service";
 import type { SteamGameRecapService } from "../steam/game-recap.service";
 import { OgService } from "./og.service";
 
@@ -118,7 +120,12 @@ function makeService(stubs: ServiceStubs = {}): OgService {
     (stubs.prisma ?? {}) as unknown as PrismaService,
     (stubs.steamGameRecap ?? {}) as unknown as SteamGameRecapService,
     (stubs.championAnalytics ?? {}) as unknown as LolChampionAnalyticsService,
-    (stubs.lifetimeTotals ?? {}) as unknown as HomeLifetimeTotalsService
+    (stubs.lifetimeTotals ?? {}) as unknown as HomeLifetimeTotalsService,
+    // An OG card is never viewer-aware, so the service only ever asks for the
+    // public overlay. Empty here, so existing card expectations stand.
+    {
+      getCuration: vi.fn().mockResolvedValue(NO_CURATION),
+    } as unknown as SteamGameCurationService
   );
 }
 

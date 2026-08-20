@@ -1,10 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import type {
   GameUnlockTimeline,
+  SteamCurationSets,
   SteamGameAchievements,
   SteamLibraryCompletion,
   SteamRecentUnlocks,
 } from "@vyoh/shared";
+import { excludeHiddenGames, visibleAppidFilter } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 
 export const RECENT_UNLOCKS_DEFAULT_LIMIT = 10;
@@ -88,10 +90,14 @@ export class SteamAchievementsService {
   // index on `SteamPlayerUnlock.unlockedAt`. Caller passes the limit
   // (default 10, hard cap 200) — the same endpoint backs the Profile chip
   // and the global achievements page with different visible counts.
-  async getRecentUnlocks(limit: number): Promise<SteamRecentUnlocks> {
+  async getRecentUnlocks(
+    limit: number,
+    curation: SteamCurationSets
+  ): Promise<SteamRecentUnlocks> {
     const clamped = Math.min(Math.max(1, Math.floor(limit)), RECENT_UNLOCKS_MAX_LIMIT);
 
     const rows = await this.prisma.steamPlayerUnlock.findMany({
+      where: { appid: visibleAppidFilter(curation) },
       orderBy: { unlockedAt: "desc" },
       take: clamped,
       include: {
@@ -124,11 +130,17 @@ export class SteamAchievementsService {
   // them yet) are excluded rather than ranked as 0%; a null rarity isn't
   // "very rare," it's "unknown." Shares the `SteamRecentUnlocks` payload
   // shape since the fields needed are identical.
-  async getCrossGameRarest(limit: number): Promise<SteamRecentUnlocks> {
+  async getCrossGameRarest(
+    limit: number,
+    curation: SteamCurationSets
+  ): Promise<SteamRecentUnlocks> {
     const clamped = Math.min(Math.max(1, Math.floor(limit)), RAREST_UNLOCKS_MAX_LIMIT);
 
     const rows = await this.prisma.steamPlayerUnlock.findMany({
-      where: { achievement: { rarity: { isNot: null } } },
+      where: {
+        achievement: { rarity: { isNot: null } },
+        appid: visibleAppidFilter(curation),
+      },
       orderBy: { achievement: { rarity: { percent: "asc" } } },
       take: clamped,
       include: {
@@ -192,7 +204,12 @@ export class SteamAchievementsService {
     };
   }
 
-  async getLibraryCompletion(): Promise<SteamLibraryCompletion> {
+  // An appid is identity even without a name beside it — it resolves to a store
+  // page — so the filter belongs here as much as on the feeds above. No `take`,
+  // so it can run over the grouped result.
+  async getLibraryCompletion(
+    curation: SteamCurationSets
+  ): Promise<SteamLibraryCompletion> {
     const [totals, unlocks] = await Promise.all([
       this.prisma.steamGameAchievement.groupBy({
         by: ["appid"],
@@ -207,7 +224,7 @@ export class SteamAchievementsService {
 
     const unlockMap = new Map(unlocks.map((u) => [u.appid, u]));
 
-    const stats = totals.map((t) => {
+    const stats = excludeHiddenGames(totals, curation).map((t) => {
       const u = unlockMap.get(t.appid);
       return {
         appid: t.appid,

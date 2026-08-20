@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import type {
+  SteamCurationSets,
   SteamGameRating,
   SteamGameScreenshots,
   SteamGameTrailer,
@@ -10,7 +11,7 @@ import type {
   SteamReviewSummary,
   SteamScreenshotEntry,
 } from "@vyoh/shared";
-import { OWNER_TIME_ZONE } from "@vyoh/shared";
+import { OWNER_TIME_ZONE, excludeHiddenGames } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamAchievementSchemaService } from "./achievement-schema.service";
 import { SteamEnrichmentService } from "./enrichment.service";
@@ -349,7 +350,11 @@ export class SteamOwnedGamesService {
   // the table for historical playtime sums but don't belong on a "what you
   // own" surface. Joined with SteamOwnedGame so we have a stable name even
   // if Steam ever drops a row from the latest snapshot.
-  async getOwnedGames(): Promise<SteamOwnedGames> {
+  //
+  // `curation` decides which games the caller is allowed to see named; the
+  // request's viewer resolves it. Required rather than defaulted so a new caller
+  // has to answer the question instead of silently getting the owner's view.
+  async getOwnedGames(curation: SteamCurationSets): Promise<SteamOwnedGames> {
     const latest = await this.prisma.steamPlaytimeSnapshot.findFirst({
       select: { snapshotDate: true },
       orderBy: { snapshotDate: "desc" },
@@ -359,7 +364,7 @@ export class SteamOwnedGamesService {
       return { games: [], lastSyncedAt: null };
     }
 
-    const rows = await this.prisma.steamPlaytimeSnapshot.findMany({
+    const snapshots = await this.prisma.steamPlaytimeSnapshot.findMany({
       where: { snapshotDate: latest.snapshotDate, game: { removedAt: null } },
       select: {
         appid: true,
@@ -374,6 +379,11 @@ export class SteamOwnedGamesService {
       },
       orderBy: { playtimeForeverMinutes: "desc" },
     });
+
+    // Ahead of the enrichment and sparkline queries below, not after: filtering
+    // here also keeps a hidden game's art paths and 30-day series out of the
+    // work, so the response never carries anything to reconstruct it from.
+    const rows = excludeHiddenGames(snapshots, curation);
 
     // Enrichment is keyed by appid but no longer FK-related to SteamOwnedGame
     // (it now covers wishlist titles too). Fetch in a second query and map by
@@ -391,6 +401,7 @@ export class SteamOwnedGamesService {
       where: {
         snapshotDate: { gte: since, lte: latest.snapshotDate },
         game: { removedAt: null },
+        appid: { in: appids },
       },
       select: {
         appid: true,

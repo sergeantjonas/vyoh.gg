@@ -1,8 +1,13 @@
 import { Injectable } from "@nestjs/common";
-import type { RecapCandidate, RecapChapterDescriptor } from "@vyoh/shared";
+import type {
+  RecapCandidate,
+  RecapChapterDescriptor,
+  SteamCurationSets,
+} from "@vyoh/shared";
 import { ageBucketFromDaysSince, recapScore, selectChapters } from "@vyoh/shared";
 
 import { PrismaService } from "../prisma/prisma.service";
+import { SteamGameCurationService } from "../steam/game-curation.service";
 import { SteamOwnedGamesService } from "../steam/owned-games.service";
 import { LolMomentsService } from "./lol-moments.service";
 import { RECAP_HIDDEN_APPIDS } from "./recap-curation";
@@ -52,8 +57,20 @@ export class RecapSubjectsService {
     private readonly ownedGames: SteamOwnedGamesService,
     private readonly prisma: PrismaService,
     private readonly lolMoments: LolMomentsService,
-    private readonly steamMoments: SteamMomentsService
+    private readonly steamMoments: SteamMomentsService,
+    private readonly curation: SteamGameCurationService
   ) {}
+
+  /**
+   * Chapter selection reads the public curation regardless of who is asking,
+   * and unlike the Steam routes it takes no `isOwner`. A chapter names its
+   * subject in 60pt type, so hiding a game rules it out as chapter material for
+   * the owner too — the owner still finds it in their library, which is where
+   * "the owner still sees hidden games" was meant to apply.
+   */
+  private curationForChapters(): Promise<SteamCurationSets> {
+    return this.curation.getCuration();
+  }
 
   async getChapters(now: Date = new Date()): Promise<RecapChapterDescriptor[]> {
     // Steam-subject + LoL-moment + Steam-moment candidates run in parallel —
@@ -173,7 +190,7 @@ export class RecapSubjectsService {
     const recentUnlockCutoff = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
     const [ownedGames, lastUnlockRows, recentUnlockRows] = await Promise.all([
-      this.ownedGames.getOwnedGames(),
+      this.ownedGames.getOwnedGames(await this.curationForChapters()),
       this.prisma.steamPlayerUnlock.groupBy({
         by: ["appid"],
         _max: { unlockedAt: true },
@@ -272,7 +289,7 @@ export class RecapSubjectsService {
     // below; `gt: 0` keeps the read tiny (a couple hundred rows), since the
     // column is null for every game outside its own two-week window.
     const [ownedGames, lastUnlockRows, playtime2WRows] = await Promise.all([
-      this.ownedGames.getOwnedGames(),
+      this.ownedGames.getOwnedGames(await this.curationForChapters()),
       this.prisma.steamPlayerUnlock.groupBy({
         by: ["appid"],
         _max: { unlockedAt: true },

@@ -1,5 +1,9 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { type SteamGameRecap, deriveSteamGameRecap } from "@vyoh/shared";
+import {
+  type SteamCurationSets,
+  type SteamGameRecap,
+  deriveSteamGameRecap,
+} from "@vyoh/shared";
 
 import { SteamAchievementsService } from "./achievements.service";
 import { SteamOwnedGamesService } from "./owned-games.service";
@@ -25,11 +29,18 @@ export class SteamGameRecapService {
     private readonly achievements: SteamAchievementsService
   ) {}
 
-  async getGameRecap(appid: number): Promise<SteamGameRecap> {
+  // A hidden game falls out of `getOwnedGames`, so the library lookup below
+  // misses and the existing NotFound path fires — which is exactly the right
+  // answer. A visitor asking about a hidden appid gets the same 404 as one
+  // asking about a game the owner doesn't own, and cannot tell the two apart.
+  async getGameRecap(
+    appid: number,
+    curation: SteamCurationSets
+  ): Promise<SteamGameRecap> {
     // Three reads run in parallel — they touch independent tables so
     // serializing them would just buy idle wall-clock time.
     const [ownedGames, achievements, screenshots] = await Promise.all([
-      this.ownedGames.getOwnedGames(),
+      this.ownedGames.getOwnedGames(curation),
       this.achievements.getGameAchievements(appid),
       this.ownedGames.getGameScreenshots(appid),
     ]);

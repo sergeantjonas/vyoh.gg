@@ -59,6 +59,17 @@ export function excludeHiddenGames<T extends { appid: number }>(
 }
 
 /**
+ * The same exclusion as a Prisma `where` fragment, for queries that apply a
+ * `take` — a feed capped at ten rows has to be capped at ten *visible* rows,
+ * and filtering after the limit would hand a visitor a short list whose length
+ * is itself the tell. Lives here rather than inline at the query so the
+ * invariant still has exactly one definition.
+ */
+export function visibleAppidFilter(curation: SteamCurationSets): { notIn: number[] } {
+  return { notIn: [...curation.hidden] };
+}
+
+/**
  * Drops everything ineligible for a subject chapter on `/` — a superset of
  * `excludeHiddenGames`, because hiding implies unfeaturing.
  */

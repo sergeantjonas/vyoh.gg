@@ -22,6 +22,7 @@ import { SteamImageService } from "../img/steam-image.service";
 import { LolChampionAnalyticsService } from "../lol/lol-champion-analytics.service";
 import { LolService } from "../lol/lol.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { SteamGameCurationService } from "../steam/game-curation.service";
 import { SteamGameRecapService } from "../steam/game-recap.service";
 import {
   renderChampionCard,
@@ -71,7 +72,8 @@ export class OgService {
     private readonly prisma: PrismaService,
     private readonly steamGameRecap: SteamGameRecapService,
     private readonly championAnalytics: LolChampionAnalyticsService,
-    private readonly lifetimeTotals: HomeLifetimeTotalsService
+    private readonly lifetimeTotals: HomeLifetimeTotalsService,
+    private readonly curation: SteamGameCurationService
   ) {}
 
   async generateMatchCard(slug: string, matchId: string): Promise<Buffer> {
@@ -223,7 +225,14 @@ export class OgService {
   async generateSteamGameCard(appid: number): Promise<Buffer> {
     let recap: SteamGameRecap;
     try {
-      recap = await this.steamGameRecap.getGameRecap(appid);
+      // The public curation, never the owner's — an OG card is rendered for
+      // whatever scrapes the URL, cached, and then reposted by whoever shares
+      // the link. There is no viewer to be aware of, and a card naming a hidden
+      // game would be the one copy of that name that outlives the hiding.
+      recap = await this.steamGameRecap.getGameRecap(
+        appid,
+        await this.curation.getCuration()
+      );
     } catch (err) {
       if (err instanceof NotFoundException) throw err;
       throw new NotFoundException(`Steam app ${appid} unavailable`);

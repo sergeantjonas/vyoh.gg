@@ -10,8 +10,11 @@ import type {
   SteamUpcoming,
   SteamWishlist,
 } from "@vyoh/shared";
+import { NO_CURATION } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
+import { AuthService } from "../auth/auth.service";
 import { SteamAchievementsService } from "./achievements.service";
+import { SteamGameCurationService } from "./game-curation.service";
 import { SteamGameRecapService } from "./game-recap.service";
 import { SteamOwnedGamesService } from "./owned-games.service";
 import { SteamPlayerStateService } from "./player-state.service";
@@ -22,6 +25,15 @@ import { SteamService } from "./steam.service";
 import { SteamTagService } from "./tag.service";
 import { SteamUpcomingService } from "./upcoming.service";
 import { SteamWishlistHeroService } from "./wishlist-hero.service";
+
+// An empty overlay, so these delegation tests keep asserting what they always
+// did. The filtering itself is owned by each service's own spec and by the
+// shared `curation.test.ts`; what matters here is that the controller resolves
+// the viewer's curation and hands it down.
+const CURATION_STUB = {
+  getCurationFor: vi.fn().mockResolvedValue(NO_CURATION),
+  getCuration: vi.fn().mockResolvedValue(NO_CURATION),
+};
 
 describe("SteamController", () => {
   it("delegates to SteamService.getOwnerSummary", async () => {
@@ -49,6 +61,10 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamGameCurationService, useValue: CURATION_STUB },
+        // `ViewerGuard` on the viewer-aware routes injects this. The handlers
+        // are called directly so the guard never runs; it only has to resolve.
+        { provide: AuthService, useValue: {} },
       ],
     }).compile();
 
@@ -88,11 +104,15 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamGameCurationService, useValue: CURATION_STUB },
+        // `ViewerGuard` on the viewer-aware routes injects this. The handlers
+        // are called directly so the guard never runs; it only has to resolve.
+        { provide: AuthService, useValue: {} },
       ],
     }).compile();
 
     const controller = moduleRef.get(SteamController);
-    await expect(controller.getWishlist()).resolves.toBe(wishlist);
+    await expect(controller.getWishlist(false)).resolves.toBe(wishlist);
     expect(stub).toHaveBeenCalledOnce();
   });
 
@@ -127,11 +147,15 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: { getUpcoming: stub } },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamGameCurationService, useValue: CURATION_STUB },
+        // `ViewerGuard` on the viewer-aware routes injects this. The handlers
+        // are called directly so the guard never runs; it only has to resolve.
+        { provide: AuthService, useValue: {} },
       ],
     }).compile();
 
     const controller = moduleRef.get(SteamController);
-    await expect(controller.getUpcoming()).resolves.toBe(upcoming);
+    await expect(controller.getUpcoming(false)).resolves.toBe(upcoming);
     expect(stub).toHaveBeenCalledOnce();
   });
 
@@ -162,12 +186,16 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: { getHeroMeta: stub } },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamGameCurationService, useValue: CURATION_STUB },
+        // `ViewerGuard` on the viewer-aware routes injects this. The handlers
+        // are called directly so the guard never runs; it only has to resolve.
+        { provide: AuthService, useValue: {} },
       ],
     }).compile();
 
     const controller = moduleRef.get(SteamController);
-    await expect(controller.getWishlistHeroMeta(1904610)).resolves.toBe(meta);
-    expect(stub).toHaveBeenCalledWith(1904610);
+    await expect(controller.getWishlistHeroMeta(1904610, false)).resolves.toBe(meta);
+    expect(stub).toHaveBeenCalledWith(1904610, NO_CURATION);
   });
 
   it("delegates to SteamOwnedGamesService.getLibrarySummary", async () => {
@@ -192,6 +220,10 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamGameCurationService, useValue: CURATION_STUB },
+        // `ViewerGuard` on the viewer-aware routes injects this. The handlers
+        // are called directly so the guard never runs; it only has to resolve.
+        { provide: AuthService, useValue: {} },
       ],
     }).compile();
 
@@ -278,6 +310,8 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: { getPortrait: stub } },
+        { provide: SteamGameCurationService, useValue: CURATION_STUB },
+        { provide: AuthService, useValue: {} },
       ],
     }).compile();
 
@@ -311,6 +345,10 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamGameCurationService, useValue: CURATION_STUB },
+        // `ViewerGuard` on the viewer-aware routes injects this. The handlers
+        // are called directly so the guard never runs; it only has to resolve.
+        { provide: AuthService, useValue: {} },
       ],
     }).compile();
 
@@ -342,6 +380,10 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamGameCurationService, useValue: CURATION_STUB },
+        // `ViewerGuard` on the viewer-aware routes injects this. The handlers
+        // are called directly so the guard never runs; it only has to resolve.
+        { provide: AuthService, useValue: {} },
       ],
     }).compile();
 
@@ -373,11 +415,15 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamGameCurationService, useValue: CURATION_STUB },
+        // `ViewerGuard` on the viewer-aware routes injects this. The handlers
+        // are called directly so the guard never runs; it only has to resolve.
+        { provide: AuthService, useValue: {} },
       ],
     }).compile();
 
     const controller = moduleRef.get(SteamController);
-    await expect(controller.getGameAchievements(367520)).resolves.toBe(payload);
+    await expect(controller.getGameAchievements(367520, false)).resolves.toBe(payload);
     expect(stub).toHaveBeenCalledWith(367520);
   });
 
@@ -398,12 +444,16 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamGameCurationService, useValue: CURATION_STUB },
+        // `ViewerGuard` on the viewer-aware routes injects this. The handlers
+        // are called directly so the guard never runs; it only has to resolve.
+        { provide: AuthService, useValue: {} },
       ],
     }).compile();
 
     const controller = moduleRef.get(SteamController);
-    await expect(controller.getRecentUnlocks(8)).resolves.toBe(payload);
-    expect(stub).toHaveBeenCalledWith(8);
+    await expect(controller.getRecentUnlocks(8, false)).resolves.toBe(payload);
+    expect(stub).toHaveBeenCalledWith(8, NO_CURATION);
   });
 
   it("delegates to SteamPlayerStateService.getPlayerState", async () => {
@@ -432,6 +482,10 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamGameCurationService, useValue: CURATION_STUB },
+        // `ViewerGuard` on the viewer-aware routes injects this. The handlers
+        // are called directly so the guard never runs; it only has to resolve.
+        { provide: AuthService, useValue: {} },
       ],
     }).compile();
 
@@ -456,10 +510,14 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamGameCurationService, useValue: CURATION_STUB },
+        // `ViewerGuard` on the viewer-aware routes injects this. The handlers
+        // are called directly so the guard never runs; it only has to resolve.
+        { provide: AuthService, useValue: {} },
       ],
     }).compile();
     const controller = moduleRef.get(SteamController);
-    await expect(controller.getOwnedGames()).resolves.toBe(payload);
+    await expect(controller.getOwnedGames(false)).resolves.toBe(payload);
     expect(stub).toHaveBeenCalledOnce();
   });
 
@@ -479,11 +537,15 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamGameCurationService, useValue: CURATION_STUB },
+        // `ViewerGuard` on the viewer-aware routes injects this. The handlers
+        // are called directly so the guard never runs; it only has to resolve.
+        { provide: AuthService, useValue: {} },
       ],
     }).compile();
     const controller = moduleRef.get(SteamController);
-    await expect(controller.getCrossGameRarest(12)).resolves.toBe(payload);
-    expect(stub).toHaveBeenCalledWith(12);
+    await expect(controller.getCrossGameRarest(12, false)).resolves.toBe(payload);
+    expect(stub).toHaveBeenCalledWith(12, NO_CURATION);
   });
 
   it("delegates to SteamAchievementsService.getLibraryCompletion", async () => {
@@ -502,10 +564,14 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamGameCurationService, useValue: CURATION_STUB },
+        // `ViewerGuard` on the viewer-aware routes injects this. The handlers
+        // are called directly so the guard never runs; it only has to resolve.
+        { provide: AuthService, useValue: {} },
       ],
     }).compile();
     const controller = moduleRef.get(SteamController);
-    await expect(controller.getLibraryCompletion()).resolves.toBe(payload);
+    await expect(controller.getLibraryCompletion(false)).resolves.toBe(payload);
     expect(stub).toHaveBeenCalledOnce();
   });
 
@@ -525,10 +591,14 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamGameCurationService, useValue: CURATION_STUB },
+        // `ViewerGuard` on the viewer-aware routes injects this. The handlers
+        // are called directly so the guard never runs; it only has to resolve.
+        { provide: AuthService, useValue: {} },
       ],
     }).compile();
     const controller = moduleRef.get(SteamController);
-    await expect(controller.getUnlockTimeline(730)).resolves.toBe(payload);
+    await expect(controller.getUnlockTimeline(730, false)).resolves.toBe(payload);
     expect(stub).toHaveBeenCalledWith(730);
   });
 
@@ -548,6 +618,10 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamGameCurationService, useValue: CURATION_STUB },
+        // `ViewerGuard` on the viewer-aware routes injects this. The handlers
+        // are called directly so the guard never runs; it only has to resolve.
+        { provide: AuthService, useValue: {} },
       ],
     }).compile();
     const controller = moduleRef.get(SteamController);
@@ -572,12 +646,16 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamGameCurationService, useValue: CURATION_STUB },
+        // `ViewerGuard` on the viewer-aware routes injects this. The handlers
+        // are called directly so the guard never runs; it only has to resolve.
+        { provide: AuthService, useValue: {} },
       ],
     }).compile();
 
     const controller = moduleRef.get(SteamController);
-    await expect(controller.getGameRecap(367520)).resolves.toBe(payload);
-    expect(stub).toHaveBeenCalledWith(367520);
+    await expect(controller.getGameRecap(367520, false)).resolves.toBe(payload);
+    expect(stub).toHaveBeenCalledWith(367520, NO_CURATION);
   });
 
   it("translates a null player-state into a NotFoundException", async () => {
@@ -596,6 +674,10 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamGameCurationService, useValue: CURATION_STUB },
+        // `ViewerGuard` on the viewer-aware routes injects this. The handlers
+        // are called directly so the guard never runs; it only has to resolve.
+        { provide: AuthService, useValue: {} },
       ],
     }).compile();
 

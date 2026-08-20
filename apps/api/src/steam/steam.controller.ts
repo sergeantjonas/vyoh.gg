@@ -27,12 +27,15 @@ import type {
   SteamWishlist,
   SteamWishlistHeroMeta,
 } from "@vyoh/shared";
+import { isHiddenGame } from "@vyoh/shared";
+import { ViewerIsOwner, WithViewer } from "../auth/viewer";
 import { COUNT_PIPE, LIMIT_PIPE } from "../bounded-int.pipe";
 import {
   RAREST_UNLOCKS_DEFAULT_LIMIT,
   RECENT_UNLOCKS_DEFAULT_LIMIT,
   SteamAchievementsService,
 } from "./achievements.service";
+import { SteamGameCurationService } from "./game-curation.service";
 import { SteamGameRecapService } from "./game-recap.service";
 import { SteamOwnedGamesService } from "./owned-games.service";
 import { SteamPlayerStateService } from "./player-state.service";
@@ -55,7 +58,8 @@ export class SteamController {
     private readonly chronotype: SteamChronotypeService,
     private readonly wishlistHero: SteamWishlistHeroService,
     private readonly upcoming: SteamUpcomingService,
-    private readonly portrait: SteamPortraitService
+    private readonly portrait: SteamPortraitService,
+    private readonly curation: SteamGameCurationService
   ) {}
 
   @Get("summary")
@@ -79,9 +83,20 @@ export class SteamController {
     return state;
   }
 
+  /**
+   * Every route below that names a game is viewer-aware: `@WithViewer()`
+   * resolves who is asking and marks the response uncacheable by anything
+   * shared, `@ViewerIsOwner()` reads the answer, and the curation sets are
+   * resolved once here and handed down. The services take the sets as a required
+   * argument rather than reaching for them, so a new read path cannot
+   * accidentally skip the filter — it won't compile without answering the
+   * question. Routes that emit only numbers are deliberately untouched: hidden
+   * games still count toward totals, anonymously.
+   */
   @Get("wishlist")
-  async getWishlist(): Promise<SteamWishlist> {
-    return this.steam.getOwnerWishlist();
+  @WithViewer()
+  async getWishlist(@ViewerIsOwner() isOwner: boolean): Promise<SteamWishlist> {
+    return this.steam.getOwnerWishlist(await this.curation.getCurationFor(isOwner));
   }
 
   // Unreleased titles from both provenances: wishlisted, and owned-but-unlaunched
@@ -90,8 +105,9 @@ export class SteamController {
   // questions — this one is "what is coming", that one is "what am I watching",
   // and only the first has to survive a purchase.
   @Get("upcoming")
-  async getUpcoming(): Promise<SteamUpcoming> {
-    return this.upcoming.getUpcoming();
+  @WithViewer()
+  async getUpcoming(@ViewerIsOwner() isOwner: boolean): Promise<SteamUpcoming> {
+    return this.upcoming.getUpcoming(await this.curation.getCurationFor(isOwner));
   }
 
   // On-read enrichment for the Upcoming view's imminent hero — accent,
@@ -101,11 +117,19 @@ export class SteamController {
   // projected per request from a fresh GetItems(full) call + a Vibrant accent
   // pass, then TTL-cached. NotFound (from the service) when the store page is
   // unresolvable, which the web hook treats as "skip the hero".
+  // A hidden appid is outside the upcoming set as far as the membership guard is
+  // concerned, so this 404s for a visitor exactly as it would for an appid the
+  // owner never wishlisted — the two are indistinguishable from outside.
   @Get("wishlist/:appid/hero-meta")
+  @WithViewer()
   async getWishlistHeroMeta(
-    @Param("appid", ParseIntPipe) appid: number
+    @Param("appid", ParseIntPipe) appid: number,
+    @ViewerIsOwner() isOwner: boolean
   ): Promise<SteamWishlistHeroMeta> {
-    return this.wishlistHero.getHeroMeta(appid);
+    return this.wishlistHero.getHeroMeta(
+      appid,
+      await this.curation.getCurationFor(isOwner)
+    );
   }
 
   @Get("library-summary")
@@ -124,8 +148,9 @@ export class SteamController {
   }
 
   @Get("owned-games")
-  async getOwnedGames(): Promise<SteamOwnedGames> {
-    return this.ownedGames.getOwnedGames();
+  @WithViewer()
+  async getOwnedGames(@ViewerIsOwner() isOwner: boolean): Promise<SteamOwnedGames> {
+    return this.ownedGames.getOwnedGames(await this.curation.getCurationFor(isOwner));
   }
 
   @Get("tags")
@@ -133,10 +158,31 @@ export class SteamController {
     return this.tags.getCatalog();
   }
 
+  /**
+   * 404s a per-app route whose appid the caller isn't allowed to see.
+   *
+   * The four `game/:appid/*` routes below shape their response from one appid
+   * rather than filtering a list, so the gate is a refusal rather than a filter.
+   * A refusal is also the better answer: an empty achievements payload for a
+   * hidden game says "this game has none", which is both a lie and a tell.
+   * NotFound is what the same routes already return for an appid outside the
+   * library, so a hidden game is indistinguishable from one the owner never
+   * bought.
+   */
+  private async assertVisible(appid: number, isOwner: boolean): Promise<void> {
+    const curation = await this.curation.getCurationFor(isOwner);
+    if (isHiddenGame(appid, curation)) {
+      throw new NotFoundException(`Steam app ${appid} is not in the tracked library.`);
+    }
+  }
+
   @Get("game/:appid/achievements")
+  @WithViewer()
   async getGameAchievements(
-    @Param("appid", ParseIntPipe) appid: number
+    @Param("appid", ParseIntPipe) appid: number,
+    @ViewerIsOwner() isOwner: boolean
   ): Promise<SteamGameAchievements> {
+    await this.assertVisible(appid, isOwner);
     return this.achievements.getGameAchievements(appid);
   }
 
@@ -144,9 +190,12 @@ export class SteamController {
   // out from the bulk owned-games payload because each game's description is
   // 2-8KB; bulk-shipping 200+ games would inflate the list response.
   @Get("game/:appid/description")
+  @WithViewer()
   async getGameDescription(
-    @Param("appid", ParseIntPipe) appid: number
+    @Param("appid", ParseIntPipe) appid: number,
+    @ViewerIsOwner() isOwner: boolean
   ): Promise<SteamGameDescription> {
+    await this.assertVisible(appid, isOwner);
     return this.ownedGames.getGameDescription(appid);
   }
 
@@ -155,29 +204,42 @@ export class SteamController {
   // pick which to surface (all-ages default; mature gated behind an
   // owner-opt-in toggle when the auth model lands).
   @Get("game/:appid/screenshots")
+  @WithViewer()
   async getGameScreenshots(
-    @Param("appid", ParseIntPipe) appid: number
+    @Param("appid", ParseIntPipe) appid: number,
+    @ViewerIsOwner() isOwner: boolean
   ): Promise<SteamGameScreenshots> {
+    await this.assertVisible(appid, isOwner);
     return this.ownedGames.getGameScreenshots(appid);
   }
 
   @Get("achievements/recent")
+  @WithViewer()
   async getRecentUnlocks(
     @Query("limit", new DefaultValuePipe(RECENT_UNLOCKS_DEFAULT_LIMIT), LIMIT_PIPE)
-    limit: number
+    limit: number,
+    @ViewerIsOwner() isOwner: boolean
   ): Promise<SteamRecentUnlocks> {
-    return this.achievements.getRecentUnlocks(limit);
+    return this.achievements.getRecentUnlocks(
+      limit,
+      await this.curation.getCurationFor(isOwner)
+    );
   }
 
   // Cross-game rarest unlocks — top-N by ascending global rarity, library-
   // wide. Shares the SteamRecentUnlocks shape with /achievements/recent;
   // distinct route since the sort is different and the caps differ.
   @Get("achievements/rarest")
+  @WithViewer()
   async getCrossGameRarest(
     @Query("limit", new DefaultValuePipe(RAREST_UNLOCKS_DEFAULT_LIMIT), LIMIT_PIPE)
-    limit: number
+    limit: number,
+    @ViewerIsOwner() isOwner: boolean
   ): Promise<SteamRecentUnlocks> {
-    return this.achievements.getCrossGameRarest(limit);
+    return this.achievements.getCrossGameRarest(
+      limit,
+      await this.curation.getCurationFor(isOwner)
+    );
   }
 
   // Per-game completion totals across the whole library. Drives the
@@ -186,14 +248,22 @@ export class SteamController {
   // to the DB on the request — backed by two grouped queries joined in
   // service code; no per-game N+1.
   @Get("achievements/library-completion")
-  async getLibraryCompletion(): Promise<SteamLibraryCompletion> {
-    return this.achievements.getLibraryCompletion();
+  @WithViewer()
+  async getLibraryCompletion(
+    @ViewerIsOwner() isOwner: boolean
+  ): Promise<SteamLibraryCompletion> {
+    return this.achievements.getLibraryCompletion(
+      await this.curation.getCurationFor(isOwner)
+    );
   }
 
   @Get("game/:appid/unlock-timeline")
+  @WithViewer()
   async getUnlockTimeline(
-    @Param("appid", ParseIntPipe) appid: number
+    @Param("appid", ParseIntPipe) appid: number,
+    @ViewerIsOwner() isOwner: boolean
   ): Promise<GameUnlockTimeline> {
+    await this.assertVisible(appid, isOwner);
     return this.achievements.getUnlockTimeline(appid);
   }
 
@@ -202,10 +272,15 @@ export class SteamController {
   // Throws NotFound when the appid isn't in the tracked library (vs returning
   // a zero-state, which would mask a config mistake as honest empty-state).
   @Get("game/:appid/recap")
+  @WithViewer()
   async getGameRecap(
-    @Param("appid", ParseIntPipe) appid: number
+    @Param("appid", ParseIntPipe) appid: number,
+    @ViewerIsOwner() isOwner: boolean
   ): Promise<SteamGameRecap> {
-    return this.gameRecap.getGameRecap(appid);
+    return this.gameRecap.getGameRecap(
+      appid,
+      await this.curation.getCurationFor(isOwner)
+    );
   }
 
   @Get("chronotype")
