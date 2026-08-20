@@ -257,6 +257,14 @@ export {
 } from "./steam/trailers.ts";
 export type { SteamAdaptiveTrailer, SteamGameTrailer } from "./steam/trailers.ts";
 export type { SteamPlayerState } from "./steam/player-state.ts";
+export {
+  NO_CURATION,
+  curationForOwner,
+  excludeHiddenGames,
+  excludeUnfeaturedGames,
+  isHiddenGame,
+} from "./steam/curation.ts";
+export type { SteamCurationSets } from "./steam/curation.ts";
 export type { SteamTagCatalog, SteamTagListEntry } from "./steam/tags.ts";
 export type {
   SteamAchievement,

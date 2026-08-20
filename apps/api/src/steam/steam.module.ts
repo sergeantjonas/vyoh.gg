@@ -5,6 +5,7 @@ import { SteamAchievementsService } from "./achievements.service";
 import { SteamEnrichmentPoller } from "./enrichment.poller";
 import { SteamEnrichmentService } from "./enrichment.service";
 import { FaceDetectionService } from "./face-detection.service";
+import { SteamGameCurationService } from "./game-curation.service";
 import { SteamGameRecapService } from "./game-recap.service";
 import { SteamGlobalRarityPoller } from "./global-rarity.poller";
 import { SteamGlobalRarityService } from "./global-rarity.service";
@@ -36,6 +37,7 @@ import { SteamWishlistHeroService } from "./wishlist-hero.service";
     SteamRateLimiterService,
     SteamClientService,
     SteamChronotypeService,
+    SteamGameCurationService,
     SteamService,
     SteamUpcomingService,
     SteamOwnedGamesService,
@@ -65,6 +67,7 @@ import { SteamWishlistHeroService } from "./wishlist-hero.service";
   ],
   exports: [
     SteamService,
+    SteamGameCurationService,
     SteamClientService,
     SteamRateLimiterService,
     SteamOwnedGamesService,

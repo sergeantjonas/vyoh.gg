@@ -539,6 +539,43 @@ model SteamPlaytimeSnapshot {
   @@index([snapshotDate])
 }
 
+// The owner's per-game overlay: which titles are private, and which are merely
+// not chapter material. Semantics of the two axes — and why they must not
+// collapse into one flag — live in `packages/shared/src/steam/curation.ts`,
+// which owns the filters every read path calls.
+//
+// Deliberately **not** a column on `SteamOwnedGame` and deliberately not an FK
+// to it. A curation row has to be able to name an appid that has no owned-game
+// row: a wishlisted title is unowned by definition, a family-shared session
+// produces a `SteamPlaySession` without ownership (see the note on that model),
+// and pre-hiding a game before it is bought is the whole point of being able to
+// keep a purchase private. Rows are therefore keyed on the bare appid, the same
+// way `SteamGameEnrichment` is.
+//
+// Small enough to be read whole and cached in-process, so no indexes.
+model SteamGameCuration {
+  appid Int @id
+  // Denormalised at write time so the admin surface can label an appid with no
+  // owned-game or enrichment row to join against. Null when the row was
+  // created before a name was known.
+  name  String?
+
+  // Privacy: never named to a visitor, anywhere. Aggregates still count it.
+  hiddenAt     DateTime?
+  // Editorial: still listed, never promoted to a subject chapter on `/`.
+  unfeaturedAt DateTime?
+  // Null while the owner has not yet ruled on a newly-discovered appid. The
+  // owned-games poller inserts new titles quarantined (`hiddenAt` set,
+  // `reviewedAt` null) so a fresh purchase is private until it is approved,
+  // and the owner-only review badge counts exactly these rows.
+  reviewedAt   DateTime?
+
+  // Why this game is on the list, for the owner's own benefit months later.
+  note      String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
 model Match {
   matchId      String
   puuid        String
