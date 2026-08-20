@@ -36,6 +36,12 @@ is mode 700, so a `$(ls …)` written outside the `bash -c` would be expanded by
 the calling shell, fail to read the directory, and hand `restore.sh` an empty
 path.
 
+That command is the **drill** — it changes nothing. Restoring over a real
+production database is a different operation with its own procedure and its own
+traps (what `migrate deploy` does to the restored schema on the next api start,
+and what happens to `Session` rows): see
+[hosting.md § 6 "Restoring prod after an incident"](../../docs/working-notes/ops/hosting.md).
+
 `restore.sh` with no flags restores into a throwaway database, compares exact
 per-table row counts against the live one, and drops the copy. It needs room
 for a second copy of the database while it runs — the dump is compressed, the

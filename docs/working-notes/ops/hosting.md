@@ -240,6 +240,56 @@ to restoring into a scratch database and diffing exact per-table row counts
 against the live one; going over a real database needs `--into`, the name typed
 back, and no clients connected.
 
+#### Restoring prod after an incident
+
+Three different operations get confused with each other. The **drill** proves a
+dump restores, into a scratch database, changing nothing. **Seeding**
+([§ 7](#7-seed-production-from-the-dev-database--added-2026-08-16)) fills an
+*empty* prod from a dev dump. Neither is what you do when prod is populated and
+wrong, so that path is written out here.
+
+```sh
+# 1. Pick the dump. Runs as root throughout: /var/backups/vyoh is mode 700, so a
+#    glob expanded by a non-root shell silently produces nothing.
+sudo ls -1 /var/backups/vyoh | tail -3
+
+# 2. Stop the api. restore.sh refuses while anything holds a connection, and it
+#    does not kill sessions — the api would just reconnect and race the restore.
+docker compose -f compose.prod.yaml stop api
+
+# 3. Drop and rebuild. Asks for the database name typed back; -y skips that.
+sudo bash -c 'cd /srv/vyoh && scripts/restore.sh --into vyoh /var/backups/vyoh/<chosen>.dump'
+
+# 4. Start the api. Its entrypoint runs `migrate deploy` against what was restored.
+docker compose -f compose.prod.yaml start api
+```
+
+Four things that only matter on this path:
+
+- **Step 4 is not a formality.** The dump carries `_prisma_migrations` and
+  replaces prod's. If it predates migrations the running image has, `migrate
+  deploy` applies them forward on start — which is why restoring an old dump
+  does not leave you stranded on an old schema. The failure case is the reverse:
+  a dump *newer* than the deployed code names migrations with no files in the
+  image, and Prisma refuses to proceed. If the code has been rolled back, roll
+  the dump back with it.
+- **`Session` rows travel with the dump.** An old one can reinstate an expired
+  session (harmless — reaped on use) or remove the one you are currently
+  holding, which logs you out mid-incident. Nothing breaks; it is just worth
+  recognising rather than debugging.
+- **A failed restore leaves the database empty, not partial.**
+  `--single-transaction` buys that deliberately: an empty database is obviously
+  broken, where a convincingly half-restored one is the thing you discover a
+  week later.
+- **There is no off-box copy, so this whole procedure assumes the disk
+  survived.** If the box is gone the archives are gone with it, and the recovery
+  path is § 7 — re-seed from the dev database at whatever staleness it happens to
+  have. **Dev is currently the de-facto off-site replica.** That is what makes
+  losing the box survivable rather than fatal, and it is also the argument for
+  closing the off-box gate: it works only for as long as dev keeps syncing, and
+  it silently stops being true the first time the owner stops running the dev
+  stack for a fortnight.
+
 Two things the rehearsal settled, both of which produce a check that passes
 without checking anything:
 
