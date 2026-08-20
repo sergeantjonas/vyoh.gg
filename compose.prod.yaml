@@ -49,6 +49,18 @@ services:
       STEAM_GRIDDB_API_KEY: ${STEAM_GRIDDB_API_KEY:-}
       # Required under NODE_ENV=production — see apps/api/src/env.ts.
       WEB_ORIGIN: ${WEB_ORIGIN:?set WEB_ORIGIN in .env}
+      # Owner auth. `bootstrap()` requires all four unconditionally, so without
+      # them the container does not start — it is not a degraded login, it is a
+      # crash loop. `:?` so compose refuses before bringing anything up, which
+      # names the missing var instead of leaving it to be read out of api logs.
+      OWNER_GITHUB_USER_ID: ${OWNER_GITHUB_USER_ID:?set OWNER_GITHUB_USER_ID in .env}
+      GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:?set GITHUB_OAUTH_CLIENT_ID in .env}
+      GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET:?set GITHUB_OAUTH_CLIENT_SECRET in .env}
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env}
+      # The one that is *not* required: empty is its correct value when the site
+      # and api share an origin, and `requireEnv` treats empty as missing. Set it
+      # to `.vyoh.gg` only if api and web end up on separate subdomains.
+      SESSION_COOKIE_DOMAIN: ${SESSION_COOKIE_DOMAIN:-}
       MATCH_SYNC_ENABLED: ${MATCH_SYNC_ENABLED:-true}
       CUTOFF_DAYS: ${CUTOFF_DAYS:-90}
       LOL_PREWARM: ${LOL_PREWARM:-0}
