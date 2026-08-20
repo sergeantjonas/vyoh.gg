@@ -280,6 +280,84 @@ substantially, and it happens first.
 Anything in the seeded roster that should not be public comes out through the
 accounts arc's purge rather than by hand ([accounts-admin.md](accounts-admin.md)).
 
+### 8. Trim the api image — added 2026-08-20
+
+**Chunk A shipped 2026-08-20: 1.77 GB → 1.43 GB.** `onnxruntime-node` went from
+259 MB to 20 MB. Chunk B (dev-tooling prune) is open.
+
+**Why the image is 1.77 GB at all**, since the inventory alone doesn't explain
+it: the runtime stage does one unpruned `COPY /repo/node_modules`, so it ships a
+*development* install. That is the root cause; everything else multiplies it.
+The api's own dependencies are unusually heavy because it does image work —
+`sharp` (+18 MB libvips), `@resvg/resvg-js`, `satori`, `node-vibrant`,
+`smartcrop-sharp`, `onnxruntime-node` — and every native module bundles
+prebuilds for every platform it supports rather than the one it runs on, which
+is ~380 MB of platform binaries. On top of that sits transitive weight nobody
+chose (traced with `pnpm why`, 2026-08-20): `class-validator` →
+**`libphonenumber-js` 13 MB, in `dependencies`**, for a validator this project
+never calls; `@prisma/config` → `effect` 33 MB; the `prisma` CLI →
+`@prisma/studio-core` 43 MB + `@prisma/dev` 19 MB + `pglite` 24 MB. Plus
+duplicate resolutions nobody decided — `typescript` 6.0.3 *and* 5.9.3 (47 MB),
+`rxjs` 7.8.1 *and* 7.8.2 (24 MB). Roughly half the layer is packaging rather
+than payload.
+
+**Chunk A — prune onnxruntime's foreign prebuilds.** Windows DLLs and macOS
+dylibs were 203 MB of the package's 259, for a 1.3 MB face-detection model.
+Two things about the implementation are load-bearing:
+
+- **It prunes in the build stage, not the runtime stage.** The obvious place is
+  beside the runtime `COPY node_modules`, and a `rm -rf` there deletes the files
+  while leaving them in the layer they arrived in — the image measures the same
+  and the work reads as done. Deleting before the COPY is what makes them
+  absent.
+- **It keys off `TARGETARCH`** rather than hardcoding an arch, because the dev
+  box is arm64 and the VPS is likely x64, and a wrong guess fails on the first
+  Steam artwork request rather than at build time. An unhandled arch, a missing
+  `napi-*` directory, or a missing target arch is a hard build error — silently
+  keeping nothing would ship a broken image.
+
+Verified 2026-08-20 rather than assumed. The same inference probe run against
+the pre-change and post-change images returned **byte-identical output** —
+session opens on the real model, `scores`/`boxes` outputs, all four rotations
+execute. And the trimmed image's real entrypoint applied **all 67 migrations,
+0 unfinished, 29 tables** against a throwaway database, so `migrate deploy` is
+unaffected.
+
+**Chunk B — prune the dev tooling.** ~180 MB of build/test toolchain (`@swc/core`
+31, `@biomejs/cli` 25, `typescript` ×2 47, vitest's `@rolldown/binding` 17 +
+`esbuild` 20, `happy-dom` 17, `playwright-core` 14, `prettier` 10) plus ~120 MB
+of Prisma CLI tail. **One trap:** `effect` looks like obvious dead weight at
+33 MB and is not — `prisma.config.ts` is copied into the runtime image and read
+by `@prisma/config` when the entrypoint runs `migrate deploy`, and that is what
+pulls it. Deleting it fails at container start, not at build. Same shape as the
+arch trap in A: both fail on the box rather than in CI, which is the argument for
+a smoke check that exercises subject anchoring and a migration rather than only
+pinging `/health`.
+
+**Why not restructure onto `pnpm deploy --prod` instead** (the "proper" fix).
+The Dockerfile gives two reasons and only one holds. The generated Prisma client
+really does live in the pnpm virtual store — verified on disk at
+`node_modules/.pnpm/@prisma+client@7.9.0_…/node_modules/.prisma` — and
+`pnpm deploy` re-materialises from the content-addressable store, so it would
+ship a pristine client with no generated output. But that is a consequence of
+`generator client { provider = "prisma-client-js" }` having no `output` path;
+Prisma 7's `prisma-client` generator requires one and emits into the source
+tree, at which point the client is an ordinary build artifact. The installed
+`prisma@7.9.0` build references `"prisma-client"`, and only **4 files** import
+`@prisma/client`, so the churn is small. The Dockerfile's second reason — the
+prisma CLI is a devDependency needed for `migrate deploy` — is a
+misclassification rather than a constraint: something the runtime needs at every
+start belongs in `dependencies`, and `--prod` would then keep it.
+
+Still not the first move. A is 240 MB for one build-stage `RUN`; C is a
+generator migration whose real unknown is what an ESM-first client does to the
+SWC build and to `@vyoh/shared` being consumed as raw `.ts`. The honest ordering
+is A, then B, then re-ask whether 1.2 GB is worth a migration — and the better
+reason to skip C is that ratio, not the one currently written in the Dockerfile.
+
+**Not urgent either way:** 160 GB disk, and layer caching means only changed
+layers move on a deploy.
+
 ---
 
 ## Static asset serving

@@ -37,6 +37,38 @@ COPY apps/api/prisma.config.ts apps/api/prisma.config.ts
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm-store \
     pnpm install --frozen-lockfile --filter @vyoh/api... --store-dir /pnpm-store
 
+# onnxruntime-node ships a prebuilt runtime for every platform it supports and
+# the loader here can open exactly one of them: Windows DLLs and macOS dylibs
+# are 203 MB of the package's 259, for a 1.3 MB face-detection model.
+#
+# Pruned in the *build* stage, which is the whole trick. The obvious place is
+# next to the runtime stage's `COPY node_modules`, and a `RUN rm -rf` there
+# would delete the files while leaving them in the layer they arrived in — the
+# image measures the same and the work reads as done. Deleting before the COPY
+# is what actually makes them absent.
+#
+# Keyed off TARGETARCH rather than hardcoded: the dev box is arm64 and the VPS
+# is likely x64, and getting this wrong fails at runtime on the first Steam
+# artwork request rather than at build. Unknown arch is a hard error for the
+# same reason — silently keeping nothing would ship a broken image.
+ARG TARGETARCH
+RUN set -eu; \
+    case "${TARGETARCH}" in \
+      amd64) keep=x64 ;; \
+      arm64) keep=arm64 ;; \
+      *) echo "onnx prune: unhandled TARGETARCH '${TARGETARCH}'" >&2; exit 1 ;; \
+    esac; \
+    found=0; \
+    for bin in $(find node_modules/.pnpm -type d -path '*/onnxruntime-node/bin'); do \
+      for napi in "${bin}"/napi-v*; do \
+        test -d "${napi}/linux/${keep}" || continue; \
+        found=1; \
+        find "${napi}" -mindepth 1 -maxdepth 1 ! -name linux -exec rm -rf {} +; \
+        find "${napi}/linux" -mindepth 1 -maxdepth 1 ! -name "${keep}" -exec rm -rf {} +; \
+      done; \
+    done; \
+    test "${found}" = 1
+
 COPY packages/shared packages/shared
 COPY apps/api apps/api
 
