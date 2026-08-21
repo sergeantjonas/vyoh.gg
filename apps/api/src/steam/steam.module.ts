@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { AuthModule } from "../auth/auth.module";
 import { SteamAchievementSchemaPoller } from "./achievement-schema.poller";
 import { SteamAchievementSchemaService } from "./achievement-schema.service";
 import { SteamAchievementsService } from "./achievements.service";
@@ -32,6 +33,11 @@ import { SteamUpcomingService } from "./upcoming.service";
 import { SteamWishlistHeroService } from "./wishlist-hero.service";
 
 @Module({
+  // SteamController's reads are viewer-aware via @WithViewer(), and ViewerGuard
+  // injects AuthService. Nest resolves a guard's dependencies from the module
+  // that declares the controller, not from wherever the guard was defined, so
+  // omitting this import fails at bootstrap rather than at the route.
+  imports: [AuthModule],
   controllers: [SteamController],
   providers: [
     SteamRateLimiterService,

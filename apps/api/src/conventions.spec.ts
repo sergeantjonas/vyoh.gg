@@ -1,4 +1,12 @@
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import {
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -137,6 +145,75 @@ const GUARDED_ROUTES: Record<string, string[]> = {
     'Delete(":appid")',
   ],
 };
+
+// Anything that makes a controller depend on `AuthService` at bootstrap: both
+// guards inject it, and `WithViewer()` bundles `ViewerGuard`.
+const AUTH_GUARD_REF = /\b(?:OwnerGuard|ViewerGuard|WithViewer)\b/;
+
+/**
+ * Identifiers listed in a `name: [ … ]` field of a `@Module({ … })` decorator.
+ * Returns null when the field is absent, so "no `imports` at all" stays
+ * distinguishable from "an `imports` array that omits AuthModule".
+ *
+ * Brace-matched rather than regex: `providers` holds `{ provide, useFactory }`
+ * objects whose own commas would end the array early. Non-identifier fragments
+ * from those objects are dropped, which is why only bare class names survive.
+ */
+function moduleField(text: string, name: string): string[] | null {
+  const m = new RegExp(`\\b${name}\\s*:\\s*\\[`).exec(text);
+  if (!m) return null;
+  const open = m.index + m[0].length - 1;
+  let depth = 0;
+  for (let i = open; i < text.length; i++) {
+    if (text[i] === "[") depth++;
+    else if (text[i] === "]") {
+      depth--;
+      if (depth === 0) {
+        return text
+          .slice(open + 1, i)
+          .replace(/\/\/[^\n]*/g, "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => /^[A-Z][\w$]*$/.test(s));
+      }
+    }
+  }
+  return null;
+}
+
+/** The module-relative import specifier a symbol is imported from, if any. */
+function importPathFor(text: string, symbol: string): string | null {
+  const re = new RegExp(`import\\s*\\{[^}]*\\b${symbol}\\b[^}]*\\}\\s*from\\s*"([^"]+)"`);
+  return re.exec(text)?.[1] ?? null;
+}
+
+/**
+ * Modules that declare a controller using an auth guard without importing
+ * `AuthModule`, as `module — controller` strings.
+ */
+function guardedModulesMissingAuth(moduleFiles: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const abs of moduleFiles) {
+    const text = readFileSync(abs, "utf8");
+    // AuthModule itself provides the guards, so it needs no self-import.
+    if ((moduleField(text, "providers") ?? []).includes("AuthService")) continue;
+    const imports = moduleField(text, "imports") ?? [];
+    if (imports.includes("AuthModule")) continue;
+    for (const controller of moduleField(text, "controllers") ?? []) {
+      const rel = importPathFor(text, controller);
+      if (rel === null || !rel.startsWith(".")) continue;
+      let src: string;
+      try {
+        src = readFileSync(path.resolve(path.dirname(abs), `${rel}.ts`), "utf8");
+      } catch {
+        continue;
+      }
+      if (!AUTH_GUARD_REF.test(src)) continue;
+      out.push(`${path.relative(WORKSPACE_ROOT, abs)} — ${controller}`);
+    }
+  }
+  return out;
+}
 
 // The decorator lines attached to one route decorator, walking down to the
 // method signature. Scoped rather than a whole-file `includes()` for the same
@@ -567,6 +644,123 @@ describe("project conventions (structural lints)", () => {
 
     // A renamed or deleted route fails loudly rather than vacuously passing.
     expect(decoratorsFor("class X {}", 'Post("sync")')).toEqual([]);
+  });
+
+  // Nest resolves a guard's own dependencies from the module that declares the
+  // *controller*, not from the module that defined the guard. So a controller
+  // reaching for OwnerGuard/ViewerGuard whose module omits `imports: [AuthModule]`
+  // throws UnknownDependenciesException at bootstrap — the whole api fails to
+  // start, not just that route.
+  //
+  // What makes this worth a lint is that the controller spec cannot catch it: a
+  // Nest testing module lists its own providers, so hand-providing AuthService
+  // there makes the spec pass against a module wiring that cannot boot. That is
+  // exactly how SteamModule shipped without the import — four sibling modules
+  // already had it, each with a comment explaining why.
+  it("every module declaring a guarded controller imports AuthModule", () => {
+    const moduleFiles: string[] = [];
+    walk(path.join(WORKSPACE_ROOT, "apps/api/src"), (abs) => {
+      if (abs.endsWith(".module.ts")) moduleFiles.push(abs);
+    });
+    // Guards the guard: a vacuous pass if the walk ever stops finding modules.
+    expect(moduleFiles.length).toBeGreaterThan(5);
+    expect(
+      guardedModulesMissingAuth(moduleFiles),
+      "add `imports: [AuthModule]` — the guard's AuthService resolves from the controller's module"
+    ).toEqual([]);
+  });
+
+  // The parsing is where the subtlety lives, so the fixtures exercise the two
+  // helpers directly rather than mocking a filesystem around them.
+  it("the AuthModule lint reads the declaring module's own imports", () => {
+    const missing = `
+      import { AuthModule } from "../auth/auth.module";
+      @Module({ imports: [RiotModule], controllers: [SteamController] })
+      export class SteamModule {}`;
+    expect(moduleField(missing, "imports")).toEqual(["RiotModule"]);
+    expect(moduleField(missing, "controllers")).toEqual(["SteamController"]);
+
+    // An *imported but unlisted* AuthModule is the real defect shape: the import
+    // statement is present, so a naive `text.includes("AuthModule")` passes.
+    expect(moduleField(missing, "imports")).not.toContain("AuthModule");
+
+    // A module with no `imports` key at all — SteamModule's actual state.
+    const noImports = "@Module({ controllers: [SteamController] })";
+    expect(moduleField(noImports, "imports")).toBeNull();
+    expect(moduleField(noImports, "controllers")).toEqual(["SteamController"]);
+
+    // `providers` must survive the object-literal commas inside it.
+    const withFactory = `@Module({
+      providers: [AuthService, OwnerGuard, { provide: AUTH_CONFIG, useFactory: () => resolveAuthConfig(process.env, origin) }],
+    })`;
+    expect(moduleField(withFactory, "providers")).toEqual(["AuthService", "OwnerGuard"]);
+
+    // A commented-out entry must not count as present.
+    const commented = "@Module({ imports: [\n  // AuthModule,\n  RiotModule,\n] })";
+    expect(moduleField(commented, "imports")).toEqual(["RiotModule"]);
+
+    // Import-path resolution, including the multi-symbol and aliased forms.
+    expect(
+      importPathFor(
+        'import { SteamController } from "./steam.controller";',
+        "SteamController"
+      )
+    ).toBe("./steam.controller");
+    expect(
+      importPathFor(
+        'import { A, SteamController, B } from "./steam.controller";',
+        "SteamController"
+      )
+    ).toBe("./steam.controller");
+    expect(
+      importPathFor('import { Other } from "./other";', "SteamController")
+    ).toBeNull();
+
+    // And the guard detection itself, on both the direct and bundled forms.
+    expect(AUTH_GUARD_REF.test('import { OwnerGuard } from "../auth/owner.guard";')).toBe(
+      true
+    );
+    expect(AUTH_GUARD_REF.test("@WithViewer()")).toBe(true);
+    expect(AUTH_GUARD_REF.test("export class OpenController {}")).toBe(false);
+  });
+
+  // End-to-end over real files, because the assertions above prove the parsing
+  // but not that the lint wires it together — and a lint that cannot fail is
+  // indistinguishable from one that passes.
+  it("the AuthModule lint fails on the wiring that shipped broken", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "vyoh-authmodule-lint-"));
+    try {
+      writeFileSync(
+        path.join(dir, "steam.controller.ts"),
+        'import { WithViewer } from "../auth/viewer";\nexport class SteamController {}\n'
+      );
+      writeFileSync(
+        path.join(dir, "open.controller.ts"),
+        "export class OpenController {}\n"
+      );
+      const moduleFile = path.join(dir, "steam.module.ts");
+      const declare = (imports: string, controller: string) => {
+        const file = controller === "SteamController" ? "steam" : "open";
+        return `import { ${controller} } from "./${file}.controller";
+@Module({ imports: [${imports}], controllers: [${controller}] })
+export class SteamModule {}
+`;
+      };
+
+      // The defect: guarded controller, no AuthModule in the declaring module.
+      writeFileSync(moduleFile, declare("RiotModule", "SteamController"));
+      expect(guardedModulesMissingAuth([moduleFile])).toHaveLength(1);
+
+      // Fixed by the import that was missing.
+      writeFileSync(moduleFile, declare("RiotModule, AuthModule", "SteamController"));
+      expect(guardedModulesMissingAuth([moduleFile])).toEqual([]);
+
+      // An unguarded controller is not required to import it.
+      writeFileSync(moduleFile, declare("RiotModule", "OpenController"));
+      expect(guardedModulesMissingAuth([moduleFile])).toEqual([]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   // repo-conventions.md: "The production image is a different environment" —

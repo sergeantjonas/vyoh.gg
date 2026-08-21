@@ -56,6 +56,8 @@ Cache-safety was checked rather than assumed: nginx `proxy_cache` is scoped to `
 
 `ViewerGuard` swallows resolution errors and answers `false`. A public read path must not 500 because the session table was unreachable — the honest degraded answer is "not the owner", which is correct for every visitor and merely dull for the owner.
 
+**The wiring the controller spec cannot check.** Chunk 2 shipped without `imports: [AuthModule]` on [SteamModule](../../../apps/api/src/steam/steam.module.ts), and the api refused to boot: Nest resolves a guard's own dependencies from the module that declares the *controller*, not from the module that defined the guard. The spec passed anyway, because a Nest testing module lists its own providers — hand-providing `AuthService` there proves nothing about a wiring that cannot start. Four sibling modules already carried the import with a comment explaining why, which is what makes this a lint rather than a note: `conventions.spec.ts` now walks every `*.module.ts`, resolves each declared controller, and fails when one reaches for `OwnerGuard`/`ViewerGuard`/`WithViewer` without the import. The paired fixture test writes the broken wiring to a temp dir and asserts the lint reports it, so the lint cannot pass vacuously.
+
 ## The write API (chunk 2)
 
 `admin/steam-games` is owner-gated on **reads too**, and for a sharper reason than the roster's: an enumeration of the games the owner hid is precisely the secret the hiding exists to keep. `no-store` throughout, and all four routes are pinned by name in `conventions.spec.ts` — an ungated read here would defeat the feature while every public surface kept filtering correctly, which is exactly the kind of failure that is invisible in review.
