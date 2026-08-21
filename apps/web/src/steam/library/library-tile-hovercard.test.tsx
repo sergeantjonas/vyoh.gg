@@ -1,14 +1,31 @@
+import { seedViewer } from "@/auth/mock-viewer";
 import { useGameScreenshots } from "@/steam/game/use-game-screenshots";
+import * as Tooltip from "@radix-ui/react-tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { SteamOwnedGame } from "@vyoh/shared";
 import { configureAxe } from "jest-axe";
 import { MotionConfig } from "motion/react";
+import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LibraryTileHovercardContent } from "./library-tile-hovercard";
 
 vi.mock("@/steam/game/use-game-screenshots", () => ({
   useGameScreenshots: vi.fn(),
 }));
+
+// The content now embeds the owner's hide toggle, which reads the viewer and the
+// curation overlay. Seeded as a visitor so the toggle renders nothing and these
+// assertions stay about the hovercard itself.
+function renderContent(ui: ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  seedViewer(client);
+  return render(
+    <QueryClientProvider client={client}>
+      <Tooltip.Provider>{ui}</Tooltip.Provider>
+    </QueryClientProvider>
+  );
+}
 
 function mockMedia(entries: { filename: string; ordinal: number }[] = []) {
   vi.mocked(useGameScreenshots).mockReturnValue({
@@ -51,30 +68,34 @@ afterEach(() => {
 
 describe("LibraryTileHovercardContent", () => {
   it("renders '0 min' under Total when the game has never been launched", () => {
-    render(<LibraryTileHovercardContent game={game()} />);
+    renderContent(<LibraryTileHovercardContent game={game()} />);
     expect(screen.getByText("Total")).toBeTruthy();
     expect(screen.getAllByText("0 min").length).toBeGreaterThan(0);
   });
 
   it("renders minutes precision under 60 minutes", () => {
-    render(<LibraryTileHovercardContent game={game({ playtimeForeverMinutes: 45 })} />);
+    renderContent(
+      <LibraryTileHovercardContent game={game({ playtimeForeverMinutes: 45 })} />
+    );
     expect(screen.getByText("45 min")).toBeTruthy();
   });
 
   it("renders tenths-of-hour precision under 10 hours", () => {
-    render(<LibraryTileHovercardContent game={game({ playtimeForeverMinutes: 204 })} />);
+    renderContent(
+      <LibraryTileHovercardContent game={game({ playtimeForeverMinutes: 204 })} />
+    );
     expect(screen.getByText("3.4 hrs")).toBeTruthy();
   });
 
   it("renders whole-hour precision at or above 10 hours", () => {
-    render(
+    renderContent(
       <LibraryTileHovercardContent game={game({ playtimeForeverMinutes: 6_000 })} />
     );
     expect(screen.getByText("100 hrs")).toBeTruthy();
   });
 
   it("omits the 'Last played' row when rtimeLastPlayedAt is null", () => {
-    const { container } = render(
+    const { container } = renderContent(
       <LibraryTileHovercardContent game={game({ rtimeLastPlayedAt: null })} />
     );
     expect(container.textContent).not.toContain("Last played");
@@ -83,7 +104,7 @@ describe("LibraryTileHovercardContent", () => {
   it("renders a relative-time 'Last played' line when the timestamp is set", () => {
     // 10 days before the system time → "10 days ago".
     const tenDaysAgo = new Date("2026-05-09T12:00:00Z").toISOString();
-    const { container } = render(
+    const { container } = renderContent(
       <LibraryTileHovercardContent
         game={game({ rtimeLastPlayedAt: tenDaysAgo, playtimeForeverMinutes: 30 })}
       />
@@ -95,7 +116,7 @@ describe("LibraryTileHovercardContent", () => {
   it("renders 'months ago' for timestamps in the 1–24 month range", () => {
     // 90 days back → ~3 months.
     const threeMonthsAgo = new Date("2026-02-18T12:00:00Z").toISOString();
-    const { container } = render(
+    const { container } = renderContent(
       <LibraryTileHovercardContent
         game={game({ rtimeLastPlayedAt: threeMonthsAgo, playtimeForeverMinutes: 5 })}
       />
@@ -106,7 +127,7 @@ describe("LibraryTileHovercardContent", () => {
   it("renders 'years ago' for timestamps further back than 24 months", () => {
     // ~3 years ago.
     const yearsAgo = new Date("2023-05-19T12:00:00Z").toISOString();
-    const { container } = render(
+    const { container } = renderContent(
       <LibraryTileHovercardContent
         game={game({ rtimeLastPlayedAt: yearsAgo, playtimeForeverMinutes: 5 })}
       />
@@ -115,7 +136,7 @@ describe("LibraryTileHovercardContent", () => {
   });
 
   it("falls back to the capsule when the hero img errors", () => {
-    const { container } = render(<LibraryTileHovercardContent game={game()} />);
+    const { container } = renderContent(<LibraryTileHovercardContent game={game()} />);
     const hero = container.querySelector("img");
     if (!hero) throw new Error("hero img not rendered");
     fireEvent.error(hero);
@@ -124,7 +145,7 @@ describe("LibraryTileHovercardContent", () => {
   });
 
   it("treats a zero-width hero onLoad as a 404 (wsrv empty-200 path)", () => {
-    const { container } = render(<LibraryTileHovercardContent game={game()} />);
+    const { container } = renderContent(<LibraryTileHovercardContent game={game()} />);
     const hero = container.querySelector("img");
     if (!hero) throw new Error("hero img not rendered");
     Object.defineProperty(hero, "naturalWidth", { value: 0, configurable: true });
@@ -135,7 +156,7 @@ describe("LibraryTileHovercardContent", () => {
 
   it("renders a pulsing scrim over the hero while the screenshots query is pending", () => {
     mockMediaPending();
-    const { container } = render(<LibraryTileHovercardContent game={game()} />);
+    const { container } = renderContent(<LibraryTileHovercardContent game={game()} />);
     // The scrim is the absolutely-positioned animate-pulse div over the hero;
     // it's the only `animate-pulse` element in the hovercard body.
     expect(container.querySelector(".animate-pulse")).toBeTruthy();
@@ -143,12 +164,12 @@ describe("LibraryTileHovercardContent", () => {
 
   it("removes the pulsing scrim once the screenshots query resolves (empty bucket)", () => {
     mockMedia([]);
-    const { container } = render(<LibraryTileHovercardContent game={game()} />);
+    const { container } = renderContent(<LibraryTileHovercardContent game={game()} />);
     expect(container.querySelector(".animate-pulse")).toBeNull();
   });
 
   it("marks the hero as loaded when onLoad reports a non-zero natural width", () => {
-    const { container } = render(<LibraryTileHovercardContent game={game()} />);
+    const { container } = renderContent(<LibraryTileHovercardContent game={game()} />);
     const hero = container.querySelector("img") as HTMLImageElement;
     Object.defineProperty(hero, "naturalWidth", { value: 1280, configurable: true });
     fireEvent.load(hero);
@@ -161,7 +182,7 @@ describe("LibraryTileHovercardContent", () => {
       { filename: "ss_b.jpg", ordinal: 2 },
       { filename: "ss_c.jpg", ordinal: 3 },
     ]);
-    render(<LibraryTileHovercardContent game={game()} />);
+    renderContent(<LibraryTileHovercardContent game={game()} />);
     // Advance two rotation intervals — the second one flips `hasRotated`.
     act(() => {
       vi.advanceTimersByTime(2_500);
@@ -176,7 +197,7 @@ describe("LibraryTileHovercardContent", () => {
   });
 
   it("renders the short description in the meta block when set", () => {
-    const { container } = render(
+    const { container } = renderContent(
       <LibraryTileHovercardContent
         game={game({ shortDescription: "A hat-based shooter." })}
       />
@@ -185,7 +206,7 @@ describe("LibraryTileHovercardContent", () => {
   });
 
   it("omits the short description block when null", () => {
-    const { container } = render(
+    const { container } = renderContent(
       <LibraryTileHovercardContent game={game({ shortDescription: null })} />
     );
     // No <p> with italic class slipped in.
@@ -200,7 +221,7 @@ describe("LibraryTileHovercardContent", () => {
     const visibilitySpy = vi
       .spyOn(document, "visibilityState", "get")
       .mockReturnValue("hidden");
-    render(<LibraryTileHovercardContent game={game()} />);
+    renderContent(<LibraryTileHovercardContent game={game()} />);
     act(() => {
       vi.advanceTimersByTime(2_500);
     });
@@ -215,7 +236,7 @@ describe("LibraryTileHovercardContent", () => {
       { filename: "ss_a.jpg", ordinal: 1 },
       { filename: "ss_b.jpg", ordinal: 2 },
     ]);
-    const { container } = render(
+    const { container } = renderContent(
       <LibraryTileHovercardContent
         game={game({
           microtrailerWebm: "440/657549/hash/1750745214/microtrailer.webm",
@@ -243,7 +264,7 @@ describe("LibraryTileHovercardContent", () => {
   });
 
   it("falls back to the poster <img> under prefers-reduced-motion", () => {
-    const { container } = render(
+    const { container } = renderContent(
       <MotionConfig reducedMotion="always">
         <LibraryTileHovercardContent
           game={game({
@@ -264,7 +285,7 @@ describe("LibraryTileHovercardContent", () => {
   });
 
   it("does not fetch screenshots when the microtrailer is present", () => {
-    render(
+    renderContent(
       <LibraryTileHovercardContent
         game={game({
           microtrailerWebm: "440/657549/hash/1750745214/microtrailer.webm",
@@ -279,7 +300,7 @@ describe("LibraryTileHovercardContent", () => {
   });
 
   it("omits the mp4 source when only the webm filename is set", () => {
-    const { container } = render(
+    const { container } = renderContent(
       <LibraryTileHovercardContent
         game={game({
           microtrailerWebm: "440/657549/hash/1750745214/microtrailer.webm",
@@ -299,7 +320,7 @@ describe("LibraryTileHovercardContent", () => {
       { filename: "ss_a.jpg", ordinal: 1 },
       { filename: "ss_b.jpg", ordinal: 2 },
     ]);
-    const { container } = render(<LibraryTileHovercardContent game={game()} />);
+    const { container } = renderContent(<LibraryTileHovercardContent game={game()} />);
     expect(container.querySelector("video")).toBeNull();
     expect(document.querySelectorAll('img[src*="steamstatic"]').length).toBe(2);
   });
@@ -320,7 +341,7 @@ describe("LibraryTileHovercardContent", () => {
       },
     });
     mockMedia([{ filename: "ss_a.jpg", ordinal: 1 }]);
-    const rotation = render(<LibraryTileHovercardContent game={game()} />);
+    const rotation = renderContent(<LibraryTileHovercardContent game={game()} />);
     expect((await axe(rotation.container)).violations).toEqual([]);
   });
 });

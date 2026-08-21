@@ -6,6 +6,7 @@ import {
   steamMicrotrailerUrl,
 } from "@/steam/_shared/steam-image";
 import { useMatureScreenshotsPref } from "@/steam/_shared/use-mature-screenshots-pref";
+import { HideGameButton } from "@/steam/curation/hide-game-button";
 import { useGameScreenshots } from "@/steam/game/use-game-screenshots";
 import type { SteamOwnedGame } from "@vyoh/shared";
 import {
@@ -245,6 +246,12 @@ export function LibraryTileHovercardContent({ game }: { game: SteamOwnedGame }) 
             </div>
           )}
         </div>
+        {/* The owner's hide toggle lives here rather than on the tile itself:
+            both list surfaces wrap their whole card in an `<a>`, and a button
+            inside an anchor is invalid HTML and a nested-interactive a11y
+            failure. The hovercard is already the surface that opens over the
+            card, and it is shared by the row and the grid tile alike. */}
+        <HideGameButton appid={game.appid} className="self-start" />
       </div>
     </div>
   );

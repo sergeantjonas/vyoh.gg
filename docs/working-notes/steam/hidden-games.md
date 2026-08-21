@@ -1,6 +1,6 @@
 # Steam — per-game privacy (hidden games)
 
-**Status:** Active — **chunks 1–4 shipped 2026-08-20, chunks 5–6 on 2026-08-21.** The api no longer names a hidden game on any surface: not the library, wishlist, upcoming calendar, achievement feeds, library completion, the recap's chapters, the OG card, the portrait's naming cards, the home first-played tile, or the live now-playing strip, and every `game/:appid/*` route 404s for a visitor. Aggregates still count hidden games anonymously, as chosen. Both hardcoded curation lists are gone — the overlay table is now the only source of curation, on either axis — and a newly-purchased game now arrives quarantined instead of published. The web's fifteen viewer-aware reads are viewer-scoped and send the session cookie, so the owner's browser now actually gets the owner's projection. The in-context hide toggle is next; nothing is user-reachable until it and chunk 8 land.
+**Status:** Active — **chunks 1–4 shipped 2026-08-20, chunks 5–6 on 2026-08-21.** The api no longer names a hidden game on any surface: not the library, wishlist, upcoming calendar, achievement feeds, library completion, the recap's chapters, the OG card, the portrait's naming cards, the home first-played tile, or the live now-playing strip, and every `game/:appid/*` route 404s for a visitor. Aggregates still count hidden games anonymously, as chosen. Both hardcoded curation lists are gone — the overlay table is now the only source of curation, on either axis — and a newly-purchased game now arrives quarantined instead of published. The web's fifteen viewer-aware reads are viewer-scoped and send the session cookie, so the owner's browser now actually gets the owner's projection. The feature is **reachable** as of chunk 7: the owner can hide or restore a game from the library hovercard or the game-detail chip row. Chunk 8 (the `/status` overlay table + the needs-review nav badge) is next, then the chunk-9 lint.
 
 Read this when: touching any Steam read path that names a game, the recap's subject-chapter selection, the now-playing strip, or the owned-games poller.
 
@@ -138,6 +138,20 @@ Two smaller consequences:
 
 The test fallout was more interesting than the change. Eight test files broke, and the second-order failure is worth remembering: `mockResolvedValue(new Response(...))` hands *the same* `Response` to every call, and a body can only be read once — so the viewer query drank the response the assertion was waiting for. `seedViewer(client)` ([mock-viewer.ts](../../../apps/web/src/auth/mock-viewer.ts)) puts the viewer in the cache instead, which also keeps these tests clear of the unmocked-fetch guard in `test-setup.ts`.
 
+## The in-context hide toggle (chunk 7)
+
+One button, in the place the owner noticed the game: `HideGameButton` on the game-detail chip row, and on the library **hovercard** — which both the row and the grid tile already share.
+
+**Why the hovercard rather than the card.** Both list surfaces wrap their entire card in an `<a>`. A `<button>` inside an anchor is invalid HTML and a nested-interactive a11y failure, so an absolutely-positioned control on the tile was never on. The hovercard is already the surface that opens over the card, its content is interactive while hovered, and one insertion point covers both surfaces — [library-tile-hovercard.tsx](../../../apps/web/src/steam/library/library-tile-hovercard.tsx) is shared. The press still calls `preventDefault()` + `stopPropagation()`, because the trigger it sits inside is a link.
+
+**The state comes from the admin list, not the game payload.** `useGameCuration(appid)` reads `useAdminSteamGames()` and looks the appid up. A `hidden` field on `SteamOwnedGame` would be one forgotten projection away from announcing exactly what the feature conceals, and the list is a single cached request for the whole page, so a library of rows costs no more than one game. It also only mounts when a hovercard opens.
+
+**Any deliberate press is a ruling**, so `reviewed: true` travels with every flag change — the owner cannot approve a quarantined game and still be asked about it. The inverse (keep it hidden, stop asking) is a two-state edit and belongs on the chunk-8 overlay table, not on a one-button chip. A quarantined row is marked with a dashed border and a tooltip suffix rather than a second control.
+
+The button renders **nothing** for a visitor rather than rendering disabled. `OwnerAction`'s own doc comment draws that line: disable-in-place pays where the surrounding data is worth reading anyway, and a locked "Hide from visitors" beside every game describes a capability the page cannot offer.
+
+`ownerRequest` also learned that a 204 has no body to parse — `res.json()` on an empty body throws, so the `DELETE` route would have looked like a failed request.
+
 ## Accepted leaks
 
 Recorded so they don't get re-raised as defects:
@@ -155,7 +169,7 @@ Recorded so they don't get re-raised as defects:
 | 4 | The identity leaks outside the list endpoints: `currentGame` on both live surfaces, the portrait's naming cards, the home first-played tile | **Shipped 2026-08-20** |
 | 5 | Retire the two hardcoded lists onto the **unfeatured** axis; point [steam-moments.service.ts](../../../apps/api/src/recap/steam-moments.service.ts) and [recap-subjects.service.ts](../../../apps/api/src/recap/recap-subjects.service.ts) at the service, and drop the hand-mirrored web copy | **Shipped 2026-08-21** |
 | 6 | Quarantine newly-inserted rows in the owned-games poller | **Shipped 2026-08-21** |
-| 7 | Web: viewer-aware query keys + an in-context hide toggle on the library tile/row and game detail | **Keys shipped 2026-08-21**; toggle next |
+| 7 | Web: viewer-aware query keys + an in-context hide toggle on the library tile/row and game detail | **Shipped 2026-08-21** |
 | 8 | Web: `/status` hidden-games section + the owner needs-review indicator (nav badge) | |
 | 9 | `conventions.spec.ts` lint for `excludeHiddenGames` — both the `.filter()` and the `for…continue` shapes, per the remake precedent — plus the repo-conventions entry | |
 

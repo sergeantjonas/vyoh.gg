@@ -10,6 +10,7 @@ import { PlatformIconRow } from "@/steam/_shared/platform-icon-row";
 import { PlaytimePill } from "@/steam/_shared/playtime-pill";
 import { ReviewSummaryChip } from "@/steam/_shared/review-summary-chip";
 import { steamPageBackgroundUrl } from "@/steam/_shared/steam-image";
+import { HideGameButton } from "@/steam/curation/hide-game-button";
 import { AchievementPanel } from "@/steam/game/achievement-panel";
 import { CompletionVerdictCard } from "@/steam/game/completion-verdict-card";
 import { GameAboutBlock } from "@/steam/game/game-about-block";
@@ -247,6 +248,9 @@ function SteamGamePanel() {
                       : "muted"
                   }
                 />
+                {/* Owner-only, and last in the row: it is the one chip that
+                    changes the page rather than describing it. */}
+                <HideGameButton appid={appid} className="ml-auto" />
               </div>
             )}
             {game && (

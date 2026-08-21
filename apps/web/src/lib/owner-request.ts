@@ -41,5 +41,8 @@ export async function ownerRequest<T>(
     }
     throw new HttpError(res.status, message);
   }
+  // A 204 has no body to parse, and `res.json()` on an empty one throws — so a
+  // route that answers "done, nothing to say" would look like a failed request.
+  if (res.status === 204) return undefined as T;
   return res.json();
 }
