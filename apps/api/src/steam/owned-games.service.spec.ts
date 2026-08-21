@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service";
 import type { SteamAchievementSchemaService } from "./achievement-schema.service";
 import type { SteamEnrichmentService } from "./enrichment.service";
+import type { SteamGameCurationService } from "./game-curation.service";
 import type { SteamGlobalRarityService } from "./global-rarity.service";
 import {
   SteamOwnedGamesService,
@@ -46,7 +47,8 @@ function makeService(
     {} as SteamEnrichmentService,
     {} as SteamAchievementSchemaService,
     {} as SteamPlayerUnlocksService,
-    {} as SteamGlobalRarityService
+    {} as SteamGlobalRarityService,
+    {} as SteamGameCurationService
   );
 }
 

@@ -15,6 +15,7 @@ import { OWNER_TIME_ZONE, excludeHiddenGames } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamAchievementSchemaService } from "./achievement-schema.service";
 import { SteamEnrichmentService } from "./enrichment.service";
+import { SteamGameCurationService } from "./game-curation.service";
 import { SteamGlobalRarityService } from "./global-rarity.service";
 import { SteamPlayerUnlocksService } from "./player-unlocks.service";
 import { SteamClientService } from "./steam-client.service";
@@ -116,7 +117,8 @@ export class SteamOwnedGamesService {
     private readonly enrichment: SteamEnrichmentService,
     private readonly achievementSchema: SteamAchievementSchemaService,
     private readonly playerUnlocks: SteamPlayerUnlocksService,
-    private readonly globalRarity: SteamGlobalRarityService
+    private readonly globalRarity: SteamGlobalRarityService,
+    private readonly curation: SteamGameCurationService
   ) {}
 
   async syncOwnedGames(now: Date = new Date()): Promise<OwnedGamesDiff> {
@@ -159,6 +161,28 @@ export class SteamOwnedGamesService {
         });
       }
 
+      // A title nobody has ruled on yet is private: quarantined on insert, with
+      // reviewedAt left null so it surfaces in the owner's review queue. Inside
+      // the same transaction as the SteamOwnedGame insert on purpose — a crash
+      // between the two would otherwise publish a game that was never approved.
+      //
+      // Only `added` (never seen before), never `reappeared`: a game that was
+      // removed and came back keeps whatever ruling it already had. And
+      // skipDuplicates is doing the same job for the case where the overlay row
+      // outlived the owned-game row — hidden before purchase, or refunded and
+      // rebought — where an insert would quietly overwrite the owner's decision.
+      if (diff.added.length > 0) {
+        const nameByAppid = new Map(games.map((game) => [game.appid, game.name]));
+        await tx.steamGameCuration.createMany({
+          data: diff.added.map((appid) => ({
+            appid,
+            name: nameByAppid.get(appid) ?? null,
+            hiddenAt: now,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
       // Upsert snapshots — composite (appid, snapshotDate) PK makes a same-day
       // re-run idempotent. Manual retries and the next-day cron both behave.
       for (const game of games) {
@@ -187,6 +211,11 @@ export class SteamOwnedGamesService {
         });
       }
     });
+
+    // After the commit, never inside it: a read that lands mid-transaction
+    // would repopulate the cache from pre-insert state and hold the new game
+    // visible for a full TTL.
+    if (diff.added.length > 0) this.curation.invalidate();
 
     const duration = Date.now() - start;
     this.logger.log(

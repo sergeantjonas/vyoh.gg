@@ -66,7 +66,14 @@ describe("getOwnedGames", () => {
     return {
       svc: new SteamOwnedGamesService(
         prisma,
-        ...([{}, {}, {}, {}, {}] as never as [never, never, never, never, never])
+        ...([{}, {}, {}, {}, {}, {}] as never as [
+          never,
+          never,
+          never,
+          never,
+          never,
+          never,
+        ])
       ),
       enrichment,
     };

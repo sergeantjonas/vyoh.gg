@@ -1,6 +1,6 @@
 # Steam — per-game privacy (hidden games)
 
-**Status:** Active — **chunks 1–4 shipped 2026-08-20, chunk 5 on 2026-08-21.** The api no longer names a hidden game on any surface: not the library, wishlist, upcoming calendar, achievement feeds, library completion, the recap's chapters, the OG card, the portrait's naming cards, the home first-played tile, or the live now-playing strip, and every `game/:appid/*` route 404s for a visitor. Aggregates still count hidden games anonymously, as chosen. Both hardcoded curation lists are gone — the overlay table is now the only source of curation, on either axis. Chunk 6 (quarantine newly-inserted rows in the owned-games poller) is next; nothing is user-reachable until chunks 7–8 build the UI.
+**Status:** Active — **chunks 1–4 shipped 2026-08-20, chunks 5–6 on 2026-08-21.** The api no longer names a hidden game on any surface: not the library, wishlist, upcoming calendar, achievement feeds, library completion, the recap's chapters, the OG card, the portrait's naming cards, the home first-played tile, or the live now-playing strip, and every `game/:appid/*` route 404s for a visitor. Aggregates still count hidden games anonymously, as chosen. Both hardcoded curation lists are gone — the overlay table is now the only source of curation, on either axis — and a newly-purchased game now arrives quarantined instead of published. Chunk 7 (viewer-aware query keys + the hide toggle) is next; nothing is user-reachable until chunks 7–8 build the UI.
 
 Read this when: touching any Steam read path that names a game, the recap's subject-chapter selection, the now-playing strip, or the owned-games poller.
 
@@ -111,6 +111,18 @@ One knowing inconsistency: the naming cards' own inner counts (tasted count, com
 
 **The home first-played tile takes the public curation unconditionally**, like the recap's chapter selection and for the same reason: it names one game as the headline fact on `/`, and hiding a game rules it out of that slot for the owner too. Neither surface is viewer-aware, which also keeps every `/home/*` endpoint out of the viewer-aware set.
 
+## Quarantining new purchases (chunk 6)
+
+The insert is where privacy has to default, because the poller runs unattended: a game bought at 21:00 is public within fifteen minutes otherwise, and no UI the owner has to visit can beat that. So `syncOwnedGames` mints a `SteamGameCuration` row with `hiddenAt` set and `reviewedAt` null for every appid in `diff.added`, **inside the same transaction as the `SteamOwnedGame` insert** — a crash between the two would publish a game nobody approved.
+
+Three things narrow it to genuinely new titles:
+
+- **`added`, never `reappeared`.** `diffOwnedGames` already separates *never seen* from *seen, removed, came back*. A returning game keeps whatever ruling it had; re-quarantining it would silently revoke an approval.
+- **`skipDuplicates: true`** covers the case where the overlay row outlived the owned-game row (hidden before purchase, or refunded and rebought) — a plain insert would overwrite the owner's own decision with a fresh quarantine.
+- **The existing library is untouched on first run.** Every currently-owned appid is already in `SteamOwnedGame`, so it classifies as `persisted`; the first poll after this ships quarantines nothing. Worth knowing before reading the deploy's poller log as a no-op.
+
+`invalidate()` fires after the commit and only when something was minted. Inside the transaction it would be worse than useless: a read landing mid-transaction repopulates the cache from pre-insert state and holds the new game visible for a full TTL. The spec pins this by snapshotting the invalidate count at the moment the transaction callback returns and asserting it is still 0.
+
 ## Accepted leaks
 
 Recorded so they don't get re-raised as defects:
@@ -127,7 +139,7 @@ Recorded so they don't get re-raised as defects:
 | 3 | Filter the itemized read paths — owned-games, achievements (recent / rarest / completion), wishlist + upcoming, game-recap, wishlist-hero, and a refusal gate on every `game/:appid/*` route | **Shipped 2026-08-20** |
 | 4 | The identity leaks outside the list endpoints: `currentGame` on both live surfaces, the portrait's naming cards, the home first-played tile | **Shipped 2026-08-20** |
 | 5 | Retire the two hardcoded lists onto the **unfeatured** axis; point [steam-moments.service.ts](../../../apps/api/src/recap/steam-moments.service.ts) and [recap-subjects.service.ts](../../../apps/api/src/recap/recap-subjects.service.ts) at the service, and drop the hand-mirrored web copy | **Shipped 2026-08-21** |
-| 6 | Quarantine newly-inserted rows in the owned-games poller | |
+| 6 | Quarantine newly-inserted rows in the owned-games poller | **Shipped 2026-08-21** |
 | 7 | Web: viewer-aware query keys + an in-context hide toggle on the library tile/row and game detail | |
 | 8 | Web: `/status` hidden-games section + the owner needs-review indicator (nav badge) | |
 | 9 | `conventions.spec.ts` lint for `excludeHiddenGames` — both the `.filter()` and the `for…continue` shapes, per the remake precedent — plus the repo-conventions entry | |

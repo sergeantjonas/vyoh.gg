@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service";
 import type { SteamAchievementSchemaService } from "./achievement-schema.service";
 import type { SteamEnrichmentService } from "./enrichment.service";
+import type { SteamGameCurationService } from "./game-curation.service";
 import type { SteamGlobalRarityService } from "./global-rarity.service";
 import { SteamOwnedGamesService } from "./owned-games.service";
 import type { SteamPlayerUnlocksService } from "./player-unlocks.service";
@@ -23,7 +24,13 @@ function makeService(opts: {
       updateMany: vi.fn().mockResolvedValue(undefined),
     },
     steamPlaytimeSnapshot: { upsert: vi.fn().mockResolvedValue(undefined) },
+    steamGameCuration: { createMany: vi.fn().mockResolvedValue(undefined) },
   };
+  const curation = { invalidate: vi.fn() };
+  // Snapshotted the moment the transaction callback returns, so a test can hold
+  // the service to invalidating the cache *after* the commit rather than inside
+  // it — a read landing mid-transaction would cache the pre-insert state.
+  let invalidatesAtCommit = -1;
   const prisma = {
     steamOwnedGame: {
       findMany: vi.fn().mockResolvedValue(opts.previous ?? []),
@@ -35,6 +42,7 @@ function makeService(opts: {
       .fn()
       .mockImplementation(async (cb: (t: unknown) => Promise<void>) => {
         await cb(tx);
+        invalidatesAtCommit = curation.invalidate.mock.calls.length;
       }),
   };
   const client = {
@@ -52,7 +60,8 @@ function makeService(opts: {
       enrichment as unknown as SteamEnrichmentService,
       schema as unknown as SteamAchievementSchemaService,
       unlocks as unknown as SteamPlayerUnlocksService,
-      rarity as unknown as SteamGlobalRarityService
+      rarity as unknown as SteamGlobalRarityService,
+      curation as unknown as SteamGameCurationService
     ),
     tx,
     prisma,
@@ -61,7 +70,22 @@ function makeService(opts: {
     schema,
     unlocks,
     rarity,
+    curation,
+    invalidatesAtCommit: () => invalidatesAtCommit,
   };
+}
+
+type CurationCreateMany = {
+  data: Array<{ appid: number; name: string | null; hiddenAt: Date }>;
+  skipDuplicates?: boolean;
+};
+
+function curationCall(tx: {
+  steamGameCuration: { createMany: ReturnType<typeof vi.fn> };
+}): CurationCreateMany | undefined {
+  return tx.steamGameCuration.createMany.mock.calls[0]?.[0] as
+    | CurationCreateMany
+    | undefined;
 }
 
 afterEach(() => {
@@ -172,5 +196,78 @@ describe("SteamOwnedGamesService.syncOwnedGames", () => {
       | { create: { rtimeLastPlayed: Date | null } }
       | undefined;
     expect(upsertCall?.create.rtimeLastPlayed).toBeInstanceOf(Date);
+  });
+});
+
+describe("SteamOwnedGamesService.syncOwnedGames quarantine", () => {
+  it("quarantines a newly-discovered game with the name Steam reported", async () => {
+    const { service, tx } = makeService({
+      ownedGames: [{ appid: 42, name: "Half-Life", playtime_forever: 0 }],
+      previous: [],
+    });
+    await service.syncOwnedGames();
+    expect(curationCall(tx)?.data).toEqual([
+      { appid: 42, name: "Half-Life", hiddenAt: expect.any(Date) },
+    ]);
+  });
+
+  // reviewedAt is what the owner's review badge counts, so leaving it unset is
+  // the whole point of the row — not an omission.
+  it("leaves reviewedAt unset so the new title lands in the review queue", async () => {
+    const { service, tx } = makeService({
+      ownedGames: [{ appid: 42, name: "Half-Life", playtime_forever: 0 }],
+      previous: [],
+    });
+    await service.syncOwnedGames();
+    expect(curationCall(tx)?.data[0]).not.toHaveProperty("reviewedAt");
+  });
+
+  it("skips duplicates rather than overwriting a ruling the owner already made", async () => {
+    const { service, tx } = makeService({
+      ownedGames: [{ appid: 42, name: "Half-Life", playtime_forever: 0 }],
+      previous: [],
+    });
+    await service.syncOwnedGames();
+    expect(curationCall(tx)?.skipDuplicates).toBe(true);
+  });
+
+  it("does not touch the overlay for a game that was already tracked", async () => {
+    const { service, tx } = makeService({
+      ownedGames: [{ appid: 42, name: "Half-Life", playtime_forever: 0 }],
+      previous: [{ appid: 42, removedAt: null }],
+    });
+    await service.syncOwnedGames();
+    expect(tx.steamGameCuration.createMany).not.toHaveBeenCalled();
+  });
+
+  // A game that left the library and came back is not a new title, and
+  // re-quarantining it would silently revoke an approval.
+  it("does not re-quarantine a game that reappeared after being removed", async () => {
+    const { service, tx } = makeService({
+      ownedGames: [{ appid: 42, name: "Half-Life", playtime_forever: 0 }],
+      previous: [{ appid: 42, removedAt: new Date("2026-01-01T00:00:00Z") }],
+    });
+    const diff = await service.syncOwnedGames();
+    expect(diff.reappeared).toEqual([42]);
+    expect(tx.steamGameCuration.createMany).not.toHaveBeenCalled();
+  });
+
+  it("invalidates the curation cache after the transaction commits", async () => {
+    const { service, curation, invalidatesAtCommit } = makeService({
+      ownedGames: [{ appid: 42, name: "Half-Life", playtime_forever: 0 }],
+      previous: [],
+    });
+    await service.syncOwnedGames();
+    expect(invalidatesAtCommit()).toBe(0);
+    expect(curation.invalidate).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the curation cache alone when the sync found nothing new", async () => {
+    const { service, curation } = makeService({
+      ownedGames: [{ appid: 42, name: "Half-Life", playtime_forever: 0 }],
+      previous: [{ appid: 42, removedAt: null }],
+    });
+    await service.syncOwnedGames();
+    expect(curation.invalidate).not.toHaveBeenCalled();
   });
 });
