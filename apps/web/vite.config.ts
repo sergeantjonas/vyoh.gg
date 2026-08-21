@@ -4,8 +4,9 @@ import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
+import { Features, transform as transformCss } from "lightningcss";
 import { visualizer } from "rollup-plugin-visualizer";
-import { type Plugin, transformWithEsbuild } from "vite";
+import type { Plugin } from "vite";
 import { defineConfig } from "vitest/config";
 
 const enableVisualizer = process.env.ANALYZE === "1";
@@ -17,32 +18,43 @@ const enableVisualizer = process.env.ANALYZE === "1";
 // whenever any element is inspected (Firefox/Safari inspectors normalise the
 // nesting internally and are unaffected). The prod build already lowers nesting
 // to ~63 via `build.target` (baseline-widely-available predates native CSS
-// nesting, so esbuild de-nests). This applies the SAME esbuild de-nesting to
-// the dev pipeline so Chrome DevTools is usable in dev too.
+// nesting, so the bundler de-nests). This applies the same de-nesting to the dev
+// pipeline so Chrome DevTools is usable in dev too.
 //
-// `apply: "serve"` → prod output is untouched (it already de-nests). esbuild
-// only lowers the nesting syntax; it leaves oklch / color-mix / relative-color
-// / @property exactly as authored, so dev visuals are unchanged. No new
-// dependency — esbuild is bundled with Vite via `transformWithEsbuild`.
+// `apply: "serve"` → prod output is untouched (it already de-nests).
+//
+// `include: Features.Nesting` with no `targets` is what keeps this surgical:
+// nesting is the only feature lowered, so oklch / color-mix / relative-color /
+// @property survive exactly as authored and dev visuals are unchanged. Naming
+// the feature beats the older approach of picking a `target` old enough to
+// predate native nesting, which lowered colour syntax too if the target ever
+// slipped. Lightning CSS still renormalises equivalent values (`oklch(0.8 …)` →
+// `oklch(80% …)`); that is serialisation, not a different colour.
 function devFlattenCssNesting(): Plugin {
   return {
     name: "vyoh:dev-flatten-css-nesting",
     apply: "serve",
-    async transform(code, id) {
+    transform(code, id) {
       // Only raw CSS modules, and only when there's nesting to flatten. Skip
       // the JS-wrapped form (post css-post) and any non-CSS module.
       if (!/\.css(\?|$)/.test(id)) return null;
       if (/^\s*(import|export)\s/.test(code) || !code.includes("&")) return null;
       try {
-        const result = await transformWithEsbuild(code, id, {
-          loader: "css",
-          // Below native CSS nesting (Chrome 112 / FF 117 / Safari 16.5) so
-          // esbuild lowers it; color functions are left untouched at any target.
-          target: ["chrome111", "firefox116", "safari16"],
+        const result = transformCss({
+          filename: id,
+          code: Buffer.from(code),
+          include: Features.Nesting,
+          sourceMap: true,
         });
-        return { code: result.code, map: result.map };
-      } catch {
-        // Never break the dev CSS pipeline over a DevTools ergonomics tweak.
+        return {
+          code: result.code.toString(),
+          map: result.map ? result.map.toString() : null,
+        };
+      } catch (error) {
+        // Never break the dev CSS pipeline over a DevTools ergonomics tweak —
+        // but say so, because failing silently here just resurrects the
+        // DevTools hang with no indication of why.
+        this.warn(`dev CSS de-nesting skipped for ${id}: ${error}`);
         return null;
       }
     },
