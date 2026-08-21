@@ -1,3 +1,5 @@
+import { useIsOwner } from "@/auth/use-viewer";
+import { viewerScope, viewerScopedQuery } from "@/auth/viewer-scope";
 import { HttpError } from "@/lib/http-error";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { SteamRecentUnlocks } from "@vyoh/shared";
@@ -5,7 +7,9 @@ import type { SteamRecentUnlocks } from "@vyoh/shared";
 import { API_URL } from "@/lib/api-url";
 
 async function fetchRecentUnlocks(limit: number): Promise<SteamRecentUnlocks> {
-  const res = await fetch(`${API_URL}/steam/achievements/recent?limit=${limit}`);
+  const res = await fetch(`${API_URL}/steam/achievements/recent?limit=${limit}`, {
+    credentials: "include",
+  });
   if (!res.ok) {
     let message = `HTTP ${res.status}`;
     try {
@@ -23,14 +27,15 @@ async function fetchRecentUnlocks(limit: number): Promise<SteamRecentUnlocks> {
 // recently-played backstop + 4-hourly global sweep. 30min stale-time matches
 // the surrounding owned-games hooks and keeps in-session navigation silent;
 // a new unlock surfaces within a session-end + one render tick.
-export function recentUnlocksQueryOptions(limit: number) {
+export function recentUnlocksQueryOptions(limit: number, isOwner = false) {
   return queryOptions({
-    queryKey: ["steam", "achievements", "recent", limit],
+    queryKey: ["steam", "achievements", "recent", limit, viewerScope(isOwner)],
     queryFn: () => fetchRecentUnlocks(limit),
     staleTime: 30 * 60 * 1_000,
+    ...viewerScopedQuery,
   });
 }
 
 export function useRecentUnlocks(limit: number) {
-  return useQuery(recentUnlocksQueryOptions(limit));
+  return useQuery(recentUnlocksQueryOptions(limit, useIsOwner()));
 }

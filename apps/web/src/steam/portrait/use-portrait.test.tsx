@@ -1,3 +1,4 @@
+import { seedViewer } from "@/auth/mock-viewer";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -6,6 +7,7 @@ import { portraitQueryOptions, useSteamPortrait } from "./use-portrait";
 
 function makeWrapper() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  seedViewer(client);
   return ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
@@ -24,7 +26,14 @@ describe("portraitQueryOptions", () => {
   // builds and the key the hook reads have to be the same object shape — a
   // loader that warms a different key looks primed and still renders pending.
   it("keys on the same tuple the route loader primes", () => {
-    expect(portraitQueryOptions().queryKey).toEqual(["steam", "portrait"]);
+    expect(portraitQueryOptions().queryKey).toEqual(["steam", "portrait", "public"]);
+  });
+
+  // The owner sees hidden games in their portrait's naming cards, so the two
+  // projections cannot share an entry — whichever landed first would answer
+  // for both.
+  it("keys the owner's projection separately", () => {
+    expect(portraitQueryOptions(true).queryKey).toEqual(["steam", "portrait", "owner"]);
   });
 
   it("stays fresh for 30 minutes", () => {
@@ -39,9 +48,11 @@ describe("useSteamPortrait", () => {
     );
     const { result } = renderHook(() => useSteamPortrait(), { wrapper: makeWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(String(vi.mocked(fetch).mock.calls[0]?.[0])).toBe(
-      "http://localhost:2010/steam/portrait"
-    );
+    // The viewer query shares the mock, so match on the URL rather than order.
+    const requested = vi
+      .mocked(fetch)
+      .mock.calls.find(([url]) => String(url) === "http://localhost:2010/steam/portrait");
+    expect(requested?.[1]).toMatchObject({ credentials: "include" });
   });
 
   it("surfaces the api message", async () => {

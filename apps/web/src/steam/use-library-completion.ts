@@ -1,3 +1,5 @@
+import { useIsOwner } from "@/auth/use-viewer";
+import { viewerScope, viewerScopedQuery } from "@/auth/viewer-scope";
 import { HttpError } from "@/lib/http-error";
 import { useQuery } from "@tanstack/react-query";
 import type { SteamLibraryCompletion } from "@vyoh/shared";
@@ -5,7 +7,9 @@ import type { SteamLibraryCompletion } from "@vyoh/shared";
 import { API_URL } from "@/lib/api-url";
 
 async function fetchLibraryCompletion(): Promise<SteamLibraryCompletion> {
-  const res = await fetch(`${API_URL}/steam/achievements/library-completion`);
+  const res = await fetch(`${API_URL}/steam/achievements/library-completion`, {
+    credentials: "include",
+  });
   if (!res.ok) {
     let message = `HTTP ${res.status}`;
     try {
@@ -24,9 +28,11 @@ async function fetchLibraryCompletion(): Promise<SteamLibraryCompletion> {
 // unlocks poller's cadence — anything finer just amplifies traffic without
 // changing what's on screen.
 export function useLibraryCompletion() {
+  const scope = viewerScope(useIsOwner());
   return useQuery({
-    queryKey: ["steam", "achievements", "library-completion"],
+    queryKey: ["steam", "achievements", "library-completion", scope],
     queryFn: fetchLibraryCompletion,
     staleTime: 30 * 60 * 1_000,
+    ...viewerScopedQuery,
   });
 }

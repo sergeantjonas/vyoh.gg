@@ -519,7 +519,11 @@ describe("Nav", () => {
         vi.useRealTimers();
       }
       expect(spy).toHaveBeenCalledTimes(1);
-      expect(spy.mock.calls[0]?.[0]?.queryKey).toEqual(["steam", "owned-games"]);
+      expect(spy.mock.calls[0]?.[0]?.queryKey).toEqual([
+        "steam",
+        "owned-games",
+        "public",
+      ]);
     });
 
     it("prefetches the patch list 100ms after pointer-enter on the Patches link", async () => {

@@ -1,3 +1,4 @@
+import { useIsOwner } from "@/auth/use-viewer";
 import { Sparkline } from "@/components/ui/sparkline";
 import { useHoverPrefetch } from "@/lib/use-hover-prefetch";
 import { useMediaQuery } from "@/lib/use-media-query";
@@ -52,8 +53,11 @@ export function LibraryRow({
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  // The viewer's own scope: the detail panel reads the owner's projection for
+  // the owner, so priming the public key would warm an entry nobody reads.
+  const isOwner = useIsOwner();
   const prefetch = useHoverPrefetch(() => {
-    queryClient.prefetchQuery(gameAchievementsQueryOptions(game.appid));
+    queryClient.prefetchQuery(gameAchievementsQueryOptions(game.appid, isOwner));
   });
   const { activeGame, saveListScroll, setActiveGame, originRectRef, setOriginRect } =
     useActiveGame();

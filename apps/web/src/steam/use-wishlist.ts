@@ -1,3 +1,5 @@
+import { useIsOwner } from "@/auth/use-viewer";
+import { viewerScope, viewerScopedQuery } from "@/auth/viewer-scope";
 import { HttpError } from "@/lib/http-error";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { SteamWishlist } from "@vyoh/shared";
@@ -5,7 +7,7 @@ import type { SteamWishlist } from "@vyoh/shared";
 import { API_URL } from "@/lib/api-url";
 
 async function fetchWishlist(): Promise<SteamWishlist> {
-  const res = await fetch(`${API_URL}/steam/wishlist`);
+  const res = await fetch(`${API_URL}/steam/wishlist`, { credentials: "include" });
   if (!res.ok) {
     let message = `HTTP ${res.status}`;
     try {
@@ -19,10 +21,11 @@ async function fetchWishlist(): Promise<SteamWishlist> {
   return res.json() as Promise<SteamWishlist>;
 }
 
-export function steamWishlistQueryOptions() {
+export function steamWishlistQueryOptions(isOwner = false) {
   return queryOptions({
-    queryKey: ["steam", "wishlist"],
+    queryKey: ["steam", "wishlist", viewerScope(isOwner)],
     queryFn: fetchWishlist,
+    ...viewerScopedQuery,
     // The backend already caches GetWishlist + GetItems behind 1h / 24h TTLs;
     // the frontend just rides that. No need for an aggressive refetch.
     staleTime: 5 * 60 * 1_000,
@@ -30,5 +33,5 @@ export function steamWishlistQueryOptions() {
 }
 
 export function useSteamWishlist() {
-  return useQuery(steamWishlistQueryOptions());
+  return useQuery(steamWishlistQueryOptions(useIsOwner()));
 }

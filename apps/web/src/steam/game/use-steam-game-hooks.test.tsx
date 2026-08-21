@@ -1,3 +1,4 @@
+import { seedViewer } from "@/auth/mock-viewer";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -9,6 +10,7 @@ import { useGameUnlockTimeline } from "./use-game-unlock-timeline";
 
 function makeWrapper() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  seedViewer(client);
   return ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
@@ -58,13 +60,18 @@ const cases: SteamHookCase[] = [
 ];
 
 describe.each(cases)("$name", ({ call, url }) => {
-  it("requests the expected URL on the first fetch", async () => {
+  // Not `calls[0]` — every one of these routes is viewer-aware, so the viewer
+  // query fires against the same mock alongside the request under test.
+  it("requests the expected URL with the session cookie", async () => {
     vi.mocked(fetch).mockResolvedValue(
       new Response(JSON.stringify({ ok: true }), { status: 200 })
     );
     const { result } = renderHook(call, { wrapper: makeWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(vi.mocked(fetch).mock.calls[0]?.[0]).toBe(url);
+    const requested = vi
+      .mocked(fetch)
+      .mock.calls.find(([candidate]) => String(candidate) === url);
+    expect(requested?.[1]).toMatchObject({ credentials: "include" });
   });
 
   it("surfaces the API message from a non-OK JSON body", async () => {

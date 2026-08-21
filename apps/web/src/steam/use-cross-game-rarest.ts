@@ -1,3 +1,5 @@
+import { useIsOwner } from "@/auth/use-viewer";
+import { viewerScope, viewerScopedQuery } from "@/auth/viewer-scope";
 import { HttpError } from "@/lib/http-error";
 import { useQuery } from "@tanstack/react-query";
 import type { SteamRecentUnlocks } from "@vyoh/shared";
@@ -5,7 +7,9 @@ import type { SteamRecentUnlocks } from "@vyoh/shared";
 import { API_URL } from "@/lib/api-url";
 
 async function fetchCrossGameRarest(limit: number): Promise<SteamRecentUnlocks> {
-  const res = await fetch(`${API_URL}/steam/achievements/rarest?limit=${limit}`);
+  const res = await fetch(`${API_URL}/steam/achievements/rarest?limit=${limit}`, {
+    credentials: "include",
+  });
   if (!res.ok) {
     let message = `HTTP ${res.status}`;
     try {
@@ -24,9 +28,11 @@ async function fetchCrossGameRarest(limit: number): Promise<SteamRecentUnlocks> 
 // the recent feed; rarity-percent updates land weekly via the global-rarity
 // poller, so anything tighter would be overkill.
 export function useCrossGameRarest(limit: number) {
+  const scope = viewerScope(useIsOwner());
   return useQuery({
-    queryKey: ["steam", "achievements", "rarest", limit],
+    queryKey: ["steam", "achievements", "rarest", limit, scope],
     queryFn: () => fetchCrossGameRarest(limit),
     staleTime: 30 * 60 * 1_000,
+    ...viewerScopedQuery,
   });
 }

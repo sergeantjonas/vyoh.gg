@@ -1,6 +1,6 @@
 # Steam — per-game privacy (hidden games)
 
-**Status:** Active — **chunks 1–4 shipped 2026-08-20, chunks 5–6 on 2026-08-21.** The api no longer names a hidden game on any surface: not the library, wishlist, upcoming calendar, achievement feeds, library completion, the recap's chapters, the OG card, the portrait's naming cards, the home first-played tile, or the live now-playing strip, and every `game/:appid/*` route 404s for a visitor. Aggregates still count hidden games anonymously, as chosen. Both hardcoded curation lists are gone — the overlay table is now the only source of curation, on either axis — and a newly-purchased game now arrives quarantined instead of published. Chunk 7 (viewer-aware query keys + the hide toggle) is next; nothing is user-reachable until chunks 7–8 build the UI.
+**Status:** Active — **chunks 1–4 shipped 2026-08-20, chunks 5–6 on 2026-08-21.** The api no longer names a hidden game on any surface: not the library, wishlist, upcoming calendar, achievement feeds, library completion, the recap's chapters, the OG card, the portrait's naming cards, the home first-played tile, or the live now-playing strip, and every `game/:appid/*` route 404s for a visitor. Aggregates still count hidden games anonymously, as chosen. Both hardcoded curation lists are gone — the overlay table is now the only source of curation, on either axis — and a newly-purchased game now arrives quarantined instead of published. The web's fifteen viewer-aware reads are viewer-scoped and send the session cookie, so the owner's browser now actually gets the owner's projection. The in-context hide toggle is next; nothing is user-reachable until it and chunk 8 land.
 
 Read this when: touching any Steam read path that names a game, the recap's subject-chapter selection, the now-playing strip, or the owned-games poller.
 
@@ -123,6 +123,21 @@ Three things narrow it to genuinely new titles:
 
 `invalidate()` fires after the commit and only when something was minted. Inside the transaction it would be worse than useless: a read landing mid-transaction repopulates the cache from pre-insert state and holds the new game visible for a full TTL. The spec pins this by snapshotting the invalidate count at the moment the transaction callback returns and asserting it is still 0.
 
+## Viewer-scoped query keys (chunk 7)
+
+Fifteen routes carry `@WithViewer()`, so fifteen web reads had to stop treating one URL as one cache entry. Each `*QueryOptions()` factory takes `isOwner` and appends `viewerScope(isOwner)` — `"owner"` or `"public"` — as the **last** key segment, which keeps existing prefix invalidation (`["steam", "game", appid]`) working unchanged.
+
+The scope defaults to public wherever it is optional, and that is the same argument the api's `@ViewerIsOwner()` makes: a call site that forgets to ask serves the owner a visitor's view, which is visible to the only person who can fix it and cannot leak the other way. It also means the four route loaders needed no changes — SSR *should* prime the public key, because a loader runs on the server where the visitor's cookie is out of scope.
+
+**The cookie is the half that fails silently.** None of these fetches sent `credentials: "include"`, so even with perfect keys the api would have seen an anonymous request and answered the public projection — which then sits in the owner-scoped entry looking entirely correct. Both halves are now asserted per hook in [use-steam-hooks.test.tsx](../../../apps/web/src/steam/use-steam-hooks.test.tsx), including a paired case for the four Steam reads that are *not* viewer-aware and must not send it.
+
+Two smaller consequences:
+
+- **Prefetches take the viewer's scope, not the default.** The nav's Steam hover-prefetch and the library row/tile achievement prefetch would otherwise warm an entry the destination never reads for the owner — a prefetch that silently stops prefetching.
+- **`keepPreviousData` on every viewer-scoped read.** The viewer query resolves a tick after hydration, so the key changes under an already-mounted component; without it every Steam surface drops to its skeleton for one round-trip on each owner load.
+
+The test fallout was more interesting than the change. Eight test files broke, and the second-order failure is worth remembering: `mockResolvedValue(new Response(...))` hands *the same* `Response` to every call, and a body can only be read once — so the viewer query drank the response the assertion was waiting for. `seedViewer(client)` ([mock-viewer.ts](../../../apps/web/src/auth/mock-viewer.ts)) puts the viewer in the cache instead, which also keeps these tests clear of the unmocked-fetch guard in `test-setup.ts`.
+
 ## Accepted leaks
 
 Recorded so they don't get re-raised as defects:
@@ -140,7 +155,7 @@ Recorded so they don't get re-raised as defects:
 | 4 | The identity leaks outside the list endpoints: `currentGame` on both live surfaces, the portrait's naming cards, the home first-played tile | **Shipped 2026-08-20** |
 | 5 | Retire the two hardcoded lists onto the **unfeatured** axis; point [steam-moments.service.ts](../../../apps/api/src/recap/steam-moments.service.ts) and [recap-subjects.service.ts](../../../apps/api/src/recap/recap-subjects.service.ts) at the service, and drop the hand-mirrored web copy | **Shipped 2026-08-21** |
 | 6 | Quarantine newly-inserted rows in the owned-games poller | **Shipped 2026-08-21** |
-| 7 | Web: viewer-aware query keys + an in-context hide toggle on the library tile/row and game detail | |
+| 7 | Web: viewer-aware query keys + an in-context hide toggle on the library tile/row and game detail | **Keys shipped 2026-08-21**; toggle next |
 | 8 | Web: `/status` hidden-games section + the owner needs-review indicator (nav badge) | |
 | 9 | `conventions.spec.ts` lint for `excludeHiddenGames` — both the `.filter()` and the `for…continue` shapes, per the remake precedent — plus the repo-conventions entry | |
 

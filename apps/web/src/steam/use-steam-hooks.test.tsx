@@ -1,3 +1,4 @@
+import { seedViewer } from "@/auth/mock-viewer";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import { type ReactNode, createElement } from "react";
@@ -17,6 +18,7 @@ import { useSteamWishlist } from "./use-wishlist";
 
 function makeWrapper() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  seedViewer(client);
   return ({ children }: { children: ReactNode }) =>
     createElement(QueryClientProvider, { client }, children);
 }
@@ -38,16 +40,26 @@ type Case = {
     error?: Error | null;
   };
   url: string;
+  /** The api answers this route differently for the owner. */
+  viewerAware?: true;
 };
+
+// The viewer query fires alongside every viewer-scoped read, so the request
+// under test is no longer the first one the mock saw.
+function callFor(url: string) {
+  return vi.mocked(fetch).mock.calls.find(([requested]) => String(requested) === url);
+}
 
 const cases: Case[] = [
   {
     name: "useSteamSummary",
+    viewerAware: true,
     hook: () => useSteamSummary(),
     url: "http://localhost:2010/steam/summary",
   },
   {
     name: "useSteamOwnedGames",
+    viewerAware: true,
     hook: () => useSteamOwnedGames(),
     url: "http://localhost:2010/steam/owned-games",
   },
@@ -68,21 +80,25 @@ const cases: Case[] = [
   },
   {
     name: "useSteamWishlist",
+    viewerAware: true,
     hook: () => useSteamWishlist(),
     url: "http://localhost:2010/steam/wishlist",
   },
   {
     name: "useLibraryCompletion",
+    viewerAware: true,
     hook: () => useLibraryCompletion(),
     url: "http://localhost:2010/steam/achievements/library-completion",
   },
   {
     name: "useRecentUnlocks(10)",
+    viewerAware: true,
     hook: () => useRecentUnlocks(10),
     url: "http://localhost:2010/steam/achievements/recent?limit=10",
   },
   {
     name: "useCrossGameRarest(10)",
+    viewerAware: true,
     hook: () => useCrossGameRarest(10),
     url: "http://localhost:2010/steam/achievements/rarest?limit=10",
   },
@@ -93,6 +109,7 @@ const cases: Case[] = [
   },
   {
     name: "useSteamGameRecap(367520)",
+    viewerAware: true,
     hook: () => useSteamGameRecap(367520),
     url: "http://localhost:2010/steam/game/367520/recap",
   },
@@ -105,7 +122,7 @@ describe("steam useQuery wrappers", () => {
     );
     const { result } = renderHook(hook, { wrapper: makeWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(fetch).toHaveBeenCalledWith(url);
+    expect(callFor(url)).toBeDefined();
     expect(result.current.data).toEqual({ ok: true });
   });
 
@@ -138,7 +155,7 @@ describe("useSteamPlayerState", () => {
       wrapper: makeWrapper(),
     });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(fetch).toHaveBeenCalledWith("http://localhost:2010/steam/player-state");
+    expect(callFor("http://localhost:2010/steam/player-state")).toBeDefined();
   });
 
   it("surfaces a 404 without retrying (fresh-DB edge case)", async () => {
@@ -150,7 +167,40 @@ describe("useSteamPlayerState", () => {
     });
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error?.message).toBe("no row yet");
-    // Single attempt — 404 must not retry per use-player-state.ts.
-    expect(fetch).toHaveBeenCalledTimes(1);
+    // Single attempt — 404 must not retry per use-player-state.ts. Counted over
+    // the player-state calls alone, since the viewer query shares the mock.
+    const attempts = vi
+      .mocked(fetch)
+      .mock.calls.filter(([url]) => String(url).endsWith("/steam/player-state"));
+    expect(attempts).toHaveLength(1);
   });
+});
+
+describe("viewer-scoped reads", () => {
+  // The cookie and the cache key have to travel together. Without
+  // `credentials: "include"` the api sees an anonymous request and answers the
+  // public projection, which then sits in the owner-scoped entry looking right.
+  it.each(cases.filter((c) => c.viewerAware))(
+    "$name sends the session cookie",
+    async ({ hook, url }) => {
+      vi.mocked(fetch).mockResolvedValue(
+        new Response(JSON.stringify({ ok: true }), { status: 200 })
+      );
+      const { result } = renderHook(hook, { wrapper: makeWrapper() });
+      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+      expect(callFor(url)?.[1]).toMatchObject({ credentials: "include" });
+    }
+  );
+
+  it.each(cases.filter((c) => !c.viewerAware))(
+    "$name is not viewer-aware and sends no cookie",
+    async ({ hook, url }) => {
+      vi.mocked(fetch).mockResolvedValue(
+        new Response(JSON.stringify({ ok: true }), { status: 200 })
+      );
+      const { result } = renderHook(hook, { wrapper: makeWrapper() });
+      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+      expect(callFor(url)?.[1]).toBeUndefined();
+    }
+  );
 });

@@ -1,10 +1,12 @@
+import { useIsOwner } from "@/auth/use-viewer";
+import { viewerScope, viewerScopedQuery } from "@/auth/viewer-scope";
 import { API_URL } from "@/lib/api-url";
 import { HttpError } from "@/lib/http-error";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { SteamPortrait } from "@vyoh/shared";
 
 async function fetchPortrait(): Promise<SteamPortrait> {
-  const res = await fetch(`${API_URL}/steam/portrait`);
+  const res = await fetch(`${API_URL}/steam/portrait`, { credentials: "include" });
   if (!res.ok) {
     let message = `HTTP ${res.status}`;
     try {
@@ -26,14 +28,15 @@ async function fetchPortrait(): Promise<SteamPortrait> {
 //
 // Recomputed from the daily 04:00 Europe/Brussels playtime snapshot, so the
 // answer cannot change more than once a day.
-export function portraitQueryOptions() {
+export function portraitQueryOptions(isOwner = false) {
   return queryOptions({
-    queryKey: ["steam", "portrait"],
+    queryKey: ["steam", "portrait", viewerScope(isOwner)],
     queryFn: fetchPortrait,
     staleTime: 30 * 60 * 1_000,
+    ...viewerScopedQuery,
   });
 }
 
 export function useSteamPortrait() {
-  return useQuery(portraitQueryOptions());
+  return useQuery(portraitQueryOptions(useIsOwner()));
 }

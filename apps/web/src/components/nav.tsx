@@ -1,4 +1,5 @@
 import { OwnerBadge } from "@/auth/owner-badge";
+import { useIsOwner } from "@/auth/use-viewer";
 import { AudioToggle } from "@/components/audio-toggle";
 import { LeagueOfLegendsIcon, SteamIcon } from "@/components/brand-icons";
 import { useCommandPalette } from "@/components/command-palette-context";
@@ -83,13 +84,16 @@ export function Nav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { setOpen } = useCommandPalette();
   const me = useMe();
+  const isOwner = useIsOwner();
   const queryClient = useQueryClient();
   // Hidden accounts are absent from the nav but still reachable by URL — the
   // roster keeps serving them, it just stops advertising them. This filter is
   // the whole of what "hidden" means on the web.
   const accounts: readonly NavLolAccount[] = getVisibleAccounts(me.data?.lol ?? []);
   const prefetchSteamLibrary = () => {
-    queryClient.prefetchQuery(steamOwnedGamesQueryOptions());
+    // The viewer's own scope, not the public one — priming the wrong key would
+    // warm a cache entry the library page is never going to read.
+    queryClient.prefetchQuery(steamOwnedGamesQueryOptions(isOwner));
   };
   // Pre-fill `?as=<slug>` from the viewer's default LoL account so
   // "Patches" lands on the personalized lens by default. Falls through to

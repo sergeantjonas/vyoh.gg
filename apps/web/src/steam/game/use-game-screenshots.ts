@@ -1,3 +1,5 @@
+import { useIsOwner } from "@/auth/use-viewer";
+import { viewerScope, viewerScopedQuery } from "@/auth/viewer-scope";
 import { HttpError } from "@/lib/http-error";
 import { useQuery } from "@tanstack/react-query";
 import type { SteamGameScreenshots } from "@vyoh/shared";
@@ -5,7 +7,9 @@ import type { SteamGameScreenshots } from "@vyoh/shared";
 import { API_URL } from "@/lib/api-url";
 
 async function fetchGameScreenshots(appid: number): Promise<SteamGameScreenshots> {
-  const res = await fetch(`${API_URL}/steam/game/${appid}/screenshots`);
+  const res = await fetch(`${API_URL}/steam/game/${appid}/screenshots`, {
+    credentials: "include",
+  });
   if (!res.ok) {
     let message = `HTTP ${res.status}`;
     try {
@@ -29,10 +33,12 @@ export function useGameScreenshots(
   appid: number,
   { enabled = true }: { enabled?: boolean } = {}
 ) {
+  const scope = viewerScope(useIsOwner());
   return useQuery({
-    queryKey: ["steam", "game", appid, "screenshots"],
+    queryKey: ["steam", "game", appid, "screenshots", scope],
     queryFn: () => fetchGameScreenshots(appid),
     staleTime: 60 * 60 * 1_000,
     enabled,
+    ...viewerScopedQuery,
   });
 }

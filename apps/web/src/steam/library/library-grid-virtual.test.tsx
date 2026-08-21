@@ -1,3 +1,4 @@
+import { seedViewer } from "@/auth/mock-viewer";
 import { mainScrollRef } from "@/lib/scroll-container";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -75,6 +76,7 @@ function game(overrides: Partial<SteamOwnedGame> = {}): SteamOwnedGame {
 
 function renderGrid(games: SteamOwnedGame[]) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  seedViewer(client);
   return render(
     <TooltipPrimitive.Provider>
       <QueryClientProvider client={client}>

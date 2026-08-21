@@ -1,3 +1,4 @@
+import { seedViewer } from "@/auth/mock-viewer";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { SteamOwnedGame } from "@vyoh/shared";
@@ -16,7 +17,9 @@ import { ActiveGameProvider } from "./active-game-context";
 import { LibraryRow } from "./library-row";
 
 function newQueryClient() {
-  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  seedViewer(client);
+  return client;
 }
 
 function renderRow(game: SteamOwnedGame, queryClient: QueryClient = newQueryClient()) {
@@ -248,6 +251,7 @@ describe("LibraryRow hover prefetch", () => {
       "game",
       730,
       "achievements",
+      "public",
     ]);
   });
 

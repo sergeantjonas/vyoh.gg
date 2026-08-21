@@ -1,3 +1,4 @@
+import { seedViewer } from "@/auth/mock-viewer";
 import {
   useWishlistHeroMeta,
   wishlistHeroMetaQueryOptions,
@@ -9,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 function makeWrapper() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  seedViewer(client);
   return ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
@@ -31,6 +33,17 @@ describe("wishlistHeroMetaQueryOptions", () => {
       "wishlist",
       42,
       "hero-meta",
+      "public",
+    ]);
+  });
+
+  it("keys the owner's projection separately", () => {
+    expect(wishlistHeroMetaQueryOptions(42, true).queryKey).toEqual([
+      "steam",
+      "wishlist",
+      42,
+      "hero-meta",
+      "owner",
     ]);
   });
 
@@ -48,9 +61,13 @@ describe("useWishlistHeroMeta", () => {
       wrapper: makeWrapper(),
     });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(String(vi.mocked(fetch).mock.calls[0]?.[0])).toBe(
-      "http://localhost:2010/steam/wishlist/42/hero-meta"
-    );
+    // The viewer query shares the mock, so match on the URL rather than order.
+    const requested = vi
+      .mocked(fetch)
+      .mock.calls.find(
+        ([url]) => String(url) === "http://localhost:2010/steam/wishlist/42/hero-meta"
+      );
+    expect(requested?.[1]).toMatchObject({ credentials: "include" });
     expect(result.current.data).toEqual({ ok: true });
   });
 

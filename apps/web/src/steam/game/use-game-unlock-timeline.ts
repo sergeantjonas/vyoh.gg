@@ -1,3 +1,5 @@
+import { useIsOwner } from "@/auth/use-viewer";
+import { viewerScope, viewerScopedQuery } from "@/auth/viewer-scope";
 import { HttpError } from "@/lib/http-error";
 import { useQuery } from "@tanstack/react-query";
 import type { GameUnlockTimeline } from "@vyoh/shared";
@@ -5,7 +7,9 @@ import type { GameUnlockTimeline } from "@vyoh/shared";
 import { API_URL } from "@/lib/api-url";
 
 async function fetchGameUnlockTimeline(appid: number): Promise<GameUnlockTimeline> {
-  const res = await fetch(`${API_URL}/steam/game/${appid}/unlock-timeline`);
+  const res = await fetch(`${API_URL}/steam/game/${appid}/unlock-timeline`, {
+    credentials: "include",
+  });
   if (!res.ok) {
     let message = `HTTP ${res.status}`;
     try {
@@ -20,9 +24,11 @@ async function fetchGameUnlockTimeline(appid: number): Promise<GameUnlockTimelin
 }
 
 export function useGameUnlockTimeline(appid: number) {
+  const scope = viewerScope(useIsOwner());
   return useQuery({
-    queryKey: ["steam", "game", appid, "unlock-timeline"],
+    queryKey: ["steam", "game", appid, "unlock-timeline", scope],
     queryFn: () => fetchGameUnlockTimeline(appid),
     staleTime: 30 * 60 * 1_000,
+    ...viewerScopedQuery,
   });
 }

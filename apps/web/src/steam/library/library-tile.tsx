@@ -1,3 +1,4 @@
+import { useIsOwner } from "@/auth/use-viewer";
 import { Sparkline } from "@/components/ui/sparkline";
 import { useHoverPrefetch } from "@/lib/use-hover-prefetch";
 import { cn } from "@/lib/utils";
@@ -53,8 +54,11 @@ export function LibraryTile({
   // See LibraryRow for the rationale on this hovercard suppression.
   const hovercardSuppressed = activeGame !== null;
   const queryClient = useQueryClient();
+  // The viewer's own scope: the detail panel reads the owner's projection for
+  // the owner, so priming the public key would warm an entry nobody reads.
+  const isOwner = useIsOwner();
   const prefetch = useHoverPrefetch(() => {
-    queryClient.prefetchQuery(gameAchievementsQueryOptions(game.appid));
+    queryClient.prefetchQuery(gameAchievementsQueryOptions(game.appid, isOwner));
   });
   // Hidden hero-img layer is the morph anchor: the destination renders the
   // same hero asset as its foreground banner, so naming *just* this hidden

@@ -1,3 +1,4 @@
+import { seedViewer } from "@/auth/mock-viewer";
 import { prefetchSteamGameBackdrop } from "@/steam/profile-backdrop";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -43,7 +44,9 @@ function game(overrides: Partial<SteamOwnedGame> = {}): SteamOwnedGame {
 }
 
 function newQueryClient() {
-  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  seedViewer(client);
+  return client;
 }
 
 function renderTile(g: SteamOwnedGame, queryClient: QueryClient = newQueryClient()) {
@@ -274,6 +277,7 @@ describe("LibraryTile hover prefetch", () => {
       "game",
       730,
       "achievements",
+      "public",
     ]);
   });
 
@@ -306,6 +310,7 @@ describe("LibraryTile hover prefetch", () => {
       "game",
       730,
       "achievements",
+      "public",
     ]);
   });
 });

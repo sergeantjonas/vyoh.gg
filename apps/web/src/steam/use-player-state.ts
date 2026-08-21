@@ -1,3 +1,5 @@
+import { useIsOwner } from "@/auth/use-viewer";
+import { viewerScope, viewerScopedQuery } from "@/auth/viewer-scope";
 import { HttpError } from "@/lib/http-error";
 import { useQuery } from "@tanstack/react-query";
 import type { SteamPlayerState } from "@vyoh/shared";
@@ -5,7 +7,7 @@ import type { SteamPlayerState } from "@vyoh/shared";
 import { API_URL } from "@/lib/api-url";
 
 async function fetchPlayerState(): Promise<SteamPlayerState> {
-  const res = await fetch(`${API_URL}/steam/player-state`);
+  const res = await fetch(`${API_URL}/steam/player-state`, { credentials: "include" });
   if (!res.ok) {
     let message = `HTTP ${res.status}`;
     try {
@@ -27,9 +29,11 @@ async function fetchPlayerState(): Promise<SteamPlayerState> {
 // 404 is a fresh-DB edge case (poller hasn't run yet). We don't retry it —
 // the row will appear within 2 min and the next refetch picks it up.
 export function useSteamPlayerState() {
+  const scope = viewerScope(useIsOwner());
   return useQuery({
-    queryKey: ["steam", "player-state"],
+    queryKey: ["steam", "player-state", scope],
     queryFn: fetchPlayerState,
+    ...viewerScopedQuery,
     staleTime: 30 * 1_000,
     refetchInterval: 30 * 1_000,
     retry: (failureCount, error) =>
