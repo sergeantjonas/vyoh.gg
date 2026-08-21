@@ -83,11 +83,14 @@ describe("AdminSteamGamesService", () => {
       expect(entries[1]?.note).toBe("stale");
     });
 
+    // The nulls option is the assertion. Postgres sorts NULLs last on an ASC
+    // order, so a bare `{ reviewedAt: "asc" }` reads as "unreviewed first" and
+    // does the opposite — it buries them under every ruling already made.
     it("puts unreviewed rows first", async () => {
       const { service, findMany } = setup();
       await service.list();
       expect(findMany.mock.calls[0]?.[0]?.orderBy).toEqual([
-        { reviewedAt: "asc" },
+        { reviewedAt: { sort: "asc", nulls: "first" } },
         { createdAt: "desc" },
       ]);
     });

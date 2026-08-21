@@ -1,3 +1,4 @@
+import { CuratedGamesSection } from "@/admin/curated-games-section";
 import { TrackedAccountsSection } from "@/admin/tracked-accounts-section";
 import { OwnerAction } from "@/auth/owner-action";
 import { useIsOwner } from "@/auth/use-viewer";
@@ -63,6 +64,8 @@ export function StatusPage() {
       />
 
       <TrackedAccountsSection />
+
+      <CuratedGamesSection />
 
       <section className="flex flex-col gap-3">
         <SectionTitle as="h2">Rate limiter — app windows</SectionTitle>

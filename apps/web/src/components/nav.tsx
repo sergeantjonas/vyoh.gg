@@ -25,6 +25,7 @@ import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { useRankedEmblemYear } from "@/lol/_shared/use-ranked-emblem-year";
 import { prefetchCachedMatches } from "@/lol/matches/use-matches";
 import { patchListQueryOptions } from "@/lol/patches/use-patch-list";
+import { SteamReviewDot } from "@/steam/curation/review-dot";
 import { steamOwnedGamesQueryOptions } from "@/steam/use-owned-games";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { useQueryClient } from "@tanstack/react-query";
@@ -41,6 +42,7 @@ import { m } from "motion/react";
 import {
   type CSSProperties,
   type ComponentType,
+  type ReactNode,
   type SVGProps,
   useRef,
   useState,
@@ -237,6 +239,7 @@ export function Nav() {
               Icon={SteamIcon}
               pathname={pathname}
               prefetch={prefetchSteamLibrary}
+              badge={<SteamReviewDot />}
             />
             <SimpleNavItem
               to="/status"
@@ -293,12 +296,15 @@ function SimpleNavItem({
   Icon,
   pathname,
   prefetch,
+  badge,
 }: {
   to: string;
   label: string;
   Icon: IconComponent;
   pathname: string;
   prefetch?: () => void;
+  /** Owner-only status marker, positioned against the link's own box. */
+  badge?: ReactNode;
 }) {
   const active = isItemActive(pathname, to);
   const prefetchHandlers = useHoverPrefetch(prefetch ?? noop, {
@@ -328,6 +334,7 @@ function SimpleNavItem({
               viewports (more items are planned). `aria-label` on the link
               keeps the affordance discoverable to assistive tech. */}
           <span className="relative z-10 hidden sm:inline">{label}</span>
+          {badge}
           {active && <NavPillHighlight />}
         </Link>
       </NavigationMenuLink>

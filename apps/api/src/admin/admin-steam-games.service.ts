@@ -28,8 +28,10 @@ export class AdminSteamGamesService {
   async list(): Promise<AdminSteamGameList> {
     const rows = await this.prisma.steamGameCuration.findMany({
       // Unreviewed first — the whole point of the surface is ruling on those —
-      // then newest decision first.
-      orderBy: [{ reviewedAt: "asc" }, { createdAt: "desc" }],
+      // then newest decision first. `nulls: "first"` is load-bearing: Postgres
+      // sorts NULLs *last* on an ASC order, so a bare `reviewedAt: "asc"` files
+      // exactly the rows that need attention at the bottom of the list.
+      orderBy: [{ reviewedAt: { sort: "asc", nulls: "first" } }, { createdAt: "desc" }],
     });
 
     const names = await this.resolveNames(rows);

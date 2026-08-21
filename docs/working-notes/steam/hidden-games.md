@@ -1,6 +1,6 @@
 # Steam — per-game privacy (hidden games)
 
-**Status:** Active — **chunks 1–4 shipped 2026-08-20, chunks 5–6 on 2026-08-21.** The api no longer names a hidden game on any surface: not the library, wishlist, upcoming calendar, achievement feeds, library completion, the recap's chapters, the OG card, the portrait's naming cards, the home first-played tile, or the live now-playing strip, and every `game/:appid/*` route 404s for a visitor. Aggregates still count hidden games anonymously, as chosen. Both hardcoded curation lists are gone — the overlay table is now the only source of curation, on either axis — and a newly-purchased game now arrives quarantined instead of published. The web's fifteen viewer-aware reads are viewer-scoped and send the session cookie, so the owner's browser now actually gets the owner's projection. The feature is **reachable** as of chunk 7: the owner can hide or restore a game from the library hovercard or the game-detail chip row. Chunk 8 (the `/status` overlay table + the needs-review nav badge) is next, then the chunk-9 lint.
+**Status:** Active — **chunks 1–4 shipped 2026-08-20, chunks 5–6 on 2026-08-21.** The api no longer names a hidden game on any surface: not the library, wishlist, upcoming calendar, achievement feeds, library completion, the recap's chapters, the OG card, the portrait's naming cards, the home first-played tile, or the live now-playing strip, and every `game/:appid/*` route 404s for a visitor. Aggregates still count hidden games anonymously, as chosen. Both hardcoded curation lists are gone — the overlay table is now the only source of curation, on either axis — and a newly-purchased game now arrives quarantined instead of published. The web's fifteen viewer-aware reads are viewer-scoped and send the session cookie, so the owner's browser now actually gets the owner's projection. The feature is **reachable** as of chunk 7: the owner can hide or restore a game from the library hovercard or the game-detail chip row. Chunk 8 added the `/status` overlay table and the needs-review dot on the Steam nav item, so the quarantine now tells the owner it is waiting. Only the chunk-9 lint remains.
 
 Read this when: touching any Steam read path that names a game, the recap's subject-chapter selection, the now-playing strip, or the owned-games poller.
 
@@ -152,6 +152,16 @@ The button renders **nothing** for a visitor rather than rendering disabled. `Ow
 
 `ownerRequest` also learned that a 204 has no body to parse — `res.json()` on an empty body throws, so the `DELETE` route would have looked like a failed request.
 
+## The overlay table and the review dot (chunk 8)
+
+`/status` gains a **Curated Steam games** section, absent for anyone but the owner for a sharper reason than the roster above it: an enumeration of the hidden games is precisely the secret the hiding exists to keep, so a locked copy of it would be a leak wearing a disabled button. The section's test asserts it makes no request at all as a visitor, not merely that it renders nothing.
+
+The table keeps the two axes in **separate columns**, because they are separate decisions — collapsing them into one "curated" state is the mistake the schema was written to avoid, where un-hiding a game silently re-promotes it to a chapter. Review is its own column too, which is the affordance the in-context toggle deliberately cannot offer: *"I looked, keep it hidden"* — a ruling that changes nothing about what visitors see. Each of the three sends exactly one field, asserted per column.
+
+**The nav dot is the other half of the quarantine.** A game that stays private until someone rules on it is only useful if the owner learns there is a ruling waiting. It sits on the Steam *icon* rather than beside the label, because the label is hidden below `sm` and a badge that vanishes on a phone is the wrong half to drop; it is static rather than pulsing, because a permanent animation on every route is a paint cost for one person's housekeeping notice. The count reaches assistive tech through `sr-only` text, since the dot itself is colour-only.
+
+**A defect the chunk-2 test had pinned in place.** `list()` carried the comment *"unreviewed first — the whole point of the surface is ruling on those"* over `orderBy: [{ reviewedAt: "asc" }, …]`, and Postgres sorts NULLs **last** on an ASC order — so the rows needing attention filed to the bottom, under every ruling already made. The existing test asserted the literal `orderBy` object, so it pinned the implementation rather than the behaviour and the contradiction passed. Now `{ sort: "asc", nulls: "first" }`, with the test's comment naming the Postgres default so the next reader knows what the option is for.
+
 ## Accepted leaks
 
 Recorded so they don't get re-raised as defects:
@@ -170,7 +180,7 @@ Recorded so they don't get re-raised as defects:
 | 5 | Retire the two hardcoded lists onto the **unfeatured** axis; point [steam-moments.service.ts](../../../apps/api/src/recap/steam-moments.service.ts) and [recap-subjects.service.ts](../../../apps/api/src/recap/recap-subjects.service.ts) at the service, and drop the hand-mirrored web copy | **Shipped 2026-08-21** |
 | 6 | Quarantine newly-inserted rows in the owned-games poller | **Shipped 2026-08-21** |
 | 7 | Web: viewer-aware query keys + an in-context hide toggle on the library tile/row and game detail | **Shipped 2026-08-21** |
-| 8 | Web: `/status` hidden-games section + the owner needs-review indicator (nav badge) | |
+| 8 | Web: `/status` hidden-games section + the owner needs-review indicator (nav badge) | **Shipped 2026-08-21** |
 | 9 | `conventions.spec.ts` lint for `excludeHiddenGames` — both the `.filter()` and the `for…continue` shapes, per the remake precedent — plus the repo-conventions entry | |
 
 ## Emit-shape survey

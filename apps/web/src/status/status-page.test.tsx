@@ -38,6 +38,13 @@ vi.mock("@/admin/tracked-accounts-section", () => ({
   TrackedAccountsSection: () => <section>Tracked accounts</section>,
 }));
 
+// Both owner-only sections are stubbed for the same reason: they own their own
+// gated queries, and this file renders the page without a QueryClientProvider.
+// Their gates are covered in their own tests.
+vi.mock("@/admin/curated-games-section", () => ({
+  CuratedGamesSection: () => <section>Curated Steam games</section>,
+}));
+
 vi.mock("@/auth/use-viewer", () => ({ useIsOwner: vi.fn() }));
 
 // The page renders no router-aware component beyond the sign-in link, so a
