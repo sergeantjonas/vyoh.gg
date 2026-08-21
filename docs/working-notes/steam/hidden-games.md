@@ -1,6 +1,6 @@
 # Steam — per-game privacy (hidden games)
 
-**Status:** Active — **chunks 1–4 shipped 2026-08-20.** The api no longer names a hidden game on any surface: not the library, wishlist, upcoming calendar, achievement feeds, library completion, the recap's chapters, the OG card, the portrait's naming cards, the home first-played tile, or the live now-playing strip, and every `game/:appid/*` route 404s for a visitor. Aggregates still count hidden games anonymously, as chosen. Chunk 5 (retire the two hardcoded curation lists onto the `unfeatured` axis) is next; nothing is user-reachable until chunks 7–8 build the UI.
+**Status:** Active — **chunks 1–4 shipped 2026-08-20, chunk 5 on 2026-08-21.** The api no longer names a hidden game on any surface: not the library, wishlist, upcoming calendar, achievement feeds, library completion, the recap's chapters, the OG card, the portrait's naming cards, the home first-played tile, or the live now-playing strip, and every `game/:appid/*` route 404s for a visitor. Aggregates still count hidden games anonymously, as chosen. Both hardcoded curation lists are gone — the overlay table is now the only source of curation, on either axis. Chunk 6 (quarantine newly-inserted rows in the owned-games poller) is next; nothing is user-reachable until chunks 7–8 build the UI.
 
 Read this when: touching any Steam read path that names a game, the recap's subject-chapter selection, the now-playing strip, or the owned-games poller.
 
@@ -29,6 +29,18 @@ The overlay carries **two independent** nullable timestamps, mirroring how `LolA
 Hiding implies unfeaturing; unfeaturing implies nothing about privacy. The first cut of the plan had chunk 5 simply *absorbing* the two hardcoded curation lists (`RECAP_HIDDEN_APPIDS` in [recap-curation.ts](../../../apps/api/src/recap/recap-curation.ts) and `HIDDEN_APPIDS` in [landing-config.ts](../../../apps/web/src/home/landing-config.ts)) into the new privacy flag. That would have been wrong, and the existing comment says why: Cyberpunk 2077 is on those lists because it has *"high lifetime hours, but stale; don't feature on `/`"*. That is art direction, not secrecy. Collapsing the axes loses "fine in my library, just don't make it a hero chapter", and worse, un-hiding a game for privacy would silently re-promote it to a chapter.
 
 Both existing entries therefore migrate to **unfeatured**, not hidden, and current behaviour is preserved exactly.
+
+## Retiring the hardcoded lists (chunk 5)
+
+Migration `20260821035000_seed_steam_curation_unfeatured` seeds the two appids — 1034140 (Subverse) and 1091500 (Cyberpunk 2077) — with `unfeaturedAt` and `reviewedAt` set and `hiddenAt` left null, so both stay fully visible and neither lands in the needs-review queue a hand-made ruling came from. `ON CONFLICT DO NOTHING` keeps it safe against a restore that already has them.
+
+`recap-curation.ts` is **deleted**, and the mirroring comment it carried goes with it. `landing-config.ts`'s `HIDDEN_APPIDS` is deleted too — it turned out to have **no production consumer at all**, only its own declaration and a test asserting the ids were integers. The list that the api's mirror comment told you to "keep in sync" was already inert on the web side, which is the clearest possible argument for the table.
+
+`SteamMomentsService` takes `curation` as a **required** argument on all three public methods rather than injecting the service, matching how chunk 3 threaded the read paths: a new detector cannot compile without deciding what it does about curation. `now`'s default was dropped in the same change — every caller already passed it, and TypeScript forbids a required parameter after an optional one, so keeping the default would have forced `curation` to be optional and defeated the point.
+
+Both recap consumers iterate `excludeUnfeaturedGames(...)` rather than guarding inside the loop, per the repo convention the remake filter established — the `for … if (…) continue` shape is what hid ten remake sites from a dedicated sweep.
+
+**How to probe this at runtime, and how not to.** Clearing `unfeaturedAt` on a curated game and expecting it to appear as a chapter proves nothing: `selectChapters` caps steam-subject at 5, and if five better-scoring games already fill the cap, the un-curated game cannot surface whether the overlay works or not. That probe came back negative against a *correct* implementation. The valid experiment is the inverse — curate out an appid that is currently a chapter. Doing that to 2584270 removed it from both the steam-subject and the steam-moment stream (proving the threading reaches both consumers) and a sixth game backfilled the freed slot, proving the filter runs before the cap rather than after it.
 
 ## Data model
 
@@ -114,7 +126,7 @@ Recorded so they don't get re-raised as defects:
 | 2 | Viewer resolution that never 401s + owner-gated `admin/steam-games` controller | **Shipped 2026-08-20** |
 | 3 | Filter the itemized read paths — owned-games, achievements (recent / rarest / completion), wishlist + upcoming, game-recap, wishlist-hero, and a refusal gate on every `game/:appid/*` route | **Shipped 2026-08-20** |
 | 4 | The identity leaks outside the list endpoints: `currentGame` on both live surfaces, the portrait's naming cards, the home first-played tile | **Shipped 2026-08-20** |
-| 5 | Retire the two hardcoded lists onto the **unfeatured** axis; point [steam-moments.service.ts](../../../apps/api/src/recap/steam-moments.service.ts) and [recap-subjects.service.ts](../../../apps/api/src/recap/recap-subjects.service.ts) at the service, and drop the hand-mirrored web copy | |
+| 5 | Retire the two hardcoded lists onto the **unfeatured** axis; point [steam-moments.service.ts](../../../apps/api/src/recap/steam-moments.service.ts) and [recap-subjects.service.ts](../../../apps/api/src/recap/recap-subjects.service.ts) at the service, and drop the hand-mirrored web copy | **Shipped 2026-08-21** |
 | 6 | Quarantine newly-inserted rows in the owned-games poller | |
 | 7 | Web: viewer-aware query keys + an in-context hide toggle on the library tile/row and game detail | |
 | 8 | Web: `/status` hidden-games section + the owner needs-review indicator (nav badge) | |

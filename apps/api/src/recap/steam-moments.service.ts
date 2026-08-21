@@ -1,8 +1,11 @@
 import { Injectable } from "@nestjs/common";
-import type { RecapCandidate } from "@vyoh/shared";
+import {
+  type RecapCandidate,
+  type SteamCurationSets,
+  excludeUnfeaturedGames,
+} from "@vyoh/shared";
 
 import { PrismaService } from "../prisma/prisma.service";
-import { RECAP_HIDDEN_APPIDS } from "./recap-curation";
 
 /** Recency window for the FIRST_TIME_GAME detector. A new addition to the
  *  library that the owner has actually started playing within the last 30d
@@ -83,10 +86,10 @@ const CLUSTER_UNLOCK_CAP = 10;
 export class SteamMomentsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async detectAll(now: Date = new Date()): Promise<RecapCandidate[]> {
+  async detectAll(now: Date, curation: SteamCurationSets): Promise<RecapCandidate[]> {
     const [firstTime, clusters] = await Promise.all([
-      this.detectFirstTimeGames(now),
-      this.detectAchievementClusters(now),
+      this.detectFirstTimeGames(now, curation),
+      this.detectAchievementClusters(now, curation),
     ]);
     return [...firstTime, ...clusters];
   }
@@ -98,8 +101,8 @@ export class SteamMomentsService {
    *
    * Algorithm:
    *   1. Load owned games with `firstSeenAt >= cutoff` and the bootstrap
-   *      day excluded. Filter non-games (`appType !== 0/null`) and the
-   *      curated hidden-appid list.
+   *      day excluded. Filter non-games (`appType !== 0/null`) and anything
+   *      the owner curated out of `/`.
    *   2. For each eligible appid, sum `SteamPlaySession` duration starting
    *      at-or-after `firstSeenAt`. Require ≥ FIRST_TIME_MIN_PLAY_MINUTES
    *      so a click-and-quit launch doesn't surface.
@@ -107,7 +110,10 @@ export class SteamMomentsService {
    *      all surviving candidates — `selectChapters` caps per-kind, so
    *      cap policy lives in the selector, not here.
    */
-  async detectFirstTimeGames(now: Date): Promise<RecapCandidate[]> {
+  async detectFirstTimeGames(
+    now: Date,
+    curation: SteamCurationSets
+  ): Promise<RecapCandidate[]> {
     const cutoff = new Date(now.getTime() - FIRST_TIME_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
     // Bootstrap-day guard. The owned-games sync stamps every previously-
@@ -141,14 +147,15 @@ export class SteamMomentsService {
     });
     const appTypeByAppid = new Map(enrichments.map((e) => [e.appid, e.appType]));
 
-    const candidatePool = eligibleGames.filter((game) => {
-      if (RECAP_HIDDEN_APPIDS.has(game.appid)) return false;
-      const appType = appTypeByAppid.get(game.appid);
-      if (appType !== undefined && appType !== null && appType !== 0) return false;
-      const firstSeenDay = startOfUtcDay(game.firstSeenAt).getTime();
-      if (bootstrapDays.has(firstSeenDay)) return false;
-      return true;
-    });
+    const candidatePool = excludeUnfeaturedGames(eligibleGames, curation).filter(
+      (game) => {
+        const appType = appTypeByAppid.get(game.appid);
+        if (appType !== undefined && appType !== null && appType !== 0) return false;
+        const firstSeenDay = startOfUtcDay(game.firstSeenAt).getTime();
+        if (bootstrapDays.has(firstSeenDay)) return false;
+        return true;
+      }
+    );
 
     if (candidatePool.length === 0) return [];
 
@@ -247,13 +254,16 @@ export class SteamMomentsService {
    *      is inside the recency window, emit one candidate. (The recency
    *      filter pre-truncates the unlock pool; the cap-check guards
    *      against clusters whose head spans into older data.)
-   *   4. Filter non-games (`appType !== 0/null`) + the curated hidden
-   *      appid list — same convention as FIRST_TIME_GAME.
+   *   4. Filter non-games (`appType !== 0/null`) + anything the owner curated
+   *      out of `/` — same convention as FIRST_TIME_GAME.
    *
    * Emits at most one candidate per qualifying appid; the selector caps
    * `steam-moment` total via the per-kind cap.
    */
-  async detectAchievementClusters(now: Date): Promise<RecapCandidate[]> {
+  async detectAchievementClusters(
+    now: Date,
+    curation: SteamCurationSets
+  ): Promise<RecapCandidate[]> {
     const cutoff = new Date(now.getTime() - CLUSTER_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
     // Joined query so we get achievement displayName + game name + appType
@@ -285,7 +295,7 @@ export class SteamMomentsService {
     });
     const appTypeByAppid = new Map(enrichments.map((e) => [e.appid, e.appType]));
 
-    // Group unlocks by appid; appids that fail the non-game / hidden /
+    // Group unlocks by appid; appids that fail the non-game / curation /
     // removed filter are dropped here so the sliding window doesn't waste
     // cycles on them.
     const groupedByAppid = new Map<
@@ -296,8 +306,7 @@ export class SteamMomentsService {
         gameName: string;
       }>
     >();
-    for (const unlock of unlocks) {
-      if (RECAP_HIDDEN_APPIDS.has(unlock.appid)) continue;
+    for (const unlock of excludeUnfeaturedGames(unlocks, curation)) {
       const appType = appTypeByAppid.get(unlock.appid);
       if (appType !== undefined && appType !== null && appType !== 0) continue;
       if (unlock.achievement.game.removedAt !== null) continue;

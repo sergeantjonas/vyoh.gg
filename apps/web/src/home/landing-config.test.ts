@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   AHRI_SKIN_ROTATION,
-  HIDDEN_APPIDS,
   HIDDEN_QUEUE_IDS,
   STEAM_FEATURED_APPID,
 } from "./landing-config";
@@ -17,14 +16,12 @@ describe("landing-config", () => {
     expect(new Set(names).size).toBe(names.length);
   });
 
-  it("HIDDEN_APPIDS and HIDDEN_QUEUE_IDS hold valid numeric ids only — typos would silently skip filtering", () => {
-    for (const id of HIDDEN_APPIDS) expect(Number.isInteger(id) && id > 0).toBe(true);
+  it("HIDDEN_QUEUE_IDS holds valid numeric ids only — typos would silently skip filtering", () => {
     for (const id of HIDDEN_QUEUE_IDS) expect(Number.isInteger(id) && id >= 0).toBe(true);
   });
 
-  it("STEAM_FEATURED_APPID is a positive integer and not hidden", () => {
+  it("STEAM_FEATURED_APPID is a positive integer", () => {
     expect(Number.isInteger(STEAM_FEATURED_APPID)).toBe(true);
     expect(STEAM_FEATURED_APPID).toBeGreaterThan(0);
-    expect(HIDDEN_APPIDS).not.toContain(STEAM_FEATURED_APPID);
   });
 });

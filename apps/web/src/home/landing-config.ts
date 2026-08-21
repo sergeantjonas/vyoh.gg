@@ -60,16 +60,13 @@ export const AHRI_SKIN_ROTATION: readonly AhriSkinEntry[] = [
 // candidate when you're not sure what's fresh.
 export const STEAM_FEATURED_APPID = 2050650; // Resident Evil 4
 
-// Steam apps to never surface as a subject chapter, even if score qualifies.
-// Non-game appTypes (tools, utilities — Wallpaper Engine, 3DMark) are
-// filtered server-side in `recap-subjects.service.ts` via the standard
-// `appType === null || appType === 0` rule shared with the library filter.
-// This list is for apps that ARE games but the owner doesn't want surfaced
-// on the portfolio. Mirrored server-side in `recap-curation.ts` — keep in sync.
-export const HIDDEN_APPIDS: readonly number[] = [
-  1034140,
-  1091500, // Cyberpunk 2077 — high lifetime hours, but stale; don't feature on `/`
-];
+// Apps that ARE games but the owner doesn't want surfaced as a chapter subject
+// live in the `SteamGameCuration` table on the `unfeatured` axis, edited through
+// `admin/steam-games` rather than here — a hand-mirrored copy on both sides of
+// the api boundary is what this file used to carry, and the two drifted by
+// definition. Non-game appTypes (tools, utilities — Wallpaper Engine, 3DMark)
+// are still filtered server-side via the `appType === null || appType === 0`
+// rule shared with the library filter.
 
 // LoL queue ids to exclude from moment-chapter detection (custom games,
 // tutorials). Ranked / draft / aram / arena stay included. Lands populated

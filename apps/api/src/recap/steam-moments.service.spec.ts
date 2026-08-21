@@ -1,3 +1,4 @@
+import { NO_CURATION } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
 
 import type { PrismaService } from "../prisma/prisma.service";
@@ -99,7 +100,31 @@ function unlockAt({
 describe("SteamMomentsService.detectFirstTimeGames", () => {
   it("returns no candidates when no games were added inside the recency window", async () => {
     const { service } = makeService({ eligibleGames: [] });
-    const result = await service.detectFirstTimeGames(NOW);
+    const result = await service.detectFirstTimeGames(NOW, NO_CURATION);
+    expect(result).toEqual([]);
+  });
+
+  // Paired with the test below, which is the same fixture minus the overlay:
+  // together they prove the drop comes from the curation and not from the
+  // fixture failing some other eligibility rule.
+  it("drops an unfeatured game that would otherwise be a first-time candidate", async () => {
+    const firstSeenAt = new Date("2026-05-28T10:00:00Z");
+    const { service } = makeService({
+      eligibleGames: [{ appid: 100, name: "Pragmata", firstSeenAt }],
+      allOwnedGames: [{ appid: 100, name: "Pragmata", firstSeenAt }],
+      enrichments: [{ appid: 100, appType: 0 }],
+      sessions: [
+        {
+          appid: 100,
+          startedAt: new Date("2026-05-28T11:00:00Z"),
+          endedAt: new Date("2026-05-28T13:30:00Z"),
+        },
+      ],
+    });
+    const result = await service.detectFirstTimeGames(NOW, {
+      hidden: new Set(),
+      unfeatured: new Set([100]),
+    });
     expect(result).toEqual([]);
   });
 
@@ -117,7 +142,7 @@ describe("SteamMomentsService.detectFirstTimeGames", () => {
         },
       ],
     });
-    const result = await service.detectFirstTimeGames(NOW);
+    const result = await service.detectFirstTimeGames(NOW, NO_CURATION);
     expect(result).toHaveLength(1);
     const [candidate] = result;
     expect(candidate).toMatchObject({
@@ -168,7 +193,7 @@ describe("SteamMomentsService.detectFirstTimeGames", () => {
         },
       ],
     });
-    const result = await service.detectFirstTimeGames(NOW);
+    const result = await service.detectFirstTimeGames(NOW, NO_CURATION);
     expect(result).toHaveLength(1);
     const [candidate] = result;
     if (candidate?.kind !== "steam-moment") throw new Error("expected steam-moment");
@@ -204,7 +229,7 @@ describe("SteamMomentsService.detectFirstTimeGames", () => {
         },
       ],
     });
-    const result = await service.detectFirstTimeGames(NOW);
+    const result = await service.detectFirstTimeGames(NOW, NO_CURATION);
     expect(result).toHaveLength(1);
     const [candidate] = result;
     if (candidate?.kind !== "steam-moment") throw new Error("expected steam-moment");
@@ -227,7 +252,7 @@ describe("SteamMomentsService.detectFirstTimeGames", () => {
         },
       ],
     });
-    const result = await service.detectFirstTimeGames(NOW);
+    const result = await service.detectFirstTimeGames(NOW, NO_CURATION);
     expect(result).toEqual([]);
   });
 
@@ -245,7 +270,7 @@ describe("SteamMomentsService.detectFirstTimeGames", () => {
         },
       ],
     });
-    const result = await service.detectFirstTimeGames(NOW);
+    const result = await service.detectFirstTimeGames(NOW, NO_CURATION);
     expect(result).toEqual([]);
   });
 
@@ -277,7 +302,7 @@ describe("SteamMomentsService.detectFirstTimeGames", () => {
         endedAt: new Date("2026-05-29T12:00:00Z"),
       })),
     });
-    const result = await service.detectFirstTimeGames(NOW);
+    const result = await service.detectFirstTimeGames(NOW, NO_CURATION);
     expect(result).toHaveLength(1);
     expect(result[0]?.kind === "steam-moment" && result[0].appid).toBe(200);
   });
@@ -304,7 +329,7 @@ describe("SteamMomentsService.detectFirstTimeGames", () => {
         },
       ],
     });
-    const result = await service.detectFirstTimeGames(NOW);
+    const result = await service.detectFirstTimeGames(NOW, NO_CURATION);
     expect(result).toHaveLength(1);
     expect(
       result[0]?.kind === "steam-moment" ? result[0].firstTime?.windowPlayMinutes : null
@@ -330,7 +355,7 @@ describe("SteamMomentsService.detectFirstTimeGames", () => {
         },
       ],
     });
-    const result = await service.detectFirstTimeGames(NOW);
+    const result = await service.detectFirstTimeGames(NOW, NO_CURATION);
     expect(result).toHaveLength(1);
     expect(
       result[0]?.kind === "steam-moment" ? result[0].firstTime?.windowPlayMinutes : null
@@ -341,7 +366,7 @@ describe("SteamMomentsService.detectFirstTimeGames", () => {
 describe("SteamMomentsService.detectAchievementClusters", () => {
   it("returns no candidates when there are no unlocks in the window", async () => {
     const { service } = makeService({ unlocks: [] });
-    const result = await service.detectAchievementClusters(NOW);
+    const result = await service.detectAchievementClusters(NOW, NO_CURATION);
     expect(result).toEqual([]);
   });
 
@@ -356,7 +381,7 @@ describe("SteamMomentsService.detectAchievementClusters", () => {
         unlockAt({ appid: 100, hoursBefore: 1, displayName: "D" }),
       ],
     });
-    const result = await service.detectAchievementClusters(NOW);
+    const result = await service.detectAchievementClusters(NOW, NO_CURATION);
     expect(result).toEqual([]);
   });
 
@@ -377,7 +402,7 @@ describe("SteamMomentsService.detectAchievementClusters", () => {
         }),
       ],
     });
-    const result = await service.detectAchievementClusters(NOW);
+    const result = await service.detectAchievementClusters(NOW, NO_CURATION);
     expect(result).toHaveLength(1);
     const [candidate] = result;
     if (candidate?.kind !== "steam-moment") throw new Error("expected steam-moment");
@@ -406,7 +431,7 @@ describe("SteamMomentsService.detectAchievementClusters", () => {
         unlockAt({ appid: 100, hoursBefore: 0.1, displayName: "F" }),
       ],
     });
-    const result = await service.detectAchievementClusters(NOW);
+    const result = await service.detectAchievementClusters(NOW, NO_CURATION);
     expect(result).toHaveLength(1);
     const [candidate] = result;
     if (candidate?.kind !== "steam-moment") throw new Error("expected steam-moment");
@@ -426,7 +451,7 @@ describe("SteamMomentsService.detectAchievementClusters", () => {
         })
       ),
     });
-    const result = await service.detectAchievementClusters(NOW);
+    const result = await service.detectAchievementClusters(NOW, NO_CURATION);
     expect(result).toHaveLength(1);
     const [candidate] = result;
     if (candidate?.kind !== "steam-moment") throw new Error("expected steam-moment");
@@ -448,7 +473,7 @@ describe("SteamMomentsService.detectAchievementClusters", () => {
         unlockAt({ appid: 431960, hoursBefore: 5 - idx, displayName: `U-${idx}` })
       ),
     });
-    const result = await service.detectAchievementClusters(NOW);
+    const result = await service.detectAchievementClusters(NOW, NO_CURATION);
     expect(result).toEqual([]);
   });
 
@@ -466,7 +491,7 @@ describe("SteamMomentsService.detectAchievementClusters", () => {
         })
       ),
     });
-    const result = await service.detectAchievementClusters(NOW);
+    const result = await service.detectAchievementClusters(NOW, NO_CURATION);
     expect(result).toEqual([]);
   });
 
@@ -491,7 +516,7 @@ describe("SteamMomentsService.detectAchievementClusters", () => {
         ),
       ],
     });
-    const result = await service.detectAchievementClusters(NOW);
+    const result = await service.detectAchievementClusters(NOW, NO_CURATION);
     expect(result).toHaveLength(1);
     const [candidate] = result;
     if (candidate?.kind !== "steam-moment") throw new Error("expected steam-moment");
@@ -524,7 +549,7 @@ describe("SteamMomentsService.detectAchievementClusters", () => {
         ),
       ],
     });
-    const result = await service.detectAchievementClusters(NOW);
+    const result = await service.detectAchievementClusters(NOW, NO_CURATION);
     expect(result).toHaveLength(2);
     const appids = new Set(result.map((c) => (c.kind === "steam-moment" ? c.appid : -1)));
     expect(appids).toEqual(new Set([100, 200]));
@@ -558,7 +583,7 @@ describe("SteamMomentsService.detectAll", () => {
         })
       ),
     });
-    const result = await service.detectAll(NOW);
+    const result = await service.detectAll(NOW, NO_CURATION);
     expect(result).toHaveLength(2);
     const momentTypes = new Set(
       result.map((c) => (c.kind === "steam-moment" ? c.momentType : null))

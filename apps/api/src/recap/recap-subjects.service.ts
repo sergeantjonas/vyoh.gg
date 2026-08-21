@@ -4,13 +4,17 @@ import type {
   RecapChapterDescriptor,
   SteamCurationSets,
 } from "@vyoh/shared";
-import { ageBucketFromDaysSince, recapScore, selectChapters } from "@vyoh/shared";
+import {
+  ageBucketFromDaysSince,
+  excludeUnfeaturedGames,
+  recapScore,
+  selectChapters,
+} from "@vyoh/shared";
 
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamGameCurationService } from "../steam/game-curation.service";
 import { SteamOwnedGamesService } from "../steam/owned-games.service";
 import { LolMomentsService } from "./lol-moments.service";
-import { RECAP_HIDDEN_APPIDS } from "./recap-curation";
 import { SteamMomentsService } from "./steam-moments.service";
 
 /** Lifetime-hours threshold for the dormant top-up. A game must carry
@@ -78,11 +82,12 @@ export class RecapSubjectsService {
     // history, Steam owned-games + sessions) and have no inter-dependency.
     // `selectChapters` handles per-kind capping + cross-kind ordering, so
     // merging the lists raw before the selector is sufficient.
+    const curation = await this.curationForChapters();
     const [steamCandidates, lolMomentCandidates, steamMomentCandidates] =
       await Promise.all([
         this.collectSteamSubjectCandidates(now),
         this.lolMoments.detectAll(now),
-        this.steamMoments.detectAll(now),
+        this.steamMoments.detectAll(now, curation),
       ]);
 
     // Steam-moment ↔ steam-subject dedup, momentType-scoped. FIRST_TIME_GAME
@@ -189,8 +194,9 @@ export class RecapSubjectsService {
     // anchors on the unlock date).
     const recentUnlockCutoff = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
+    const curation = await this.curationForChapters();
     const [ownedGames, lastUnlockRows, recentUnlockRows] = await Promise.all([
-      this.ownedGames.getOwnedGames(await this.curationForChapters()),
+      this.ownedGames.getOwnedGames(curation),
       this.prisma.steamPlayerUnlock.groupBy({
         by: ["appid"],
         _max: { unlockedAt: true },
@@ -210,8 +216,7 @@ export class RecapSubjectsService {
     );
 
     const candidates: RecapCandidate[] = [];
-    for (const game of ownedGames.games) {
-      if (RECAP_HIDDEN_APPIDS.has(game.appid)) continue;
+    for (const game of excludeUnfeaturedGames(ownedGames.games, curation)) {
       // appType === 6 is tools/apps (Wallpaper Engine, 3DMark, RPG Maker,
       // SteamVR utilities). null falls through as "game" — same convention
       // as the library filter, correct for ~99% of newly-added rows in the
@@ -288,8 +293,9 @@ export class RecapSubjectsService {
     // count is irrelevant. The snapshot rows back the brief-launch floor
     // below; `gt: 0` keeps the read tiny (a couple hundred rows), since the
     // column is null for every game outside its own two-week window.
+    const curation = await this.curationForChapters();
     const [ownedGames, lastUnlockRows, playtime2WRows] = await Promise.all([
-      this.ownedGames.getOwnedGames(await this.curationForChapters()),
+      this.ownedGames.getOwnedGames(curation),
       this.prisma.steamPlayerUnlock.groupBy({
         by: ["appid"],
         _max: { unlockedAt: true },
@@ -324,8 +330,7 @@ export class RecapSubjectsService {
       daysSince: number;
     }> = [];
 
-    for (const game of ownedGames.games) {
-      if (RECAP_HIDDEN_APPIDS.has(game.appid)) continue;
+    for (const game of excludeUnfeaturedGames(ownedGames.games, curation)) {
       if (game.appType !== null && game.appType !== 0) continue;
       // Exclude appids already represented in the active block — the same
       // game can't appear twice as both "Playing lately" and "Earlier this

@@ -1,4 +1,4 @@
-import type { SteamOwnedGame, SteamOwnedGames } from "@vyoh/shared";
+import type { SteamCurationSets, SteamOwnedGame, SteamOwnedGames } from "@vyoh/shared";
 import { NO_CURATION } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
 import type { SteamGameCurationService } from "../steam/game-curation.service";
@@ -6,7 +6,6 @@ import type { SteamGameCurationService } from "../steam/game-curation.service";
 import type { PrismaService } from "../prisma/prisma.service";
 import type { SteamOwnedGamesService } from "../steam/owned-games.service";
 import type { LolMomentsService } from "./lol-moments.service";
-import { RECAP_HIDDEN_APPIDS } from "./recap-curation";
 import { RecapSubjectsService } from "./recap-subjects.service";
 import type { SteamMomentsService } from "./steam-moments.service";
 
@@ -79,7 +78,8 @@ function makeService(
   games: SteamOwnedGame[],
   lastUnlockRows: LastUnlockRow[] = [],
   recentUnlockRows: RecentUnlockRow[] = [],
-  playtime2WRows: Playtime2WRow[] = []
+  playtime2WRows: Playtime2WRow[] = [],
+  curation: SteamCurationSets = NO_CURATION
 ): RecapSubjectsService {
   const ownedGames = {
     getOwnedGames: vi.fn().mockResolvedValue(makeOwnedGames(games)),
@@ -109,13 +109,9 @@ function makeService(
   const steamMoments = {
     detectAll: vi.fn().mockResolvedValue([]),
   } as unknown as SteamMomentsService;
-  return new RecapSubjectsService(
-    ownedGames,
-    prisma,
-    lolMoments,
-    steamMoments,
-    CURATION_STUB
-  );
+  return new RecapSubjectsService(ownedGames, prisma, lolMoments, steamMoments, {
+    getCuration: vi.fn().mockResolvedValue(curation),
+  } as unknown as SteamGameCurationService);
 }
 
 // Chapter selection consults the overlay; an empty one keeps every existing
@@ -123,6 +119,15 @@ function makeService(
 const CURATION_STUB = {
   getCuration: vi.fn().mockResolvedValue(NO_CURATION),
 } as unknown as SteamGameCurationService;
+
+// A game the owner curated off `/`. Chapter selection must drop it on the
+// `unfeatured` axis alone — it stays fully visible everywhere else, which is
+// what separates this from hiding.
+const UNFEATURED_APPID = 1091500;
+const unfeaturing = (appid: number): SteamCurationSets => ({
+  hidden: new Set(),
+  unfeatured: new Set([appid]),
+});
 
 describe("RecapSubjectsService.getChapters", () => {
   it("emits a steam-subject descriptor for a game with recent playtime and unlocks", async () => {
@@ -190,16 +195,43 @@ describe("RecapSubjectsService.getChapters", () => {
     ]);
   });
 
-  it("filters out appids in the hidden list even when score would qualify", async () => {
-    const [hidden] = [...RECAP_HIDDEN_APPIDS];
-    if (hidden === undefined) {
-      throw new Error("test precondition: RECAP_HIDDEN_APPIDS must be non-empty");
-    }
+  it("filters out unfeatured appids even when score would qualify", async () => {
     const service = makeService(
       [
         makeOwnedGame({
-          appid: hidden,
-          name: "Hidden",
+          appid: UNFEATURED_APPID,
+          name: "Unfeatured",
+          playtime2WeeksMinutes: 60 * 200,
+          rtimeLastPlayedAt: NOW.toISOString(),
+        }),
+        makeOwnedGame({
+          appid: 99,
+          name: "Visible",
+          playtime2WeeksMinutes: 60 * 10,
+          rtimeLastPlayedAt: NOW.toISOString(),
+        }),
+      ],
+      [],
+      [],
+      [],
+      unfeaturing(UNFEATURED_APPID)
+    );
+
+    const chapters = await service.getChapters(NOW);
+    expect(chapters.map((c) => (c.kind === "steam-subject" ? c.appid : -1))).toEqual([
+      99,
+    ]);
+  });
+
+  // Guards the guard: the appid above is only dropped because the overlay says
+  // so. Without that, its far higher playtime makes it the winning chapter —
+  // so a lint-free but inert filter would fail here.
+  it("keeps that same appid when nothing is unfeatured", async () => {
+    const service = makeService(
+      [
+        makeOwnedGame({
+          appid: UNFEATURED_APPID,
+          name: "Unfeatured",
           playtime2WeeksMinutes: 60 * 200,
           rtimeLastPlayedAt: NOW.toISOString(),
         }),
@@ -214,9 +246,9 @@ describe("RecapSubjectsService.getChapters", () => {
     );
 
     const chapters = await service.getChapters(NOW);
-    expect(chapters.map((c) => (c.kind === "steam-subject" ? c.appid : -1))).toEqual([
-      99,
-    ]);
+    expect(chapters.map((c) => (c.kind === "steam-subject" ? c.appid : -1))).toContain(
+      UNFEATURED_APPID
+    );
   });
 
   it("filters out non-game appTypes (tools, utilities)", async () => {
@@ -632,16 +664,12 @@ describe("RecapSubjectsService.getChapters", () => {
       expect(chapters).toEqual([]);
     });
 
-    it("respects appType + hidden-appid filters in the dormant branch", async () => {
-      const [hidden] = [...RECAP_HIDDEN_APPIDS];
-      if (hidden === undefined) {
-        throw new Error("test precondition: RECAP_HIDDEN_APPIDS must be non-empty");
-      }
+    it("respects appType + unfeatured filters in the dormant branch", async () => {
       const service = makeService(
         [
           makeOwnedGame({
-            appid: hidden,
-            name: "Hidden",
+            appid: UNFEATURED_APPID,
+            name: "Unfeatured",
             appType: 0,
             playtimeForeverMinutes: 60 * 500,
             playtime2WeeksMinutes: 0,
@@ -671,7 +699,9 @@ describe("RecapSubjectsService.getChapters", () => {
           }),
         ],
         [],
-        []
+        [],
+        [],
+        unfeaturing(UNFEATURED_APPID)
       );
 
       const chapters = await service.getChapters(NOW);
