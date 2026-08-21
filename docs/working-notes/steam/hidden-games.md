@@ -1,6 +1,6 @@
 # Steam — per-game privacy (hidden games)
 
-**Status:** Active — **chunks 1–4 shipped 2026-08-20, chunks 5–6 on 2026-08-21.** The api no longer names a hidden game on any surface: not the library, wishlist, upcoming calendar, achievement feeds, library completion, the recap's chapters, the OG card, the portrait's naming cards, the home first-played tile, or the live now-playing strip, and every `game/:appid/*` route 404s for a visitor. Aggregates still count hidden games anonymously, as chosen. Both hardcoded curation lists are gone — the overlay table is now the only source of curation, on either axis — and a newly-purchased game now arrives quarantined instead of published. The web's fifteen viewer-aware reads are viewer-scoped and send the session cookie, so the owner's browser now actually gets the owner's projection. The feature is **reachable** as of chunk 7: the owner can hide or restore a game from the library hovercard or the game-detail chip row. Chunk 8 added the `/status` overlay table and the needs-review dot on the Steam nav item, so the quarantine now tells the owner it is waiting. Only the chunk-9 lint remains.
+**Status:** **Complete — chunks 1–4 shipped 2026-08-20, chunks 5–9 on 2026-08-21.** The api no longer names a hidden game on any surface: not the library, wishlist, upcoming calendar, achievement feeds, library completion, the recap's chapters, the OG card, the portrait's naming cards, the home first-played tile, or the live now-playing strip, and every `game/:appid/*` route 404s for a visitor. Aggregates still count hidden games anonymously, as chosen. Both hardcoded curation lists are gone — the overlay table is now the only source of curation, on either axis — and a newly-purchased game now arrives quarantined instead of published. The web's fifteen viewer-aware reads are viewer-scoped and send the session cookie, so the owner's browser now actually gets the owner's projection. The feature is **reachable** as of chunk 7: the owner can hide or restore a game from the library hovercard or the game-detail chip row. Chunk 8 added the `/status` overlay table and the needs-review dot on the Steam nav item, so the quarantine now tells the owner it is waiting, and chunk 9 pinned the two invariants as structural lints. Nothing is open; read the sections below before touching a Steam read path, and see [repo-conventions.md](../../repo-conventions.md) § "A response that varies by viewer" for the contract a new one has to satisfy.
 
 Read this when: touching any Steam read path that names a game, the recap's subject-chapter selection, the now-playing strip, or the owned-games poller.
 
@@ -162,6 +162,16 @@ The table keeps the two axes in **separate columns**, because they are separate 
 
 **A defect the chunk-2 test had pinned in place.** `list()` carried the comment *"unreviewed first — the whole point of the surface is ruling on those"* over `orderBy: [{ reviewedAt: "asc" }, …]`, and Postgres sorts NULLs **last** on an ASC order — so the rows needing attention filed to the bottom, under every ruling already made. The existing test asserted the literal `orderBy` object, so it pinned the implementation rather than the behaviour and the contradiction passed. Now `{ sort: "asc", nulls: "first" }`, with the test's comment naming the Postgres default so the next reader knows what the option is for.
 
+## The lints (chunk 9)
+
+The remake invariant needed **two** lints because `.remake` is a real field that display code legitimately reads for one match, so only the aggregation shapes could be banned — and ten `if (m.remake) continue` guards survived a dedicated sweep in the gap between them. A curation Set has no second use: every legitimate read goes through `isHiddenGame()`, `excludeHiddenGames()`, `excludeUnfeaturedGames()` or `visibleAppidFilter()`. So `.hidden.has(…)` / `.unfeatured.has(…)` is bannable **outright** outside `curation.ts`, and one lint covers both shapes. The paired test pins that: four flagged shapes including the `continue` guard and a `reduce`, five spared ones including `isHiddenGame()` and `visibleAppidFilter()`.
+
+The same backstop caveat carries over, and it is the one worth remembering: neither lint can see an aggregation that forgot to filter at all. If you cannot point at the exclude call, assume the aggregation is wrong whether or not the lint is quiet.
+
+A second lint pairs `@ViewerIsOwner()` with `@WithViewer()` on the same handler. The unpaired form is *safe* — the param answers `false` when the guard never ran, so a forgetful route serves the public projection to the owner rather than the reverse — but safe is not correct: the owner would watch their own games vanish from one surface with nothing to explain it, and the handler still type-checks. It walks back from each param decorator to its own route decorator, because a whole-file `includes()` would be satisfied by any neighbouring route, and the fixture test asserts exactly that shape gets caught.
+
+Both are recorded in [repo-conventions.md](../../repo-conventions.md) — the curation half extends the existing "centralise domain invariants" entry, and the four-piece viewer-aware contract (`@WithViewer()` → required curation argument → `viewerScope()` in the key → `credentials: "include"`) is a new section, since the failure modes point in different directions and only one of them is visible.
+
 ## Accepted leaks
 
 Recorded so they don't get re-raised as defects:
@@ -181,7 +191,7 @@ Recorded so they don't get re-raised as defects:
 | 6 | Quarantine newly-inserted rows in the owned-games poller | **Shipped 2026-08-21** |
 | 7 | Web: viewer-aware query keys + an in-context hide toggle on the library tile/row and game detail | **Shipped 2026-08-21** |
 | 8 | Web: `/status` hidden-games section + the owner needs-review indicator (nav badge) | **Shipped 2026-08-21** |
-| 9 | `conventions.spec.ts` lint for `excludeHiddenGames` — both the `.filter()` and the `for…continue` shapes, per the remake precedent — plus the repo-conventions entry | |
+| 9 | `conventions.spec.ts` lint for `excludeHiddenGames` — both the `.filter()` and the `for…continue` shapes, per the remake precedent — plus the repo-conventions entry | **Shipped 2026-08-21** |
 
 ## Emit-shape survey
 

@@ -65,6 +65,41 @@ const REMAKE_ALLOWLIST = new Set([
   path.join(WORKSPACE_ROOT, "packages/shared/src/lol/exclude-remakes.ts"),
 ]);
 
+const CURATION_SCAN_ROOTS = ["apps/web/src", "apps/api/src", "packages/shared/src"];
+
+// Same reasoning: curation.ts defines the helpers, so it is the one file that
+// has to touch the Sets.
+const CURATION_ALLOWLIST = new Set([
+  path.join(WORKSPACE_ROOT, "packages/shared/src/steam/curation.ts"),
+]);
+
+const VIEWER_SCAN_ROOTS = ["apps/api/src"];
+
+/**
+ * Routes taking `@ViewerIsOwner()` without `@WithViewer()` above them.
+ *
+ * Walks back from each param decorator to the route decorator that opens its
+ * handler, so the check sees that handler's own stack. A whole-file
+ * `text.includes("@WithViewer()")` would be satisfied by any neighbouring
+ * route, which is precisely the defect shape.
+ */
+function unpairedViewerParams(text: string): string[] {
+  const ROUTE_DECORATORS = ["@Get(", "@Post(", "@Patch(", "@Put(", "@Delete("];
+  const out: string[] = [];
+  const regex = /@ViewerIsOwner\(/g;
+  let m: RegExpExecArray | null;
+  // biome-ignore lint/suspicious/noAssignInExpressions: standard exec loop
+  while ((m = regex.exec(text)) !== null) {
+    const before = text.slice(0, m.index);
+    const routeAt = Math.max(...ROUTE_DECORATORS.map((d) => before.lastIndexOf(d)));
+    if (routeAt === -1) continue;
+    if (before.slice(routeAt).includes("@WithViewer()")) continue;
+    const line = before.split("\n").length;
+    out.push(`L${line}: ${before.slice(routeAt).split("\n")[0]?.trim()}`);
+  }
+  return out;
+}
+
 function walk(root: string, onFile: (abs: string) => void): void {
   for (const entry of readdirSync(root)) {
     const abs = path.join(root, entry);
@@ -384,6 +419,99 @@ describe("project conventions (structural lints)", () => {
     for (const src of mustNotFlag) {
       expect(build().test(src), `should NOT flag: ${src}`).toBe(false);
     }
+  });
+
+  // The Steam half of the same convention, and a stronger form of it: the
+  // remake invariant needed two lints because `.remake` is a legitimate field
+  // read in display code, so only the *aggregation* shapes could be banned.
+  // A curation set has no such second use — every legitimate read goes through
+  // `isHiddenGame()`, `excludeHiddenGames()`, `excludeUnfeaturedGames()` or
+  // `visibleAppidFilter()` — so reaching into `.hidden.has(...)` directly is
+  // bannable outright, which covers `.filter(...)` and `if (…) continue` alike.
+  //
+  // Same backstop caveat as the remake lints: this cannot see an aggregation
+  // that forgot to filter at all. If you cannot point at the exclude call, the
+  // aggregation is wrong whether or not this lint is quiet.
+  it("no raw curation-set access outside the shared helper", () => {
+    const hits = collect(
+      CURATION_SCAN_ROOTS,
+      (text) =>
+        matchLines(text, (line) =>
+          /\.(?:hidden|unfeatured)\.has\(/.test(line) ? "" : null
+        ),
+      CURATION_ALLOWLIST
+    );
+    expect(
+      hits,
+      "Use excludeHiddenGames / excludeUnfeaturedGames / isHiddenGame from @vyoh/shared instead of reading the curation Set directly"
+    ).toEqual([]);
+  });
+
+  it("the curation lint catches both the filter and the loop-guard shape", () => {
+    const flags = (src: string) => /\.(?:hidden|unfeatured)\.has\(/.test(src);
+
+    const mustFlag = [
+      "const visible = games.filter((g) => !curation.hidden.has(g.appid));",
+      "for (const g of games) {\n  if (curation.hidden.has(g.appid)) continue;",
+      "if (sets.unfeatured.has(appid)) continue;",
+      "const n = games.reduce((acc, g) => (curation.hidden.has(g.appid) ? acc : acc + 1), 0);",
+    ];
+    for (const src of mustFlag) {
+      expect(flags(src), `should flag: ${src}`).toBe(true);
+    }
+
+    const mustNotFlag = [
+      "const visible = excludeHiddenGames(games, curation);",
+      "for (const g of excludeUnfeaturedGames(games, curation)) {",
+      // The single-appid predicate is the blessed way to ask about one game.
+      "if (isHiddenGame(appid, curation)) throw new NotFoundException();",
+      "where: { appid: visibleAppidFilter(curation) },",
+      "const hidden = new Set<number>();",
+    ];
+    for (const src of mustNotFlag) {
+      expect(flags(src), `should NOT flag: ${src}`).toBe(false);
+    }
+  });
+
+  // `@ViewerIsOwner()` answers `false` when the guard never ran, which is the
+  // safe direction — a route that forgets `@WithViewer()` serves the public
+  // projection to the owner rather than the owner's to a visitor. Safe is not
+  // the same as correct: the owner would watch their own hidden games vanish
+  // from one surface with nothing to explain it, and the handler still
+  // type-checks. So the pairing is structural.
+  it("every route reading the viewer declares @WithViewer()", () => {
+    const hits = collect(VIEWER_SCAN_ROOTS, unpairedViewerParams);
+    expect(
+      hits,
+      "@ViewerIsOwner() without @WithViewer() on the same route always resolves to the public projection"
+    ).toEqual([]);
+  });
+
+  it("the @WithViewer lint reads the annotated route's own decorators", () => {
+    const paired = `
+  @Get("wishlist")
+  @WithViewer()
+  async getWishlist(@ViewerIsOwner() isOwner: boolean) {}
+`;
+    expect(unpairedViewerParams(paired)).toEqual([]);
+
+    const missing = `
+  @Get("wishlist")
+  async getWishlist(@ViewerIsOwner() isOwner: boolean) {}
+`;
+    expect(unpairedViewerParams(missing)).toHaveLength(1);
+
+    // The defect shape the scoping exists for: a neighbour carries the
+    // decorator, so a whole-file `includes()` would call this clean.
+    const neighbour = `
+  @Get("upcoming")
+  @WithViewer()
+  async getUpcoming(@ViewerIsOwner() isOwner: boolean) {}
+
+  @Get("wishlist")
+  async getWishlist(@ViewerIsOwner() isOwner: boolean) {}
+`;
+    expect(unpairedViewerParams(neighbour)).toHaveLength(1);
   });
 
   // repo-conventions.md: "Use TooltipPrimitive for all tooltip surfaces;

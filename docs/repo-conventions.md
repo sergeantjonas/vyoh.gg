@@ -108,6 +108,21 @@ If a predicate or filter must hold for *every* stat computation, rollup, or disp
 
 Two failures reached production through the gap this rule closes, both in code that never spelled `remake` at a filter site: `buildOutcomeSignal` walked an unfiltered history so a remake could pad a streak, and `getChampionExtras` counted remade games into item and matchup win rates. If an aggregation reads a match list and you cannot point at the `excludeRemakes()` call, assume it is wrong.
 
+The Steam curation overlay is the second instance of this rule, and a stricter one: `excludeHiddenGames()`, `excludeUnfeaturedGames()`, `isHiddenGame()` and `visibleAppidFilter()` in `packages/shared/src/steam/curation.ts` are the *only* legitimate readers of a `SteamCurationSets`. Unlike `.remake` — a real field that display code legitimately reads for one match — a curation Set has no second use, so `conventions.spec.ts` bans `.hidden.has(…)` / `.unfeatured.has(…)` outright anywhere else, which covers the `.filter()` and the `if (…) continue` shapes in one lint instead of two.
+
+### A response that varies by viewer is scoped on both sides
+
+Some api responses depend on who is asking — today that means every Steam route that names a game, because the owner sees their hidden games and nobody else does. Getting one of these right takes four pieces, and any one of them missing produces a wrong answer that looks correct:
+
+1. **The api route declares `@WithViewer()`** and takes `@ViewerIsOwner() isOwner: boolean`. Linted: `@ViewerIsOwner()` without `@WithViewer()` on the same handler always resolves to `false`.
+2. **The service takes the curation sets as a required argument** rather than injecting `SteamGameCurationService` and fetching them itself. A new read path then cannot compile until it has answered "whose view is this?", where injection would let it quietly default to the owner's.
+3. **The web query key carries `viewerScope(isOwner)`** as its last segment (`"owner"` / `"public"`), so the two projections never share a cache entry and prefix invalidation still matches. It goes last for that second reason.
+4. **The fetch sends `credentials: "include"`.** This is the piece that fails silently: without it the api sees an anonymous request and answers the public projection, which then sits in the owner-scoped entry looking entirely correct.
+
+**Why:** the halves fail in different directions. A missing scope in the key corrupts the cache for whoever loads second; a missing cookie corrupts it quietly for the owner alone. Neither is a type error, and neither shows up in a render — the page just describes a library that isn't yours.
+
+**How to apply:** SSR primes the *public* key and must keep doing so — a route loader runs on the server where the visitor's cookie is out of scope — so `isOwner` defaults to `false` everywhere it is optional, and the loaders pass nothing. Prefetches are the exception that has to ask: a hover prefetch on the public key warms an entry the destination never reads for the owner, which is a prefetch that silently stops prefetching. Spread `viewerScopedQuery` into the options so the key flip after hydration doesn't drop the surface back to its skeleton. In tests, `seedViewer(client)` puts the viewer in the cache instead of letting it reach the fetch mock — one mocked `Response` has one readable body, and the viewer query will drink it.
+
 ### Use `useChampionName()` for all champion name display
 
 When rendering a champion's name in any UI component, call `useChampionName()` from `@/lol/champions/use-champions` and use the returned function at the render site — never render a raw alias string directly as a display label.
