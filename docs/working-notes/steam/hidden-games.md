@@ -121,6 +121,10 @@ Three things narrow it to genuinely new titles:
 - **`skipDuplicates: true`** covers the case where the overlay row outlived the owned-game row (hidden before purchase, or refunded and rebought) — a plain insert would overwrite the owner's own decision with a fresh quarantine.
 - **The existing library is untouched on first run.** Every currently-owned appid is already in `SteamOwnedGame`, so it classifies as `persisted`; the first poll after this ships quarantines nothing. Worth knowing before reading the deploy's poller log as a no-op.
 
+**Being asked, not just notified (2026-08-23).** The dot says *that* something is waiting without ever asking *what*, which left the quarantine half-finished: a game held private until someone rules on it needs the ruling to actually be requested. `NewPurchasePrompt` renders above the outlet in the Steam section root — not on `/steam` exactly, because the owner may land on any tab and a question you only get asked in one place is a question you can walk past — and offers **two** buttons per game: "Show it" (`hidden: false, reviewed: true`) and "Keep hidden" (`reviewed: true` alone). That second one is the two-state edit the one-button chip cannot express, and sending `hidden` with it would be a bug: it would read as "hide it again" on a game that is already hidden.
+
+Not dismissible, deliberately — a prompt that can be waved away is the dot again. It is gated behind the **cheap** review-count query, which the nav dot has already primed, so a Steam page with nothing pending issues no extra request; the list only loads once the count says there is something to ask about. Capped at three games with a link to `/status`, so a bundle purchase doesn't turn the section header into a table.
+
 `invalidate()` fires after the commit and only when something was minted. Inside the transaction it would be worse than useless: a read landing mid-transaction repopulates the cache from pre-insert state and holds the new game visible for a full TTL. The spec pins this by snapshotting the invalidate count at the moment the transaction callback returns and asserting it is still 0.
 
 ## Viewer-scoped query keys (chunk 7)

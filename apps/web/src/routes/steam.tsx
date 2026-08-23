@@ -6,6 +6,7 @@ import { routeMeta } from "@/lib/route-meta";
 import { useScrollResetOnNav } from "@/lib/use-scroll-reset-on-nav";
 import { cn } from "@/lib/utils";
 import { SteamPreferences } from "@/steam/_shared/steam-preferences";
+import { NewPurchasePrompt } from "@/steam/curation/new-purchase-prompt";
 import { ActiveGameProvider, useActiveGame } from "@/steam/library/active-game-context";
 import { SteamProfileBackdrop } from "@/steam/profile-backdrop";
 import {
@@ -144,6 +145,13 @@ function SteamLayout() {
           actions={<SteamPreferences />}
           onHeaderRect={onHeaderRect}
         >
+          {/* Above the outlet rather than on one tab: the owner may land
+              anywhere in the section, and a question they only get asked on
+              `/steam` exactly is a question they can walk past. Renders null
+              for everyone else, and for the owner whenever nothing is
+              quarantined — which is almost always. */}
+          <NewPurchasePrompt />
+
           {safariSlideDir ? (
             // `key` forces a fresh DOM element per pathname so the CSS
             // animation re-fires on every Safari intra-Steam nav. The
