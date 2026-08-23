@@ -19,10 +19,18 @@ import { useGameCuration } from "./use-game-curation";
  */
 export function HideGameButton({
   appid,
+  name,
   compact = false,
   className,
 }: {
   appid: number;
+  /**
+   * The game's title, where the surface knows it. Forwarded so the overlay row
+   * gets a label on creation: the api falls back to the owned-game row's name,
+   * which is null for a wishlisted or unpurchased appid, and `/status` would
+   * then list it as a bare "App 1091500" forever. Ignored on an existing row.
+   */
+  name?: string | null | undefined;
   /** Icon-only, for a library row or tile where there is no room for words. */
   compact?: boolean;
   className?: string;
@@ -45,7 +53,16 @@ export function HideGameButton({
         onClick={(event) => {
           event.preventDefault();
           event.stopPropagation();
-          update.mutate({ appid, patch: { hidden: !hidden, reviewed: true } });
+          update.mutate({
+            appid,
+            patch: {
+              hidden: !hidden,
+              reviewed: true,
+              // Only a real title — the placeholder a caller renders for an
+              // unresolvable name would persist into the overlay as data.
+              ...(name == null ? {} : { name }),
+            },
+          });
         }}
         disabled={busy}
         aria-pressed={hidden}

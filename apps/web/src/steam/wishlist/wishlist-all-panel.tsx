@@ -1,6 +1,7 @@
 import { EmptyState, EmptyWishlistIllustration } from "@/components/empty-state";
 import { cn } from "@/lib/utils";
 import { SteamGameRowShell } from "@/steam/_shared/steam-game-row";
+import { HideGameButton } from "@/steam/curation/hide-game-button";
 import { useSteamWishlist } from "@/steam/use-wishlist";
 import {
   formatWishlistDateAdded,
@@ -91,7 +92,11 @@ interface WishlistRowProps {
 function WishlistRow({ item, isHighlighted }: WishlistRowProps) {
   const release = formatWishlistReleaseLabel(item);
   return (
-    <li data-appid={item.appid}>
+    // Flex, so the owner's hide toggle can be a *sibling* of the anchor rather
+    // than a descendant of it. A button inside a link is invalid HTML and a
+    // nested-interactive a11y failure — the library surfaces dodge that by
+    // living in a hovercard, and a wishlist row has none to hide in.
+    <li data-appid={item.appid} className="flex items-stretch gap-2">
       <a
         href={item.storeUrl}
         target="_blank"
@@ -100,7 +105,7 @@ function WishlistRow({ item, isHighlighted }: WishlistRowProps) {
         // Steam store, not a /steam/library route). The whole row is the click
         // target; the trailing icon is a visual external-link affordance.
         className={cn(
-          "group/row block rounded-lg outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50",
+          "group/row min-w-0 flex-1 rounded-lg outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50",
           isHighlighted && "ring-2 ring-amber-300 ring-offset-2 ring-offset-background"
         )}
         aria-label={`${item.name ?? `App ${item.appid}`} on Steam`}
@@ -124,6 +129,14 @@ function WishlistRow({ item, isHighlighted }: WishlistRowProps) {
           trailing={<ExternalLink className="size-4" aria-hidden />}
         />
       </a>
+      {/* `name` matters more here than on the library surfaces: a wishlisted
+          game usually has no owned-game row for the api to take a label from. */}
+      <HideGameButton
+        appid={item.appid}
+        name={item.name}
+        compact
+        className="my-auto shrink-0"
+      />
     </li>
   );
 }

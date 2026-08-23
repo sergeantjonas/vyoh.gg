@@ -26,7 +26,8 @@ function row(overrides: Partial<AdminSteamGame> = {}): AdminSteamGame {
 function renderButton({
   isOwner = true,
   entries = [] as AdminSteamGame[],
-}: { isOwner?: boolean; entries?: AdminSteamGame[] } = {}) {
+  name,
+}: { isOwner?: boolean; entries?: AdminSteamGame[]; name?: string | null } = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   seedViewer(client, isOwner);
   client.setQueryData(adminSteamGamesQueryKey, {
@@ -36,7 +37,7 @@ function renderButton({
   return render(
     <QueryClientProvider client={client}>
       <Tooltip.Provider>
-        <HideGameButton appid={APPID} />
+        <HideGameButton appid={APPID} name={name} />
       </Tooltip.Provider>
     </QueryClientProvider>
   );
@@ -107,6 +108,28 @@ describe("HideGameButton", () => {
         .mock.calls.find(([url]) => String(url).endsWith(`/admin/steam-games/${APPID}`));
       expect(call?.[1]).toMatchObject({ credentials: "include", method: "PATCH" });
     });
+  });
+
+  // A wishlisted appid has no owned-game row, so the api has nothing to take a
+  // label from and `/status` would list it as a bare "App 730" forever.
+  it("forwards the title so an unowned game's row gets a label", async () => {
+    renderButton({ name: "Counter-Strike 2" });
+    await userEvent.click(screen.getByRole("button"));
+    await waitFor(() =>
+      expect(patchBody()).toEqual({
+        hidden: true,
+        reviewed: true,
+        name: "Counter-Strike 2",
+      })
+    );
+  });
+
+  // Callers render their own placeholder for an unresolvable title; persisting
+  // one into the overlay would store "Unknown title (app 730)" as data.
+  it("omits the title entirely when the surface does not know it", async () => {
+    renderButton({ name: null });
+    await userEvent.click(screen.getByRole("button"));
+    await waitFor(() => expect(patchBody()).toEqual({ hidden: true, reviewed: true }));
   });
 
   it("marks a quarantined game as still awaiting a ruling", () => {
