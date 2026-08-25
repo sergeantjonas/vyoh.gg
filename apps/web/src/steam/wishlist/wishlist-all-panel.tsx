@@ -96,7 +96,11 @@ function WishlistRow({ item, isHighlighted }: WishlistRowProps) {
     // than a descendant of it. A button inside a link is invalid HTML and a
     // nested-interactive a11y failure — the library surfaces dodge that by
     // living in a hovercard, and a wishlist row has none to hide in.
-    <li data-appid={item.appid} className="flex items-stretch gap-2">
+    //
+    // `items-center`, not `items-stretch`: the toggle's flex item is its tooltip
+    // trigger, and a stretched trigger is a row-tall anchor box, which throws
+    // the hint a full row clear of the button.
+    <li data-appid={item.appid} className="flex items-center gap-2">
       <a
         href={item.storeUrl}
         target="_blank"
@@ -131,12 +135,7 @@ function WishlistRow({ item, isHighlighted }: WishlistRowProps) {
       </a>
       {/* `name` matters more here than on the library surfaces: a wishlisted
           game usually has no owned-game row for the api to take a label from. */}
-      <HideGameButton
-        appid={item.appid}
-        name={item.name}
-        compact
-        className="my-auto shrink-0"
-      />
+      <HideGameButton appid={item.appid} name={item.name} compact className="shrink-0" />
     </li>
   );
 }

@@ -33,7 +33,12 @@ export function HideGameButton({
   name?: string | null | undefined;
   /** Icon-only, for a library row or tile where there is no room for words. */
   compact?: boolean;
-  className?: string;
+  /**
+   * Layout classes, applied to the tooltip trigger rather than the button.
+   * The trigger is the outermost box and the one Radix anchors the hint to, so
+   * a parent's flex/grid positioning has to reach it — see `ControlHint`.
+   */
+  className?: string | undefined;
 }) {
   const { isOwner, hidden, needsReview, isPending } = useGameCuration(appid);
   const update = useUpdateSteamCuration();
@@ -45,7 +50,11 @@ export function HideGameButton({
   const Icon = hidden ? EyeOff : Eye;
 
   return (
-    <ControlHint label={needsReview ? `${label} — needs your ruling` : label} side="top">
+    <ControlHint
+      label={needsReview ? `${label} — needs your ruling` : label}
+      side="top"
+      className={className}
+    >
       <button
         type="button"
         // The whole row/tile is a link on the list surfaces, so a press here has
@@ -73,8 +82,7 @@ export function HideGameButton({
           hidden
             ? "border-amber-400/40 bg-amber-400/10 text-amber-200/90 hover:bg-amber-400/20"
             : "border-foreground/15 bg-foreground/5 text-foreground/85 hover:bg-foreground/10",
-          needsReview && "border-dashed",
-          className
+          needsReview && "border-dashed"
         )}
       >
         {busy ? (

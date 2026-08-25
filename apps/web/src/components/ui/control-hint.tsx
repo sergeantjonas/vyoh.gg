@@ -1,4 +1,5 @@
 import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
+import { cn } from "@/lib/utils";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { ReactNode } from "react";
 
@@ -13,16 +14,27 @@ import type { ReactNode } from "react";
 export function ControlHint({
   label,
   side = "top",
+  className,
   children,
 }: {
   label: string;
   side?: "top" | "bottom";
+  /**
+   * Layout classes for the trigger span.
+   *
+   * This span — not the control inside it — is the element Radix measures and
+   * the one a flex or grid parent lays out, so positioning classes have to land
+   * here. Styling the inner control instead leaves the span free to stretch,
+   * and the tooltip anchors to the stretched box: in a tall `items-stretch`
+   * row that puts the hint a full row above the button it belongs to.
+   */
+  className?: string | undefined;
   children: ReactNode;
 }) {
   return (
     <TooltipPrimitive.Root>
       <TooltipPrimitive.Trigger asChild>
-        <span className="inline-flex">{children}</span>
+        <span className={cn("inline-flex", className)}>{children}</span>
       </TooltipPrimitive.Trigger>
       <TooltipPrimitive.Portal>
         <TooltipPrimitive.Content

@@ -27,7 +27,13 @@ function renderButton({
   isOwner = true,
   entries = [] as AdminSteamGame[],
   name,
-}: { isOwner?: boolean; entries?: AdminSteamGame[]; name?: string | null } = {}) {
+  className,
+}: {
+  isOwner?: boolean;
+  entries?: AdminSteamGame[];
+  name?: string | null;
+  className?: string;
+} = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   seedViewer(client, isOwner);
   client.setQueryData(adminSteamGamesQueryKey, {
@@ -37,7 +43,7 @@ function renderButton({
   return render(
     <QueryClientProvider client={client}>
       <Tooltip.Provider>
-        <HideGameButton appid={APPID} name={name} />
+        <HideGameButton appid={APPID} name={name} className={className} />
       </Tooltip.Provider>
     </QueryClientProvider>
   );
@@ -130,6 +136,16 @@ describe("HideGameButton", () => {
     renderButton({ name: null });
     await userEvent.click(screen.getByRole("button"));
     await waitFor(() => expect(patchBody()).toEqual({ hidden: true, reviewed: true }));
+  });
+
+  // The tooltip trigger is the outermost box and the element Radix anchors the
+  // hint to. Styling the button instead leaves the trigger free to stretch in a
+  // flex row, and the hint then floats a full row clear of the control.
+  it("puts layout classes on the tooltip trigger, not on the button", () => {
+    renderButton({ className: "shrink-0" });
+    const button = screen.getByRole("button");
+    expect(button.className).not.toContain("shrink-0");
+    expect(button.parentElement?.className).toContain("shrink-0");
   });
 
   it("marks a quarantined game as still awaiting a ruling", () => {
