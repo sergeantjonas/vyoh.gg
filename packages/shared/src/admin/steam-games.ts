@@ -16,6 +16,16 @@ export interface AdminSteamGame {
   reviewedAt: string | null;
   note: string | null;
   createdAt: string;
+  /**
+   * Playtime in Steam's trailing two-week window, or null when the appid has no
+   * owned-game row (a wishlisted or pre-hidden title) or Steam reports nothing.
+   *
+   * Carried so the review prompt can lead with the game the owner has actually
+   * been playing — a quarantined title with ten hours behind it is the one they
+   * have a real decision to make about, in either direction. The management
+   * table keeps its own order; this is a signal, not a sort.
+   */
+  recentPlaytimeMinutes: number | null;
 }
 
 export interface AdminSteamGameList {

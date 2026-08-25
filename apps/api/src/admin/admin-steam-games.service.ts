@@ -8,6 +8,12 @@ import { PrismaService } from "../prisma/prisma.service";
 import { SteamGameCurationService } from "../steam/game-curation.service";
 import type { UpdateSteamGameCurationDto } from "./admin-steam-games.dto";
 
+/** Per-appid facts assembled for `project`; see `resolveFacts`. */
+type GameFacts = {
+  names: Map<number, string>;
+  recent: Map<number, number>;
+};
+
 type CurationRow = {
   appid: number;
   name: string | null;
@@ -34,9 +40,9 @@ export class AdminSteamGamesService {
       orderBy: [{ reviewedAt: { sort: "asc", nulls: "first" } }, { createdAt: "desc" }],
     });
 
-    const names = await this.resolveNames(rows);
+    const facts = await this.resolveFacts(rows);
     return {
-      entries: rows.map((row) => this.project(row, names)),
+      entries: rows.map((row) => this.project(row, facts)),
       pendingReview: rows.filter((row) => row.reviewedAt === null).length,
     };
   }
@@ -75,7 +81,7 @@ export class AdminSteamGamesService {
     });
 
     this.curation.invalidate();
-    return this.project(row, await this.resolveNames([row]));
+    return this.project(row, await this.resolveFacts([row]));
   }
 
   /**
@@ -89,35 +95,58 @@ export class AdminSteamGamesService {
     this.curation.invalidate();
   }
 
-  private project(row: CurationRow, names: Map<number, string>): AdminSteamGame {
+  private project(row: CurationRow, facts: GameFacts): AdminSteamGame {
     return {
       appid: row.appid,
-      name: row.name ?? names.get(row.appid) ?? null,
+      name: row.name ?? facts.names.get(row.appid) ?? null,
       hiddenAt: row.hiddenAt?.toISOString() ?? null,
       unfeaturedAt: row.unfeaturedAt?.toISOString() ?? null,
       reviewedAt: row.reviewedAt?.toISOString() ?? null,
       note: row.note,
       createdAt: row.createdAt.toISOString(),
+      recentPlaytimeMinutes: facts.recent.get(row.appid) ?? null,
     };
   }
 
   /**
-   * Names for rows that carry none of their own. `SteamOwnedGame` is the only
-   * table that holds one — neither enrichment nor wishlist assets do — so a
-   * curated appid that was never owned shows whatever name the request supplied,
-   * or nothing.
+   * Per-appid facts the overlay row doesn't carry itself.
+   *
+   * Names: `SteamOwnedGame` is the only table that holds one — neither
+   * enrichment nor wishlist assets do — so a curated appid that was never owned
+   * shows whatever name the request supplied, or nothing.
+   *
+   * Recent playtime: the trailing-two-week figure off the newest snapshot, which
+   * is what lets the review prompt lead with the game the owner has actually
+   * been playing. Read from the newest row *including* its nulls: Steam drops
+   * the field once the window rolls past the session, and falling through to an
+   * older reading would report a fortnight-old binge as current.
    */
-  private async resolveNames(
-    rows: readonly { appid: number }[]
-  ): Promise<Map<number, string>> {
-    const missing = rows.map((r) => r.appid);
-    if (missing.length === 0) return new Map();
+  private async resolveFacts(rows: readonly { appid: number }[]): Promise<GameFacts> {
+    const appids = rows.map((r) => r.appid);
+    if (appids.length === 0) return { names: new Map(), recent: new Map() };
 
-    const owned = await this.prisma.steamOwnedGame.findMany({
-      where: { appid: { in: missing } },
-      select: { appid: true, name: true },
-    });
-    return new Map(owned.map((g) => [g.appid, g.name]));
+    const [owned, snapshots] = await Promise.all([
+      this.prisma.steamOwnedGame.findMany({
+        where: { appid: { in: appids } },
+        select: { appid: true, name: true },
+      }),
+      this.prisma.steamPlaytimeSnapshot.findMany({
+        where: { appid: { in: appids } },
+        select: { appid: true, playtime2WeeksMinutes: true },
+        orderBy: { snapshotDate: "desc" },
+      }),
+    ]);
+
+    const recent = new Map<number, number>();
+    const seen = new Set<number>();
+    for (const row of snapshots) {
+      if (seen.has(row.appid)) continue;
+      seen.add(row.appid);
+      if (row.playtime2WeeksMinutes !== null) {
+        recent.set(row.appid, row.playtime2WeeksMinutes);
+      }
+    }
+    return { names: new Map(owned.map((g) => [g.appid, g.name])), recent };
   }
 
   private async ownedGameName(appid: number): Promise<string | null> {

@@ -6,6 +6,7 @@ import {
 import { useIsOwner } from "@/auth/use-viewer";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
+import { formatPlaytime } from "@vyoh/shared";
 import { Eye, EyeOff, PackagePlus } from "lucide-react";
 
 // Beyond a handful the card stops being a question and becomes a table. A bulk
@@ -42,7 +43,15 @@ export function NewPurchasePrompt() {
   // Only the poller mints an unreviewed row, and it always sets `hiddenAt`, so
   // "unreviewed" and "quarantined new purchase" are the same set. An
   // owner-made ruling is reviewed on arrival by definition.
-  const waiting = (data?.entries ?? []).filter((entry) => entry.reviewedAt === null);
+  //
+  // Ordered by recent playtime, not by arrival: a quarantined game with ten
+  // hours behind it is the one the owner has a real decision to make about, in
+  // either direction, and it should not be the third row. Ties keep the api's
+  // order, which is newest-first, so a fresh purchase with no hours yet still
+  // leads over an older untouched one.
+  const waiting = (data?.entries ?? [])
+    .filter((entry) => entry.reviewedAt === null)
+    .sort((a, b) => (b.recentPlaytimeMinutes ?? 0) - (a.recentPlaytimeMinutes ?? 0));
 
   if (!isOwner || pending === 0 || waiting.length === 0) return null;
 
@@ -80,6 +89,13 @@ export function NewPurchasePrompt() {
           >
             <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
               {entry.name ?? `App ${entry.appid}`}
+              {entry.recentPlaytimeMinutes !== null &&
+                entry.recentPlaytimeMinutes > 0 && (
+                  // The number that makes the decision urgent, said plainly.
+                  <span className="ml-2 font-normal text-xs text-muted-foreground">
+                    {formatPlaytime(entry.recentPlaytimeMinutes)} in two weeks
+                  </span>
+                )}
             </span>
             <Button
               variant="outline"

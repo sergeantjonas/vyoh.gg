@@ -22,6 +22,7 @@ function setup(
   opts: {
     rows?: ReturnType<typeof row>[];
     owned?: { appid: number; name: string }[];
+    snapshots?: { appid: number; playtime2WeeksMinutes: number | null }[];
   } = {}
 ) {
   const findMany = vi.fn().mockResolvedValue(opts.rows ?? []);
@@ -34,9 +35,14 @@ function setup(
       async ({ where }) => (opts.owned ?? []).find((g) => g.appid === where.appid) ?? null
     );
 
+  // Newest-snapshot-first, matching the service's orderBy — it takes the first
+  // row it sees per appid as the current two-week figure.
+  const snapshotFindMany = vi.fn().mockResolvedValue(opts.snapshots ?? []);
+
   const prisma = {
     steamGameCuration: { findMany, upsert, deleteMany },
     steamOwnedGame: { findMany: ownedFindMany, findUnique: ownedFindUnique },
+    steamPlaytimeSnapshot: { findMany: snapshotFindMany },
   } as unknown as PrismaService;
 
   const invalidate = vi.fn();
@@ -78,6 +84,7 @@ describe("AdminSteamGamesService", () => {
         reviewedAt: null,
         note: null,
         createdAt: AT.toISOString(),
+        recentPlaytimeMinutes: null,
       });
       expect(entries[1]?.unfeaturedAt).toBe(AT.toISOString());
       expect(entries[1]?.note).toBe("stale");
@@ -109,6 +116,30 @@ describe("AdminSteamGamesService", () => {
         owned: [{ appid: 570, name: "Dota 2" }],
       });
       expect((await service.list()).entries[0]?.name).toBe("Wishlisted Thing");
+    });
+
+    // Feeds the review prompt's ordering: the quarantined game with hours behind
+    // it is the one the owner has a real decision about.
+    it("carries the current two-week playtime", async () => {
+      const { service } = setup({
+        rows: [row({ appid: 570 })],
+        snapshots: [{ appid: 570, playtime2WeeksMinutes: 600 }],
+      });
+      expect((await service.list()).entries[0]?.recentPlaytimeMinutes).toBe(600);
+    });
+
+    // Steam drops the field once the window rolls past the session, so the
+    // newest row wins even when it is null — falling through to an older
+    // reading would report a fortnight-old binge as current.
+    it("reports null when the newest snapshot has no figure, not an older one", async () => {
+      const { service } = setup({
+        rows: [row({ appid: 570 })],
+        snapshots: [
+          { appid: 570, playtime2WeeksMinutes: null },
+          { appid: 570, playtime2WeeksMinutes: 600 },
+        ],
+      });
+      expect((await service.list()).entries[0]?.recentPlaytimeMinutes).toBeNull();
     });
 
     it("skips the name join entirely when the overlay is empty", async () => {

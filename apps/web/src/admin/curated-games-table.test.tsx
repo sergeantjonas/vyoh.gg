@@ -24,6 +24,7 @@ function row(overrides: Partial<AdminSteamGame> = {}): AdminSteamGame {
     reviewedAt: "2026-08-21T03:50:00.000Z",
     note: null,
     createdAt: "2026-08-21T03:50:00.000Z",
+    recentPlaytimeMinutes: null,
     ...overrides,
   };
 }

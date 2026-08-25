@@ -33,6 +33,7 @@ function quarantined(appid: number, name: string | null): AdminSteamGame {
     reviewedAt: null,
     note: null,
     createdAt: "2026-08-23T02:15:00.000Z",
+    recentPlaytimeMinutes: null,
   };
 }
 
@@ -133,6 +134,38 @@ describe("NewPurchasePrompt", () => {
     expect(screen.getAllByRole("button", { name: /show it/i })).toHaveLength(3);
     const link = screen.getByRole("link", { name: /2 more waiting/i });
     expect(link.getAttribute("href")).toBe("/status");
+  });
+
+  // The game with hours behind it is the one there is a real decision about,
+  // in either direction — it must not be the third row.
+  it("leads with the game that has been played most, not the newest", () => {
+    renderPrompt({
+      entries: [
+        { ...quarantined(1, "Just Bought"), recentPlaytimeMinutes: 0 },
+        { ...quarantined(2, "Played A Lot"), recentPlaytimeMinutes: 600 },
+        { ...quarantined(3, "Barely Touched"), recentPlaytimeMinutes: 20 },
+      ],
+    });
+    const names = screen.getAllByRole("listitem").map((item) => item.textContent ?? "");
+    expect(names[0]).toContain("Played A Lot");
+    expect(names[1]).toContain("Barely Touched");
+    expect(names[2]).toContain("Just Bought");
+  });
+
+  it("says how long it has been played, so the urgency is legible", () => {
+    renderPrompt({
+      entries: [
+        { ...quarantined(1091500, "Cyberpunk 2077"), recentPlaytimeMinutes: 600 },
+      ],
+    });
+    expect(screen.getByText(/in two weeks/i)).toBeTruthy();
+  });
+
+  it("says nothing about playtime for a game that has not been launched", () => {
+    renderPrompt({
+      entries: [{ ...quarantined(1091500, "Cyberpunk 2077"), recentPlaytimeMinutes: 0 }],
+    });
+    expect(screen.queryByText(/in two weeks/i)).toBeNull();
   });
 
   it("has no axe violations", async () => {

@@ -1,6 +1,6 @@
 # Dormant chapter ranking
 
-**Status:** Analysis complete 2026-08-25, **not implemented.** Two defects to fix: **D2**, a freshness guard a single round walks straight through, and **D1**, a lane that can't tell play from time-at-the-executable. The sort order is *correct* and stays — `/` is a current-activity portrait, and the first draft's proposal to rank on lifetime hours was wrong for reasons the code had already recorded. The Cyberpunk `unfeaturedAt` row is deleted when D1 ships; the exception is not wanted.
+**Status:** **Shipped 2026-08-25.** D1 (a 25% completion gate, so benchmark hours can't pass as play), D2 (the brief-launch guard now governs the unlock half of `freshest` too), and the review prompt now leads with the game that has hours behind it. Verified against the live api: the gate removed Cyberpunk from the chapter list and Resident Evil 4 backfilled the slot, as predicted. The sort order is unchanged and *correct* — `/` is a current-activity portrait, and the first draft's proposal to rank on lifetime hours was wrong for reasons the code had already recorded. Cyberpunk needs no `unfeaturedAt` row and has none.
 
 Read this when: touching `collectDormantTopUp` in [recap-subjects.service.ts](../../../apps/api/src/recap/recap-subjects.service.ts), adding a signal to chapter scoring, or wondering why a specific game is or isn't a chapter.
 
@@ -24,17 +24,21 @@ It does today, and not by out-scoring anything. `baseSignal = 600/60 = 10` again
 
 The corollary for D2 below: the freshness guard governs the **dormant** lane only, and its threshold must stay low enough that real play never falls through it. Raising `BRIEF_LAUNCH_2W_MINUTES` is **not** part of the fix — a two-hour session on a dormant game is real engagement and must refresh its position. The bug is the bypass, not the threshold.
 
-## What the lane does today
+## What the lane does
+
+Before, and after the two fixes:
 
 ```
-appType 0/null → lifetime ≥ 5h → freshest = max(lastUnlock, lastPlayed) → sort freshest desc → take(slack)
+was: appType 0/null → lifetime ≥ 5h                     → freshest = max(lastUnlock, lastPlayed)          → sort freshest desc → take(slack)
+now: appType 0/null → lifetime ≥ 5h → completion ≥ 25%  → freshest = max(lastUnlock*, lastPlayed*)        → sort freshest desc → take(slack)
+                                                          * both nulled when the last session was brief
 ```
 
 `lifetimeHours` is a floor and the magnitude the web displays; it is not part of the ordering. Note also that the lane is spliced in by `getChapters` **after** `selectChapters` has run, so it never passes through `recapScore` and has **no score floor** — unlike the active lane, which drops anything under `RECAP_SCORE_FLOOR = 5`.
 
 ## Evidence
 
-Uncurated, game-type, >14 days idle, in the order the lane emits today. The cap of 5 ends the list at Silksong:
+Uncurated, game-type, >14 days idle, in the order the lane emitted **before** the gate. The cap of 5 ended the list at Silksong:
 
 | # | game | hours | completion | idle |
 |---|---|---|---|---|
@@ -88,15 +92,25 @@ Three consequences to preserve:
 - **The prompt's absence from `/` is fine.** It lives in the Steam section root, so an owner who only visits `/` may not see it for a while — but the failure direction is *stays private*, which is the safe one. Do not "fix" this by moving the prompt to `/`.
 - **Order the review prompt by recent engagement anyway.** Not to hurry a publish — to lead with the game the owner actually has a decision to make about, in either direction. A 10-hour quarantined game should be the first row, not an arbitrary one. Small, independent of D1 and D2, and the cheapest item in this note.
 
-## Proposal
+## What shipped
 
 Two changes, both small, neither touching the sort order.
 
-**1. Gate on completion (fixes D1).** Drop candidates below 25% completion. `no schema` and `achievementCount = 0` **pass** — absence of a schema is not evidence of abandonment (D5). Predicted effect: Cyberpunk is excluded by the gate, the remaining lane is RE Requiem → Sekiro → RE4 → Silksong → PRAGMATA, all at 100%, and the `unfeaturedAt` row becomes redundant. That last part is the falsifiable claim this proposal lives or dies on.
+**1. Completion gate (D1).** Candidates below 25% completion are dropped. `no schema` and `achievementCount = 0` **pass** — absence of a schema is not evidence of abandonment (D5). `DORMANT_MIN_COMPLETION` carries the reasoning at the constant.
 
-**2. Make the freshness guard govern the whole signal (fixes D2).** `freshest` should be anchored on the last *substantial* session, which is what the brief-launch floor was reaching for. Concretely: when a session fails the floor, neither its playtime nor the unlocks it produced should carry into `freshest`. That means gating the unlock timestamp on the same session evidence rather than taking an all-time `max(unlockedAt)`. Leave the 30-minute threshold where it is — see the invariant above; raising it would suppress real play, and it fixes nothing anyway, since the unlock path routes around any threshold.
+**2. The freshness guard governs the whole signal (D2).** `freshest` should be anchored on the last *substantial* session, which is what the brief-launch floor was reaching for. Concretely: when a session fails the floor, neither its playtime nor the unlocks it produced should carry into `freshest`. That means gating the unlock timestamp on the same session evidence rather than taking an all-time `max(unlockedAt)`. Leave the 30-minute threshold where it is — see the invariant above; raising it would suppress real play, and it fixes nothing anyway, since the unlock path routes around any threshold.
 
 Keep the `appType` filter and the 5h lifetime floor as they are.
+
+## Shipped 2026-08-25, and verified against the live api
+
+The predicted effect held. Before: three active subjects left slack for two dormant rows, which went to Cyberpunk (48d) and Sekiro (69d). After: **Sekiro and Resident Evil 4** — the gate removed Cyberpunk and the next-best dormant game backfilled its slot.
+
+One thing not to misread: Resident Evil Requiem is also absent, and that is the **pre-existing** brief-launch guard rather than either new change. It was launched briefly on 2026-08-25 and correctly re-dates to its March playthrough (last unlock 2026-03-30), which drops it below Sekiro and RE4.
+
+**The benchmark signature is directly visible, and suggests a better signal than completion.** Cyberpunk's last unlock is 2025-06-10 while its last launch is 2026-07-07 — fourteen months of launches with zero achievement progress. That is what benchmark use looks like in this data, and it is a sharper statement than "19% complete".
+
+The refinement worth remembering: **an unlock gap only means something while achievements remain.** Silksong shows the same shape — last unlock 2025-10-10, last played 2026-06-02 — but it is 100% complete, so there was nothing left to earn and the gap is meaningless. So the signal is "launched repeatedly, achievements still available, none earned", not "gap between unlock and launch". That distinguishes benchmark use from a finished game re-launched later, which a flat completion gate cannot, and it needs no new data. Worth doing if the gate proves blunt.
 
 ## Considered and rejected
 

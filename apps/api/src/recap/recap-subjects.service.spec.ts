@@ -74,12 +74,25 @@ interface Playtime2WRow {
   playtime2WeeksMinutes: number | null;
 }
 
+interface UnlockRow {
+  appid: number;
+  unlockedAt: Date;
+}
+
+interface AchievementMetaRow {
+  appid: number;
+  achievementCount: number | null;
+}
+
 function makeService(
   games: SteamOwnedGame[],
   lastUnlockRows: LastUnlockRow[] = [],
   recentUnlockRows: RecentUnlockRow[] = [],
   playtime2WRows: Playtime2WRow[] = [],
-  curation: SteamCurationSets = NO_CURATION
+  curation: SteamCurationSets = NO_CURATION,
+  // Only the dormant lane reads these. Defaulted so every test written before
+  // the completion gate and the freshness fix keeps its existing behaviour.
+  dormant: { unlocks?: UnlockRow[]; achievementMeta?: AchievementMetaRow[] } = {}
 ): RecapSubjectsService {
   const ownedGames = {
     getOwnedGames: vi.fn().mockResolvedValue(makeOwnedGames(games)),
@@ -88,6 +101,15 @@ function makeService(
   // `_max(unlockedAt)` (drives `freshest` / daysSince), one filtered to the
   // 14d window for `_count(apiName)` (drives baseSignal). Branch on the
   // presence of `where` to route each call to its fixture.
+  // The dormant lane reads every unlock timestamp rather than a `_max`, because
+  // it needs the last unlock *before* a brief launch — a per-appid boundary a
+  // groupBy can't express. Derived from the same fixture by default so a test
+  // aimed at the active lane needs no extra setup.
+  const unlockRows: UnlockRow[] =
+    dormant.unlocks ??
+    lastUnlockRows.flatMap((row) =>
+      row._max.unlockedAt ? [{ appid: row.appid, unlockedAt: row._max.unlockedAt }] : []
+    );
   const prisma = {
     steamPlayerUnlock: {
       groupBy: vi
@@ -95,9 +117,13 @@ function makeService(
         .mockImplementation((args: { where?: unknown }) =>
           Promise.resolve(args.where ? recentUnlockRows : lastUnlockRows)
         ),
+      findMany: vi.fn().mockResolvedValue(unlockRows),
     },
     steamPlaytimeSnapshot: {
       findMany: vi.fn().mockResolvedValue(playtime2WRows),
+    },
+    steamGameAchievementMeta: {
+      findMany: vi.fn().mockResolvedValue(dormant.achievementMeta ?? []),
     },
   } as unknown as PrismaService;
   // LoL + Steam moment services default to empty so the existing steam-
@@ -112,6 +138,23 @@ function makeService(
   return new RecapSubjectsService(ownedGames, prisma, lolMoments, steamMoments, {
     getCuration: vi.fn().mockResolvedValue(curation),
   } as unknown as SteamGameCurationService);
+}
+
+/**
+ * Prisma stub for the direct-construction specs below, which exercise the
+ * cross-kind moment merges rather than the Steam queries — every read the
+ * service makes answers empty. Shared so a new query in the service is one
+ * edit here rather than five identical ones.
+ */
+function emptyPrisma(): PrismaService {
+  return {
+    steamPlayerUnlock: {
+      groupBy: vi.fn().mockResolvedValue([]),
+      findMany: vi.fn().mockResolvedValue([]),
+    },
+    steamPlaytimeSnapshot: { findMany: vi.fn().mockResolvedValue([]) },
+    steamGameAchievementMeta: { findMany: vi.fn().mockResolvedValue([]) },
+  } as unknown as PrismaService;
 }
 
 // Chapter selection consults the overlay; an empty one keeps every existing
@@ -709,6 +752,168 @@ describe("RecapSubjectsService.getChapters", () => {
         42,
       ]);
     });
+
+    // The lane floors on lifetime minutes and ranks on recency, and neither can
+    // tell 36h of in-game benchmark runs from 36h of playing. Achievement
+    // completion is what separates them: benchmark loops earn nothing.
+    it("drops a dormant game whose achievements say it was barely started", async () => {
+      const played = new Date(NOW.getTime() - 40 * 24 * 60 * 60 * 1000);
+      const service = makeService(
+        [
+          makeOwnedGame({
+            appid: 1091500, // Cyberpunk shape: hours, almost no progress
+            name: "Benchmarked",
+            playtimeForeverMinutes: 60 * 36,
+            playtime2WeeksMinutes: 0,
+            rtimeLastPlayedAt: played.toISOString(),
+          }),
+          makeOwnedGame({
+            appid: 814380,
+            name: "Finished",
+            playtimeForeverMinutes: 60 * 54,
+            playtime2WeeksMinutes: 0,
+            rtimeLastPlayedAt: new Date(
+              NOW.getTime() - 70 * 24 * 60 * 60 * 1000
+            ).toISOString(),
+          }),
+        ],
+        [],
+        [],
+        [],
+        NO_CURATION,
+        {
+          unlocks: [
+            // 2 of 20 → 10%, under the gate.
+            { appid: 1091500, unlockedAt: played },
+            { appid: 1091500, unlockedAt: played },
+            // 10 of 20 → 50%, over it.
+            ...Array.from({ length: 10 }, () => ({ appid: 814380, unlockedAt: played })),
+          ],
+          achievementMeta: [
+            { appid: 1091500, achievementCount: 20 },
+            { appid: 814380, achievementCount: 20 },
+          ],
+        }
+      );
+
+      const chapters = await service.getChapters(NOW);
+      // Benchmarked is the fresher of the two and still loses its slot.
+      expect(chapters.map((c) => (c.kind === "steam-subject" ? c.appid : -1))).toEqual([
+        814380,
+      ]);
+    });
+
+    // Absence of a schema is not evidence of absence of play — Witcher 1 and
+    // Fallout 3 GOTY predate achievements and are real playthroughs.
+    it("keeps a dormant game that has no achievement schema to judge it by", async () => {
+      const played = new Date(NOW.getTime() - 40 * 24 * 60 * 60 * 1000);
+      const service = makeService(
+        [
+          makeOwnedGame({
+            appid: 22300,
+            name: "Pre-Achievements",
+            playtimeForeverMinutes: 60 * 30,
+            playtime2WeeksMinutes: 0,
+            rtimeLastPlayedAt: played.toISOString(),
+          }),
+        ],
+        [],
+        [],
+        [],
+        NO_CURATION,
+        // A schema row exists but reports zero achievements — same verdict as no
+        // row at all: nothing to measure, so nothing to hold against it.
+        { achievementMeta: [{ appid: 22300, achievementCount: 0 }] }
+      );
+
+      const chapters = await service.getChapters(NOW);
+      expect(chapters.map((c) => (c.kind === "steam-subject" ? c.appid : -1))).toEqual([
+        22300,
+      ]);
+    });
+
+    // The brief-launch floor nulls `lastPlayed`, but `freshest` takes the later
+    // of that and the unlock — so an achievement popped during the launch used
+    // to carry today's date straight past the guard and re-top the lane.
+    it("does not let an unlock earned during a brief launch re-date the game", async () => {
+      const briefLaunch = new Date(NOW.getTime() - 1 * 24 * 60 * 60 * 1000);
+      const realSessionUnlock = new Date(NOW.getTime() - 200 * 24 * 60 * 60 * 1000);
+      const service = makeService(
+        [
+          makeOwnedGame({
+            appid: 1,
+            name: "Poked Yesterday",
+            playtimeForeverMinutes: 60 * 50,
+            playtime2WeeksMinutes: 10, // under the floor — a check, not a session
+            rtimeLastPlayedAt: briefLaunch.toISOString(),
+          }),
+          makeOwnedGame({
+            appid: 2,
+            name: "Played A Month Ago",
+            playtimeForeverMinutes: 60 * 30,
+            playtime2WeeksMinutes: 0,
+            rtimeLastPlayedAt: new Date(
+              NOW.getTime() - 30 * 24 * 60 * 60 * 1000
+            ).toISOString(),
+          }),
+        ],
+        [],
+        [],
+        [],
+        NO_CURATION,
+        {
+          unlocks: [
+            // Earned during the brief launch — must not count as freshness.
+            { appid: 1, unlockedAt: briefLaunch },
+            { appid: 1, unlockedAt: realSessionUnlock },
+          ],
+        }
+      );
+
+      const chapters = await service.getChapters(NOW);
+      // The month-old real session outranks yesterday's poke.
+      expect(chapters.map((c) => (c.kind === "steam-subject" ? c.appid : -1))).toEqual([
+        2, 1,
+      ]);
+      // And the eyebrow tells the truth about when it was last played properly.
+      expect(chapters[1]?.ageBucket).toBe("year");
+    });
+
+    // The paired control. The guard must only fire on trivial touches — a real
+    // session has to re-date the game, or returning to something is invisible.
+    it("lets a substantial session re-date the game", async () => {
+      const yesterday = new Date(NOW.getTime() - 1 * 24 * 60 * 60 * 1000);
+      const service = makeService(
+        [
+          makeOwnedGame({
+            appid: 1,
+            name: "Played Properly Yesterday",
+            playtimeForeverMinutes: 60 * 50,
+            playtime2WeeksMinutes: 120, // two hours — real engagement
+            rtimeLastPlayedAt: yesterday.toISOString(),
+          }),
+          makeOwnedGame({
+            appid: 2,
+            name: "Played A Month Ago",
+            playtimeForeverMinutes: 60 * 30,
+            playtime2WeeksMinutes: 0,
+            rtimeLastPlayedAt: new Date(
+              NOW.getTime() - 30 * 24 * 60 * 60 * 1000
+            ).toISOString(),
+          }),
+        ],
+        [],
+        [],
+        [],
+        NO_CURATION,
+        { unlocks: [{ appid: 1, unlockedAt: yesterday }] }
+      );
+
+      const chapters = await service.getChapters(NOW);
+      expect(chapters.map((c) => (c.kind === "steam-subject" ? c.appid : -1))).toEqual([
+        1, 2,
+      ]);
+    });
   });
 
   describe("LoL moment merge", () => {
@@ -720,14 +925,7 @@ describe("RecapSubjectsService.getChapters", () => {
       const ownedGames = {
         getOwnedGames: vi.fn().mockResolvedValue(makeOwnedGames([])),
       } as unknown as SteamOwnedGamesService;
-      const prisma = {
-        steamPlayerUnlock: {
-          groupBy: vi.fn().mockResolvedValue([]),
-        },
-        steamPlaytimeSnapshot: {
-          findMany: vi.fn().mockResolvedValue([]),
-        },
-      } as unknown as PrismaService;
+      const prisma = emptyPrisma();
       const lolMoments = {
         detectAll: vi.fn().mockResolvedValue([
           {
@@ -795,8 +993,12 @@ describe("RecapSubjectsService.getChapters", () => {
                 args.where ? [] : [{ appid: 2050650, _max: { unlockedAt: NOW } }]
               )
             ),
+          findMany: vi.fn().mockResolvedValue([]),
         },
         steamPlaytimeSnapshot: {
+          findMany: vi.fn().mockResolvedValue([]),
+        },
+        steamGameAchievementMeta: {
           findMany: vi.fn().mockResolvedValue([]),
         },
       } as unknown as PrismaService;
@@ -871,8 +1073,12 @@ describe("RecapSubjectsService.getChapters", () => {
                   : [{ appid: 2001760, _max: { unlockedAt: NOW } }]
               )
             ),
+          findMany: vi.fn().mockResolvedValue([]),
         },
         steamPlaytimeSnapshot: {
+          findMany: vi.fn().mockResolvedValue([]),
+        },
+        steamGameAchievementMeta: {
           findMany: vi.fn().mockResolvedValue([]),
         },
       } as unknown as PrismaService;
@@ -947,8 +1153,12 @@ describe("RecapSubjectsService.getChapters", () => {
                   : [{ appid: 2050650, _max: { unlockedAt: NOW } }]
               )
             ),
+          findMany: vi.fn().mockResolvedValue([]),
         },
         steamPlaytimeSnapshot: {
+          findMany: vi.fn().mockResolvedValue([]),
+        },
+        steamGameAchievementMeta: {
           findMany: vi.fn().mockResolvedValue([]),
         },
       } as unknown as PrismaService;
@@ -996,14 +1206,7 @@ describe("RecapSubjectsService.getChapters", () => {
       const ownedGames = {
         getOwnedGames: vi.fn().mockResolvedValue(makeOwnedGames([])),
       } as unknown as SteamOwnedGamesService;
-      const prisma = {
-        steamPlayerUnlock: {
-          groupBy: vi.fn().mockResolvedValue([]),
-        },
-        steamPlaytimeSnapshot: {
-          findMany: vi.fn().mockResolvedValue([]),
-        },
-      } as unknown as PrismaService;
+      const prisma = emptyPrisma();
       const lolMoments = {
         detectAll: vi.fn().mockResolvedValue([]),
       } as unknown as LolMomentsService;

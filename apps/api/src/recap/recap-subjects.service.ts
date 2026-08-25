@@ -40,6 +40,21 @@ const STEAM_SUBJECT_HARD_CAP = 5;
  *  show a duration like "3m" rather than a session-sized number. */
 const BRIEF_LAUNCH_2W_MINUTES = 30;
 
+/** Achievement completion a dormant candidate must reach to be chapter
+ *  material. Guards against ranking time-at-the-executable as play: the owner's
+ *  36h in Cyberpunk 2077 are largely in-game benchmark runs for hardware
+ *  stress-testing, which accumulate playtime and earn nothing, and the lane
+ *  could not tell that from a playthrough. Games with no achievement schema
+ *  pass — absence of a schema is not evidence of absence of play.
+ *
+ *  0.25 rather than a rounder number because it is a line drawn where this
+ *  library's distribution is empty (20 games at 100%, 10 at or below 24%,
+ *  almost nothing between), not a principled threshold. A 50% floor would drop
+ *  finished campaigns carrying grindy or multiplayer achievement sets — Portal
+ *  2, Rise of the Tomb Raider — which is the failure to avoid.
+ *  Full analysis: docs/working-notes/cross-cutting/dormant-chapter-ranking.md */
+const DORMANT_MIN_COMPLETION = 0.25;
+
 /**
  * Steam-subject candidate enumeration for the landing-page recap chapter
  * stream. Reads owned games (already filtered to currently-owned via the
@@ -294,20 +309,39 @@ export class RecapSubjectsService {
     // below; `gt: 0` keeps the read tiny (a couple hundred rows), since the
     // column is null for every game outside its own two-week window.
     const curation = await this.curationForChapters();
-    const [ownedGames, lastUnlockRows, playtime2WRows] = await Promise.all([
-      this.ownedGames.getOwnedGames(curation),
-      this.prisma.steamPlayerUnlock.groupBy({
-        by: ["appid"],
-        _max: { unlockedAt: true },
-      }),
-      this.prisma.steamPlaytimeSnapshot.findMany({
-        where: { playtime2WeeksMinutes: { gt: 0 } },
-        select: { appid: true, snapshotDate: true, playtime2WeeksMinutes: true },
-      }),
-    ]);
+    // Every unlock timestamp rather than a `_max` groupBy, because the
+    // brief-launch guard below needs the last unlock *before* a given moment,
+    // not the last unlock overall — a per-appid boundary a groupBy cannot
+    // express. Bounded by achievements-per-owned-game (~1.5k rows on a
+    // 200-game library) and this endpoint is cached, so the trade is fine.
+    // The same rows serve the completion gate, which needs the count.
+    const [ownedGames, unlockRows, playtime2WRows, achievementMetaRows] =
+      await Promise.all([
+        this.ownedGames.getOwnedGames(curation),
+        this.prisma.steamPlayerUnlock.findMany({
+          select: { appid: true, unlockedAt: true },
+        }),
+        this.prisma.steamPlaytimeSnapshot.findMany({
+          where: { playtime2WeeksMinutes: { gt: 0 } },
+          select: { appid: true, snapshotDate: true, playtime2WeeksMinutes: true },
+        }),
+        this.prisma.steamGameAchievementMeta.findMany({
+          select: { appid: true, achievementCount: true },
+        }),
+      ]);
 
-    const lastUnlockByAppid = new Map<number, Date | null>(
-      lastUnlockRows.map((row) => [row.appid, row._max.unlockedAt ?? null])
+    // Descending, so [0] is the latest and a `find` walks backwards in time.
+    const unlocksByAppid = new Map<number, number[]>();
+    for (const row of unlockRows) {
+      const at = row.unlockedAt.getTime();
+      const existing = unlocksByAppid.get(row.appid);
+      if (existing) existing.push(at);
+      else unlocksByAppid.set(row.appid, [at]);
+    }
+    for (const times of unlocksByAppid.values()) times.sort((a, b) => b - a);
+
+    const achievementCountByAppid = new Map<number, number | null>(
+      achievementMetaRows.map((row) => [row.appid, row.achievementCount])
     );
 
     const playtime2WHistory = new Map<number, Array<{ at: number; minutes: number }>>();
@@ -340,7 +374,19 @@ export class RecapSubjectsService {
       const lifetimeHours = game.playtimeForeverMinutes / 60;
       if (lifetimeHours < DORMANT_LIFETIME_FLOOR_HOURS) continue;
 
-      const lastUnlockMs = lastUnlockByAppid.get(game.appid)?.getTime() ?? null;
+      // Completion gate. `null`/0 schema passes: plenty of real playthroughs
+      // (Witcher 1, Fallout 3 GOTY) predate achievements entirely, and reading
+      // "no achievements" as "no progress" would delete them from the page.
+      const unlockTimes = unlocksByAppid.get(game.appid) ?? [];
+      const achievementCount = achievementCountByAppid.get(game.appid) ?? null;
+      if (
+        achievementCount !== null &&
+        achievementCount > 0 &&
+        unlockTimes.length / achievementCount < DORMANT_MIN_COMPLETION
+      ) {
+        continue;
+      }
+
       const lastPlayedAtMs = game.rtimeLastPlayedAt
         ? new Date(game.rtimeLastPlayedAt).getTime()
         : null;
@@ -374,6 +420,16 @@ export class RecapSubjectsService {
       const playtime2W = Math.max(game.playtime2WeeksMinutes ?? 0, observed2W);
       const brieflyLaunched = playtime2W > 0 && playtime2W < BRIEF_LAUNCH_2W_MINUTES;
       const lastPlayedMs = brieflyLaunched ? null : lastPlayedAtMs;
+      // The unlock half has to obey the same floor, or the guard above is
+      // decorative: `freshest` takes the later of the two, so a single
+      // achievement popped during a ten-minute launch carries today's date
+      // straight past a nulled `lastPlayedMs` and re-tops the lane. When the
+      // launch was brief, fall back to the last unlock that *predates* it —
+      // the last time this game demonstrably went somewhere.
+      const lastUnlockMs =
+        brieflyLaunched && lastPlayedAtMs !== null
+          ? (unlockTimes.find((at) => at < lastPlayedAtMs) ?? null)
+          : (unlockTimes[0] ?? null);
       const freshest =
         lastUnlockMs !== null && lastPlayedMs !== null
           ? Math.max(lastUnlockMs, lastPlayedMs)
