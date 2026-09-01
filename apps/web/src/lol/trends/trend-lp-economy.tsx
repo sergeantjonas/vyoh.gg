@@ -1,6 +1,6 @@
 import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
 // Baseline: personal — average LP gain vs average LP loss from your ranked games.
-import { computeLpDeltaMap } from "@/lol/matches/use-lp-delta";
+import { computeLpDeltaMap } from "@vyoh/shared";
 import { type MatchSummary, excludeRemakes } from "@vyoh/shared";
 import { useMemo } from "react";
 

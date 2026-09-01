@@ -350,6 +350,102 @@ describe("LolAnalyticsService.getDuos", () => {
   });
 });
 
+describe("LolAnalyticsService.getDuoLp", () => {
+  const ME = "puuid-vyoh";
+  const DUO = "puuid-duo";
+  const at = (hour: number) =>
+    new Date(`2026-08-01T${String(hour).padStart(2, "0")}:00:00.000Z`);
+  const participant = (puuid: string, win: boolean) => ({
+    puuid,
+    riotIdGameName: puuid,
+    riotIdTagline: "EUW",
+    championName: "Ahri",
+    teamId: 100,
+    win,
+  });
+  const cache = (matchId: string, withDuo: boolean, win: boolean) => ({
+    matchId,
+    detail: {
+      info: {
+        participants: withDuo
+          ? [participant(ME, win), participant(DUO, win)]
+          : [participant(ME, win)],
+      },
+    },
+  });
+  const lpRow = (matchId: string, hour: number, before: number, after: number) => ({
+    matchId,
+    playedAt: at(hour),
+    queueId: 420,
+    remake: false,
+    snapshotTier: "GOLD",
+    snapshotRank: "II",
+    snapshotLp: after,
+    snapshotTierBefore: "GOLD",
+    snapshotRankBefore: "II",
+    snapshotLpBefore: before,
+  });
+
+  it("returns [] without reading LP rows when no duo qualifies", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: ME });
+    prisma.match.findMany.mockResolvedValueOnce([{ matchId: "M1", playedAt: at(10) }]);
+    prisma.matchDetailCache.findMany.mockResolvedValue([cache("M1", true, true)]);
+
+    expect(await makeService(prisma).getDuoLp("euw1", "Vyoh", "Ahri")).toEqual([]);
+    expect(prisma.match.findMany).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads the window's ranked LP rows and splits them per duo", async () => {
+    const prisma = makePrisma();
+    prisma.summoner.findUnique.mockResolvedValue({ puuid: ME });
+    // Three same-session games with the duo qualify it; a fourth without.
+    prisma.match.findMany
+      .mockResolvedValueOnce([
+        { matchId: "M4", playedAt: at(13) },
+        { matchId: "M3", playedAt: at(12) },
+        { matchId: "M2", playedAt: at(11) },
+        { matchId: "M1", playedAt: at(10) },
+      ])
+      .mockResolvedValueOnce([
+        lpRow("M1", 10, 10, 30),
+        lpRow("M2", 11, 30, 50),
+        lpRow("M3", 12, 50, 35),
+        lpRow("M4", 13, 35, 20),
+      ]);
+    prisma.matchDetailCache.findMany.mockResolvedValue([
+      cache("M1", true, true),
+      cache("M2", true, true),
+      cache("M3", true, false),
+      cache("M4", false, false),
+    ]);
+
+    const overlays = await makeService(prisma).getDuoLp("euw1", "Vyoh", "Ahri");
+
+    expect(prisma.match.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          puuid: ME,
+          matchId: { in: ["M4", "M3", "M2", "M1"] },
+          queueId: { in: [420, 440, 710] },
+        },
+      })
+    );
+    expect(overlays).toEqual([
+      {
+        puuid: DUO,
+        together: { games: 3, lpDelta: 25 },
+        without: { games: 1, lpDelta: -15 },
+        matches: [
+          { matchId: "M3", playedAt: at(12).toISOString(), lpDelta: -15 },
+          { matchId: "M2", playedAt: at(11).toISOString(), lpDelta: 20 },
+          { matchId: "M1", playedAt: at(10).toISOString(), lpDelta: 20 },
+        ],
+      },
+    ]);
+  });
+});
+
 describe("LolAnalyticsService.getSquads", () => {
   // championName carries no signal for squad membership, so a single fixed champ
   // per player keeps the fixtures readable.

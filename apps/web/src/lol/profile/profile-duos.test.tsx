@@ -1,8 +1,9 @@
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
+import { useDuoLp } from "@/lol/profile/use-duo-lp";
 import { useDuos } from "@/lol/profile/use-duos";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ChampionPair, Duo, LolAccount } from "@vyoh/shared";
+import type { ChampionPair, Duo, DuoLpOverlay, LolAccount } from "@vyoh/shared";
 import { configureAxe } from "jest-axe";
 import { MotionConfig } from "motion/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -12,6 +13,9 @@ vi.mock("@/lol/_shared/account/use-account-from-slug", () => ({
   useAccountFromSlug: vi.fn(),
 }));
 
+vi.mock("@/lol/profile/use-duo-lp", () => ({
+  useDuoLp: vi.fn(),
+}));
 vi.mock("@/lol/profile/use-duos", () => ({
   useDuos: vi.fn(),
 }));
@@ -43,6 +47,16 @@ const account: LolAccount = {
 function mockDuos(value: { data: Duo[] | undefined; isPending: boolean }): void {
   vi.mocked(useAccountFromSlug).mockReturnValue(account);
   vi.mocked(useDuos).mockReturnValue(value as unknown as ReturnType<typeof useDuos>);
+  // Disabled for visitors, so `data` is undefined unless a test seeds the owner's overlay.
+  vi.mocked(useDuoLp).mockReturnValue({ data: undefined } as unknown as ReturnType<
+    typeof useDuoLp
+  >);
+}
+
+function mockDuoLp(overlays: DuoLpOverlay[]): void {
+  vi.mocked(useDuoLp).mockReturnValue({ data: overlays } as unknown as ReturnType<
+    typeof useDuoLp
+  >);
 }
 
 function duo(overrides: Partial<Duo> = {}): Duo {
@@ -70,6 +84,7 @@ function renderDuos() {
 afterEach(() => {
   vi.mocked(useAccountFromSlug).mockReset();
   vi.mocked(useDuos).mockReset();
+  vi.mocked(useDuoLp).mockReset();
 });
 
 describe("ProfileDuos", () => {
@@ -103,6 +118,40 @@ describe("ProfileDuos", () => {
     // 4th is past DISPLAY_COUNT = 3.
     expect(screen.queryByText("D")).toBeNull();
     expect(container.textContent).toContain("60% WR");
+  });
+
+  it("omits the LP line when the owner-only overlay is absent", () => {
+    mockDuos({ data: [duo()], isPending: false });
+    renderDuos();
+    expect(screen.queryByText(/LP together/)).toBeNull();
+  });
+
+  it("shows the owner's LP split with and without the duo on the collapsed row", () => {
+    mockDuos({
+      data: [duo({ puuid: "p1" }), duo({ puuid: "p2", gameName: "Solo" })],
+      isPending: false,
+    });
+    mockDuoLp([
+      {
+        puuid: "p1",
+        together: { games: 30, lpDelta: 142 },
+        without: { games: 40, lpDelta: -18 },
+        matches: [],
+      },
+      // Every ranked game in the window was together: no baseline to compare against.
+      {
+        puuid: "p2",
+        together: { games: 4, lpDelta: -12 },
+        without: { games: 0, lpDelta: 0 },
+        matches: [],
+      },
+    ]);
+    const { container } = renderDuos();
+    expect(container.textContent).toContain(
+      "+142 LP together over 30 ranked · -18 LP in the 40 without"
+    );
+    expect(container.textContent).toContain("-12 LP together over 4 ranked");
+    expect(container.textContent).not.toContain("in the 0 without");
   });
 
   it("summarises the champion-combo count on the collapsed row", () => {

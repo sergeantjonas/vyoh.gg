@@ -25,6 +25,7 @@ import type {
   Chronotype,
   DamageProfile,
   Duo,
+  DuoLpOverlay,
   LiveMatch,
   MatchBaseline,
   MatchNarrativeLifetime,
@@ -111,6 +112,17 @@ export class LolController {
     @Query("count", new DefaultValuePipe(100), COUNT_PIPE) count: number
   ): Promise<Duo[]> {
     return this.analytics.getDuos(region, gameName, tagLine, count);
+  }
+
+  // Owner-only: LP is the owner's ladder, and the split leaks how the owner's
+  // ranked games went in a way the public duo list deliberately doesn't.
+  @Get("duos/lp")
+  @UseGuards(OwnerGuard)
+  async getDuoLp(
+    @Param() { region, gameName, tagLine }: AccountParamsDto,
+    @Query("count", new DefaultValuePipe(100), COUNT_PIPE) count: number
+  ): Promise<DuoLpOverlay[]> {
+    return this.analytics.getDuoLp(region, gameName, tagLine, count);
   }
 
   @Get("squads")

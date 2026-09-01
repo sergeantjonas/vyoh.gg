@@ -19,6 +19,7 @@ function makeController() {
   };
   const analytics = {
     getDuos: vi.fn(),
+    getDuoLp: vi.fn(),
     getSquads: vi.fn(),
     getChronotype: vi.fn(),
     getChampionPairs: vi.fn(),
@@ -83,6 +84,12 @@ describe("LolController endpoint delegations", () => {
     const { controller, analytics } = makeController();
     await controller.getDuos(params, 100);
     expect(analytics.getDuos).toHaveBeenCalledWith("euw1", "Vyoh", "EUW", 100);
+  });
+
+  it("getDuoLp delegates to analytics.getDuoLp with the count query", async () => {
+    const { controller, analytics } = makeController();
+    await controller.getDuoLp(params, 100);
+    expect(analytics.getDuoLp).toHaveBeenCalledWith("euw1", "Vyoh", "EUW", 100);
   });
 
   it("getChronotype delegates to analytics.getChronotype", async () => {

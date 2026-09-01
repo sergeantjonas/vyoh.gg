@@ -11,8 +11,9 @@ import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug"
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { wrAccent } from "@/lol/_shared/wr-accent";
 import { useChampionName } from "@/lol/champions/use-champions";
+import { useDuoLp } from "@/lol/profile/use-duo-lp";
 import { useDuos } from "@/lol/profile/use-duos";
-import { type Duo, formatPercent } from "@vyoh/shared";
+import { type Duo, type DuoLpOverlay, formatLpDelta, formatPercent } from "@vyoh/shared";
 import { type Variants, m } from "motion/react";
 
 const DISPLAY_COUNT = 3;
@@ -20,6 +21,8 @@ const DISPLAY_COUNT = 3;
 export function ProfileDuos({ accountSlug }: { accountSlug: string }) {
   const account = useAccountFromSlug(accountSlug);
   const { data, isPending } = useDuos(account);
+  // Owner-only; undefined for visitors, so the rows simply omit the LP line.
+  const { data: lpOverlays } = useDuoLp(account);
 
   // Hide while loading so the Profile doesn't reserve empty space during the
   // initial fetch. Once the response lands we either render duos or the
@@ -42,6 +45,7 @@ export function ProfileDuos({ accountSlug }: { accountSlug: string }) {
   }
 
   const duos = data.slice(0, DISPLAY_COUNT);
+  const lpByPuuid = new Map(lpOverlays?.map((o) => [o.puuid, o]));
 
   return (
     <section className="flex flex-col gap-2">
@@ -54,7 +58,7 @@ export function ProfileDuos({ accountSlug }: { accountSlug: string }) {
       <m.div initial="hidden" animate="show" variants={containerVariants}>
         <Accordion type="single" collapsible className="flex flex-col gap-2">
           {duos.map((d) => (
-            <DuoCard key={d.puuid} duo={d} />
+            <DuoCard key={d.puuid} duo={d} lp={lpByPuuid.get(d.puuid)} />
           ))}
         </Accordion>
       </m.div>
@@ -62,7 +66,7 @@ export function ProfileDuos({ accountSlug }: { accountSlug: string }) {
   );
 }
 
-function DuoCard({ duo }: { duo: Duo }) {
+function DuoCard({ duo, lp }: { duo: Duo; lp: DuoLpOverlay | undefined }) {
   const championName = useChampionName();
   const losses = duo.games - duo.wins;
   const wr = formatPercent(duo.wins / duo.games);
@@ -89,6 +93,7 @@ function DuoCard({ duo }: { duo: Duo }) {
               Most on {championName(duo.topChampion)} ·{" "}
               {comboCount === 1 ? "1 combo" : `${comboCount} combos`}
             </div>
+            {lp && lp.together.games > 0 && <DuoLpLine lp={lp} />}
           </div>
           <div className="text-right tabular-nums">
             <div className="text-sm text-foreground/90">
@@ -166,6 +171,29 @@ function DuoCard({ duo }: { duo: Duo }) {
         </AccordionContent>
       </AccordionItem>
     </m.div>
+  );
+}
+
+// The owner's ladder movement in this duo's games against the rest of the
+// window. The baseline half is dropped when every ranked game was together —
+// "in the 0 without" answers nothing.
+function DuoLpLine({ lp }: { lp: DuoLpOverlay }) {
+  const { together, without } = lp;
+  return (
+    <div className="text-xs text-muted-foreground tabular-nums">
+      <span
+        className={together.lpDelta >= 0 ? "text-emerald-500/80" : "text-rose-500/80"}
+      >
+        {formatLpDelta(together.lpDelta)} LP
+      </span>{" "}
+      together over {together.games} ranked
+      {without.games > 0 && (
+        <>
+          {" · "}
+          {formatLpDelta(without.lpDelta)} LP in the {without.games} without
+        </>
+      )}
+    </div>
   );
 }
 

@@ -1,7 +1,7 @@
 import { MatchPips } from "@/lol/_shared/ui/match-pips";
 import { useChampionName } from "@/lol/champions/use-champions";
-import { computeLpDeltaMap } from "@/lol/matches/use-lp-delta";
 import { useNavigate } from "@tanstack/react-router";
+import { computeLpDeltaMap } from "@vyoh/shared";
 import { type MatchSummary, formatKda, formatLpDelta, queueLabel } from "@vyoh/shared";
 import { useMemo } from "react";
 

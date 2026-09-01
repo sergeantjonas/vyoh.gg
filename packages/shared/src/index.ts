@@ -139,6 +139,15 @@ export type {
 export type { Chronotype, ChronotypeHour } from "./lol/chronotype.ts";
 export type { DamageProfile } from "./lol/damage-profile.ts";
 export type { Duo } from "./lol/duo.ts";
+export type {
+  DuoLpMatchPoint,
+  DuoLpOverlay,
+  DuoLpSlice,
+  DuoLpSourceMatch,
+} from "./lol/duo-lp.ts";
+export { computeDuoLpOverlays } from "./lol/duo-lp.ts";
+export type { LpSnapshotPair } from "./lol/lp-delta.ts";
+export { computeLpDeltaMap, matchLpDelta } from "./lol/lp-delta.ts";
 export type { MatchBaseline, MatchBaselineState } from "./lol/match-baseline.ts";
 export type { Squad, SquadMember } from "./lol/squad.ts";
 export type {

@@ -1,3 +1,4 @@
+import { seedViewer } from "@/auth/mock-viewer";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import type { LolAccount } from "@vyoh/shared";
@@ -7,6 +8,7 @@ import { useAramProfile } from "./use-aram-profile";
 import { useCarryProfile } from "./use-carry-profile";
 import { useChampionPairs } from "./use-champion-pairs";
 import { useChronotype } from "./use-chronotype";
+import { useDuoLp } from "./use-duo-lp";
 import { useDuos } from "./use-duos";
 import { useNarrativeLifetime } from "./use-narrative-lifetime";
 import { useObjectiveFirsts } from "./use-objective-firsts";
@@ -141,6 +143,37 @@ describe("per-account profile hooks", () => {
       expect(result.current.error?.message).toMatch(/HTTP 503/);
     }
   );
+});
+
+describe("useDuoLp (owner-only)", () => {
+  function makeViewerWrapper(isOwner: boolean) {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    seedViewer(client, isOwner);
+    return ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+  }
+
+  it("does not fetch for a visitor", () => {
+    const { result } = renderHook(() => useDuoLp(account), {
+      wrapper: makeViewerWrapper(false),
+    });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(result.current.fetchStatus).toBe("idle");
+  });
+
+  it("fetches the guarded route with the session cookie for the owner", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify([]), { status: 200 }));
+    const { result } = renderHook(() => useDuoLp(account), {
+      wrapper: makeViewerWrapper(true),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    const [url, init] = vi.mocked(fetch).mock.calls[0] ?? [];
+    expect(String(url)).toBe(
+      "http://localhost:2010/lol/summoners/euw1/Vyoh/Ahri/duos/lp?count=100"
+    );
+    expect(init).toEqual({ credentials: "include" });
+  });
 });
 
 describe("useChronotype custom count", () => {

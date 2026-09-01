@@ -6,14 +6,17 @@ import {
   type Chronotype,
   type DamageProfile,
   type Duo,
+  type DuoLpOverlay,
   type MatchSummary,
   type ObjectiveFirsts,
   type ObjectiveParticipation,
   type ObjectiveParticipationTally,
   type PregameCalibrationByQueue,
+  RANKED_QUEUE_IDS,
   type Squad,
   type SquadMember,
   computeCalibrationByQueue,
+  computeDuoLpOverlays,
   excludeRemakes,
   replayHistory,
 } from "@vyoh/shared";
@@ -112,6 +115,12 @@ function ownerTeammates(
   return { win: me.win, ownerChampion: me.championName, teammates };
 }
 
+interface OwnerMatchCache {
+  ownerPuuid: string;
+  sortedCaches: { matchId: string; detail: unknown }[];
+  playedAtByMatchId: Map<string, number>;
+}
+
 @Injectable()
 export class LolAnalyticsService {
   // Calibration is expensive (replay over full ranked history). Cache per
@@ -138,7 +147,50 @@ export class LolAnalyticsService {
     count = 100
   ): Promise<Duo[]> {
     const ctx = await this.loadOwnerMatchCache(region, gameName, tagLine, count);
+    return ctx ? this.buildDuos(ctx) : [];
+  }
+
+  // The owner's LP movement with vs without each recurring duo, over the same
+  // match window getDuos uses so the two responses describe the same games. One
+  // extra read: the LP snapshots live on the owner's Match rows, which the duo
+  // pass only touches for matchId/playedAt.
+  async getDuoLp(
+    region: string,
+    gameName: string,
+    tagLine: string,
+    count = 100
+  ): Promise<DuoLpOverlay[]> {
+    const ctx = await this.loadOwnerMatchCache(region, gameName, tagLine, count);
     if (!ctx) return [];
+    const duos = this.buildDuos(ctx);
+    if (duos.length === 0) return [];
+
+    const rows = await this.prisma.match.findMany({
+      where: {
+        puuid: ctx.ownerPuuid,
+        matchId: { in: [...ctx.playedAtByMatchId.keys()] },
+        queueId: { in: [...RANKED_QUEUE_IDS] },
+      },
+      select: {
+        matchId: true,
+        playedAt: true,
+        queueId: true,
+        remake: true,
+        snapshotTier: true,
+        snapshotRank: true,
+        snapshotLp: true,
+        snapshotTierBefore: true,
+        snapshotRankBefore: true,
+        snapshotLpBefore: true,
+      },
+    });
+    return computeDuoLpOverlays(
+      duos,
+      rows.map((r) => ({ ...r, playedAt: r.playedAt.toISOString() }))
+    );
+  }
+
+  private buildDuos(ctx: OwnerMatchCache): Duo[] {
     const { ownerPuuid, sortedCaches, playedAtByMatchId } = ctx;
 
     // Per-duo champion pairing: owner's champ + this duo's champ in one match,
@@ -252,11 +304,7 @@ export class LolAnalyticsService {
     gameName: string,
     tagLine: string,
     count: number
-  ): Promise<{
-    ownerPuuid: string;
-    sortedCaches: { matchId: string; detail: unknown }[];
-    playedAtByMatchId: Map<string, number>;
-  } | null> {
+  ): Promise<OwnerMatchCache | null> {
     if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
       throw new ForbiddenException("Account not in whitelist");
     }
