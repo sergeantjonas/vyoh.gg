@@ -24,10 +24,18 @@ export function useGameCuration(appid: number): GameCurationState {
   const isOwner = useIsOwner();
   const { data, isPending } = useAdminSteamGames(isOwner);
   const row = data?.entries.find((entry) => entry.appid === appid);
+  // Gated on `isOwner` rather than on the query being disabled. The overlay can
+  // sit in the cache without the viewer being the owner — signed in, then the
+  // session expired — and every consumer treats these as "safe to render", so
+  // reading them straight off the cache would mark a game as hidden on a page
+  // the owner is no longer behind.
+  if (!isOwner) {
+    return { isOwner: false, hidden: false, needsReview: false, isPending: false };
+  }
   return {
     isOwner,
     hidden: row?.hiddenAt != null,
     needsReview: row != null && row.reviewedAt === null,
-    isPending: isOwner && isPending,
+    isPending,
   };
 }

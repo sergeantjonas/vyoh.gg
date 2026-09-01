@@ -12,6 +12,8 @@ import {
 } from "@/home/recap/chapter-shadows";
 import { GameRatingBadge } from "@/steam/_shared/game-rating-badge";
 import { PlatformIconRow } from "@/steam/_shared/platform-icon-row";
+import { HiddenNote } from "@/steam/curation/hidden-mark";
+import { useGameCuration } from "@/steam/curation/use-game-curation";
 import { useSteamGameBackdrop } from "@/steam/profile-backdrop";
 import { type DayRelease, isPreOrdered } from "@/steam/upcoming/bucketing";
 import { useWishlistHeroMeta } from "@/steam/upcoming/use-wishlist-hero-meta";
@@ -59,6 +61,9 @@ const COUNTUP_DELAY = 0.05 + 0.12 * 2 + 0.45;
 export function ImminentHero({ release }: { release: DayRelease }) {
   const { item, daysUntil } = release;
   const { data: meta } = useWishlistHeroMeta(item.appid);
+  // The most prominent upcoming surface there is, so it is the one that most
+  // needs to say whether a visitor sees the same page.
+  const { hidden } = useGameCuration(item.appid);
 
   // Lease the page backdrop to this game's hero art for as long as the hero is
   // mounted. Works before meta loads (the proxy resolves hero art by appid; the
@@ -100,7 +105,9 @@ export function ImminentHero({ release }: { release: DayRelease }) {
   return (
     <m.section
       ref={ref}
-      aria-label={`Next release: ${name}`}
+      aria-label={
+        hidden ? `Next release: ${name} — hidden from visitors` : `Next release: ${name}`
+      }
       className="relative flex flex-col gap-4 py-6 sm:py-8"
       variants={REVEAL}
       initial={reduced ? false : "hidden"}
@@ -116,6 +123,7 @@ export function ImminentHero({ release }: { release: DayRelease }) {
         }}
       >
         {eyebrow}
+        {hidden ? <HiddenNote /> : null}
       </m.p>
 
       <m.h2

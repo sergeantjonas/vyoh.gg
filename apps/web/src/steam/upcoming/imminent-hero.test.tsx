@@ -1,3 +1,15 @@
+import { seedViewer } from "@/auth/mock-viewer";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
+
+// The upcoming surfaces now read the curation overlay to mark hidden games, so
+// they need a QueryClient. Seeded as a visitor: these specs are about bucketing
+// and layout, and the marker's own behaviour is covered in hidden-mark.test.tsx.
+function withQueryClient(node: ReactNode) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  seedViewer(client);
+  return <QueryClientProvider client={client}>{node}</QueryClientProvider>;
+}
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { render, screen } from "@testing-library/react";
 import type { SteamUpcomingItem, SteamWishlistHeroMeta } from "@vyoh/shared";
@@ -82,9 +94,11 @@ function meta(overrides: Partial<SteamWishlistHeroMeta> = {}): SteamWishlistHero
 
 function renderHero(rel: DayRelease = release()) {
   return render(
-    <TooltipPrimitive.Provider>
-      <ImminentHero release={rel} />
-    </TooltipPrimitive.Provider>
+    withQueryClient(
+      <TooltipPrimitive.Provider>
+        <ImminentHero release={rel} />
+      </TooltipPrimitive.Provider>
+    )
   );
 }
 

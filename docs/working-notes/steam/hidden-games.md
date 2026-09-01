@@ -184,6 +184,16 @@ A second lint pairs `@ViewerIsOwner()` with `@WithViewer()` on the same handler.
 
 Both are recorded in [repo-conventions.md](../../repo-conventions.md) — the curation half extends the existing "centralise domain invariants" entry, and the four-piece viewer-aware contract (`@WithViewer()` → required curation argument → `viewerScope()` in the key → `credentials: "include"`) is a new section, since the failure modes point in different directions and only one of them is visible.
 
+## Telling the owner what is hidden (2026-08-25)
+
+The owner sees hidden games on every surface by design, which left them unable to tell whether what they were looking at was public. The hide toggle answers that where it exists — amber and pressed on the wishlist row, the library hovercard, the game-detail chip row — but the **Upcoming release calendar** showed a hidden game with no toggle and no marker, so the only way to know was to open a private window. That is what prompted the question.
+
+`HiddenMark` / `HiddenNote` are the read-only half of the toggle, mirroring `PreOrderedMark` next door: presentational, with callers gating on `useGameCuration(appid)` so a surface can reuse the same state for its own accessible name and tooltip. Wired into the release capsule (pill top-left, since pre-ordered owns bottom-right), the TBA chips (inline note), and the imminent hero. The sentence reaches the accessible name in all three — the pill is a colour and a glyph, so a screen-reader user would otherwise learn nothing from it.
+
+**A real gap the test found.** `useGameCuration`'s doc claimed non-owners get `false`s and the implementation did not enforce it: it read `hiddenAt` straight off whatever was in the cache. The overlay can sit there without the viewer being the owner — signed in, then the session expired — so a stale entry would have marked a game as hidden on a page the owner is no longer behind. Now gated on `isOwner` before the row is read at all.
+
+**Verified: no surface was leaking.** An anonymous probe of 22 endpoints (every list, aggregate, `home/*`, and `recap/chapters`) named the hidden appid nowhere; all three `game/:appid/*` routes 404, the OG card 404s, and the sitemap does not list it. What the owner was seeing was the owner projection, which is decision 1 working.
+
 ## Accepted leaks
 
 Recorded so they don't get re-raised as defects:

@@ -1,6 +1,8 @@
 import { TOOLTIP_CONTENT_RICH } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
 import { steamCapsuleUrl } from "@/steam/_shared/steam-image";
+import { HIDDEN_FROM_VISITORS, HiddenMark } from "@/steam/curation/hidden-mark";
+import { useGameCuration } from "@/steam/curation/use-game-curation";
 import { isPreOrdered } from "@/steam/upcoming/bucketing";
 import { PreOrderedMark } from "@/steam/upcoming/pre-ordered-mark";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
@@ -26,6 +28,10 @@ export function ReleaseCapsule({ item, detail, ghost, className }: ReleaseCapsul
   const [failed, setFailed] = useState(false);
   const name = item.name ?? `App ${item.appid}`;
   const preOrdered = isPreOrdered(item);
+  // The calendar shows the owner their hidden games like every other surface,
+  // and a capsule has no room for the toggle — so it carries the marker
+  // instead, and says so in the accessible name and the hover card.
+  const { hidden } = useGameCuration(item.appid);
 
   return (
     <TooltipPrimitive.Root>
@@ -34,7 +40,13 @@ export function ReleaseCapsule({ item, detail, ghost, className }: ReleaseCapsul
           href={item.storeUrl}
           target="_blank"
           rel="noreferrer"
-          aria-label={preOrdered ? `${name} on Steam — pre-ordered` : `${name} on Steam`}
+          aria-label={[
+            `${name} on Steam`,
+            preOrdered ? "pre-ordered" : null,
+            hidden ? HIDDEN_FROM_VISITORS : null,
+          ]
+            .filter(Boolean)
+            .join(" — ")}
           data-ghost={ghost ? "" : undefined}
           className={cn(
             "group/cap relative block aspect-[231/87] overflow-hidden rounded-md border border-border/40 bg-card outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50",
@@ -59,6 +71,7 @@ export function ReleaseCapsule({ item, detail, ghost, className }: ReleaseCapsul
           )}
           <span className="absolute inset-0 bg-black/0 transition-colors group-hover/cap:bg-black/25" />
           {preOrdered ? <PreOrderedMark className="absolute right-1 bottom-1" /> : null}
+          {hidden ? <HiddenMark className="absolute top-1 left-1" /> : null}
         </a>
       </TooltipPrimitive.Trigger>
       <TooltipPrimitive.Portal>
@@ -69,6 +82,9 @@ export function ReleaseCapsule({ item, detail, ghost, className }: ReleaseCapsul
         >
           <p className="font-medium text-foreground">{name}</p>
           {detail ? <p className="mt-0.5 text-muted-foreground">{detail}</p> : null}
+          {hidden ? (
+            <p className="mt-0.5 text-amber-300/90">Hidden from visitors</p>
+          ) : null}
         </TooltipPrimitive.Content>
       </TooltipPrimitive.Portal>
     </TooltipPrimitive.Root>
