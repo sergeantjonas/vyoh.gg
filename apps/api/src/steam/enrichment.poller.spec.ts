@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service";
+import { SyncJobRegistry } from "../sync-jobs/sync-job-registry.service";
 import { SteamEnrichmentPoller } from "./enrichment.poller";
 import type { SteamEnrichmentService } from "./enrichment.service";
 import type { SteamService } from "./steam.service";
@@ -52,7 +53,8 @@ function makePoller(
       prisma as unknown as PrismaService,
       service as unknown as SteamEnrichmentService,
       steam as unknown as SteamService,
-      anchors as unknown as SteamSubjectAnchorService
+      anchors as unknown as SteamSubjectAnchorService,
+      new SyncJobRegistry()
     ),
     prisma,
     service,

@@ -2,7 +2,11 @@ import { Injectable, Logger, type OnModuleInit } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { OWNER_TIME_ZONE } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
+import { SyncJobRegistry } from "../sync-jobs/sync-job-registry.service";
+import { SYNC_JOBS } from "../sync-jobs/sync-jobs.catalog";
 import { SteamAchievementSchemaService } from "./achievement-schema.service";
+
+const JOB = "steam-achievement-schema";
 
 // Per-game achievement schemas rarely change, so each row wants refreshing
 // about weekly. That is expressed as an age rather than a weekly wall-clock
@@ -26,42 +30,25 @@ const SCHEMA_BATCH_CAP = 40;
 @Injectable()
 export class SteamAchievementSchemaPoller implements OnModuleInit {
   private readonly logger = new Logger(SteamAchievementSchemaPoller.name);
-  private running = false;
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly service: SteamAchievementSchemaService
+    private readonly service: SteamAchievementSchemaService,
+    private readonly jobs: SyncJobRegistry
   ) {}
 
   async onModuleInit(): Promise<void> {
-    try {
-      await this.refreshDue("boot");
-    } catch (err) {
-      // Boot must not block on Steam — log and move on. The daily tick (or
-      // the next restart) reconciles whatever this pass missed.
-      this.logger.warn(`boot backfill failed: ${err}`);
-    }
+    // Routed through the registry like the tick: the boot pass does the same
+    // reconciliation, and it is the pass that actually runs on a machine that
+    // is not alive at the cron's wall-clock hour.
+    await this.jobs.run(JOB, () => this.refreshDue("boot"));
   }
 
   // Daily at 05:00 Europe/Brussels, 30 min before the rarity tick so the two
   // never overlap. Was Sunday-only until 2026-08-06.
-  @Cron("0 5 * * *", {
-    name: "steam-achievement-schema",
-    timeZone: OWNER_TIME_ZONE,
-  })
+  @Cron(SYNC_JOBS[JOB].cron, { name: JOB, timeZone: OWNER_TIME_ZONE })
   async tick(): Promise<void> {
-    if (this.running) {
-      this.logger.warn("previous tick still running — skipping");
-      return;
-    }
-    this.running = true;
-    try {
-      await this.refreshDue("tick");
-    } catch (err) {
-      this.logger.warn(`schema sync failed: ${err}`);
-    } finally {
-      this.running = false;
-    }
+    await this.jobs.run(JOB, () => this.refreshDue("tick"));
   }
 
   private async refreshDue(source: string): Promise<void> {

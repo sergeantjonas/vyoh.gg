@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service";
+import { SyncJobRegistry } from "../sync-jobs/sync-job-registry.service";
 import type { SteamAchievementSchemaService } from "./achievement-schema.service";
 import type { SteamOwnedGamesService } from "./owned-games.service";
 import type { SteamPlayerUnlocksService } from "./player-unlocks.service";
@@ -42,7 +43,8 @@ function makePoller(
       client as unknown as SteamClientService,
       owned as unknown as SteamOwnedGamesService,
       unlocks as unknown as SteamPlayerUnlocksService,
-      schema as unknown as SteamAchievementSchemaService
+      schema as unknown as SteamAchievementSchemaService,
+      new SyncJobRegistry()
     ),
     prisma,
     client,

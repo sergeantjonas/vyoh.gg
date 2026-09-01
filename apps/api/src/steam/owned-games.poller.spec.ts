@@ -1,11 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
+import { SyncJobRegistry } from "../sync-jobs/sync-job-registry.service";
 import { SteamOwnedGamesPoller } from "./owned-games.poller";
 import type { SteamOwnedGamesService } from "./owned-games.service";
 
 function makePoller() {
   const service = { syncOwnedGames: vi.fn().mockResolvedValue(undefined) };
   return {
-    poller: new SteamOwnedGamesPoller(service as unknown as SteamOwnedGamesService),
+    poller: new SteamOwnedGamesPoller(
+      service as unknown as SteamOwnedGamesService,
+      new SyncJobRegistry()
+    ),
     service,
   };
 }

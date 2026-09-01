@@ -2,7 +2,11 @@ import { Injectable, Logger, type OnModuleInit } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { OWNER_TIME_ZONE } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
+import { SyncJobRegistry } from "../sync-jobs/sync-job-registry.service";
+import { SYNC_JOBS } from "../sync-jobs/sync-jobs.catalog";
 import { SteamTagService } from "./tag.service";
+
+const JOB = "steam-tag-catalog";
 
 // Tag catalog cron — monthly at 04:45 Europe/Brussels, 15 min after the
 // enrichment cron so the two never overlap. The catalog rarely changes in
@@ -20,11 +24,11 @@ const CATALOG_MAX_AGE_MS = 31 * 24 * 60 * 60 * 1000;
 @Injectable()
 export class SteamTagPoller implements OnModuleInit {
   private readonly logger = new Logger(SteamTagPoller.name);
-  private running = false;
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly service: SteamTagService
+    private readonly service: SteamTagService,
+    private readonly jobs: SyncJobRegistry
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -39,28 +43,14 @@ export class SteamTagPoller implements OnModuleInit {
         ? `tag catalog is ${Math.floor((age ?? 0) / 86_400_000)} days old at boot — refreshing`
         : "tag catalog empty at boot — pulling initial catalog"
     );
-    try {
-      await this.service.syncTags();
-    } catch (err) {
-      // Don't block boot on Steam. Next month's cron will reconcile; the
-      // frontend gracefully renders unknown tag ids as numeric until then.
-      this.logger.warn(`boot tag-catalog pull failed: ${err}`);
-    }
+    // Routed through the registry like the tick: the boot pass does the same
+    // reconciliation, and it is the pass that actually runs on a machine that
+    // is not alive at the cron's wall-clock hour.
+    await this.jobs.run(JOB, () => this.service.syncTags());
   }
 
-  @Cron("45 4 1 * *", { name: "steam-tag-catalog", timeZone: OWNER_TIME_ZONE })
+  @Cron(SYNC_JOBS[JOB].cron, { name: JOB, timeZone: OWNER_TIME_ZONE })
   async tick(): Promise<void> {
-    if (this.running) {
-      this.logger.warn("previous tick still running — skipping");
-      return;
-    }
-    this.running = true;
-    try {
-      await this.service.syncTags();
-    } catch (err) {
-      this.logger.warn(`tag-catalog sync failed: ${err}`);
-    } finally {
-      this.running = false;
-    }
+    await this.jobs.run(JOB, () => this.service.syncTags());
   }
 }

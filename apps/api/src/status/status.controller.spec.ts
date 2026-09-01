@@ -5,12 +5,14 @@ import { AuthService } from "../auth/auth.service";
 import { MatchEventsService } from "../lol/match-events.service";
 import { MatchSyncService } from "../lol/match-sync.service";
 import { RateLimiterService } from "../riot/rate-limiter.service";
+import { SyncJobRegistry } from "../sync-jobs/sync-job-registry.service";
 import { StatusController } from "./status.controller";
 
 async function buildController(stubs: {
   matchSync?: Partial<MatchSyncService>;
   rateLimiter?: Partial<RateLimiterService>;
   events?: Partial<MatchEventsService>;
+  syncJobs?: Partial<SyncJobRegistry>;
 }): Promise<StatusController> {
   const moduleRef = await Test.createTestingModule({
     controllers: [StatusController],
@@ -18,6 +20,10 @@ async function buildController(stubs: {
       { provide: MatchSyncService, useValue: stubs.matchSync ?? {} },
       { provide: RateLimiterService, useValue: stubs.rateLimiter ?? {} },
       { provide: MatchEventsService, useValue: stubs.events ?? {} },
+      {
+        provide: SyncJobRegistry,
+        useValue: stubs.syncJobs ?? { getStatus: () => [] },
+      },
       // `OwnerGuard` on the three writes injects this. The tests below call the
       // handlers directly, so the guard never runs — it only has to resolve for
       // the module to compile. Guard behaviour is owned by owner.guard.spec.ts
@@ -29,16 +35,28 @@ async function buildController(stubs: {
 }
 
 describe("StatusController", () => {
-  it("snapshot() merges match-sync status with rate-limiter snapshot", async () => {
+  it("snapshot() merges match-sync status, cron jobs and the rate-limiter snapshot", async () => {
     const syncStatus = { enabled: true, lastTickAt: null };
     const rateLimiterSnapshot = { app: {}, methods: {} };
+    const jobs = [
+      {
+        name: "steam-owned-games",
+        stream: "steam",
+        label: "Owned games",
+        cron: "*/15 * * * *",
+        running: false,
+        lastRun: null,
+      },
+    ];
     const controller = await buildController({
       matchSync: { getStatus: vi.fn().mockReturnValue(syncStatus) },
       rateLimiter: { getSnapshot: vi.fn().mockResolvedValue(rateLimiterSnapshot) },
+      syncJobs: { getStatus: vi.fn().mockReturnValue(jobs) },
     });
 
     expect(await controller.snapshot()).toEqual({
       sync: syncStatus,
+      jobs,
       rateLimiter: rateLimiterSnapshot,
     });
   });
@@ -80,6 +98,7 @@ describe("StatusController", () => {
     expect(first.type).toBe("snapshot");
     expect(first.data).toEqual({
       sync: syncStatus,
+      jobs: [],
       rateLimiter: rateLimiterSnapshot,
     });
   });

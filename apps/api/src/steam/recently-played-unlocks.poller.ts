@@ -2,6 +2,8 @@ import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { OWNER_TIME_ZONE } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
+import { SyncJobRegistry } from "../sync-jobs/sync-job-registry.service";
+import { SYNC_JOBS } from "../sync-jobs/sync-jobs.catalog";
 import { SteamAchievementSchemaService } from "./achievement-schema.service";
 import { SteamOwnedGamesService } from "./owned-games.service";
 import { SteamPlayerUnlocksService } from "./player-unlocks.service";
@@ -28,109 +30,98 @@ import { STEAM_OWNER_ID } from "./steam.config";
 // (CS2, demos, Dota 2) at one wasted call per day rather than one per tick.
 const ZERO_SCHEMA_RECHECK_MS = 24 * 60 * 60 * 1000;
 
+const JOB = "steam-recently-played-unlocks";
+
 @Injectable()
 export class SteamRecentlyPlayedUnlocksPoller {
   private readonly logger = new Logger(SteamRecentlyPlayedUnlocksPoller.name);
-  private running = false;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly client: SteamClientService,
     private readonly ownedGames: SteamOwnedGamesService,
     private readonly playerUnlocks: SteamPlayerUnlocksService,
-    private readonly achievementSchema: SteamAchievementSchemaService
+    private readonly achievementSchema: SteamAchievementSchemaService,
+    private readonly jobs: SyncJobRegistry
   ) {}
 
-  @Cron("15 * * * *", {
-    name: "steam-recently-played-unlocks",
-    timeZone: OWNER_TIME_ZONE,
-  })
+  @Cron(SYNC_JOBS[JOB].cron, { name: JOB, timeZone: OWNER_TIME_ZONE })
   async tick(): Promise<void> {
-    if (this.running) {
-      this.logger.warn("previous tick still running — skipping");
-      return;
-    }
-    this.running = true;
-    try {
-      const recent = await this.client.getRecentlyPlayedGames(STEAM_OWNER_ID);
-      const candidates = recent.filter(
-        (g) => typeof g.playtime_2weeks === "number" && g.playtime_2weeks > 0
+    await this.jobs.run(JOB, () => this.backstop());
+  }
+
+  private async backstop(): Promise<void> {
+    const recent = await this.client.getRecentlyPlayedGames(STEAM_OWNER_ID);
+    const candidates = recent.filter(
+      (g) => typeof g.playtime_2weeks === "number" && g.playtime_2weeks > 0
+    );
+    if (candidates.length === 0) return;
+
+    // Detect previously-unknown appids and trigger a full owned-games
+    // sync if any appear. The on-add hooks inside `syncOwnedGames` then
+    // bootstrap schema/unlocks/rarity for the new entries, so the
+    // per-appid refresh loop below will find populated meta rows. We
+    // gate on `removedAt: null` so a re-acquired game (rare — uninstall
+    // a freebie, claim it again) also triggers a resync.
+    const appids = candidates.map((g) => g.appid);
+    const knownRows = await this.prisma.steamOwnedGame.findMany({
+      where: { appid: { in: appids }, removedAt: null },
+      select: { appid: true },
+    });
+    const known = new Set(knownRows.map((r) => r.appid));
+    const unknown = appids.filter((id) => !known.has(id));
+    if (unknown.length > 0) {
+      this.logger.log(
+        `recently-played reports ${unknown.length} unknown appid(s) — triggering owned-games resync: ${unknown.join(", ")}`
       );
-      if (candidates.length === 0) return;
+      try {
+        await this.ownedGames.syncOwnedGames();
+      } catch (err) {
+        this.logger.warn(`proactive owned-games resync failed: ${err}`);
+      }
+    }
 
-      // Detect previously-unknown appids and trigger a full owned-games
-      // sync if any appear. The on-add hooks inside `syncOwnedGames` then
-      // bootstrap schema/unlocks/rarity for the new entries, so the
-      // per-appid refresh loop below will find populated meta rows. We
-      // gate on `removedAt: null` so a re-acquired game (rare — uninstall
-      // a freebie, claim it again) also triggers a resync.
-      const appids = candidates.map((g) => g.appid);
-      const knownRows = await this.prisma.steamOwnedGame.findMany({
-        where: { appid: { in: appids }, removedAt: null },
-        select: { appid: true },
-      });
-      const known = new Set(knownRows.map((r) => r.appid));
-      const unknown = appids.filter((id) => !known.has(id));
-      if (unknown.length > 0) {
-        this.logger.log(
-          `recently-played reports ${unknown.length} unknown appid(s) — triggering owned-games resync: ${unknown.join(", ")}`
+    // A zero `achievementCount` is a self-sealing dead end: every unlock
+    // path gates on `> 0`, so once we record a zero nothing fetches
+    // unlocks for that game again, and the boot backfill skips it because
+    // a meta row exists. Only the weekly schema cron re-evaluates it. That
+    // is too slow for the case that produces it — a game bought before
+    // release publishes its achievements days after we recorded the zero,
+    // and by then the owner is already earning them. Re-check the ones
+    // showing up in recently-played, so the refresh below sees the real
+    // count in this same tick.
+    const cutoff = new Date(Date.now() - ZERO_SCHEMA_RECHECK_MS);
+    const stale = await this.prisma.steamGameAchievementMeta.findMany({
+      where: {
+        appid: { in: appids },
+        AND: [
+          { OR: [{ achievementCount: 0 }, { achievementCount: null }] },
+          {
+            OR: [{ lastSchemaCheckedAt: null }, { lastSchemaCheckedAt: { lt: cutoff } }],
+          },
+        ],
+      },
+      select: { appid: true },
+    });
+    if (stale.length > 0) {
+      try {
+        await this.achievementSchema.refreshSchemas(stale.map((r) => r.appid));
+      } catch (err) {
+        this.logger.warn(`empty-schema re-check failed: ${err}`);
+      }
+    }
+
+    // `refreshUnlocksForGame` already pre-checks `achievementCount > 0`,
+    // so schema-less games (CS2, demos) short-circuit cleanly here —
+    // no need to filter upstream.
+    for (const appid of appids) {
+      try {
+        await this.playerUnlocks.refreshUnlocksForGame(appid);
+      } catch (err) {
+        this.logger.warn(
+          `recently-played unlock refresh for appid=${appid} failed: ${err}`
         );
-        try {
-          await this.ownedGames.syncOwnedGames();
-        } catch (err) {
-          this.logger.warn(`proactive owned-games resync failed: ${err}`);
-        }
       }
-
-      // A zero `achievementCount` is a self-sealing dead end: every unlock
-      // path gates on `> 0`, so once we record a zero nothing fetches
-      // unlocks for that game again, and the boot backfill skips it because
-      // a meta row exists. Only the weekly schema cron re-evaluates it. That
-      // is too slow for the case that produces it — a game bought before
-      // release publishes its achievements days after we recorded the zero,
-      // and by then the owner is already earning them. Re-check the ones
-      // showing up in recently-played, so the refresh below sees the real
-      // count in this same tick.
-      const cutoff = new Date(Date.now() - ZERO_SCHEMA_RECHECK_MS);
-      const stale = await this.prisma.steamGameAchievementMeta.findMany({
-        where: {
-          appid: { in: appids },
-          AND: [
-            { OR: [{ achievementCount: 0 }, { achievementCount: null }] },
-            {
-              OR: [
-                { lastSchemaCheckedAt: null },
-                { lastSchemaCheckedAt: { lt: cutoff } },
-              ],
-            },
-          ],
-        },
-        select: { appid: true },
-      });
-      if (stale.length > 0) {
-        try {
-          await this.achievementSchema.refreshSchemas(stale.map((r) => r.appid));
-        } catch (err) {
-          this.logger.warn(`empty-schema re-check failed: ${err}`);
-        }
-      }
-
-      // `refreshUnlocksForGame` already pre-checks `achievementCount > 0`,
-      // so schema-less games (CS2, demos) short-circuit cleanly here —
-      // no need to filter upstream.
-      for (const appid of appids) {
-        try {
-          await this.playerUnlocks.refreshUnlocksForGame(appid);
-        } catch (err) {
-          this.logger.warn(
-            `recently-played unlock refresh for appid=${appid} failed: ${err}`
-          );
-        }
-      }
-    } catch (err) {
-      this.logger.warn(`recently-played backstop failed: ${err}`);
-    } finally {
-      this.running = false;
     }
   }
 }

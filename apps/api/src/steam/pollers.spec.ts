@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service";
+import { SyncJobRegistry } from "../sync-jobs/sync-job-registry.service";
 import { SteamAchievementSchemaPoller } from "./achievement-schema.poller";
 import type { SteamAchievementSchemaService } from "./achievement-schema.service";
 import { SteamGlobalRarityPoller } from "./global-rarity.poller";
@@ -35,7 +36,8 @@ describe("SteamPlayerUnlocksPoller", () => {
     return {
       poller: new SteamPlayerUnlocksPoller(
         prisma as unknown as PrismaService,
-        service as unknown as SteamPlayerUnlocksService
+        service as unknown as SteamPlayerUnlocksService,
+        new SyncJobRegistry()
       ),
       prisma,
       service,
@@ -102,7 +104,8 @@ describe("SteamGlobalRarityPoller", () => {
     return {
       poller: new SteamGlobalRarityPoller(
         prisma as unknown as PrismaService,
-        service as unknown as SteamGlobalRarityService
+        service as unknown as SteamGlobalRarityService,
+        new SyncJobRegistry()
       ),
       prisma,
       service,
@@ -280,7 +283,8 @@ describe("SteamAchievementSchemaPoller", () => {
     return {
       poller: new SteamAchievementSchemaPoller(
         prisma as unknown as PrismaService,
-        service as unknown as SteamAchievementSchemaService
+        service as unknown as SteamAchievementSchemaService,
+        new SyncJobRegistry()
       ),
       prisma,
       service,
@@ -384,7 +388,8 @@ describe("SteamTagPoller", () => {
     return {
       poller: new SteamTagPoller(
         prisma as unknown as PrismaService,
-        service as unknown as SteamTagService
+        service as unknown as SteamTagService,
+        new SyncJobRegistry()
       ),
       service,
     };
@@ -416,7 +421,8 @@ describe("SteamTagPoller", () => {
     const service = { syncTags: vi.fn().mockRejectedValue(new Error("steam down")) };
     const poller = new SteamTagPoller(
       prisma as unknown as PrismaService,
-      service as unknown as SteamTagService
+      service as unknown as SteamTagService,
+      new SyncJobRegistry()
     );
     await expect(poller.onModuleInit()).resolves.toBeUndefined();
   });
@@ -435,7 +441,10 @@ describe("SteamPlayerStatePoller", () => {
   function setup() {
     const service = { syncPlayerState: vi.fn().mockResolvedValue(undefined) };
     return {
-      poller: new SteamPlayerStatePoller(service as unknown as SteamPlayerStateService),
+      poller: new SteamPlayerStatePoller(
+        service as unknown as SteamPlayerStateService,
+        new SyncJobRegistry()
+      ),
       service,
     };
   }

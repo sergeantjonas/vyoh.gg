@@ -2,9 +2,13 @@ import { Injectable, Logger, type OnModuleInit } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { NO_CURATION, OWNER_TIME_ZONE } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
+import { SyncJobRegistry } from "../sync-jobs/sync-job-registry.service";
+import { SYNC_JOBS } from "../sync-jobs/sync-jobs.catalog";
 import { SteamEnrichmentService } from "./enrichment.service";
 import { SteamService } from "./steam.service";
 import { SteamSubjectAnchorService } from "./subject-anchor.service";
+
+const JOB = "steam-enrichment";
 
 // Enrichment data (asset hashes, type, release date, tags) shifts only when a
 // publisher updates store art or metadata, so each row wants revisiting about
@@ -34,26 +38,23 @@ const ENRICHMENT_BATCH_CAP = 25;
 @Injectable()
 export class SteamEnrichmentPoller implements OnModuleInit {
   private readonly logger = new Logger(SteamEnrichmentPoller.name);
-  private running = false;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly service: SteamEnrichmentService,
     private readonly steam: SteamService,
-    private readonly anchors: SteamSubjectAnchorService
+    private readonly anchors: SteamSubjectAnchorService,
+    private readonly jobs: SyncJobRegistry
   ) {}
 
   async onModuleInit(): Promise<void> {
     const candidates = await this.candidateAppids();
     if (candidates.length === 0) return;
 
-    try {
-      await this.refreshDue(candidates, "boot");
-    } catch (err) {
-      // Boot must not block on Steam — log and move on. The daily tick, or
-      // the next restart, reconciles whatever this pass missed.
-      this.logger.warn(`boot backfill failed: ${err}`);
-    }
+    // Routed through the registry like the tick: the boot pass does the same
+    // reconciliation, and it is the pass that actually runs on a machine that
+    // is not alive at the cron's wall-clock hour.
+    await this.jobs.run(JOB, () => this.refreshDue(candidates, "boot"));
 
     // Saliency anchors are a newer column than enrichment itself, so
     // already-enriched rows can still have null `subjectXPercent`. Run the
@@ -67,23 +68,14 @@ export class SteamEnrichmentPoller implements OnModuleInit {
     }
   }
 
-  @Cron("30 4 * * *", { name: "steam-enrichment", timeZone: OWNER_TIME_ZONE })
+  @Cron(SYNC_JOBS[JOB].cron, { name: JOB, timeZone: OWNER_TIME_ZONE })
   async tick(): Promise<void> {
-    if (this.running) {
-      this.logger.warn("previous tick still running — skipping");
-      return;
-    }
-    this.running = true;
-    try {
+    await this.jobs.run(JOB, async () => {
       // Full refresh — re-pulls every owned + wishlisted appid. Lets us detect
       // publisher art swaps via assetTimestamp without per-row diff logic.
       const candidates = await this.candidateAppids();
       await this.refreshDue(candidates, "tick");
-    } catch (err) {
-      this.logger.warn(`enrichment sync failed: ${err}`);
-    } finally {
-      this.running = false;
-    }
+    });
   }
 
   private async refreshDue(candidates: number[], source: string): Promise<void> {

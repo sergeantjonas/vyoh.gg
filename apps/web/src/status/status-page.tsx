@@ -24,6 +24,8 @@ const TICK_TIME_FMT = new Intl.DateTimeFormat("en-GB", {
   timeZone: OWNER_TIME_ZONE,
 });
 import { Lock, Pause, Play, RefreshCw } from "lucide-react";
+import { Badge, Metric } from "./status-primitives";
+import { SyncJobsCard } from "./sync-jobs-card";
 import {
   useSetSyncEnabled,
   useStatus,
@@ -52,8 +54,8 @@ export function StatusPage() {
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold tracking-tight">Status</h1>
         <p className="text-sm text-muted-foreground">
-          Live view of the match-sync cron and the Riot rate-limiter chain. Updates every
-          2 s via SSE.
+          Live view of the match-sync cron, the Steam pollers, and the Riot rate-limiter
+          chain. Updates every 2 s via SSE.
         </p>
       </header>
 
@@ -61,6 +63,12 @@ export function StatusPage() {
         tick={data.sync.lastTick}
         enabled={data.sync.enabled}
         running={data.sync.running}
+      />
+
+      <SyncJobsCard
+        title="Steam sync"
+        description="Cron-driven pollers. No manual trigger — each reconciles on its own schedule and on boot."
+        jobs={data.jobs.filter((job) => job.stream === "steam")}
       />
 
       <TrackedAccountsSection />
@@ -375,32 +383,6 @@ function MethodRow({ method }: { method: MethodLimiterSnapshot }) {
       <td className="px-3 py-1.5 text-right font-mono">{method.counts.QUEUED}</td>
       <td className="px-3 py-1.5 text-right font-mono">{method.counts.EXECUTING}</td>
     </tr>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-col">
-      <span className="text-xs uppercase tracking-wide text-muted-foreground">
-        {label}
-      </span>
-      <span className="font-mono">{value}</span>
-    </div>
-  );
-}
-
-function Badge({
-  tone,
-  children,
-}: { tone: "ok" | "active" | "muted"; children: React.ReactNode }) {
-  const styles =
-    tone === "ok"
-      ? "bg-emerald-500/15 text-emerald-500"
-      : tone === "active"
-        ? "bg-sky-500/15 text-sky-500 animate-pulse"
-        : "bg-muted text-muted-foreground";
-  return (
-    <span className={cn("rounded-full px-2 py-0.5 font-medium", styles)}>{children}</span>
   );
 }
 

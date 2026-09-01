@@ -6,6 +6,7 @@ import type {
   LolAccount,
   Me,
   StatusSnapshot,
+  SyncJobStatus,
   SyncTick,
   SyncTickAccountResult,
 } from "@vyoh/shared";
@@ -108,8 +109,56 @@ const tick: SyncTick = {
   accounts: [accountResult],
 };
 
+const steamJobs: SyncJobStatus[] = [
+  {
+    name: "steam-player-state",
+    stream: "steam",
+    label: "Now playing",
+    cron: "*/2 * * * *",
+    running: true,
+    lastRun: null,
+  },
+  {
+    name: "steam-owned-games",
+    stream: "steam",
+    label: "Owned games",
+    cron: "*/15 * * * *",
+    running: false,
+    lastRun: {
+      startedAt: "2026-05-19T11:45:00.000Z",
+      finishedAt: "2026-05-19T11:45:00.812Z",
+      durationMs: 812,
+      outcome: "ok",
+    },
+  },
+  {
+    name: "steam-tag-catalog",
+    stream: "steam",
+    label: "Tag catalog",
+    cron: "45 4 1 * *",
+    running: false,
+    lastRun: null,
+  },
+];
+
+const failingJob: SyncJobStatus = {
+  name: "steam-enrichment",
+  stream: "steam",
+  label: "Store enrichment",
+  cron: "30 4 * * *",
+  running: false,
+  lastRun: {
+    startedAt: "2026-05-19T04:30:00.000Z",
+    finishedAt: "2026-05-19T04:30:02.000Z",
+    durationMs: 2000,
+    outcome: "error",
+    error: "Steam Web API 503 Service Unavailable",
+  },
+};
+
 function makeSnapshot(overrides: Partial<StatusSnapshot> = {}): StatusSnapshot {
   return {
+    jobs: steamJobs,
     sync: {
       enabled: true,
       running: false,
@@ -150,6 +199,12 @@ type MutationLike = {
 
 function fakeMutation(extra: Partial<MutationLike> = {}): MutationLike {
   return { mutate: vi.fn(), isPending: false, ...extra };
+}
+
+function sectionFor(heading: string): HTMLElement {
+  const section = screen.getByRole("heading", { name: heading }).closest("section");
+  if (!section) throw new Error(`no section wrapping the "${heading}" heading`);
+  return section as HTMLElement;
 }
 
 function mockStatus(value: {
@@ -264,7 +319,9 @@ describe("StatusPage", () => {
       }),
     });
     renderWithTooltip(<StatusPage />);
-    expect(screen.getByText("running")).toBeTruthy();
+    // Scoped to the card: the Steam poller rows carry a "running" badge of
+    // their own, so an unscoped query would pass on the wrong section.
+    expect(within(sectionFor("Match sync")).getByText("running")).toBeTruthy();
   });
 
   it("shows the 'idle' badge when enabled, not running and a tick exists", () => {
@@ -776,3 +833,101 @@ describe("StatusPage owner gating", () => {
     expect(copy.length).toBeGreaterThan(0);
   });
 });
+
+describe("StatusPage — Steam sync", () => {
+  beforeEach(() => {
+    vi.mocked(useIsOwner).mockReturnValue(false);
+    mockMe(undefined);
+    mockMutations();
+  });
+
+  it("lists a row per Steam job with its label and schedule", () => {
+    mockStatus({ data: makeSnapshot() });
+    renderWithTooltip(<StatusPage />);
+
+    const card = within(sectionFor("Steam sync"));
+    for (const job of steamJobs) {
+      expect(card.getByText(job.label)).toBeTruthy();
+      expect(card.getByText(job.cron)).toBeTruthy();
+    }
+  });
+
+  it("reports a job with no recorded run as pending rather than healthy", () => {
+    mockStatus({ data: makeSnapshot() });
+    renderWithTooltip(<StatusPage />);
+
+    const row = rowFor("Tag catalog");
+    expect(within(row).getByText("pending")).toBeTruthy();
+    expect(within(row).getByText("no run since boot")).toBeTruthy();
+  });
+
+  it("shows the duration of a job's last successful run", () => {
+    mockStatus({ data: makeSnapshot() });
+    renderWithTooltip(<StatusPage />);
+
+    const row = rowFor("Owned games");
+    expect(within(row).getByText("ok")).toBeTruthy();
+    expect(within(row).getByText(/812 ms/)).toBeTruthy();
+  });
+
+  it("badges an in-flight job as running", () => {
+    mockStatus({ data: makeSnapshot() });
+    renderWithTooltip(<StatusPage />);
+
+    expect(within(rowFor("Now playing")).getByText("running")).toBeTruthy();
+  });
+
+  // A swallowed poller failure is the whole reason these rows exist, so the
+  // message has to reach the page, not just the badge.
+  it("surfaces the recorded error message on a failed job", () => {
+    mockStatus({ data: makeSnapshot({ jobs: [...steamJobs, failingJob] }) });
+    renderWithTooltip(<StatusPage />);
+
+    const row = rowFor("Store enrichment");
+    expect(within(row).getByText("failed")).toBeTruthy();
+    expect(
+      within(row).getByText(/error: Steam Web API 503 Service Unavailable/)
+    ).toBeTruthy();
+  });
+
+  it("counts the failing jobs in the card header", () => {
+    mockStatus({ data: makeSnapshot({ jobs: [...steamJobs, failingJob] }) });
+    renderWithTooltip(<StatusPage />);
+
+    expect(within(sectionFor("Steam sync")).getByText("1 failing")).toBeTruthy();
+  });
+
+  it("says so when the api reports no scheduled jobs at all", () => {
+    mockStatus({ data: makeSnapshot({ jobs: [] }) });
+    renderWithTooltip(<StatusPage />);
+
+    expect(
+      within(sectionFor("Steam sync")).getByText(/No scheduled jobs reported/)
+    ).toBeTruthy();
+  });
+
+  // The card is read-only by design, so a non-owner sees the same thing the
+  // owner does — no locked control, and nothing hidden.
+  it("shows the same rows to a non-owner, with no controls", () => {
+    mockStatus({ data: makeSnapshot() });
+    renderWithTooltip(<StatusPage />);
+
+    const card = within(sectionFor("Steam sync"));
+    expect(card.getByText("Owned games")).toBeTruthy();
+    expect(card.queryAllByRole("button")).toEqual([]);
+  });
+
+  it("has no axe violations", async () => {
+    mockStatus({ data: makeSnapshot({ jobs: [...steamJobs, failingJob] }) });
+    const { container } = renderWithTooltip(<StatusPage />);
+
+    const axe = configureAxe({ rules: { "color-contrast": { enabled: false } } });
+    expect((await axe(container)).violations).toEqual([]);
+  });
+});
+
+function rowFor(label: string): HTMLElement {
+  const row = screen.getByText(label).closest("li");
+  if (!row) throw new Error(`no job row for "${label}"`);
+  return row as HTMLElement;
+}

@@ -14,6 +14,7 @@ import { OwnerGuard } from "../auth/owner.guard";
 import { MatchEventsService } from "../lol/match-events.service";
 import { MatchSyncService } from "../lol/match-sync.service";
 import { RateLimiterService } from "../riot/rate-limiter.service";
+import { SyncJobRegistry } from "../sync-jobs/sync-job-registry.service";
 
 const SSE_HEARTBEAT_MS = 30_000;
 const SSE_SNAPSHOT_INTERVAL_MS = 2_000;
@@ -38,7 +39,8 @@ export class StatusController {
   constructor(
     private readonly rateLimiter: RateLimiterService,
     private readonly matchSync: MatchSyncService,
-    private readonly events: MatchEventsService
+    private readonly events: MatchEventsService,
+    private readonly syncJobs: SyncJobRegistry
   ) {
     const snapshots: Observable<MessageEvent> = interval(SSE_SNAPSHOT_INTERVAL_MS).pipe(
       startWith(0),
@@ -59,6 +61,7 @@ export class StatusController {
   async snapshot(): Promise<StatusSnapshot> {
     return {
       sync: this.matchSync.getStatus(),
+      jobs: this.syncJobs.getStatus(),
       rateLimiter: await this.rateLimiter.getSnapshot(),
     };
   }

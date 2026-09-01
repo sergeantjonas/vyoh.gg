@@ -448,12 +448,17 @@ export type {
   RecapCandidate,
   RecapSelectionOptions,
 } from "./home/recap-scoring.ts";
+export { syncJobHealth } from "./status.ts";
 export type {
   AppWindowSnapshot,
   LimiterCounts,
   MethodLimiterSnapshot,
   RateLimiterSnapshot,
   StatusSnapshot,
+  SyncJobHealth,
+  SyncJobRun,
+  SyncJobStatus,
+  SyncJobStream,
   SyncStatus,
   SyncTick,
   SyncTickAccountResult,

@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module";
+import { SyncJobsModule } from "../sync-jobs/sync-jobs.module";
 import { SteamAchievementSchemaPoller } from "./achievement-schema.poller";
 import { SteamAchievementSchemaService } from "./achievement-schema.service";
 import { SteamAchievementsService } from "./achievements.service";
@@ -37,7 +38,7 @@ import { SteamWishlistHeroService } from "./wishlist-hero.service";
   // injects AuthService. Nest resolves a guard's dependencies from the module
   // that declares the controller, not from wherever the guard was defined, so
   // omitting this import fails at bootstrap rather than at the route.
-  imports: [AuthModule],
+  imports: [AuthModule, SyncJobsModule],
   controllers: [SteamController],
   providers: [
     SteamRateLimiterService,

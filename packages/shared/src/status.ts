@@ -78,7 +78,51 @@ export interface SyncTriggerResult {
   status: SyncStatus;
 }
 
+// Every stream's cron jobs report through one registry, so a job's identity has
+// to say which stream it belongs to — the status board groups by it, and the two
+// streams have nothing else in common.
+export type SyncJobStream = "lol" | "steam";
+
+// One completed run. `error` carries the failure the job swallowed: a poller
+// that logs and lets the scheduler fire again is invisible from the outside
+// otherwise, which is the gap this whole shape exists to close.
+export interface SyncJobRun {
+  startedAt: string;
+  finishedAt: string;
+  durationMs: number;
+  outcome: "ok" | "error";
+  error?: string;
+}
+
+export interface SyncJobStatus {
+  name: string;
+  stream: SyncJobStream;
+  label: string;
+  // The cron expression the job is registered under, so the board can say how
+  // often a run is expected without the reader knowing the schedule by heart.
+  cron: string;
+  running: boolean;
+  lastRun: SyncJobRun | null;
+}
+
+export type SyncJobHealth = "running" | "ok" | "error" | "pending";
+
+/**
+ * The single reading of a job's state that display code is allowed to make.
+ *
+ * "pending" is deliberately distinct from "ok": a job with no `lastRun` has
+ * either never fired or last fired before the last restart, and rendering that
+ * as healthy would let a job that never runs look identical to one that just
+ * succeeded.
+ */
+export function syncJobHealth(job: SyncJobStatus): SyncJobHealth {
+  if (job.running) return "running";
+  if (!job.lastRun) return "pending";
+  return job.lastRun.outcome === "error" ? "error" : "ok";
+}
+
 export interface StatusSnapshot {
   sync: SyncStatus;
+  jobs: SyncJobStatus[];
   rateLimiter: RateLimiterSnapshot;
 }

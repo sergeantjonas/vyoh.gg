@@ -1,7 +1,11 @@
 import { Injectable, Logger, type OnModuleInit } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { OWNER_TIME_ZONE } from "@vyoh/shared";
+import { SyncJobRegistry } from "../sync-jobs/sync-job-registry.service";
+import { SYNC_JOBS } from "../sync-jobs/sync-jobs.catalog";
 import { SteamPlayerStateService } from "./player-state.service";
+
+const JOB = "steam-player-state";
 
 // GetPlayerSummaries is the cheapest Steam endpoint we touch — one call per
 // tick regardless of library size. Every 2 min = 720 calls/day, sub-1% of
@@ -17,37 +21,21 @@ import { SteamPlayerStateService } from "./player-state.service";
 @Injectable()
 export class SteamPlayerStatePoller implements OnModuleInit {
   private readonly logger = new Logger(SteamPlayerStatePoller.name);
-  private running = false;
 
-  constructor(private readonly service: SteamPlayerStateService) {}
+  constructor(
+    private readonly service: SteamPlayerStateService,
+    private readonly jobs: SyncJobRegistry
+  ) {}
 
   async onModuleInit(): Promise<void> {
     // Backfill on boot so the read endpoint can serve a row immediately
     // rather than 404ing for up to 2 min after a fresh deploy. Failure is
     // soft — the next cron tick will retry.
-    try {
-      await this.service.syncPlayerState();
-    } catch (err) {
-      this.logger.warn(`boot player-state sync failed: ${err}`);
-    }
+    await this.jobs.run(JOB, () => this.service.syncPlayerState());
   }
 
-  @Cron("*/2 * * * *", {
-    name: "steam-player-state",
-    timeZone: OWNER_TIME_ZONE,
-  })
+  @Cron(SYNC_JOBS[JOB].cron, { name: JOB, timeZone: OWNER_TIME_ZONE })
   async tick(): Promise<void> {
-    if (this.running) {
-      this.logger.warn("previous tick still running — skipping");
-      return;
-    }
-    this.running = true;
-    try {
-      await this.service.syncPlayerState();
-    } catch (err) {
-      this.logger.warn(`player-state sync failed: ${err}`);
-    } finally {
-      this.running = false;
-    }
+    await this.jobs.run(JOB, () => this.service.syncPlayerState());
   }
 }
