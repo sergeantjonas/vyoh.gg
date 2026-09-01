@@ -298,3 +298,25 @@ export function formatBucketHeader(bucket: BucketMeta): string {
   const dateStr = BUCKET_DAY_FMT.format(start);
   return `${dateStr} · ${BUCKET_TIME_FMT.format(start)} – ${BUCKET_TIME_FMT.format(end)}`;
 }
+
+// Which chart points carry a game's post-match snapshot: the first point whose
+// realT — a bucket closes on its last snapshot — is at or after the game started.
+// A game played more than a day before the first snapshot predates the series,
+// and one with no snapshot after it has not been captured yet; both are dropped
+// rather than pinned to an endpoint. Deduplicated because a day bucket can hold
+// several games.
+const SNAPSHOT_LEAD_MS = 24 * 60 * 60 * 1000;
+export function findSnapshotIndices(
+  gameStarts: readonly number[],
+  points: ChartPoint[]
+): number[] {
+  const first = points[0];
+  if (!first) return [];
+  const found = new Set<number>();
+  for (const t of gameStarts) {
+    if (t < first.realT - SNAPSHOT_LEAD_MS) continue;
+    const idx = points.findIndex((p) => p.realT >= t);
+    if (idx !== -1) found.add(idx);
+  }
+  return [...found].sort((a, b) => a - b);
+}

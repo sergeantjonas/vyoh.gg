@@ -437,9 +437,9 @@ describe("LolAnalyticsService.getDuoLp", () => {
         together: { games: 3, lpDelta: 25 },
         without: { games: 1, lpDelta: -15 },
         matches: [
-          { matchId: "M3", playedAt: at(12).toISOString(), lpDelta: -15 },
-          { matchId: "M2", playedAt: at(11).toISOString(), lpDelta: 20 },
-          { matchId: "M1", playedAt: at(10).toISOString(), lpDelta: 20 },
+          { matchId: "M3", playedAt: at(12).toISOString(), queueId: 420, lpDelta: -15 },
+          { matchId: "M2", playedAt: at(11).toISOString(), queueId: 420, lpDelta: 20 },
+          { matchId: "M1", playedAt: at(10).toISOString(), queueId: 420, lpDelta: 20 },
         ],
       },
     ]);

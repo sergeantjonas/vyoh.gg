@@ -1,3 +1,4 @@
+import { useIsOwner } from "@/auth/use-viewer";
 // Baseline: personal — your LP snapshots; streak overlay derives from your match results.
 import { type ChartDataColumn, ChartDataTable } from "@/components/chart-data-table";
 import { EmptyLpHistoryIllustration, EmptyState } from "@/components/empty-state";
@@ -8,12 +9,15 @@ import {
   CHART_GRID,
   CHART_NEGATIVE,
   CHART_POSITIVE,
+  CHART_TREND,
 } from "@/lib/chart-palette";
 import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { findPatchBoundaries } from "@/lol/_shared/patch/patch-version";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
+import { useDuoLp } from "@/lol/profile/use-duo-lp";
+import { useDuos } from "@/lol/profile/use-duos";
 import { type RangeKey, useRankHistory } from "@/lol/profile/use-rank-history";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 // visx 4 added an `exports` map with only a "." entry, so the old
@@ -57,6 +61,7 @@ import {
   type ChartPoint,
   POINT_FMT,
   findLongestStreak,
+  findSnapshotIndices,
   findTierChanges,
   formatBucketHeader,
   makeDayTicks,
@@ -116,6 +121,51 @@ function QueueTabs({
         );
       })}
     </div>
+  );
+}
+
+// Mirrors ProfileDuos' row count so the picker names the same people.
+const DUO_TABS_MAX = 3;
+
+// Same chrome as the queue/range tabs, but a toggle: pressing the active duo
+// clears the highlight, so the group needs no separate "off" control.
+function DuoTabs({
+  options,
+  value,
+  onChange,
+}: {
+  options: readonly { puuid: string; name: string }[];
+  value: string | null;
+  onChange: (puuid: string | null) => void;
+}) {
+  return (
+    <fieldset className="inline-flex min-w-0 rounded-md border bg-muted/40 p-0.5 text-xs">
+      <legend className="sr-only">Highlight games with a duo</legend>
+      {options.map((o) => {
+        const active = value === o.puuid;
+        return (
+          <button
+            key={o.puuid}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onChange(active ? null : o.puuid)}
+            className={cn(
+              "cursor-pointer rounded px-2.5 py-1 transition-colors",
+              active
+                ? "bg-background font-semibold text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <span
+              aria-hidden
+              className="mr-1.5 inline-block size-2 rounded-full border-2"
+              style={{ borderColor: CHART_TREND }}
+            />
+            {o.name}
+          </button>
+        );
+      })}
+    </fieldset>
   );
 }
 
@@ -293,6 +343,14 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
 
   const history = useRankHistory(account, range);
 
+  // Owner-only duo highlight. The public duo list only supplies the names; a
+  // visitor never subscribes to it from here, and the LP overlay is gated by
+  // its own hook.
+  const isOwner = useIsOwner();
+  const duos = useDuos(isOwner ? account : undefined);
+  const duoLp = useDuoLp(account);
+  const [duoPuuid, setDuoPuuid] = useState<string | null>(null);
+
   const available = useMemo<Record<RankedQueueKey, boolean>>(() => {
     const byQueue = {} as Record<RankedQueueKey, boolean>;
     for (const key of RANKED_QUEUE_KEYS) {
@@ -343,6 +401,34 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
   const tierChangeIdxSet = useMemo(
     () => new Set(tierChanges.map((tc) => tc.idx)),
     [tierChanges]
+  );
+
+  // Duos with a measurable ranked game on the active ladder, most games first.
+  // A duo that only queued flex with the owner offers nothing on the solo
+  // chart, so it drops out of the picker rather than ringing nothing.
+  const duoOptions = useMemo(() => {
+    if (!duoLp.data) return [];
+    const queueId = RANKED_QUEUE_KEY_TO_ID[activeQueue];
+    const names = new Map(duos.data?.map((d) => [d.puuid, d.gameName]));
+    const options: { puuid: string; name: string; gameStarts: number[] }[] = [];
+    for (const overlay of duoLp.data) {
+      const name = names.get(overlay.puuid);
+      if (name === undefined) continue;
+      const gameStarts = overlay.matches
+        .filter((mp) => mp.queueId === queueId)
+        .map((mp) => new Date(mp.playedAt).getTime());
+      if (gameStarts.length > 0) options.push({ puuid: overlay.puuid, name, gameStarts });
+    }
+    return options
+      .sort((a, b) => b.gameStarts.length - a.gameStarts.length)
+      .slice(0, DUO_TABS_MAX);
+  }, [duoLp.data, duos.data, activeQueue]);
+  const activeDuo = duoOptions.find((o) => o.puuid === duoPuuid) ?? null;
+  // Against `points`, like the tier changes: the rings sit on the data line at
+  // the snapshot that captured each game, and the brush clips them the same way.
+  const duoMarkIdx = useMemo(
+    () => (activeDuo ? findSnapshotIndices(activeDuo.gameStarts, points) : []),
+    [activeDuo, points]
   );
 
   // Tier bands give the Y axis meaning that raw normalized LP can't. We only
@@ -489,7 +575,14 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
             </TooltipPrimitive.Root>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {duoOptions.length > 0 && (
+            <DuoTabs
+              options={duoOptions}
+              value={activeDuo?.puuid ?? null}
+              onChange={setDuoPuuid}
+            />
+          )}
           <QueueTabs value={activeQueue} onChange={setQueue} available={available} />
           <RangeTabs value={range} onChange={setRange} />
         </div>
@@ -656,6 +749,25 @@ export function ProfileLpHistory({ accountSlug }: { accountSlug: string }) {
                 animationEasing="ease-out"
                 isAnimationActive={!reduced}
               />
+              {duoMarkIdx.map((idx) => {
+                const p = points[idx];
+                if (!p) return null;
+                // A hollow ring around the line's own dot: reference elements
+                // paint beneath the Line, so the dot stays visible inside it.
+                return (
+                  <ReferenceDot
+                    key={`duo-${idx}`}
+                    x={p.t}
+                    y={p.totalLp}
+                    ifOverflow="hidden"
+                    r={6}
+                    fill="none"
+                    stroke={CHART_TREND}
+                    strokeWidth={2}
+                    className="lp-duo-marker"
+                  />
+                );
+              })}
               {labelsVisible &&
                 tierChanges.map((tc) => {
                   const p = points[tc.idx];

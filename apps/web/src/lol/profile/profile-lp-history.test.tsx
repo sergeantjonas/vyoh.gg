@@ -1,15 +1,21 @@
+import { useIsOwner } from "@/auth/use-viewer";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { MatchWindowProvider } from "@/lol/matches/match-window-context";
+import { useDuoLp } from "@/lol/profile/use-duo-lp";
+import { useDuos } from "@/lol/profile/use-duos";
 import { useRankHistory } from "@/lol/profile/use-rank-history";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import {
+  type Duo,
+  type DuoLpOverlay,
   type LolAccount,
   type MatchSummary,
   RANKED_QUEUE_KEYS,
   type RankHistoryPoint,
   type RankHistoryResponse,
   emptyRankHistory,
+  normalizeLp,
 } from "@vyoh/shared";
 import { MotionConfig } from "motion/react";
 import type { ReactNode } from "react";
@@ -23,6 +29,10 @@ vi.mock("@/lol/_shared/account/use-account-from-slug", () => ({
 vi.mock("@/lol/profile/use-rank-history", () => ({
   useRankHistory: vi.fn(),
 }));
+
+vi.mock("@/auth/use-viewer", () => ({ useIsOwner: vi.fn() }));
+vi.mock("@/lol/profile/use-duos", () => ({ useDuos: vi.fn() }));
+vi.mock("@/lol/profile/use-duo-lp", () => ({ useDuoLp: vi.fn() }));
 
 const referenceAreaCalls: Array<Record<string, unknown>> = [];
 const referenceDotCalls: Array<Record<string, unknown>> = [];
@@ -104,6 +114,41 @@ function setHistory(
     isLoading: opts.isLoading ?? false,
     isError: opts.isError ?? false,
   } as unknown as ReturnType<typeof useRankHistory>);
+  // Visitor by default: both duo hooks idle with no data.
+  vi.mocked(useIsOwner).mockReturnValue(false);
+  vi.mocked(useDuos).mockReturnValue({ data: undefined } as unknown as ReturnType<
+    typeof useDuos
+  >);
+  vi.mocked(useDuoLp).mockReturnValue({ data: undefined } as unknown as ReturnType<
+    typeof useDuoLp
+  >);
+}
+
+function setOwnerDuos(duos: Duo[], overlays: DuoLpOverlay[]) {
+  vi.mocked(useIsOwner).mockReturnValue(true);
+  vi.mocked(useDuos).mockReturnValue({ data: duos } as unknown as ReturnType<
+    typeof useDuos
+  >);
+  vi.mocked(useDuoLp).mockReturnValue({ data: overlays } as unknown as ReturnType<
+    typeof useDuoLp
+  >);
+}
+
+function duo(puuid: string, gameName: string): Duo {
+  return {
+    puuid,
+    gameName,
+    tagLine: "EUW",
+    games: 5,
+    wins: 3,
+    topChampion: "Lux",
+    championPairs: [],
+    matchIds: [],
+  };
+}
+
+function duoRings() {
+  return referenceDotCalls.filter((p) => p.className === "lp-duo-marker");
 }
 
 function renderShell(matches: MatchSummary[] = []) {
@@ -129,6 +174,9 @@ function renderShell(matches: MatchSummary[] = []) {
 afterEach(() => {
   vi.mocked(useAccountFromSlug).mockReset();
   vi.mocked(useRankHistory).mockReset();
+  vi.mocked(useIsOwner).mockReset();
+  vi.mocked(useDuos).mockReset();
+  vi.mocked(useDuoLp).mockReset();
   referenceAreaCalls.length = 0;
   referenceDotCalls.length = 0;
 });
@@ -313,6 +361,73 @@ describe("ProfileLpHistory", () => {
     const labels = markers.map((p) => (p.label as { value: string }).value);
     expect(labels).toContain("Silver I");
     expect(labels).toContain("Gold IV");
+  });
+
+  describe("duo highlight", () => {
+    const DAY = 86_400_000;
+    const HOUR = 3_600_000;
+    const base = new Date("2026-01-01T00:00:00Z").getTime();
+    const soloPoints = [30, 40, 50, 60].map((lp, i) =>
+      point({ capturedAt: new Date(base + i * DAY).toISOString(), leaguePoints: lp })
+    );
+    const gameAt = (offsetMs: number, queueId: number) => ({
+      matchId: `M${offsetMs}`,
+      playedAt: new Date(base + offsetMs).toISOString(),
+      queueId,
+      lpDelta: 10,
+    });
+    const overlay = (puuid: string, matches: DuoLpOverlay["matches"]): DuoLpOverlay => ({
+      puuid,
+      together: { games: matches.length, lpDelta: 0 },
+      without: { games: 0, lpDelta: 0 },
+      matches,
+    });
+
+    it("offers no picker to a visitor", () => {
+      setHistory({ solo: soloPoints });
+      renderShell();
+      expect(
+        screen.queryByRole("group", { name: "Highlight games with a duo" })
+      ).toBeNull();
+      expect(useDuos).toHaveBeenCalledWith(undefined);
+    });
+
+    it("rings the snapshot after each of the picked duo's games on the active ladder", () => {
+      setHistory({ solo: soloPoints });
+      setOwnerDuos(
+        [duo("p1", "Luke"), duo("p2", "FlexOnly")],
+        [
+          overlay("p1", [
+            gameAt(DAY - HOUR, 420),
+            gameAt(2 * DAY + 30 * 60_000, 420),
+            gameAt(DAY, 440),
+          ]),
+          // Only flex games together: nothing to ring on the solo chart.
+          overlay("p2", [gameAt(DAY, 440)]),
+        ]
+      );
+      renderShell();
+      expect(
+        screen.getByRole("group", { name: "Highlight games with a duo" })
+      ).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "FlexOnly" })).toBeNull();
+      expect(duoRings()).toHaveLength(0);
+
+      referenceDotCalls.length = 0;
+      fireEvent.click(screen.getByRole("button", { name: "Luke" }));
+      const rings = duoRings();
+      expect(rings.map((r) => r.y)).toEqual([
+        normalizeLp("SILVER", "II", 40),
+        normalizeLp("SILVER", "II", 60),
+      ]);
+      expect(
+        screen.getByRole("button", { name: "Luke" }).getAttribute("aria-pressed")
+      ).toBe("true");
+
+      referenceDotCalls.length = 0;
+      fireEvent.click(screen.getByRole("button", { name: "Luke" }));
+      expect(duoRings()).toHaveLength(0);
+    });
   });
 
   it("applies a brush sub-range and a Show all reset clears it", () => {

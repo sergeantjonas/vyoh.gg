@@ -12,6 +12,8 @@ export interface DuoLpSlice {
 export interface DuoLpMatchPoint {
   matchId: string;
   playedAt: string;
+  /** Which ladder the game moved, so a per-queue chart can pick its own. */
+  queueId: number;
   lpDelta: number;
 }
 
@@ -52,7 +54,12 @@ export function computeDuoLpOverlays(
     if (!ranked.has(m.queueId)) continue;
     const lpDelta = matchLpDelta(m);
     if (lpDelta === null) continue;
-    measurable.push({ matchId: m.matchId, playedAt: m.playedAt, lpDelta });
+    measurable.push({
+      matchId: m.matchId,
+      playedAt: m.playedAt,
+      queueId: m.queueId,
+      lpDelta,
+    });
   }
   measurable.sort((a, b) => b.playedAt.localeCompare(a.playedAt));
 

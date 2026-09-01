@@ -45,8 +45,18 @@ describe("computeDuoLpOverlays", () => {
       together: { games: 2, lpDelta: 45 },
       without: { games: 1, lpDelta: -15 },
       matches: [
-        { matchId: "M3", playedAt: "2026-08-02T10:00:00.000Z", lpDelta: 25 },
-        { matchId: "M1", playedAt: "2026-08-01T10:00:00.000Z", lpDelta: 20 },
+        {
+          matchId: "M3",
+          playedAt: "2026-08-02T10:00:00.000Z",
+          queueId: 420,
+          lpDelta: 25,
+        },
+        {
+          matchId: "M1",
+          playedAt: "2026-08-01T10:00:00.000Z",
+          queueId: 420,
+          lpDelta: 20,
+        },
       ],
     });
   });
