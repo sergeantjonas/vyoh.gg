@@ -90,8 +90,8 @@ function makeService(
   recentUnlockRows: RecentUnlockRow[] = [],
   playtime2WRows: Playtime2WRow[] = [],
   curation: SteamCurationSets = NO_CURATION,
-  // Only the dormant lane reads these. Defaulted so every test written before
-  // the completion gate and the freshness fix keeps its existing behaviour.
+  // Only the dormant lane reads these. Defaulted so a test aimed at the active
+  // lane keeps its behaviour without knowing about achievement progress.
   dormant: { unlocks?: UnlockRow[]; achievementMeta?: AchievementMetaRow[] } = {}
 ): RecapSubjectsService {
   const ownedGames = {
@@ -754,40 +754,49 @@ describe("RecapSubjectsService.getChapters", () => {
     });
 
     // The lane floors on lifetime minutes and ranks on recency, and neither can
-    // tell 36h of in-game benchmark runs from 36h of playing. Achievement
-    // completion is what separates them: benchmark loops earn nothing.
-    it("drops a dormant game whose achievements say it was barely started", async () => {
-      const played = new Date(NOW.getTime() - 40 * 24 * 60 * 60 * 1000);
+    // tell 36h of in-game benchmark runs from 36h of playing. What separates
+    // them is a launch that earns nothing in a game whose achievements stopped
+    // moving a year ago — and a benchmark pass clears the ordinary 30-minute
+    // floor, which is why that floor alone can't catch it.
+    it("does not let a launch re-date a game whose progress has been frozen for a year", async () => {
+      const benchmarkRun = new Date(NOW.getTime() - 40 * 24 * 60 * 60 * 1000);
+      const staleUnlock = new Date(NOW.getTime() - 500 * 24 * 60 * 60 * 1000);
+      const playthrough = new Date(NOW.getTime() - 70 * 24 * 60 * 60 * 1000);
       const service = makeService(
         [
           makeOwnedGame({
             appid: 1091500, // Cyberpunk shape: hours, almost no progress
             name: "Benchmarked",
             playtimeForeverMinutes: 60 * 36,
-            playtime2WeeksMinutes: 0,
-            rtimeLastPlayedAt: played.toISOString(),
+            playtime2WeeksMinutes: null,
+            rtimeLastPlayedAt: benchmarkRun.toISOString(),
           }),
           makeOwnedGame({
             appid: 814380,
             name: "Finished",
             playtimeForeverMinutes: 60 * 54,
-            playtime2WeeksMinutes: 0,
-            rtimeLastPlayedAt: new Date(
-              NOW.getTime() - 70 * 24 * 60 * 60 * 1000
-            ).toISOString(),
+            playtime2WeeksMinutes: null,
+            rtimeLastPlayedAt: playthrough.toISOString(),
           }),
         ],
         [],
         [],
-        [],
+        [
+          {
+            appid: 1091500,
+            snapshotDate: new Date(benchmarkRun.getTime() + 2 * 24 * 60 * 60 * 1000),
+            // Over the 30-minute floor, under the stale-return floor.
+            playtime2WeeksMinutes: 40,
+          },
+        ],
         NO_CURATION,
         {
           unlocks: [
-            // 2 of 20 → 10%, under the gate.
-            { appid: 1091500, unlockedAt: played },
-            { appid: 1091500, unlockedAt: played },
-            // 10 of 20 → 50%, over it.
-            ...Array.from({ length: 10 }, () => ({ appid: 814380, unlockedAt: played })),
+            { appid: 1091500, unlockedAt: staleUnlock },
+            ...Array.from({ length: 10 }, () => ({
+              appid: 814380,
+              unlockedAt: playthrough,
+            })),
           ],
           achievementMeta: [
             { appid: 1091500, achievementCount: 20 },
@@ -797,9 +806,125 @@ describe("RecapSubjectsService.getChapters", () => {
       );
 
       const chapters = await service.getChapters(NOW);
-      // Benchmarked is the fresher of the two and still loses its slot.
+      // Benchmarked is the fresher of the two by `rtimeLastPlayedAt` and still
+      // loses the slot: it re-dates to its 500-day-old unlock.
       expect(chapters.map((c) => (c.kind === "steam-subject" ? c.appid : -1))).toEqual([
-        814380,
+        814380, 1091500,
+      ]);
+      const benchmarked = chapters.find(
+        (c) => c.kind === "steam-subject" && c.appid === 1091500
+      );
+      expect(benchmarked?.kind === "steam-subject" && benchmarked.daysSince).toBe(500);
+    });
+
+    // Silksong shows the identical unlock gap — 8 months between its last
+    // achievement and its last launch — at 100% complete. Nothing was left to
+    // earn, so the gap says nothing, and the ordinary floor must still apply.
+    it("applies the ordinary floor to a game with nothing left to earn", async () => {
+      const relaunch = new Date(NOW.getTime() - 40 * 24 * 60 * 60 * 1000);
+      const staleUnlock = new Date(NOW.getTime() - 500 * 24 * 60 * 60 * 1000);
+      const service = makeService(
+        [
+          makeOwnedGame({
+            appid: 1030300, // Silksong shape: completed, then re-opened
+            name: "Completed",
+            playtimeForeverMinutes: 60 * 67,
+            playtime2WeeksMinutes: null,
+            rtimeLastPlayedAt: relaunch.toISOString(),
+          }),
+        ],
+        [],
+        [],
+        [
+          {
+            appid: 1030300,
+            snapshotDate: new Date(relaunch.getTime() + 2 * 24 * 60 * 60 * 1000),
+            playtime2WeeksMinutes: 40,
+          },
+        ],
+        NO_CURATION,
+        {
+          unlocks: Array.from({ length: 20 }, () => ({
+            appid: 1030300,
+            unlockedAt: staleUnlock,
+          })),
+          achievementMeta: [{ appid: 1030300, achievementCount: 20 }],
+        }
+      );
+
+      const chapters = await service.getChapters(NOW);
+      const completed = chapters.find((c) => c.kind === "steam-subject");
+      expect(completed?.kind === "steam-subject" && completed.daysSince).toBe(40);
+    });
+
+    // A real return to a long-abandoned game is play even when it earns nothing:
+    // 21 of Binding of Isaac's *641* achievements is a genuine playthrough, and
+    // the completion gate this replaced called it abandonment.
+    it("keeps a substantial return to a game whose progress is stale", async () => {
+      const returned = new Date(NOW.getTime() - 40 * 24 * 60 * 60 * 1000);
+      const staleUnlock = new Date(NOW.getTime() - 4000 * 24 * 60 * 60 * 1000);
+      const service = makeService(
+        [
+          makeOwnedGame({
+            appid: 250900,
+            name: "Grindy Set",
+            playtimeForeverMinutes: 60 * 11,
+            playtime2WeeksMinutes: null,
+            rtimeLastPlayedAt: returned.toISOString(),
+          }),
+        ],
+        [],
+        [],
+        [
+          {
+            appid: 250900,
+            snapshotDate: new Date(returned.getTime() + 2 * 24 * 60 * 60 * 1000),
+            playtime2WeeksMinutes: 180, // three hours, earning nothing
+          },
+        ],
+        NO_CURATION,
+        {
+          unlocks: Array.from({ length: 21 }, () => ({
+            appid: 250900,
+            unlockedAt: staleUnlock,
+          })),
+          achievementMeta: [{ appid: 250900, achievementCount: 641 }],
+        }
+      );
+
+      const chapters = await service.getChapters(NOW);
+      const grindy = chapters.find((c) => c.kind === "steam-subject");
+      expect(grindy?.kind === "steam-subject" && grindy.daysSince).toBe(40);
+    });
+
+    // Low completion on its own is not a verdict. Skyrim at 5 of 75 and DayZ at
+    // 0 of 13 are hours the owner really spent; with no session evidence against
+    // the launch, the lane has nothing to hold against them.
+    it("keeps a barely-completed game the snapshots never caught being launched", async () => {
+      const played = new Date(NOW.getTime() - 40 * 24 * 60 * 60 * 1000);
+      const service = makeService(
+        [
+          makeOwnedGame({
+            appid: 72850,
+            name: "Barely Completed",
+            playtimeForeverMinutes: 60 * 18,
+            playtime2WeeksMinutes: null,
+            rtimeLastPlayedAt: played.toISOString(),
+          }),
+        ],
+        [],
+        [],
+        [],
+        NO_CURATION,
+        {
+          unlocks: [{ appid: 72850, unlockedAt: played }],
+          achievementMeta: [{ appid: 72850, achievementCount: 75 }],
+        }
+      );
+
+      const chapters = await service.getChapters(NOW);
+      expect(chapters.map((c) => (c.kind === "steam-subject" ? c.appid : -1))).toEqual([
+        72850,
       ]);
     });
 

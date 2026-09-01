@@ -1,6 +1,8 @@
 # Dormant chapter ranking
 
-**Status:** **Shipped 2026-08-25.** D1 (a 25% completion gate, so benchmark hours can't pass as play), D2 (the brief-launch guard now governs the unlock half of `freshest` too), and the review prompt now leads with the game that has hours behind it. Verified against the live api: the gate removed Cyberpunk from the chapter list and Resident Evil 4 backfilled the slot, as predicted. The sort order is unchanged and *correct* — `/` is a current-activity portrait, and the first draft's proposal to rank on lifetime hours was wrong for reasons the code had already recorded. Cyberpunk needs no `unfeaturedAt` row and has none.
+**Status:** **Shipped 2026-08-25, and the completion gate replaced 2026-09-01** by the sharper signal this note left unscoped — see § "The completion gate is gone". Everything below about D2 still describes the code; D1's 25% gate does not.
+
+**Original status, kept because the reasoning it records is still live:** D1 (a 25% completion gate, so benchmark hours can't pass as play), D2 (the brief-launch guard now governs the unlock half of `freshest` too), and the review prompt now leads with the game that has hours behind it. Verified against the live api: the gate removed Cyberpunk from the chapter list and Resident Evil 4 backfilled the slot, as predicted. The sort order is unchanged and *correct* — `/` is a current-activity portrait, and the first draft's proposal to rank on lifetime hours was wrong for reasons the code had already recorded. Cyberpunk needs no `unfeaturedAt` row and has none.
 
 Read this when: touching `collectDormantTopUp` in [recap-subjects.service.ts](../../../apps/api/src/recap/recap-subjects.service.ts), adding a signal to chapter scoring, or wondering why a specific game is or isn't a chapter.
 
@@ -29,9 +31,11 @@ The corollary for D2 below: the freshness guard governs the **dormant** lane onl
 Before, and after the two fixes:
 
 ```
-was: appType 0/null → lifetime ≥ 5h                     → freshest = max(lastUnlock, lastPlayed)          → sort freshest desc → take(slack)
-now: appType 0/null → lifetime ≥ 5h → completion ≥ 25%  → freshest = max(lastUnlock*, lastPlayed*)        → sort freshest desc → take(slack)
-                                                          * both nulled when the last session was brief
+was:      appType 0/null → lifetime ≥ 5h                     → freshest = max(lastUnlock, lastPlayed)   → sort freshest desc → take(slack)
+08-25:    appType 0/null → lifetime ≥ 5h → completion ≥ 25%  → freshest = max(lastUnlock*, lastPlayed*) → sort freshest desc → take(slack)
+09-01:    appType 0/null → lifetime ≥ 5h                     → freshest = max(lastUnlock*, lastPlayed*) → sort freshest desc → take(slack)
+                                                               * both nulled when the last session fails the floor,
+                                                                 which is 30 min — or 120 min if progress is stale
 ```
 
 `lifetimeHours` is a floor and the magnitude the web displays; it is not part of the ordering. Note also that the lane is spliced in by `getChapters` **after** `selectChapters` has run, so it never passes through `recapScore` and has **no score floor** — unlike the active lane, which drops anything under `RECAP_SCORE_FLOOR = 5`.
@@ -96,7 +100,7 @@ Three consequences to preserve:
 
 Two changes, both small, neither touching the sort order.
 
-**1. Completion gate (D1).** Candidates below 25% completion are dropped. `no schema` and `achievementCount = 0` **pass** — absence of a schema is not evidence of abandonment (D5). `DORMANT_MIN_COMPLETION` carries the reasoning at the constant.
+**1. Completion gate (D1) — replaced 2026-09-01, see § "The completion gate is gone".** Candidates below 25% completion are dropped. `no schema` and `achievementCount = 0` **pass** — absence of a schema is not evidence of abandonment (D5). `DORMANT_MIN_COMPLETION` carries the reasoning at the constant.
 
 **2. The freshness guard governs the whole signal (D2).** `freshest` should be anchored on the last *substantial* session, which is what the brief-launch floor was reaching for. Concretely: when a session fails the floor, neither its playtime nor the unlocks it produced should carry into `freshest`. That means gating the unlock timestamp on the same session evidence rather than taking an all-time `max(unlockedAt)`. Leave the 30-minute threshold where it is — see the invariant above; raising it would suppress real play, and it fixes nothing anyway, since the unlock path routes around any threshold.
 
@@ -111,6 +115,40 @@ One thing not to misread: Resident Evil Requiem is also absent, and that is the 
 **The benchmark signature is directly visible, and suggests a better signal than completion.** Cyberpunk's last unlock is 2025-06-10 while its last launch is 2026-07-07 — fourteen months of launches with zero achievement progress. That is what benchmark use looks like in this data, and it is a sharper statement than "19% complete".
 
 The refinement worth remembering: **an unlock gap only means something while achievements remain.** Silksong shows the same shape — last unlock 2025-10-10, last played 2026-06-02 — but it is 100% complete, so there was nothing left to earn and the gap is meaningless. So the signal is "launched repeatedly, achievements still available, none earned", not "gap between unlock and launch". That distinguishes benchmark use from a finished game re-launched later, which a flat completion gate cannot, and it needs no new data. Worth doing if the gate proves blunt.
+
+## The completion gate is gone (2026-09-01)
+
+It proved blunt, by measurement. Over the 47 live candidates the gate drops nine, and **only Cyberpunk is the game it was written for**:
+
+| dropped by the 25% gate | h | progress | verdict |
+|---|---|---|---|
+| Cyberpunk 2077 | 36.9 | 11/57 | the target |
+| The Binding of Isaac: Rebirth | 11.5 | 21/**641** | real playthrough, unreachable denominator |
+| Shadow of the Tomb Raider | 9.0 | 11/99 | real play |
+| Trine 2 | 10.3 | 15/97 | real play |
+| Skyrim · Saints Row: The Third · Max Payne 3 · MW2 (2009) | 6.8–18.3 | 3–19 of 50–83 | real play |
+| Amnesia: A Machine for Pigs · DayZ | 6.6–7.1 | 0/7, 0/13 | real play, earned nothing |
+
+D4 already said 25% is a line drawn at a distribution gap. The measurement says the gap is between *one* benchmarked game and eight ordinary ones, and that 25% of a 641-achievement set was never a reachable bar. The collateral is invisible today only because all eight last ran between 2010 and 2023, so they sit at the bottom of a lane that shows two rows — **replay any of them for three hours and the gate deletes the game the owner just played.**
+
+**What replaced it.** One idea instead of two: *a launch counts as play if it produced progress, or lasted long enough to be a session.* The brief-launch floor already carried the second half; the change makes the floor depend on the first.
+
+```
+progressStale = achievements remain AND no unlock in the 365 days before the launch
+floor         = progressStale ? 120 min : 30 min
+```
+
+Everything else is unchanged — a launch under the floor nulls both halves of `freshest`, exactly as D2 shipped it, so the game falls back to its last unlock instead of being deleted.
+
+Why each half is load-bearing: **"achievements remain"** is the Silksong exemption (identical 8-month unlock gap, 100% complete, nothing left to earn); **365 days** because this library's headroom gaps stop at 136 days and resume at Cyberpunk's 447; **the raised floor** because a benchmark loop is not bounded by 30 minutes, and raising the ordinary floor instead would suppress the real short sessions it protects (the invariant above).
+
+**Effect on the live lane: none.** The visible rows are Mortal Shell II / Beast of Reincarnation / Sekiro / RE4 before and after. Cyberpunk is no longer *deleted* — it now sits in the lane at its true 448-day-old date, which is both honest and far below the two visible slots. The eight real playthroughs are back in, all dated 2015–2023.
+
+**A correction to the verification above.** The 08-25 entry credits the gate with removing Cyberpunk. On the data, D2 alone was already sufficient: both observed benchmark launches (14 min on 2026-07-15, 25 min on 2026-08-31) are **under** the ordinary 30-minute floor, so the freshness guard re-dates the game to 2025-06-10 with or without the gate. The two changes shipped together and the gate got the credit; its only *unique* effect was the collateral in the table above.
+
+`STALE_RETURN_2W_MINUTES = 120` therefore fires on nothing in the library today, and it ships as a stated backstop rather than a measured improvement — the case it covers (a stress-testing loop left running past half an hour) is the one the gate used to catch, and it should not be silently uncovered when the gate goes.
+
+Known false negative, recorded at the constant: a genuine 90-minute revisit of a year-stale game that earns nothing keeps its old date. It re-dates itself on the first achievement, and the failure direction is a game staying where it was rather than a benchmark loop claiming the lane.
 
 ## Considered and rejected
 

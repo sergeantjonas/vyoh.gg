@@ -40,20 +40,38 @@ const STEAM_SUBJECT_HARD_CAP = 5;
  *  show a duration like "3m" rather than a session-sized number. */
 const BRIEF_LAUNCH_2W_MINUTES = 30;
 
-/** Achievement completion a dormant candidate must reach to be chapter
- *  material. Guards against ranking time-at-the-executable as play: the owner's
- *  36h in Cyberpunk 2077 are largely in-game benchmark runs for hardware
- *  stress-testing, which accumulate playtime and earn nothing, and the lane
- *  could not tell that from a playthrough. Games with no achievement schema
- *  pass — absence of a schema is not evidence of absence of play.
+/** How long a game's achievement progress must have been frozen — while
+ *  achievements were still there to earn — before a launch stops being read as
+ *  a return to it. The owner's 36h in Cyberpunk 2077 are largely in-game
+ *  benchmark runs for hardware stress-testing: 46 of its 57 achievements are
+ *  unclaimed, none has moved since 2025-06-10, and it is still launched most
+ *  months. That shape is what separates time-at-the-executable from play, and
+ *  it needs the "achievements remain" half to mean anything — Silksong shows
+ *  the identical 8-month unlock gap at 100% complete, having simply run out of
+ *  things to earn. A year, because this library's headroom gaps cluster under
+ *  136 days (a run finished, then poked again a season later) with nothing
+ *  between there and Cyberpunk's 447. */
+const STALE_PROGRESS_DAYS = 365;
+
+/** The brief-launch floor, raised for a game whose progress is stale. Two
+ *  hours is the shape of an actual return to a game abandoned a year ago; below
+ *  it, with achievements still unclaimed and untouched for that long, the launch
+ *  is not evidence the game went anywhere. Raising the ordinary floor to match
+ *  is not an option — it would suppress the real short sessions that floor
+ *  exists to protect.
  *
- *  0.25 rather than a rounder number because it is a line drawn where this
- *  library's distribution is empty (20 games at 100%, 10 at or below 24%,
- *  almost nothing between), not a principled threshold. A 50% floor would drop
- *  finished campaigns carrying grindy or multiplayer achievement sets — Portal
- *  2, Rise of the Tomb Raider — which is the failure to avoid.
+ *  This is a backstop, and it fires on nothing in the library today: both
+ *  observed Cyberpunk benchmark launches (14m and 25m) are already under the
+ *  ordinary floor. It exists because a stress-testing loop left running is not
+ *  bounded by 30 minutes, and the completion gate that used to be the only
+ *  backstop for that case cost eight real playthroughs to keep.
+ *
+ *  Known false negative: a genuine 90-minute revisit that earns nothing keeps
+ *  its old date. It re-dates itself the moment it earns one achievement, and
+ *  the failure direction is a game staying where it was rather than a benchmark
+ *  loop claiming the top of the lane.
  *  Full analysis: docs/working-notes/cross-cutting/dormant-chapter-ranking.md */
-const DORMANT_MIN_COMPLETION = 0.25;
+const STALE_RETURN_2W_MINUTES = 120;
 
 /**
  * Steam-subject candidate enumeration for the landing-page recap chapter
@@ -314,7 +332,7 @@ export class RecapSubjectsService {
     // not the last unlock overall — a per-appid boundary a groupBy cannot
     // express. Bounded by achievements-per-owned-game (~1.5k rows on a
     // 200-game library) and this endpoint is cached, so the trade is fine.
-    // The same rows serve the completion gate, which needs the count.
+    // The same rows answer whether achievements remain, which needs the count.
     const [ownedGames, unlockRows, playtime2WRows, achievementMetaRows] =
       await Promise.all([
         this.ownedGames.getOwnedGames(curation),
@@ -374,18 +392,15 @@ export class RecapSubjectsService {
       const lifetimeHours = game.playtimeForeverMinutes / 60;
       if (lifetimeHours < DORMANT_LIFETIME_FLOOR_HOURS) continue;
 
-      // Completion gate. `null`/0 schema passes: plenty of real playthroughs
-      // (Witcher 1, Fallout 3 GOTY) predate achievements entirely, and reading
-      // "no achievements" as "no progress" would delete them from the page.
       const unlockTimes = unlocksByAppid.get(game.appid) ?? [];
       const achievementCount = achievementCountByAppid.get(game.appid) ?? null;
-      if (
-        achievementCount !== null &&
-        achievementCount > 0 &&
-        unlockTimes.length / achievementCount < DORMANT_MIN_COMPLETION
-      ) {
-        continue;
-      }
+      // Is there anything left to earn? A `null`/0 schema and a completed one
+      // both answer no, for opposite reasons that don't matter here: plenty of
+      // real playthroughs (Witcher 1, Fallout 3 GOTY) predate achievements
+      // entirely, and a 100% game has nothing to show for another session
+      // either. Both keep the ordinary floor below.
+      const achievementsRemain =
+        achievementCount !== null && unlockTimes.length < achievementCount;
 
       const lastPlayedAtMs = game.rtimeLastPlayedAt
         ? new Date(game.rtimeLastPlayedAt).getTime()
@@ -418,17 +433,41 @@ export class RecapSubjectsService {
         0
       );
       const playtime2W = Math.max(game.playtime2WeeksMinutes ?? 0, observed2W);
-      const brieflyLaunched = playtime2W > 0 && playtime2W < BRIEF_LAUNCH_2W_MINUTES;
-      const lastPlayedMs = brieflyLaunched ? null : lastPlayedAtMs;
+      // The last unlock predating the session under test. Both the staleness
+      // measure and the fallback date want the same value: the last time this
+      // game demonstrably went somewhere before it was opened again.
+      const priorUnlockMs =
+        lastPlayedAtMs !== null
+          ? (unlockTimes.find((at) => at < lastPlayedAtMs) ?? null)
+          : null;
+      // Progress frozen for a year while achievements were still there to earn:
+      // the benchmark signature, and the case a flat completion gate could only
+      // approximate — it read Cyberpunk's 19% as abandonment, and charged eight
+      // real playthroughs with grindy achievement sets (21 of Isaac's *641*)
+      // the same verdict. A game that has never earned an achievement counts as
+      // stale too — nothing has ever moved in it — and costs nothing today,
+      // since the floor applies only to sessions a snapshot observed and the
+      // library's never-earning games (DayZ, Amnesia) predate coverage. Should
+      // one be opened briefly now, it drops out of the lane rather than
+      // re-dating, exactly as the 30-minute floor has always treated a game
+      // with no unlock to fall back to.
+      const progressStale =
+        achievementsRemain &&
+        lastPlayedAtMs !== null &&
+        (priorUnlockMs === null ||
+          lastPlayedAtMs - priorUnlockMs > STALE_PROGRESS_DAYS * 24 * 60 * 60 * 1000);
+      const sessionFloor = progressStale
+        ? STALE_RETURN_2W_MINUTES
+        : BRIEF_LAUNCH_2W_MINUTES;
+      const insubstantialLaunch = playtime2W > 0 && playtime2W < sessionFloor;
+      const lastPlayedMs = insubstantialLaunch ? null : lastPlayedAtMs;
       // The unlock half has to obey the same floor, or the guard above is
       // decorative: `freshest` takes the later of the two, so a single
       // achievement popped during a ten-minute launch carries today's date
-      // straight past a nulled `lastPlayedMs` and re-tops the lane. When the
-      // launch was brief, fall back to the last unlock that *predates* it —
-      // the last time this game demonstrably went somewhere.
+      // straight past a nulled `lastPlayedMs` and re-tops the lane.
       const lastUnlockMs =
-        brieflyLaunched && lastPlayedAtMs !== null
-          ? (unlockTimes.find((at) => at < lastPlayedAtMs) ?? null)
+        insubstantialLaunch && lastPlayedAtMs !== null
+          ? priorUnlockMs
           : (unlockTimes[0] ?? null);
       const freshest =
         lastUnlockMs !== null && lastPlayedMs !== null
