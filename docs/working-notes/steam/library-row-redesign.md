@@ -1,6 +1,6 @@
 # Steam library row redesign
 
-**Status:** Researching. No implementation. Captures the design exploration for replacing the current 4-layer composition in [steam-game-row.tsx](../../../apps/web/src/steam/_shared/steam-game-row.tsx) with something that handles the full library cleanly. Tentative landing point is documented; alternatives kept so we can pivot if the chosen path doesn't survive contact with the real library.
+**Status:** Parked 2026-09-01 — design exploration only, no implementation since 2026-05-25. Trigger: the next Steam row pass, or the current composition failing on real library data. Listed in [parked.md](../parked.md). Captures the design exploration for replacing the current 4-layer composition in [steam-game-row.tsx](../../../apps/web/src/steam/_shared/steam-game-row.tsx) with something that handles the full library cleanly. Tentative landing point is documented; alternatives kept so we can pivot if the chosen path doesn't survive contact with the real library.
 
 Read this when: touching `steam-game-row.tsx`, evaluating an alternative composition, scoping enrichment-side image work, or onboarding to the Steam row's design constraints.
 

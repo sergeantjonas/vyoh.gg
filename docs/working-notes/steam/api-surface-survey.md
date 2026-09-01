@@ -1,6 +1,6 @@
 # Steam Web API surface survey — beyond `GetItems`
 
-**Status:** Active — research session 2026-05-24, follow-up to the [library-card-enrichment.md](./library-card-enrichment.md) `GetItems` harvest. That note covered everything `IStoreBrowseService/GetItems` returns; this one inventories **the rest of the Steam Web API surface** for hidden gems we haven't wired yet.
+**Status:** Reference — research session 2026-05-24, follow-up to the [library-card-enrichment.md](./library-card-enrichment.md) `GetItems` harvest. That note covered everything `IStoreBrowseService/GetItems` returns; this one inventories **the rest of the Steam Web API surface** for hidden gems we haven't wired yet.
 
 Already wired ([steam-client.service.ts](../../../apps/api/src/steam/steam-client.service.ts)):
 

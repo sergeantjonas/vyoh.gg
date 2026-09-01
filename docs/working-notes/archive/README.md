@@ -35,6 +35,7 @@ A note **stays in the live folder** even if shipped when:
 | [editorial-typography.md](editorial-typography.md) | 2026-05-27 | All chunks shipped plus cross-app extension sweep + primitive bifurcation. `HeroNumber`/`HeroLabel`/`HeroPair` + `SectionTitle`/`CardTitle` slot pattern codified in [repo-conventions.md](../repo-conventions.md). Remaining percent sites tracked in [quick-wins.md](../cross-cutting/quick-wins.md). |
 | [page-composition.md](page-composition.md) | 2026-05-27 | Chunks 1, 2, 4, 5 shipped; Chunk 3 (owner-run visual capture) deferred non-blocking. Compositional container rule codified in [repo-conventions.md](../repo-conventions.md) § "Page composition". Secondary-surface backlog remains as standing reference inside the archived note. |
 | [champion-accent-color.md](champion-accent-color.md) | 2026-05-26 | Iconic-color picker shipped; drives the per-champion theme-color cascade. Future-extensions backlog (alternative extraction libs to shrink the 3-entry override list) closed as not worth chasing — current overrides cover the visual gap. |
+| [deploy-and-test-tiers.md](deploy-and-test-tiers.md) | never shipped (draft) | 2026-05-20 draft of a tag-based deploy/heavy-test tiering; superseded by [hosting.md](../ops/hosting.md) Option C and the launch gates in [pre-launch-sweep.md](../ops/pre-launch-sweep.md). Archived 2026-09-01 as an orphan with zero inbound links. |
 
 ## Maintenance rule
 

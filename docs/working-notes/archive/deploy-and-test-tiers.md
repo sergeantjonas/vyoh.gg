@@ -1,6 +1,6 @@
 # Deploy pipeline & tiered tests
 
-**Status:** Draft — 2026-05-20, **partially overtaken 2026-07-27.** Captures the model agreed in conversation: commit-to-main stays, tags become the deploy + heavy-test seam. Two of its premises have since been settled and this note has *not* been rewritten around them:
+**Status:** Archived 2026-09-01 — draft from 2026-05-20, overtaken by [hosting.md](../ops/hosting.md) (Option C deploy machinery) and [pre-launch-sweep.md](../ops/pre-launch-sweep.md) (launch gates); kept for the tiering vocabulary. Originally: **partially overtaken 2026-07-27.** Captures the model agreed in conversation: commit-to-main stays, tags become the deploy + heavy-test seam. Two of its premises have since been settled and this note has *not* been rewritten around them:
 
 - **The host is locked in.** Option C (Hetzner + Docker Compose), decided 2026-07-26 — [hosting.md](../ops/hosting.md).
 - **The deploy mechanics exist and are not tag-gated.** Start migration chunk 6 shipped both Dockerfiles, `compose.prod.yaml`, the Nginx vhosts and [`scripts/deploy.sh`](../../../scripts/deploy.sh), which deploys from a local checkout on demand. So the "§ Host & deploy mechanics (provider TBD)" section below describes a decision already made differently, and the § Chunk plan's deploy chunks are done.
@@ -49,7 +49,7 @@ What it must catch: the seams the fast lane mocks past. Each tier should stay na
    - Steam library route renders without runtime errors.
    Scope: **the smoke fraction Playwright is good at, not full E2E.** ~6–10 tests, no auth flows, no real Riot/Steam calls.
 
-4. **Lighthouse-CI budget check** (optional, opt-in) — fails the tag if FCP / TBT / bundle size regress past the budget recorded in [perf-baseline.md](./perf-baseline.md). Adds 30–60s and a flake risk; defer until the rest of the heavy lane is stable.
+4. **Lighthouse-CI budget check** (optional, opt-in) — fails the tag if FCP / TBT / bundle size regress past the budget recorded in [perf-baseline.md](../cross-cutting/perf-baseline.md). Adds 30–60s and a flake risk; defer until the rest of the heavy lane is stable.
 
 ## Boundary validation layer
 
@@ -142,7 +142,7 @@ Each chunk independently committable; ordering matches the prerequisite list abo
 5. **D5 — Boundary replay tests.** Record one fixture per upstream endpoint, commit under `apps/api/test/fixtures/upstream/`, write `test:boundary` that runs each through its schema. Refresh workflow lands in the same chunk so the recording isn't a one-off.
 6. **D6 — Playwright smoke.** Install `@playwright/test`, scaffold under `apps/web/test/e2e/`, write the smoke list above. Add `test:e2e` script. CI-only browser cache.
 7. **D7 — Fast-lane CI workflow.** `.github/workflows/ci.yml`. Wait a week or two on green main before D8.
-8. **D8 — Host selection + manual deploy.** Lock in the provider (Hetzner is the leading candidate but the decision happens here, with at least Fly.io as the considered alternative). VPS / equivalent up, `docker-compose.yml` committed under `infra/` or `deploy/`, secrets bootstrapped, manual deploy verified. No automation yet. Includes reverse-proxy config, Prisma migrate hook, pg_dump cron, backup restore drill. The host decision itself is worth a short ADR in [case-study-topics.md](./case-study-topics.md) — "EU single-VPS over edge-platform sprawl" is a real freelance-signal moment.
+8. **D8 — Host selection + manual deploy.** Lock in the provider (Hetzner is the leading candidate but the decision happens here, with at least Fly.io as the considered alternative). VPS / equivalent up, `docker-compose.yml` committed under `infra/` or `deploy/`, secrets bootstrapped, manual deploy verified. No automation yet. Includes reverse-proxy config, Prisma migrate hook, pg_dump cron, backup restore drill. The host decision itself is worth a short ADR in [case-study-topics.md](../cross-cutting/case-study-topics.md) — "EU single-VPS over edge-platform sprawl" is a real freelance-signal moment.
 9. **D9 — Release workflow.** `.github/workflows/release.yml` wires the heavy lane + deploy job. First tag is `v0.1.0` once D9 is green on a release-candidate (`v0.1.0-rc.1`).
 10. **D10 — Lighthouse-CI budget (optional).** Defer until the rest is stable.
 
@@ -152,12 +152,12 @@ Each chunk independently committable; ordering matches the prerequisite list abo
 - **Image strategy**: single image (api + web served by api in prod) vs two images. Affects reverse-proxy config and the build matrix. Decision in D8.
 - **Web hosting**: serve `apps/web` from the same VPS (simpler, one less moving part) vs Cloudflare Pages / Vercel for the static bundle (better edge perf, more freelance-credible cache story but more infra surface). Decision in D8 — partly dependent on the host pick.
 - **Boundary library**: zod vs valibot. Decide at the start of D1 — depends on whether we want the schemas reusable on the web side.
-- **Lighthouse budgets**: D10 only if [perf-baseline.md](./perf-baseline.md) has real budgets locked in by then.
+- **Lighthouse budgets**: D10 only if [perf-baseline.md](../cross-cutting/perf-baseline.md) has real budgets locked in by then.
 - **Branch protection on `main`**: do we want it to require `ci.yml` green? Solo-friendly answer is probably "no, push directly, fix forward" but worth a moment.
 
 ## Related notes
 
 - [test-coverage-2026-05-18.md](./test-coverage-2026-05-18.md) — current mocked-test state and what was covered in the recent sweep.
-- [perf-baseline.md](./perf-baseline.md) — perf budgets the Lighthouse-CI tier would gate on.
-- [project-hygiene-2026-05-18.md](./project-hygiene-2026-05-18.md) — prior hygiene wave that the current testing bar emerged from.
-- [case-study-topics.md](./case-study-topics.md) — "right-sized infra: single-VPS Docker over default cloud sprawl" is a natural addition once D8 lands.
+- [perf-baseline.md](../cross-cutting/perf-baseline.md) — perf budgets the Lighthouse-CI tier would gate on.
+- [project-hygiene-2026-05-18.md](../cross-cutting/project-hygiene-2026-05-18.md) — prior hygiene wave that the current testing bar emerged from.
+- [case-study-topics.md](../cross-cutting/case-study-topics.md) — "right-sized infra: single-VPS Docker over default cloud sprawl" is a natural addition once D8 lands.

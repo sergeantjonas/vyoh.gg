@@ -1,6 +1,6 @@
 # Frontend 2026 — domain sweep queue
 
-**Status:** Active — tracks which frontend-2026 domains have had a **project-audit-then-KB-refresh sweep** as part of vyoh.gg's library/stack evaluation work, and which are next.
+**Status:** Reference — tracks which frontend-2026 domains have had a **project-audit-then-KB-refresh sweep** as part of vyoh.gg's library/stack evaluation work, and which are next.
 
 > ⚠️ **The exercise is two phases. The order matters. Do NOT skip Phase 1.**
 >

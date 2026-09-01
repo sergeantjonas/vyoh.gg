@@ -1,6 +1,6 @@
 # Web structure findings — 2026-06-11 audit
 
-**Status:** Active — five chunks scoped, none started. Chunks W1–W3 are quick wins (≤1 sub-session each); W4 lands before the next per-subject recap chapter; W5 is the big-ticket item and pairs with the TanStack Start migration prep.
+**Status:** Active — W5 shipped with the TanStack Start migration (2026-07-27: `queryOptions` factories in 15 hooks, `ensureQueryData` in 11 route loaders). W1–W3 remain quick wins (≤1 sub-session each), tracked under Adjacent maintenance in [open-work.md](../open-work.md); W4 is parked until chapter #3 is scoped ([parked.md](../parked.md)). Re-verified 2026-09-01: `formatRelative` still has 3 copies, `firstSentence` 2, the sheen recipe is still inline at its 3 sites, `match-detail-recap-tab.tsx` is 908 lines.
 
 Parent index: [audit-2026-06-11.md](audit-2026-06-11.md). Baseline verdict: `apps/web` is structurally healthy — clean lol/steam/home domain boundaries, two-tier `_shared/` strategy working, no circular imports, consistent `@/` imports, zero TODO debt. The items below are the residue.
 
@@ -30,6 +30,8 @@ Fix shape: same as tooltip — exported recipe constant(s) in `apps/web/src/lib/
 Trigger: **before scoping chapter #3** (next LoL champion chapter or moment-chapter variant). The design spec is the source of truth for *which* patterns count as mature primitives; extract exactly those into `home/recap/_shared/`, leave per-subject hooks bespoke. Chapter #3 then becomes the proving consumer — don't extract speculatively beyond what both existing chapters already share (per the "three similar lines beat a premature abstraction" rule).
 
 ## W5 — queryOptions factories + route-loader prefetch
+
+**Shipped 2026-07-27** as part of [tanstack-start-migration.md](tanstack-start-migration.md) chunks 4a–5: the loader integration below is what the SSR cutover needed, so it landed there rather than as a standalone chunk. The text below is the original scoping.
 
 Current state: ~7 hooks export `queryOptions` factories (Steam best, LoL mixed, `home/` zero — all inline `useQuery`). Query-key grammar is already consistent (`[domain, feature, ...params]`), so this is mechanical.
 

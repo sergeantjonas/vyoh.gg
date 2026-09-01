@@ -1,6 +1,6 @@
 # Motion choreography arc
 
-**Status:** Active 2026-05-31. Foundational arc for the editorial register of the app. Lands the motion vocabulary that subsequent arcs ([atmosphere-arc.md](atmosphere-arc.md), future cinematic surfaces) inherit. Landing-page-first scope; propagation to `/lol` and `/steam` routes happens in followup arcs after the vocabulary is proven on the landing page. **M-1 through M-6 shipped 2026-05-31**; M-7 (propagation) is the only remaining chunk in scope (separate arc).
+**Status:** Shipped 2026-05-31 (M-1 through M-6). M-7 (propagation to `/lol` and `/steam`) was never scoped and is parked — see [parked.md](../parked.md). Foundational arc for the editorial register of the app. Lands the motion vocabulary that subsequent arcs ([atmosphere-arc.md](atmosphere-arc.md), future cinematic surfaces) inherit. Landing-page-first scope; propagation to `/lol` and `/steam` routes happens in followup arcs after the vocabulary is proven on the landing page. **M-1 through M-6 shipped 2026-05-31**; M-7 (propagation) is the only remaining chunk in scope (separate arc).
 
 **Order:** ships *before* [atmosphere-arc.md](atmosphere-arc.md) so every band in atmosphere arc inherits the motion vocabulary automatically. Confirmed 2026-05-31.
 

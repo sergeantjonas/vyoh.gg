@@ -1,6 +1,6 @@
 # Frontend-2026 KB gaps
 
-**Status:** Active — five small gaps surfaced by the 2026-05-22 evaluation against `~/.claude/knowledge/frontend-2026/`. Most ship as sub-session each; one defers to post-launch; one folds into the parked [tanstack-start-migration.md](tanstack-start-migration.md).
+**Status:** Active — five small gaps surfaced by the 2026-05-22 evaluation against `~/.claude/knowledge/frontend-2026/`. Gaps 1, 2 and 4 shipped (4's route tier landed with the [Start migration](tanstack-start-migration.md) on 2026-07-27); Gap 5 is pending a re-measure; Gap 3 (RUM backend) waits for launch — see [pre-launch-sweep.md § Post-launch](../ops/pre-launch-sweep.md).
 
 Companion to [tanstack-start-migration.md](tanstack-start-migration.md). That note covers the structural gap (CSR vs SSR for a public portfolio). This note covers the smaller, mostly-independent items that don't need to wait for the migration.
 

@@ -49,15 +49,26 @@ One-line pointers to work that was scoped, evaluated, and intentionally set asid
 - **First-visit cascade reveal across Trends layout** — header → summary → chart → list staggered cascade with per-session suppression. Parked alongside the shipped Trends entrance. → [motion-backlog.md](cross-cutting/motion-backlog.md)
 - **Optional UI audio — warm-acoustic v2 (curated `.ogg` samples)** — synth v1 shipped 2026-06-11 ([optional-ui-audio.md](cross-cutting/optional-ui-audio.md)) with 8-slot Web Audio recipes. Warm-acoustic v2 was the original spec: sourced/edited acoustic samples (wooden plucks, glass bells, soft breath) layered behind the same bus. Trigger: real user feedback that synth tones read as cold/cheap, or a free block to curate ~8 CC samples + run an A/B against synth. Swap is at the recipe layer; bus + hook + toggle + call-sites are stable. → [optional-ui-audio.md § Sound vocabulary](cross-cutting/optional-ui-audio.md#sound-vocabulary)
 
+- **Motion choreography M-7 — propagate the landing-page vocabulary to `/lol` and `/steam`** — M-1→M-6 shipped 2026-05-31; propagation was left as "a separate arc" and never scoped. Trigger: the next polish pass on a per-stream route. → [motion-choreography-arc.md](cross-cutting/motion-choreography-arc.md)
+- **Landing live hero** — planned 2026-05-31 as a chunk for the next landing-showcase pickup; that arc closed the same day. Trigger: a landing-page pass. → [landing-live-hero.md](cross-cutting/landing-live-hero.md)
+
 ### Library / dependency picks
 
 - **Recharts → visx consolidation** — 77 kB lazy chunk; both libraries coexist by design (visx for non-stock viz, Recharts for stock cases). Not a "park then ship" — this is a deliberate co-existence. → [library-shortlist.md](cross-cutting/library-shortlist.md)
 - **~22 parked library evaluations** — alternative routers, data-table libs, animation libs, charting libs, etc. that were considered and set aside. Bundled here rather than enumerated; the shortlist note is the source of truth. → [library-shortlist.md](cross-cutting/library-shortlist.md)
 
+### Steam surfaces
+
+- **Library row redesign** — design exploration for replacing the 4-layer `steam-game-row.tsx` composition; no implementation since 2026-05-25. Trigger: the next Steam row pass, or the composition failing on real library data. → [library-row-redesign.md](steam/library-row-redesign.md)
+
 ### Structural / hygiene
 
 - **LoL service trio god-class watch (D1)** — [`lol.service.ts`](../../apps/api/src/lol/lol.service.ts) (1026L), [`lol-static-sync.service.ts`](../../apps/api/src/lol/lol-static-sync.service.ts) (1076L), [`lol-analytics.service.ts`](../../apps/api/src/lol/lol-analytics.service.ts) (1059L). Trigger: any new arc that would extend one of these past ~1250L (new analytics dimension, new static sync source, new core-service orchestration responsibility). Likely-splits sketched in the note. Standing watch — do NOT pre-emptively split. **The trigger fired once and was actioned:** `lol-analytics.service.ts` reached 1443L and was split on 2026-07-26, moving the five `championKey`-scoped methods to [`lol-champion-analytics.service.ts`](../../apps/api/src/lol/lol-champion-analytics.service.ts) (423L) and leaving 1059L behind. The watch stands for all three files. → [project-hygiene-2026-05-31.md § D1](cross-cutting/project-hygiene-2026-05-31.md)
 - ~~**API response DTOs as shared types (D4)**~~ — **closed 2026-07-26, premise was stale.** Its trigger fired (the route-loader pilot) and measuring first showed the target shape already shipped: 0 of 61 web fetch sites infer, 58 already import the response type from `@vyoh/shared`. The residual 6 sites are now a sub-session item in [open-work.md](open-work.md). → [project-hygiene-2026-05-31.md § D4](cross-cutting/project-hygiene-2026-05-31.md)
+
+- **Web audit W4 — shared recap-chapter primitives** — extract only the design-spec-mature patterns from `steam-chapter.tsx` / `ahri-chapter.tsx` into `home/recap/_shared/`. Trigger: before scoping chapter #3. → [audit-web-structure.md](cross-cutting/audit-web-structure.md)
+- **API audit A3 — structured logging + request correlation** — Pino + request ids only pay off once logs are aggregated. Trigger: the app is hosted. → [audit-api-structure.md](cross-cutting/audit-api-structure.md)
+- **API audit A4 — Steam interactive-endpoint retry** — one-shot upstream flake reaches the user on wishlist and first-view enrichment. Trigger: next touch of `steam-client.service.ts`. → [audit-api-structure.md](cross-cutting/audit-api-structure.md)
 
 ### Runtime validation
 

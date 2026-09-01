@@ -1,6 +1,6 @@
 # Landing live-hero swap
 
-**Status:** Planned 2026-05-31 — promoted from a one-line candidate in [landing-showcase-arc.md § Scope sketch](landing-showcase-arc.md) into its own sibling note so the design alternatives, infrastructure ties, and reduced-motion contract aren't lost between chunks. **Not** active work; surfaced here so the next pickup of [landing-showcase-arc.md](landing-showcase-arc.md) has a concrete chunk to slot in, not a vague bullet to re-scope from scratch.
+**Status:** Parked 2026-09-01 — planned 2026-05-31 and never picked up; the parent arc closed the same day. Trigger: a landing-page pass. Listed in [parked.md](../parked.md). Originally promoted from a one-line candidate in [landing-showcase-arc.md § Scope sketch](landing-showcase-arc.md) into its own sibling note so the design alternatives, infrastructure ties, and reduced-motion contract aren't lost between chunks. **Not** active work; surfaced here so the next pickup of [landing-showcase-arc.md](landing-showcase-arc.md) has a concrete chunk to slot in, not a vague bullet to re-scope from scratch.
 
 Read this when the landing-showcase-arc Composition chunk lands and the next decision is "what does the hero become when the owner is actively playing?"
 

@@ -1,6 +1,6 @@
 # vyoh.gg — App state analysis & improvement plan
 
-**Status:** Active — living analysis, last fresh read 2026-05-13. Phases 1–5 of the improvement plan all shipped; Phase 6 (Mastery integration, multi-account compare, live-tab audit) remains optional and tracked in [open-work.md](../open-work.md). Refresh the structural read when a new feature arc materially changes the LoL section's shape.
+**Status:** Reference — living analysis, last fresh read 2026-05-13. Phases 1–5 of the improvement plan all shipped; Phase 6 (Mastery integration, multi-account compare, live-tab audit) remains optional and tracked in [open-work.md](../open-work.md). Refresh the structural read when a new feature arc materially changes the LoL section's shape.
 
 Last fresh read: 2026-05-13. Captures what the LoL section looks like today, what's carrying the app, what the structural gap is, and where the next arcs should land. Read this when scoping a new feature arc or when deciding whether a Champions-tab renovation is the right next move (spoiler: probably not the *first* move).
 

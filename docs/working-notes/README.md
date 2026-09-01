@@ -16,7 +16,7 @@ Planning surface for vyoh.gg. Each file is one arc, one bug, one idea, or one re
 
 | Folder | Contents |
 |---|---|
-| [lol/](lol/) | LoL feature arcs and LoL-specific reference (match-depth, LP forecast, personal-baselines, image pipeline, Riot rate-limit investigation, etc.). |
+| [lol/](lol/) | LoL feature arcs and LoL-specific reference (match-depth, LP forecast, personal-baselines, image pipeline, Riot rate-limit investigation, the [match-count cap](lol/match-count-cap.md), etc.). |
 | [steam/](steam/) | Steam integration notes. |
 | [tft/](tft/) | TFT integration notes. |
 | [cross-cutting/](cross-cutting/) | Notes that span multiple streams or the app at large (vnext-ideas, self-portrait surfaces, command palette, motion backlog, library shortlist, perf baseline, case-study topics). |

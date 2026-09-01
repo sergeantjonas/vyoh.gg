@@ -15,6 +15,28 @@ vyoh.gg/
     └── shared/   # cross-cutting types/DTOs imported by both apps
 ```
 
+## Last captured status — 2026-09-01
+
+**State-of-the-app review, docs-scoped** ([state-review-2026-09-01.md](cross-cutting/state-review-2026-09-01.md)) — Phases 0/1/2/6 on `main` @ `045217d6`. Verdict: the code is healthy (every validation command green, zero markers or skipped tests, coverage above every threshold), launch is blocked on buying the VPS and nothing else, and the evidence layer had fallen a month behind — this file stopped at 08-01 while 142 commits landed. The review's first chunk shipped as the commit that adds the note: the ship log below is backfilled, the two June audit notes are reconciled (W5 shipped under Start, A2 under owner-auth), V7 is marked unblocked, six stale Active labels became Reference/Shipped, and three orphan notes were archived, parked or indexed. Same day, `045217d6` fixed the Steam achievement-schema poller throwing on rows without `localized_desc`.
+
+## Last captured status — 2026-08-03 → 2026-08-25 (backfilled 2026-09-01)
+
+One line per arc, newest first; detail lives in the owning notes.
+
+- **08-25 — Dormant chapter ranking** ([dormant-chapter-ranking.md](cross-cutting/dormant-chapter-ranking.md)) — 25 % completion gate (D1) so benchmark hours can't pass as play; the brief-launch guard extended over the unlock half of `freshest` (D2); review prompt ordered by recent playtime.
+- **08-23 — Curation affordances** ([hidden-games.md](steam/hidden-games.md)) — hide a wishlisted game from its row; the new-purchase prompt asks the owner instead of only flagging.
+- **08-20 → 08-21 — Hidden games / two-axis curation** ([hidden-games.md](steam/hidden-games.md)) — curation moved off hardcoded lists onto an overlay table; newly-purchased games quarantined until the owner rules; every Steam read scoped to the viewer (`@WithViewer()`, `viewerScope()` key segment, `credentials: "include"`); curation table and quarantine nav dot on `/status`; the invariants pinned as lints. Dev CSS nesting flattened with lightningcss the same day.
+- **08-20 — Launch runbook + api image** ([hosting.md](ops/hosting.md)) — ordered launch sequence and incident-restore procedure written; api image 1.77 GB → 1.14 GB; `compose.prod.yaml` fixed to pass the owner-auth env vars it had never received.
+- **08-14 → 08-16 — Accounts admin** ([accounts-admin.md](ops/accounts-admin.md)) — roster moved from `accounts.json` to Prisma tables; hide / pause / remove / purge from `/status`, purge behind a confirmation the api checks. `scripts/backup.sh` + `scripts/restore.sh` landed 08-15 and cleared the destructive-arc gate first.
+- **08-13 — Owner auth** ([owner-auth.md](ops/owner-auth.md)) — chunks 1 + 2: GitHub OAuth owner session, `OwnerGuard` on every mutating route, the frontend renders them locked. ValidationPipe V3 and the timeZone sweep verified closed the same day.
+- **08-11 → 08-12 — Upcoming releases** ([wishlist-upcoming.md](steam/wishlist-upcoming.md)) — the Upcoming view reframed around owned-but-unreleased titles, chunks 0–5.
+- **08-09 → 08-10 — Season artwork + shareable chapters** ([season-artwork-share.md](cross-cutting/season-artwork-share.md)) — ridge generator seeded from owner data, used as the recap hero layer and the OG share-card background; per-chapter share affordance.
+- **08-07 / 08-12 — Achievement rarity drift** ([achievement-rarity-drift.md](steam/achievement-rarity-drift.md)) — R1 history table (append-on-change, seeded from 9,085 rows); R2 drift probe with the launch/mature cohort split.
+- **08-05 → 08-06 — Ingestion cron reliability** ([ingestion-cron-reliability.md](ops/ingestion-cron-reliability.md)) — three self-sealing gates fixed; four long-interval pollers converted from schedule-driven to staleness-driven.
+- **08-03 → 08-05 — API exposure audit** ([api-exposure-audit.md](ops/api-exposure-audit.md)) — owner allowlist moved into `resolveSummoner`, match miss-path clamped to owner data, nginx edge rate limiting, `/img` cache keyed, Steam key redacted from logs, generic error text on `/status`.
+- **08-01 → 08-06 — Steam player portrait** ([player-portrait.md](steam/player-portrait.md)) — every planned chunk (0, 1, 2, 3, L, P, 4, 5); cards 4 and 8 wait on sustained api uptime.
+- **08-01 — Queue identity** ([queue-id-migration.md](lol/queue-id-migration.md)) — `Match.queueType` replaced by numeric `queueId`; every live queue labelled.
+
 ## Last captured status — 2026-08-01
 
 **Live-state ambience** ([visual-differentiation-pool.md](cross-cutting/visual-differentiation-pool.md) idea 2) — `/` now takes on the colour of whatever the owner is playing. `useLiveAmbience()` reduces live presence to a single oklch hue (the owner's champion via `championTheme()`, or the live Steam game's `dominantHex`), and `applyLiveAmbience()` rotates every gradient layer of the dominant atmosphere claim 45% toward it while lifting intensity by 0.15; the orb halo follows without wiring because it already reads `--atmosphere-tint-h`.

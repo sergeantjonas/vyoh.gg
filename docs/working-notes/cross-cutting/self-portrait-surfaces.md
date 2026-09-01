@@ -1,6 +1,6 @@
 # Self-portrait surfaces
 
-**Status:** Active — parent direction note + candidate backlog. Several tile candidates from here have shipped via [home-deck.md](../archive/home-deck.md). Routing principle (cross-stream synthesis on `/`, stream-deep feeds on per-stream routes) sharpened 2026-05-16 and is now the canonical rule.
+**Status:** Reference — parent direction note + candidate backlog; nothing here is a tracked arc. Several tile candidates from here have shipped via [home-deck.md](../archive/home-deck.md). Routing principle (cross-stream synthesis on `/`, stream-deep feeds on per-stream routes) sharpened 2026-05-16 and is now the canonical rule.
 
 A working note tracking the "vyoh.gg as self-portrait engine" direction — panels on the site sourced from streams of the owner's life beyond LoL, each rendered as a `ConclusionCard` from the trends-rework engine. The reframe is from *another op.gg clone* to *a self-portrait engine where every panel is a verdict-card from a different data stream*. Stronger freelance signal; reuses every primitive already built (`ConclusionCard`, `RitualSignal`, SSE backfill, recap composer, patch-aware boundaries).
 
