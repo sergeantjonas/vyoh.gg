@@ -10,6 +10,7 @@ import {
   useStatusStream,
   useSyncAccount,
   useSyncNow,
+  useSyncPatches,
 } from "./use-status";
 
 // Every write here is behind `OwnerGuard`, and the api is a different origin in
@@ -191,6 +192,86 @@ describe("useSetSyncEnabled", () => {
       await result.current.mutateAsync(false);
     });
     expect(fetch).toHaveBeenCalledWith("http://localhost:2010/status/sync/pause", POST);
+  });
+});
+
+describe("useSyncPatches", () => {
+  const jobs = [
+    {
+      name: "lol-patch-notes",
+      stream: "lol",
+      label: "Patch notes",
+      cron: "0 */6 * * *",
+      running: false,
+      lastRun: null,
+    },
+    {
+      name: "steam-owned-games",
+      stream: "steam",
+      label: "Owned games",
+      cron: "*/15 * * * *",
+      running: false,
+      lastRun: null,
+    },
+  ] as unknown as StatusSnapshot["jobs"];
+
+  // The response carries one job, not a snapshot — patching the whole `jobs`
+  // array from it would blank every other row until the next SSE frame.
+  it("POSTs /status/sync/patches and patches only the triggered job", async () => {
+    const triggered = { ...jobs[0], running: true };
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ triggered: true, job: triggered }), { status: 200 })
+    );
+    const client = freshClient();
+    client.setQueryData<StatusSnapshot>(["status"], { ...baseSnapshot, jobs });
+
+    const { result } = renderHook(() => useSyncPatches(), {
+      wrapper: makeWrapper(client),
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync();
+    });
+
+    expect(fetch).toHaveBeenCalledWith("http://localhost:2010/status/sync/patches", POST);
+    const patched = client.getQueryData<StatusSnapshot>(["status"]);
+    expect(patched?.jobs).toEqual([triggered, jobs[1]]);
+  });
+
+  it("leaves the cache alone when the trigger is refused", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({ triggered: false, reason: "already running", job: jobs[0] }),
+        { status: 200 }
+      )
+    );
+    const client = freshClient();
+    client.setQueryData<StatusSnapshot>(["status"], { ...baseSnapshot, jobs });
+
+    const { result } = renderHook(() => useSyncPatches(), {
+      wrapper: makeWrapper(client),
+    });
+
+    await expect(result.current.mutateAsync()).resolves.toMatchObject({
+      triggered: false,
+      reason: "already running",
+    });
+    // A refused trigger still returns the job unchanged, so the patch is a
+    // no-op rather than a state the row would have to un-render.
+    expect(client.getQueryData<StatusSnapshot>(["status"])?.jobs).toEqual(jobs);
+  });
+
+  it("rewrites the guard's 401 so the controls re-lock", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ message: "Owner session required" }), { status: 401 })
+    );
+    const { result } = renderHook(() => useSyncPatches(), {
+      wrapper: makeWrapper(freshClient()),
+    });
+
+    await expect(result.current.mutateAsync()).rejects.toThrow(
+      "Session expired — sign in again"
+    );
   });
 });
 

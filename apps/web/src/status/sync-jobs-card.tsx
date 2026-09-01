@@ -5,6 +5,7 @@ import {
   relativeTimeAgo,
   syncJobHealth,
 } from "@vyoh/shared";
+import type { ReactNode } from "react";
 import { Badge } from "./status-primitives";
 
 const HEALTH_LABEL: Record<SyncJobHealth, string> = {
@@ -25,10 +26,17 @@ export function SyncJobsCard({
   title,
   description,
   jobs,
+  renderAction,
 }: {
   title: string;
   description: string;
   jobs: SyncJobStatus[];
+  /**
+   * Trailing control for a row, when the job has one. A render prop rather
+   * than a flag: only some jobs are manually triggerable, and the control has
+   * to own its own mutation state and owner gating.
+   */
+  renderAction?: (job: SyncJobStatus) => ReactNode;
 }) {
   const failing = jobs.filter((job) => syncJobHealth(job) === "error").length;
 
@@ -53,7 +61,7 @@ export function SyncJobsCard({
       ) : (
         <ul className="flex flex-col gap-1.5">
           {jobs.map((job) => (
-            <SyncJobRow key={job.name} job={job} />
+            <SyncJobRow key={job.name} job={job} action={renderAction?.(job)} />
           ))}
         </ul>
       )}
@@ -61,7 +69,7 @@ export function SyncJobsCard({
   );
 }
 
-function SyncJobRow({ job }: { job: SyncJobStatus }) {
+function SyncJobRow({ job, action }: { job: SyncJobStatus; action?: ReactNode }) {
   const health = syncJobHealth(job);
   const { lastRun } = job;
 
@@ -96,6 +104,7 @@ function SyncJobRow({ job }: { job: SyncJobStatus }) {
           <span>no run since boot</span>
         )}
         <Badge tone={HEALTH_TONE[health]}>{HEALTH_LABEL[health]}</Badge>
+        {action}
       </span>
     </li>
   );

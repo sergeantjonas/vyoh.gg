@@ -13,6 +13,7 @@ import {
   type LolAccount,
   type MethodLimiterSnapshot,
   OWNER_TIME_ZONE,
+  type SyncJobStatus,
   type SyncTick,
   type SyncTickAccountResult,
 } from "@vyoh/shared";
@@ -32,6 +33,7 @@ import {
   useStatusStream,
   useSyncAccount,
   useSyncNow,
+  useSyncPatches,
 } from "./use-status";
 
 export function StatusPage() {
@@ -63,6 +65,15 @@ export function StatusPage() {
         tick={data.sync.lastTick}
         enabled={data.sync.enabled}
         running={data.sync.running}
+      />
+
+      <SyncJobsCard
+        title="LoL data sync"
+        description="Patch notes and static data, on their own six-hourly crons — separate from the match sync above."
+        jobs={data.jobs.filter((job) => job.stream === "lol")}
+        renderAction={(job) =>
+          job.name === "lol-patch-notes" ? <PatchSyncAction job={job} /> : null
+        }
       />
 
       <SyncJobsCard
@@ -333,6 +344,47 @@ function AccountRow({
         </OwnerAction>
       </span>
     </li>
+  );
+}
+
+// Granular against "Sync now" on the match-sync card: this forces only the
+// patch-note fetch, for the window between a patch going live and the next
+// six-hourly tick noticing it.
+function PatchSyncAction({ job }: { job: SyncJobStatus }) {
+  const isOwner = useIsOwner();
+  const syncPatches = useSyncPatches();
+
+  const onFetch = () => {
+    syncPatches.mutate(undefined, {
+      onSuccess: (result) => {
+        if (result.triggered) {
+          void toastInfo("Patch fetch triggered");
+        } else {
+          void toastError(`Patch fetch skipped: ${result.reason ?? "unknown"}`);
+        }
+      },
+      onError: (err) => void toastError(`Patch fetch failed: ${err.message}`),
+    });
+  };
+
+  return (
+    <OwnerAction isOwner={isOwner} side="top" label="Fetch patch notes now">
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        onClick={onFetch}
+        disabled={!isOwner || syncPatches.isPending || job.running}
+        aria-label="Fetch patch notes"
+      >
+        {isOwner ? (
+          <RefreshCw
+            className={cn((syncPatches.isPending || job.running) && "animate-spin")}
+          />
+        ) : (
+          <Lock />
+        )}
+      </Button>
+    </OwnerAction>
   );
 }
 

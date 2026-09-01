@@ -1,5 +1,10 @@
 import { Controller, Get, type MessageEvent, Post, Sse, UseGuards } from "@nestjs/common";
-import type { StatusSnapshot, SyncStatus, SyncTriggerResult } from "@vyoh/shared";
+import type {
+  StatusSnapshot,
+  SyncJobTriggerResult,
+  SyncStatus,
+  SyncTriggerResult,
+} from "@vyoh/shared";
 import {
   type Observable,
   from,
@@ -13,6 +18,7 @@ import {
 import { OwnerGuard } from "../auth/owner.guard";
 import { MatchEventsService } from "../lol/match-events.service";
 import { MatchSyncService } from "../lol/match-sync.service";
+import { PatchService } from "../lol/patch.service";
 import { RateLimiterService } from "../riot/rate-limiter.service";
 import { SyncJobRegistry } from "../sync-jobs/sync-job-registry.service";
 
@@ -40,7 +46,8 @@ export class StatusController {
     private readonly rateLimiter: RateLimiterService,
     private readonly matchSync: MatchSyncService,
     private readonly events: MatchEventsService,
-    private readonly syncJobs: SyncJobRegistry
+    private readonly syncJobs: SyncJobRegistry,
+    private readonly patches: PatchService
   ) {
     const snapshots: Observable<MessageEvent> = interval(SSE_SNAPSHOT_INTERVAL_MS).pipe(
       startWith(0),
@@ -66,9 +73,9 @@ export class StatusController {
     };
   }
 
-  // The three writes below are owner-only; the reads above and the stream below
-  // stay public. Each carries its own `@UseGuards` rather than one decorator on
-  // the class, because a class-level guard would also close `@Get()` and the SSE
+  // The writes below are owner-only; the reads above and the stream below stay
+  // public. Each carries its own `@UseGuards` rather than one decorator on the
+  // class, because a class-level guard would also close `@Get()` and the SSE
   // stream, and the status dashboard is meant to be readable by anyone.
   @Post("sync")
   @UseGuards(OwnerGuard)
@@ -86,6 +93,15 @@ export class StatusController {
   @UseGuards(OwnerGuard)
   resumeSync(): SyncStatus {
     return this.matchSync.setEnabled(true);
+  }
+
+  // Granular against the match-sync trigger above: patch notes are a different
+  // upstream on a different schedule, and the reason to force one is a patch
+  // that just went live rather than a match that is missing.
+  @Post("sync/patches")
+  @UseGuards(OwnerGuard)
+  triggerPatchSync(): SyncJobTriggerResult {
+    return this.patches.triggerSync();
   }
 
   // SSE stream emits:

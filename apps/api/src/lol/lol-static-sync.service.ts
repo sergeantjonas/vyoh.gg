@@ -11,6 +11,8 @@ import type {
   LolSummonerSpellDto,
 } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
+import { SyncJobRegistry } from "../sync-jobs/sync-job-registry.service";
+import { SYNC_JOBS } from "../sync-jobs/sync-jobs.catalog";
 import {
   type ParsedItem,
   type ParsedProfileIcon,
@@ -20,6 +22,8 @@ import {
   parseItemDataModule,
 } from "./lol-static-parsers";
 import { truncateVersion } from "./patch.service";
+
+const JOB = "lol-static-data";
 
 // Wiki etiquette: identify the bot.
 const USER_AGENT = "vyoh.gg/1.0 (+https://vyoh.gg) static-metadata-sync";
@@ -134,7 +138,10 @@ function titleCase(word: string): string {
 export class LolStaticSyncService {
   private readonly logger = new Logger(LolStaticSyncService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jobs: SyncJobRegistry
+  ) {}
 
   // Runs every 6h, offset 5 min from the patch-detection cron so the two
   // services don't hammer ddragon simultaneously. The wiki content sync is
@@ -142,13 +149,9 @@ export class LolStaticSyncService {
   // independent of whether a new patch was detected. See
   // docs/working-notes/lol/lol-static-metadata.md § Drift-tolerant two-source
   // sync.
-  @Cron("5 */6 * * *")
+  @Cron(SYNC_JOBS[JOB].cron, { name: JOB })
   async cronTick(): Promise<void> {
-    try {
-      await this.syncAll();
-    } catch (err) {
-      this.logger.error("Static sync failed", err instanceof Error ? err.stack : err);
-    }
+    await this.jobs.run(JOB, () => this.syncAll());
   }
 
   // Manual entry point used by `prisma/run-static-sync.ts` and tests.

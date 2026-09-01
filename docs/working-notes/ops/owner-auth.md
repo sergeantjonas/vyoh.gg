@@ -1,6 +1,6 @@
 # Owner auth — GitHub OAuth for gated admin surfaces
 
-**Status:** Active — **chunks 1 and 2 both shipped 2026-08-13. The launch gate is closed:** all four mutating routes answer 401 without an owner session, and the frontend renders them locked. Only chunk 3 remains. It was recorded as "prod wiring rather than code", and that was wrong in one load-bearing way, found 2026-08-20: `compose.prod.yaml` shipped 2026-07-27, *before* chunk 1 added four unconditional `requireEnv` calls, and was never updated to pass them — so the production api could not have booted at all. Fixed the same day, along with the root `.env.example`, which held none of the api's secrets because in dev they live in `apps/api/.env` and the compose stack never reads that file. The rest of chunk 3 genuinely is wiring: a separate prod OAuth app, and the values themselves. Plan written 2026-05-14; naming option 1 confirmed and built. The companion status-page admin surface is half-landed: its Steam sync rows shipped 2026-09-02 and are public, read-only and gate on nothing, so the mutating surface below is still the four routes chunk 2 gated. Its remaining half — granular, manually-triggerable LoL sync actions — is the next thing to add guarded routes here. See [open-work.md](../open-work.md).
+**Status:** Active — **chunks 1 and 2 both shipped 2026-08-13. The launch gate is closed:** every mutating route answers 401 without an owner session, and the frontend renders them locked. Only chunk 3 remains. It was recorded as "prod wiring rather than code", and that was wrong in one load-bearing way, found 2026-08-20: `compose.prod.yaml` shipped 2026-07-27, *before* chunk 1 added four unconditional `requireEnv` calls, and was never updated to pass them — so the production api could not have booted at all. Fixed the same day, along with the root `.env.example`, which held none of the api's secrets because in dev they live in `apps/api/.env` and the compose stack never reads that file. The rest of chunk 3 genuinely is wiring: a separate prod OAuth app, and the values themselves. Plan written 2026-05-14; naming option 1 confirmed and built. The companion status-page admin surface landed 2026-09-02: its Steam sync rows are public and read-only, and its granular LoL trigger added the fifth gated route, `POST /status/sync/patches`. See [open-work.md](../open-work.md).
 
 A working note for the auth layer. The status page used to expose mutating POSTs unguarded — `POST /status/sync`, `POST /status/sync/pause`, `POST /status/sync/resume`, plus a per-account sync trigger — and the surface of "owner-only" actions will grow once Steam integration toggles, manual refreshes, secret-rotation indicators, and draft content previews land. The fix was worth shipping deliberately (real OAuth flow, session table, guard pattern) rather than as a `?key=` env hack — both as freelance-profile signal and because the half-fix isn't faster to write.
 
@@ -86,11 +86,12 @@ No `User` table. A single GitHub user ID is the entire authorization model — o
 
 All but `SESSION_COOKIE_DOMAIN` go through `requireEnv` in `bootstrap()` so the api refuses to start without them — empty is that one's correct dev value, and `requireEnv` treats empty as missing.
 
-### Routes gated (all four, shipped)
+### Routes gated (all five, shipped)
 
 `@UseGuards(OwnerGuard)` on:
 
 - `POST /status/sync`, `POST /status/sync/pause`, `POST /status/sync/resume` ([status.controller.ts](../../../apps/api/src/status/status.controller.ts))
+- `POST /status/sync/patches` (same file) — the granular patch-note fetch, added 2026-09-02. It sits on the status controller rather than on `patch.controller.ts` so every operational trigger stays on one controller and one `GUARDED_ROUTES` entry; `StatusModule` already imported `LolModule`, which exports `PatchService`.
 - `POST /lol/summoners/:region/:gameName/:tagLine/matches/sync` ([lol.controller.ts](../../../apps/api/src/lol/lol.controller.ts)) — the per-account trigger `useSyncAccount` calls
 
 That is the api's entire mutating surface. `StatusModule` and `LolModule` both import `AuthModule`, which is what makes the guard's own `AuthService` dependency resolvable — a guard resolves against the module declaring the guarded controller, so the decorator alone is not enough.

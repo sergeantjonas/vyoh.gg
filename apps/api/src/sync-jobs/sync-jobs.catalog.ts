@@ -11,14 +11,25 @@ export interface SyncJobDefinition {
  *
  * The cron expression lives here rather than at the `@Cron` decorator so the
  * schedule the board reports and the schedule the scheduler runs cannot drift —
- * each poller passes `SYNC_JOBS[name].cron` straight into its decorator. Order
- * is by cadence, most frequent first, because that is the order the reader
- * scans for "should this have run by now".
+ * each caller passes `SYNC_JOBS[name].cron` straight into its decorator. Jobs
+ * are grouped by stream, since that is how the board splits them into cards,
+ * and ordered within a stream by cadence, most frequent first — the order a
+ * reader scans for "should this have run by now".
  *
  * Adding an entry here is what makes a job addressable: `SyncJobRegistry.run()`
  * is keyed on `SyncJobName`, so a job that isn't listed cannot be recorded.
  */
 export const SYNC_JOBS = {
+  "lol-patch-notes": {
+    stream: "lol",
+    label: "Patch notes",
+    cron: "0 */6 * * *",
+  },
+  "lol-static-data": {
+    stream: "lol",
+    label: "Static data",
+    cron: "5 */6 * * *",
+  },
   "steam-player-state": {
     stream: "steam",
     label: "Now playing",

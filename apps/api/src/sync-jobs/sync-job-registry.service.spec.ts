@@ -105,6 +105,60 @@ describe("SyncJobRegistry", () => {
     await expect(registry.run(JOB, async () => {})).resolves.toBe(true);
   });
 
+  it("trigger() starts the work and reports the job as already running", () => {
+    const registry = new SyncJobRegistry();
+    const gate = deferred();
+    const work = vi.fn().mockReturnValue(gate.promise);
+
+    const result = registry.trigger(JOB, work);
+
+    expect(result.triggered).toBe(true);
+    expect(result.reason).toBeUndefined();
+    expect(work).toHaveBeenCalledOnce();
+    // The caller must not have to wait for the run: the response carries the
+    // state the trigger just produced, not the state before it.
+    expect(result.job.running).toBe(true);
+
+    gate.resolve();
+  });
+
+  it("trigger() refuses rather than queueing when the job is mid-run", () => {
+    const registry = new SyncJobRegistry();
+    const gate = deferred();
+    const work = vi.fn().mockReturnValue(gate.promise);
+
+    registry.trigger(JOB, work);
+    const second = registry.trigger(JOB, work);
+
+    expect(second).toMatchObject({ triggered: false, reason: "already running" });
+    expect(work).toHaveBeenCalledOnce();
+
+    gate.resolve();
+  });
+
+  // A manual trigger reaches the registry from an HTTP handler that returns
+  // before the work finishes, so a rejection has nothing to catch it.
+  it("trigger() does not reject when the work fails", async () => {
+    const registry = new SyncJobRegistry();
+
+    expect(registry.trigger(JOB, () => Promise.reject(new Error("boom")))).toMatchObject({
+      triggered: true,
+    });
+    await vi.waitFor(() => {
+      expect(statusFor(registry, JOB).lastRun).toMatchObject({ outcome: "error" });
+    });
+  });
+
+  it("records a triggered run the same way a scheduled one is recorded", async () => {
+    const registry = new SyncJobRegistry();
+
+    registry.trigger(JOB, async () => {});
+    await vi.waitFor(() => {
+      expect(statusFor(registry, JOB).lastRun?.outcome).toBe("ok");
+    });
+    expect(statusFor(registry, JOB).running).toBe(false);
+  });
+
   it("keeps each job's overlap guard to itself", async () => {
     const registry = new SyncJobRegistry();
     const gate = deferred();

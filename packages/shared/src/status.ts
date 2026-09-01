@@ -105,6 +105,15 @@ export interface SyncJobStatus {
   lastRun: SyncJobRun | null;
 }
 
+// Result of a manual trigger on one job. Like `SyncTriggerResult`, this only
+// reports whether the run started — the work itself outlives the request, and
+// its outcome arrives on the next status snapshot.
+export interface SyncJobTriggerResult {
+  triggered: boolean;
+  reason?: string;
+  job: SyncJobStatus;
+}
+
 export type SyncJobHealth = "running" | "ok" | "error" | "pending";
 
 /**

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   LolAccount,
   StatusSnapshot,
+  SyncJobTriggerResult,
   SyncStatus,
   SyncTick,
   SyncTriggerResult,
@@ -98,7 +99,7 @@ export function useStatusStream(): void {
   }, [queryClient]);
 }
 
-// All three mutations patch the cached sync state in-place on success so the
+// The cron mutations patch the cached sync state in-place on success so the
 // dashboard reflects the new state without waiting for the next 2 s SSE
 // snapshot frame. We don't invalidate — the streamed snapshot will overwrite
 // our optimistic patch the moment it arrives, so any drift self-corrects.
@@ -126,6 +127,30 @@ export function useSetSyncEnabled() {
     onSuccess: (status) => {
       queryClient.setQueryData<StatusSnapshot>(["status"], (prev) =>
         prev ? { ...prev, sync: status } : prev
+      );
+    },
+    onError,
+  });
+}
+
+export function useSyncPatches() {
+  const queryClient = useQueryClient();
+  const onError = useRelockOnUnauthorized();
+  return useMutation<SyncJobTriggerResult>({
+    mutationFn: () => post<SyncJobTriggerResult>("/status/sync/patches"),
+    // Patches the one job row rather than the whole snapshot: the response
+    // carries only the job it triggered, and every other row in `jobs` is
+    // still current.
+    onSuccess: (result) => {
+      queryClient.setQueryData<StatusSnapshot>(["status"], (prev) =>
+        prev
+          ? {
+              ...prev,
+              jobs: prev.jobs.map((job) =>
+                job.name === result.job.name ? result.job : job
+              ),
+            }
+          : prev
       );
     },
     onError,

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { AuthService } from "../auth/auth.service";
 import { MatchEventsService } from "../lol/match-events.service";
 import { MatchSyncService } from "../lol/match-sync.service";
+import { PatchService } from "../lol/patch.service";
 import { RateLimiterService } from "../riot/rate-limiter.service";
 import { SyncJobRegistry } from "../sync-jobs/sync-job-registry.service";
 import { StatusController } from "./status.controller";
@@ -13,6 +14,7 @@ async function buildController(stubs: {
   rateLimiter?: Partial<RateLimiterService>;
   events?: Partial<MatchEventsService>;
   syncJobs?: Partial<SyncJobRegistry>;
+  patches?: Partial<PatchService>;
 }): Promise<StatusController> {
   const moduleRef = await Test.createTestingModule({
     controllers: [StatusController],
@@ -24,7 +26,8 @@ async function buildController(stubs: {
         provide: SyncJobRegistry,
         useValue: stubs.syncJobs ?? { getStatus: () => [] },
       },
-      // `OwnerGuard` on the three writes injects this. The tests below call the
+      { provide: PatchService, useValue: stubs.patches ?? {} },
+      // `OwnerGuard` on the writes injects this. The tests below call the
       // handlers directly, so the guard never runs — it only has to resolve for
       // the module to compile. Guard behaviour is owned by owner.guard.spec.ts
       // and its presence on these routes by conventions.spec.ts.
@@ -83,6 +86,47 @@ describe("StatusController", () => {
 
     expect(controller.resumeSync()).toEqual({ enabled: true });
     expect(setEnabled).toHaveBeenCalledWith(true);
+  });
+
+  it("triggerPatchSync() delegates to PatchService.triggerSync", async () => {
+    const job = {
+      name: "lol-patch-notes",
+      stream: "lol",
+      label: "Patch notes",
+      cron: "0 */6 * * *",
+      running: true,
+      lastRun: null,
+    };
+    const triggerSync = vi.fn().mockReturnValue({ triggered: true, job });
+    const controller = await buildController({ patches: { triggerSync } });
+
+    expect(controller.triggerPatchSync()).toEqual({ triggered: true, job });
+    expect(triggerSync).toHaveBeenCalledOnce();
+  });
+
+  // The trigger reports rather than throws when the job is mid-run: the board
+  // needs to say "already running", not surface a 500.
+  it("triggerPatchSync() passes through a refused trigger", async () => {
+    const job = {
+      name: "lol-patch-notes",
+      stream: "lol",
+      label: "Patch notes",
+      cron: "0 */6 * * *",
+      running: true,
+      lastRun: null,
+    };
+    const controller = await buildController({
+      patches: {
+        triggerSync: vi
+          .fn()
+          .mockReturnValue({ triggered: false, reason: "already running", job }),
+      },
+    });
+
+    expect(controller.triggerPatchSync()).toMatchObject({
+      triggered: false,
+      reason: "already running",
+    });
   });
 
   it("stream() emits an initial snapshot event without waiting for the interval", async () => {

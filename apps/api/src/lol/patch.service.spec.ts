@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service";
+import { SyncJobRegistry } from "../sync-jobs/sync-job-registry.service";
 import { PatchService, truncateVersion, wikiPageTitle } from "./patch.service";
 
 interface PatchPrismaStubs {
@@ -47,7 +48,7 @@ function makePrisma(): PatchPrismaStubs {
 }
 
 function makeService(prisma: PatchPrismaStubs): PatchService {
-  return new PatchService(prisma as unknown as PrismaService);
+  return new PatchService(prisma as unknown as PrismaService, new SyncJobRegistry());
 }
 
 describe("truncateVersion", () => {

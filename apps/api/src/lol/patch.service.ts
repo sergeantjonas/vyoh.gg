@@ -8,8 +8,13 @@ import type {
   PatchEntryChangeGroup,
   PatchListEntry,
 } from "@vyoh/shared";
+import type { SyncJobTriggerResult } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
+import { SyncJobRegistry } from "../sync-jobs/sync-job-registry.service";
+import { SYNC_JOBS } from "../sync-jobs/sync-jobs.catalog";
 import { type ParsedChange, parsePatchWikitext, parseReleaseDate } from "./patch-parser";
+
+const JOB = "lol-patch-notes";
 
 const DDRAGON_VERSIONS = "https://ddragon.leagueoflegends.com/api/versions.json";
 const WIKI_API = "https://wiki.leagueoflegends.com/api.php";
@@ -49,18 +54,23 @@ export class PatchService {
   private static readonly EMBLEM_YEAR_FALLBACK = 2023;
   private static readonly EMBLEM_YEAR_LOOKBACK = 10;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jobs: SyncJobRegistry
+  ) {}
 
   // Every 6h on the hour. Patch detection lag is bounded by this interval;
   // patches drop fortnightly so the cost is 4 cheap GETs/day with no parse
   // cost on no-change days.
-  @Cron("0 */6 * * *")
+  @Cron(SYNC_JOBS[JOB].cron, { name: JOB })
   async cronTick(): Promise<void> {
-    try {
-      await this.syncIfNewPatch();
-    } catch (err) {
-      this.logger.error("Patch sync failed", err instanceof Error ? err.stack : err);
-    }
+    await this.jobs.run(JOB, () => this.syncIfNewPatch());
+  }
+
+  // Owner-triggered from the status board, for the interval between a patch
+  // going live and the next six-hourly tick noticing.
+  triggerSync(): SyncJobTriggerResult {
+    return this.jobs.trigger(JOB, () => this.syncIfNewPatch());
   }
 
   // Public entry point: also called from `prisma/run-patch-sync.ts` for

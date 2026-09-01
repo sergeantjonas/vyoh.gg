@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import type { SyncJobRun, SyncJobStatus } from "@vyoh/shared";
+import type { SyncJobRun, SyncJobStatus, SyncJobTriggerResult } from "@vyoh/shared";
 import { SYNC_JOBS, type SyncJobName } from "./sync-jobs.catalog";
 
 // `GET /status` is public, and these messages come from upstream clients that
@@ -67,7 +67,7 @@ export class SyncJobRegistry {
       await work();
       job.lastRun = this.finish(startedAt, "ok");
     } catch (err) {
-      this.logger.warn(`${name} failed: ${err}`);
+      this.logger.error(`${name} failed`, err instanceof Error ? err.stack : err);
       job.lastRun = { ...this.finish(startedAt, "error"), error: messageFor(err) };
     } finally {
       job.running = false;
@@ -75,12 +75,31 @@ export class SyncJobRegistry {
     return true;
   }
 
+  /**
+   * Starts a job without waiting for it, for a manual trigger behind an HTTP
+   * request. A patch sync walks the wiki and takes minutes, so the response
+   * reports only whether the run began; the outcome reaches the caller on the
+   * next status snapshot, the same way a cron run's does.
+   *
+   * `run()` flips `running` before its first await, so the status returned here
+   * already reflects the run this call started.
+   */
+  trigger(name: SyncJobName, work: () => Promise<unknown>): SyncJobTriggerResult {
+    if (this.state(name).running) {
+      return { triggered: false, reason: "already running", job: this.statusFor(name) };
+    }
+    void this.run(name, work);
+    return { triggered: true, job: this.statusFor(name) };
+  }
+
   getStatus(): SyncJobStatus[] {
-    return (Object.keys(SYNC_JOBS) as SyncJobName[]).map((name) => {
-      const { stream, label, cron } = SYNC_JOBS[name];
-      const { running, lastRun } = this.state(name);
-      return { name, stream, label, cron, running, lastRun };
-    });
+    return (Object.keys(SYNC_JOBS) as SyncJobName[]).map((name) => this.statusFor(name));
+  }
+
+  private statusFor(name: SyncJobName): SyncJobStatus {
+    const { stream, label, cron } = SYNC_JOBS[name];
+    const { running, lastRun } = this.state(name);
+    return { name, stream, label, cron, running, lastRun };
   }
 
   private state(name: SyncJobName): JobState {

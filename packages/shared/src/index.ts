@@ -459,6 +459,7 @@ export type {
   SyncJobRun,
   SyncJobStatus,
   SyncJobStream,
+  SyncJobTriggerResult,
   SyncStatus,
   SyncTick,
   SyncTickAccountResult,

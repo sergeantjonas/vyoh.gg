@@ -8,12 +8,13 @@ import "dotenv/config";
 import { Logger } from "@nestjs/common";
 import { LolStaticSyncService } from "../src/lol/lol-static-sync.service";
 import { PrismaService } from "../src/prisma/prisma.service";
+import { SyncJobRegistry } from "../src/sync-jobs/sync-job-registry.service";
 
 async function main() {
   const prisma = new PrismaService();
   await prisma.$connect();
   Logger.overrideLogger(["log", "warn", "error"]);
-  const service = new LolStaticSyncService(prisma);
+  const service = new LolStaticSyncService(prisma, new SyncJobRegistry());
   const summary = await service.syncAll();
   console.log("syncAll done:", summary);
   await prisma.$disconnect();

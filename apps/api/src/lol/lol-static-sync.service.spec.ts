@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service";
+import { SyncJobRegistry } from "../sync-jobs/sync-job-registry.service";
 import {
   parseAbilityTemplate,
   parseChampionAbilityModule,
@@ -286,7 +287,10 @@ function makePrisma(): PrismaStubs {
 }
 
 function makeService(prisma: PrismaStubs): LolStaticSyncService {
-  return new LolStaticSyncService(prisma as unknown as PrismaService);
+  return new LolStaticSyncService(
+    prisma as unknown as PrismaService,
+    new SyncJobRegistry()
+  );
 }
 
 function jsonResponse(body: unknown): Response {

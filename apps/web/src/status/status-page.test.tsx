@@ -20,6 +20,7 @@ import {
   useStatusStream,
   useSyncAccount,
   useSyncNow,
+  useSyncPatches,
 } from "./use-status";
 
 vi.mock("./use-status", () => ({
@@ -28,6 +29,7 @@ vi.mock("./use-status", () => ({
   useSyncNow: vi.fn(),
   useSetSyncEnabled: vi.fn(),
   useSyncAccount: vi.fn(),
+  useSyncPatches: vi.fn(),
 }));
 
 vi.mock("@/identity/use-me", () => ({ useMe: vi.fn() }));
@@ -141,6 +143,30 @@ const steamJobs: SyncJobStatus[] = [
   },
 ];
 
+const lolJobs: SyncJobStatus[] = [
+  {
+    name: "lol-patch-notes",
+    stream: "lol",
+    label: "Patch notes",
+    cron: "0 */6 * * *",
+    running: false,
+    lastRun: {
+      startedAt: "2026-05-19T06:00:00.000Z",
+      finishedAt: "2026-05-19T06:00:04.000Z",
+      durationMs: 4000,
+      outcome: "ok",
+    },
+  },
+  {
+    name: "lol-static-data",
+    stream: "lol",
+    label: "Static data",
+    cron: "5 */6 * * *",
+    running: false,
+    lastRun: null,
+  },
+];
+
 const failingJob: SyncJobStatus = {
   name: "steam-enrichment",
   stream: "steam",
@@ -158,7 +184,7 @@ const failingJob: SyncJobStatus = {
 
 function makeSnapshot(overrides: Partial<StatusSnapshot> = {}): StatusSnapshot {
   return {
-    jobs: steamJobs,
+    jobs: [...lolJobs, ...steamJobs],
     sync: {
       enabled: true,
       running: false,
@@ -230,15 +256,18 @@ function mockMutations(
     syncNow?: Partial<MutationLike>;
     setEnabled?: Partial<MutationLike>;
     syncAccount?: Partial<MutationLike>;
+    syncPatches?: Partial<MutationLike>;
   } = {}
 ): {
   syncNow: MutationLike;
   setEnabled: MutationLike;
   syncAccount: MutationLike;
+  syncPatches: MutationLike;
 } {
   const syncNow = fakeMutation(overrides.syncNow);
   const setEnabled = fakeMutation(overrides.setEnabled);
   const syncAccount = fakeMutation(overrides.syncAccount);
+  const syncPatches = fakeMutation(overrides.syncPatches);
   vi.mocked(useSyncNow).mockReturnValue(
     syncNow as unknown as ReturnType<typeof useSyncNow>
   );
@@ -248,7 +277,10 @@ function mockMutations(
   vi.mocked(useSyncAccount).mockReturnValue(
     syncAccount as unknown as ReturnType<typeof useSyncAccount>
   );
-  return { syncNow, setEnabled, syncAccount };
+  vi.mocked(useSyncPatches).mockReturnValue(
+    syncPatches as unknown as ReturnType<typeof useSyncPatches>
+  );
+  return { syncNow, setEnabled, syncAccount, syncPatches };
 }
 
 beforeEach(() => {
@@ -919,6 +951,96 @@ describe("StatusPage — Steam sync", () => {
 
   it("has no axe violations", async () => {
     mockStatus({ data: makeSnapshot({ jobs: [...steamJobs, failingJob] }) });
+    const { container } = renderWithTooltip(<StatusPage />);
+
+    const axe = configureAxe({ rules: { "color-contrast": { enabled: false } } });
+    expect((await axe(container)).violations).toEqual([]);
+  });
+});
+
+describe("StatusPage — LoL data sync", () => {
+  it("lists both LoL cron jobs, separate from the match-sync card", () => {
+    vi.mocked(useIsOwner).mockReturnValue(true);
+    mockStatus({ data: makeSnapshot() });
+    renderWithTooltip(<StatusPage />);
+
+    const card = within(sectionFor("LoL data sync"));
+    expect(card.getByText("Patch notes")).toBeTruthy();
+    expect(card.getByText("Static data")).toBeTruthy();
+    // The Steam rows belong to their own card, not this one.
+    expect(card.queryByText("Owned games")).toBeNull();
+  });
+
+  it("triggers a patch fetch when the owner clicks the control", () => {
+    vi.mocked(useIsOwner).mockReturnValue(true);
+    const { syncPatches } = mockMutations();
+    mockStatus({ data: makeSnapshot() });
+    renderWithTooltip(<StatusPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Fetch patch notes" }));
+    expect(syncPatches.mutate).toHaveBeenCalledOnce();
+  });
+
+  it("offers the trigger on the patch job only, not on static data", () => {
+    vi.mocked(useIsOwner).mockReturnValue(true);
+    mockStatus({ data: makeSnapshot() });
+    renderWithTooltip(<StatusPage />);
+
+    expect(within(rowFor("Patch notes")).getByRole("button")).toBeTruthy();
+    expect(within(rowFor("Static data")).queryAllByRole("button")).toEqual([]);
+  });
+
+  it("renders the trigger locked for a non-owner", () => {
+    vi.mocked(useIsOwner).mockReturnValue(false);
+    const { syncPatches } = mockMutations();
+    mockStatus({ data: makeSnapshot() });
+    renderWithTooltip(<StatusPage />);
+
+    const button = screen.getByRole("button", { name: "Fetch patch notes" });
+    expect(button.hasAttribute("disabled")).toBe(true);
+
+    // Locked, not merely styled as locked — a click must not reach the api.
+    fireEvent.click(button);
+    expect(syncPatches.mutate).not.toHaveBeenCalled();
+  });
+
+  it("explains the lock on hover rather than leaving the control dead", async () => {
+    vi.mocked(useIsOwner).mockReturnValue(false);
+    mockStatus({ data: makeSnapshot() });
+    renderWithTooltip(<StatusPage />);
+
+    // The wrapper, not the button: a disabled button eats pointer events.
+    const wrapper = screen.getByRole("button", {
+      name: "Fetch patch notes",
+    }).parentElement;
+    if (!wrapper) throw new Error("missing tooltip trigger wrapper");
+    fireEvent.pointerEnter(wrapper);
+    fireEvent.focus(wrapper);
+
+    expect(
+      (await screen.findAllByText("Owner-only — sign in to enable.")).length
+    ).toBeGreaterThan(0);
+  });
+
+  // The job is already in flight, so a second trigger would only be refused by
+  // the api — disable it here rather than spend the round trip.
+  it("disables the trigger while the job is already running", () => {
+    vi.mocked(useIsOwner).mockReturnValue(true);
+    mockStatus({
+      data: makeSnapshot({
+        jobs: [{ ...lolJobs[0], running: true } as SyncJobStatus, ...steamJobs],
+      }),
+    });
+    renderWithTooltip(<StatusPage />);
+
+    expect(
+      screen.getByRole("button", { name: "Fetch patch notes" }).hasAttribute("disabled")
+    ).toBe(true);
+  });
+
+  it("has no axe violations with the trigger rendered", async () => {
+    vi.mocked(useIsOwner).mockReturnValue(true);
+    mockStatus({ data: makeSnapshot() });
     const { container } = renderWithTooltip(<StatusPage />);
 
     const axe = configureAxe({ rules: { "color-contrast": { enabled: false } } });
