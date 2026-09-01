@@ -426,7 +426,10 @@ export interface SteamGetTagListResponse {
 export interface SteamPlayerServiceAchievementRaw {
   internal_name: string;
   localized_name: string;
-  localized_desc: string;
+  // Absent (not blanked) on some rows regardless of `hidden` — Binding of
+  // Isaac: Rebirth's "Dead God" ships without one. The client maps it to
+  // "" so the non-null column and the web's substring search hold.
+  localized_desc?: string;
   icon: string;
   icon_gray: string;
   hidden: boolean;

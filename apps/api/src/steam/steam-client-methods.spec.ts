@@ -182,6 +182,27 @@ describe("SteamClientService.getGameAchievementSchema", () => {
     );
   });
 
+  it("maps a row with no localized_desc to an empty description", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse({
+        response: {
+          achievements: [
+            {
+              internal_name: "637",
+              localized_name: "Dead God",
+              icon: "dead.jpg",
+              icon_gray: "dead_gray.jpg",
+              hidden: false,
+            },
+          ],
+        },
+      })
+    );
+    const service = new SteamClientService(passThroughLimiter);
+    const result = await service.getGameAchievementSchema(250900);
+    expect(result[0]?.description).toBe("");
+  });
+
   it("returns [] when the schema has no achievements", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse({ response: {} }));
     const service = new SteamClientService(passThroughLimiter);

@@ -237,7 +237,7 @@ export class SteamClientService {
       return rows.map((r) => ({
         apiName: r.internal_name,
         displayName: r.localized_name,
-        description: r.localized_desc,
+        description: r.localized_desc ?? "",
         iconUrl: `https://steamcdn-a.akamaihd.net/steamcommunity/public/images/apps/${appid}/${r.icon}`,
         iconGrayUrl: `https://steamcdn-a.akamaihd.net/steamcommunity/public/images/apps/${appid}/${r.icon_gray}`,
         hidden: r.hidden,
