@@ -1,6 +1,6 @@
 # Visual-excellence audit — 2026-06-12
 
-**Status:** Active — V1 (full sweep) + V2 (enforcement test) + V3 (patches identity, all 5 chunks) + V5 (head/meta completeness) + V8 (chart theming) shipped 2026-06-12; V4 (subtab transition) + V6 (theme-colored focus ring, incl. cross-engine Firefox fix) shipped + closed 2026-06-13. V7 (status page) unblocked 2026-08-16 — owner-auth (08-13) and the accounts-admin surface (08-16) both landed; take it with status-page admin (a)/(b). V11 (404 art direction) shipped 2026-06-14. Remaining: V9, V10, V12 design decisions, unscoped.
+**Status:** Active — V1 (full sweep) + V2 (enforcement test) + V3 (patches identity, all 5 chunks) + V5 (head/meta completeness) + V8 (chart theming) shipped 2026-06-12; V4 (subtab transition) + V6 (theme-colored focus ring, incl. cross-engine Firefox fix) shipped + closed 2026-06-13. V7 (status page) unblocked 2026-08-16 — owner-auth (08-13) and the accounts-admin surface (08-16) both landed; status-page admin (a)/(b) shipped 2026-09-02 without it, so it is its own pass over the finished page. V11 (404 art direction) shipped 2026-06-14. Remaining: V9, V10, V12 design decisions, unscoped.
 
 Code-level audit of visual consistency, surface treatment gradient, and hygiene. **Not a rendered-page review** — items marked "needs eyes" require looking at the running app before acting ([[feedback_dont_guess_visual_content]]). Chunk IDs are V1–V12 (work) and H1–H4 (hygiene appendix), following the [audit-2026-06-11.md](audit-2026-06-11.md) fan-out-index shape.
 
@@ -127,4 +127,4 @@ Not-issues (judged intentional, recorded to prevent re-flagging): 1,000-line rec
 2. **V8** when the KB file-20 Recharts audit happens anyway — same files, one pass.
 3. **V3** next time a visual-identity session is wanted — highest-visibility plain surface. Needs eyes first.
 4. **V5, V6, V11** as ≤30-min quick-win pickups — all shipped (V6 2026-06-13, V11 2026-06-14; V5 remaining `routeMeta()` leaves still open in quick-wins.md).
-5. **V4** when next inside the match-detail panel; **V7** now unblocked (owner-auth 2026-08-13, accounts admin 2026-08-16) — take it with status-page admin (a)/(b); **V9, V10, V12** are design decisions — pick up when the mood strikes, no dependencies.
+5. **V4** when next inside the match-detail panel; **V7** now unblocked (owner-auth 2026-08-13, accounts admin 2026-08-16); status-page admin (a)/(b) shipped 2026-09-02 without it, so it is its own pass over the finished page; **V9, V10, V12** are design decisions — pick up when the mood strikes, no dependencies.
