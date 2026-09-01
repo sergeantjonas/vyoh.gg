@@ -47,7 +47,9 @@ overrides:
   js-yaml@>=4.0.0 <4.3.1: ^4.3.1
   # Under postcss, which declares `^3.3.11`. Selective range so the unrelated
   # nanoid 5.x copy in the tree is left where it is.
-  nanoid@<3.3.17: ^3.3.17
+  # Widened from `<3.3.17` on 2026-09-01: GHSA-2v37-7h3g-55p8 (zero-size custom
+  # generators loop forever) landed past the previous floor.
+  nanoid@<3.3.18: ^3.3.18
   # The three below are build-graph only and invisible to `pnpm audit --prod`,
   # which is what CI gates on. They are here because Dependabot scans the whole
   # lockfile and cannot fix a transitive dependency in a pnpm workspace on its
@@ -62,6 +64,13 @@ overrides:
   hono@<4.12.34: ^4.12.34
   # Two parents, only one of which is shadcn — vite pulls postcss as well.
   postcss@<=8.5.22: ^8.5.23
+  # Both under the prisma CLI, which pins exact versions: @prisma/config pins
+  # deepmerge-ts 7.1.5 (stack exhaustion on recursive graphs) and prisma pins
+  # mysql2 3.15.3 (auth-plugin downgrade — a MySQL driver this Postgres app never
+  # opens). Neither is on a request path; both are on `pnpm audit --prod`'s.
+  # Verified with `prisma generate` + an api build after the bump.
+  deepmerge-ts@<8.0.0: ^8.0.0
+  mysql2@<3.22.0: ^3.22.0
 allowBuilds:
   '@biomejs/biome': true
   '@nestjs/core': true
