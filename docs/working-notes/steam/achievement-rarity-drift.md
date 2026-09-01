@@ -1,6 +1,6 @@
 # Steam achievement rarity drift
 
-**Status:** Active — R1 shipped 2026-08-07 (history table, append-on-change, seeded from the 9,085 existing rarity rows) and R2 shipped 2026-08-12 (`probe-rarity-drift.ts`, extended the same day with the launch/mature cohort split). **R2's second reading clears the gate for launch-window titles and leaves the mature library unresolved.** Beast of Reincarnation captured its second observation on the 00:12:07Z boot and moved up to +30.10pp in 7 days across 45 of 46 series — but it released 2026-08-03, so that is a launch curve, not settled drift. Split by release age: 45 of 46 launch-window series are visible, 0 of 512 mature ones are, and the mature maximum is +0.30pp over an 8-day span — on Steam's precision floor, where noise and ~3pp/year are indistinguishable. **R3 is no longer blocked on data; it needs a scoping decision**: a launch-window beat has a live dataset now but only fires on newly-played releases, while a whole-library drift beat would still be blank for 58 of 60 games and stays gated on elapsed time. **The poller's cadence was split 2026-08-13** so launch-window titles refresh daily instead of weekly — 33 of Beast's 42 unlocks postdate its first observation, but two samples across a 20pp/week curve can't say what a rarity *was* at unlock, and an unsampled curve is unrecoverable.
+**Status:** Active — R1 shipped 2026-08-07, R2 shipped 2026-08-12 (cohort split the same day, cadence split 2026-08-13). **R3 scoped 2026-09-02 as the launch-window beat**, decided on the third probe reading: launch cohort 99 of 99 series visible across two owner-played day-one titles (Beast of Reincarnation +36.90pp over 28 days on 12 observations, Mortal Shell II +31.50pp over 12 days on 5); the mature cohort's only rare-band movement is Nioh 3 rising off a literal 0.0 plus DOOM: The Dark Ages at +2.1pp in 27 days — no settled rare-band series reached 2× without starting at zero. The mature-library drift beat is **parked**: re-run the probe when a settled rare-band series moves ≥ 5pp or 2× from a non-zero origin. R3 ships as a third `steam-moment` type, `LAUNCH_RARITY_DRIFT`, in three chunks (shared deriver → api detector → web beat), none started; the plan below is written to be implemented from this note alone. Known limit stands: copy says "when you earned it" only for unlocks bracketed by a sample within 3 days, never for anything older.
 
 ## Today's behaviour
 
@@ -69,7 +69,8 @@ Two consequences:
 |---|---|---|---|
 | R1 | History table + append-on-change | Prisma migration + `apps/api/src/steam` | **Shipped 2026-08-07**, migration `20260807000000_steam_achievement_rarity_history`. `SteamAchievementRarityHistory(id, appid, apiName, percent, observedAt)`, FK to `SteamGameAchievement` like the current-value row, indexed `(appid, apiName, observedAt)` so the series-for-one-achievement read gets its sort from the index. Seeded 9,085 origin rows from the current `percent` + `polledAt`, so every series starts at a known reading rather than at its first move. `RaritySyncResult` gained `historyRowsAppended`; the poller's log line reports it. Read path, API and web untouched. |
 | R2 | Drift diagnostic script | `apps/api/src/scripts` | **Shipped 2026-08-12** as [probe-rarity-drift.ts](../../../apps/api/src/scripts/probe-rarity-drift.ts) — span, endpoints and slope per achievement with ≥2 rows, ranked absolutely and relatively, plus a quantum histogram and an explicit gate verdict. Thresholds are flags (`--rare-band`, `--visible-pp`, `--visible-ratio`) so the gate is argued from output. Two departures from the spec above. **Coverage leads the report**, because a single-point series and a flat series produce identical silence and mean opposite things — the first run found 8,565 of 9,085 series still single-point, which would have read as "rarity doesn't drift" without that line. And it constructs `PrismaService` directly rather than booting `AppModule` like `backfill-remake-flag.ts` does: an application context runs every `onModuleInit`, including this poller's own boot drain, so the probe would race the table it measures — the first build did exactly that, and spent the Riot budget on live-game polls as well. **Extended the same day with the launch/mature cohort split** (`cohortOf`, `ageDays`, `--launch-window`, default 60d) after the pooled verdict printed `Gate CLEARED` on the strength of a single nine-day-old release. The verdict now reports the cohorts separately and states the mature span, so it cannot claim "settled titles do not drift" from a window too narrow to measure one. |
-| R3 | The drift beat | web + `packages/shared` | **Gated on R2, unscoped deliberately.** Shape is undecided because it depends on what R2 finds — a delta line on the achievement card, a sparkline in the trophy case, or a recap beat are all plausible and the data picks. Do not scope this before R2 has something to show. |
+| R3 | The launch-window drift beat | `packages/shared` + `apps/api/src/recap` + `apps/web/src/home/recap` | **Scoped 2026-09-02**, see [R3 chunk plan](#r3-chunk-plan-2026-09-02). Third `steam-moment` type `LAUNCH_RARITY_DRIFT`: the owner's unlocks on a day-one title, rarity when earned against rarity now, one curve. Three chunks, each independently committable. |
+| R2b | Probe verdict hygiene | `apps/api/src/scripts` | Optional, independent of R3. Exclude from-the-floor series (`firstPct === 0`) from the mature verdict and print the rare-band count beside the all-band count, so `Gate CLEARED on settled titles` cannot fire off Isaac creep plus a content drop (see the third reading). |
 
 ## Design decisions, settled up front
 
@@ -147,6 +148,191 @@ One thing to know when reading stamps around a restart: two boots ~18 minutes ap
 
 **The honest limit: this fixes the selection, not the sampling.** The daily tick fires at 05:30 Europe/Brussels on a dev box that is asleep, so a launch-window game is still really sampled "whenever the api boots". That is the same hosting blocker tracked across the ingestion arc, and nothing here moves it — the change means the cadence is right the moment the process runs continuously, and that a restart now costs a launch title one day of resolution rather than seven.
 
+## Third reading (2026-09-02), twenty days after the cadence split
+
+Run: `pnpm --filter @vyoh/api build`, then `node dist/src/scripts/probe-rarity-drift.js` from `apps/api`, default thresholds (rare band < 10%, visible ≥ 0.5pp or ≥ 2×, launch window 60 days). The per-game decomposition below came from a scratch script over the same tables; the probe itself only prints the pooled cohort line.
+
+**Coverage.** 9,175 series across 160 games. 3,786 have a second observation (566 on 2026-08-12), 5,389 are still single points. Observations land on 18 days between 2026-07-31 and 2026-09-01. 39 of 159 games were past the 7-day age at the time of the run, which is the sleeping dev box, not the market.
+
+**Gate.** 51 series cleared the rare-band bar. Split by release age:
+
+| cohort | series visible | games | largest move |
+|---|---|---|---|
+| launch window (≤ 60 d) | 99 of 99 | 2 | +36.90pp |
+| mature (> 60 d) | 460 of 3,624 | 150 | +7.90pp |
+| unknown release date | 1 of 63 | 3 | +0.50pp |
+
+**Launch cohort, per game.** Beast of Reincarnation (released 2026-08-03): 12 observations over 28 days, 46 of 46 series visible, 37 of them in the rare band, largest absolute move `Lacerta's End` 7.0% → 43.9% (+36.90pp), largest relative `Munitions Master` 0.1% → 5.7% (57×). The owner holds 46 unlocks, 37 of them timestamped after the first observation (2026-08-05). Mortal Shell II (released 2026-08-20): 5 observations over 12 days, 53 of 53 visible, 25 in the rare band, largest `Decked Out` 16.1% → 47.6% (+31.50pp), rare-band largest `Stoned` 2.0% → 9.2% (4.6×). 53 unlocks, 33 after the first observation (2026-08-20 19:20Z). Two day-one titles inside one month, both played, both fully captured.
+
+**Mature cohort, decomposed.** The probe printed `Gate CLEARED on settled titles — 460 series across 14 game(s)` and that line is true and misleading for the second time. The 460 count is mostly The Binding of Isaac: Rebirth outside the rare band (376 of its 640 two-point series moved 0.5–1.2pp in 27 days, an active community's slow creep at ~0.15pp/week). Inside the rare band the mature rows are:
+
+- **Nioh 3** — 13 series, every one rising off a literal `0.0` on 2026-07-31 to 1.0–7.9% by 2026-09-01 (3 points). Enrichment dates the release 2026-02-06, so this is either a content drop adding achievements nobody had yet or a mis-dated release; in both cases it is a curve starting from the floor, not settled drift. It is the entire source of the cohort's +7.90pp maximum.
+- **DOOM: The Dark Ages** (2025-05-15) — 9 series, +0.8 to +2.1pp over 27 days, 1.2–1.3×. Real, and the only genuinely settled rare-band movement in the table. ~0.5pp/week renders as a near-flat line.
+- **The Binding of Isaac: Rebirth** (2014) — 12 series at +0.5 / +0.6pp, 1.05×. Five or six quanta, indistinguishable from the creep above.
+- **Where Winds Meet** — 2 series at +0.1pp, one quantum.
+
+The other ten "visible" mature games have no rare-band series past the bar. **No mature rare-band series reached 2× without starting at 0.0.** The largest settled rare-band move in the whole library is +2.1pp, against +36.9pp for a launch title observed over the same window.
+
+**Reading.** Launch-window drift is established on two titles rather than one, and the cadence split delivered the resolution it was meant to (12 points on Beast, 5 on Mortal Shell II despite the box sleeping). The mature library is unchanged from the second reading in substance: nothing settled has moved by a story-sized amount, and the one cohort maximum that looks like it did is a from-the-floor series. A whole-library drift beat would still be blank for ~148 of 150 mature games.
+
+**Follow-up for R2, not R3.** The pooled mature verdict should exclude from-the-floor series (`firstPct === 0`) and print the rare-band count separately from the all-band count, so the `Gate CLEARED` line cannot fire off Isaac creep plus a content drop. One flag or a second line; small, and it belongs to the probe.
+
+## R3 chunk plan (2026-09-02)
+
+Decision: R3 is the **launch-window beat**, a third `steam-moment` type rendered by the existing Steam moments aggregator on `/`. The mature-library drift beat is parked (re-check condition in the Status header). This section is the whole spec — an implementer should not need the conversation that produced it. Where a choice was open, it is closed here; do not reopen it in the implementing session, note the disagreement in this file instead.
+
+### What the beat says
+
+One day-one title the owner played, its rarity curve while they played it, and the receipt of what they earned early:
+
+> **Early on** *Beast of Reincarnation*
+> **Corvus's End** was **0.7%** when you earned it. It's **28.4%** today.
+> ⟋ (one curve: that achievement's global percentage across every observation we hold)
+> Bestie 1.4% → 34.3% · Taurus's End 1.5% → 34.8% · Closest Companion 3.2% → 38.4% · …
+
+The honest-copy rule from "Known limit, permanently" applies with one sharpening: **"when you earned it" is said only for an unlock that has a rarity sample no more than 3 days older than the unlock timestamp.** Unlocks without such a sample are not in the receipt at all. There is no "since we started watching" fallback copy on this beat — that framing belongs to the parked mature beat, and mixing them on one surface would blur what this one claims.
+
+### Design decisions, closed
+
+1. **Surface: a `steam-moment`, not a trophy-case sparkline or an achievement-card delta.** The recap is the only surface where "a game you played early moved 30 points under you" reads as a story rather than as a number beside a number, and the moments aggregator already gives it a masthead, a hero backdrop, a when-line and a receipt band for free. The trophy case and achievement card stay untouched by R3; a delta glyph there is a separate, smaller idea that R2's data does not yet justify for settled titles.
+2. **Gate on a captured curve, not on the window being open.** Eligibility is "we observed this game while it was inside its launch window and the owner earned bracketed unlocks during that span" (rules below). Whether the beat still shows is left to the selector's recency decay via `daysSince`, exactly like every other moment. Nothing checks "is the game still ≤ 60 days old" at render time, so the Beast curve stays on the page as long as its score clears the floor and then ages out like a cluster does.
+3. **One curve, one headline, one receipt.** The descriptor carries the headline unlock's series and up to five receipt rows. It does not carry per-achievement series for the receipt, a whole-game aggregate curve, or the rare-band count. Twelve lines would be a dashboard; the design spec's rejected-experiments list already says what happens when a beat renders fifteen numbers at once.
+4. **Ranking is relative, guarded absolute.** Receipt rows are the owner's bracketed unlocks with `percentNow − percentAtUnlock ≥ 1.0pp` (ten quanta, so no row is rounding), ordered by `percentNow / max(percentAtUnlock, 0.05)` descending, ties by absolute delta descending. The headline is row one. Using `0.05` as the floor denominator turns a reported `0` into a lower bound on the ratio rather than a division by zero, and `formatRarityPercentEditorial` renders the origin as `<0.1%`, which is the true statement.
+5. **Score is the headline's absolute gain.** `baseSignal = min(headlineDeltaPp, 30) × 0.5` → Beast's +36.9pp lands at 15 on day 0 and crosses the floor of 5 after about 22 days without a new unlock. A cluster of five unlocks is the comparison point; this beat is meant to outrank a cluster on a fresh launch and lose to it three weeks later.
+6. **`daysSince` is days since the newest bracketed unlock**, not since release or since the last observation. "Freshest owner signal" is what every other detector uses and what the when-line (`3 days ago`) means to a reader.
+7. **Complementary to a `steam-subject` on the same appid, like `ACHIEVEMENT_CLUSTER`.** No dedupe against "Playing lately". It does join the dormant top-up exclusion set, which already spans every steam-moment type.
+8. **No count-up, no VerdictProse.** The body is static prose with `Accent` spans, same as the cluster body. The percentages are the story; animating them would put three tweens in a sentence the spec wants read, not watched.
+9. **Curve is the inline `<Sparkline>` scaled up, not `UnlocksPerWeekBand`.** The band primitive is a header-band shape (filled area, end caps, content width) for the Steam subject chapter; this curve sits inside a receipt beneath prose and wants to read as a stroke. Render `<Sparkline>` at 240×48 with `strokeWidth={1.5}` and the accent colour. If a third editorial curve appears later, factor a `ChapterCurve` then, per the design spec's 3-repeats rule.
+10. **Server does the work, shared owns the maths.** A pure `deriveLaunchDrift()` in `packages/shared/src/steam/launch-drift.ts` takes plain rows and returns the stats or `null`; the api detector only queries and calls it. Same split as `deriveSteamGameRecap` → `SteamGameRecap`.
+
+### Shared types (chunk 1 owns these; chunks 2 and 3 import them)
+
+In `packages/shared/src/home/recap-chapter.ts`, beside `SteamAchievementClusterStats`:
+
+```ts
+/** One owner unlock on a launch-window title, with the global rarity Steam
+ *  reported at the most recent observation before the unlock (never more than
+ *  LAUNCH_DRIFT_SAMPLE_MAX_AGE_MS older) and the current value. */
+export interface SteamLaunchDriftUnlock {
+  apiName: string;
+  displayName: string;
+  unlockedAt: string;        // ISO
+  percentAtUnlock: number;   // raw value Steam sent, may be 0
+  percentNow: number;
+}
+
+export interface SteamLaunchDriftStats {
+  releaseDate: string;         // ISO date (yyyy-mm-dd) from SteamGameEnrichment.releaseDate
+  observedFrom: string;        // ISO, first history row for the game
+  observedTo: string;          // ISO, last history row for the game
+  observationCount: number;    // distinct observation timestamps for the game
+  bracketedUnlockCount: number;// owner unlocks with a qualifying sample, before the 1.0pp filter
+  headline: SteamLaunchDriftUnlock;   // === receipt[0]
+  curve: number[];             // headline apiName's percent per observation, ascending observedAt, ≥ 2 points
+  receipt: SteamLaunchDriftUnlock[];  // 1–5 rows, ranked per decision 4
+}
+```
+
+`SteamMomentChapterDescriptor.momentType` becomes `"ACHIEVEMENT_CLUSTER" | "FIRST_TIME_GAME" | "LAUNCH_RARITY_DRIFT"`, and the descriptor gains `launchDrift: SteamLaunchDriftStats | null` after `cluster`. In `recap-scoring.ts` the `steam-moment` `RecapCandidate` variant gains `launchDrift?: SteamLaunchDriftStats | null` and `toDescriptor` passes it through as `candidate.launchDrift ?? null`. Update the doc comment on the descriptor that lists which chunk shipped which type.
+
+In `packages/shared/src/steam/launch-drift.ts`:
+
+```ts
+export const LAUNCH_DRIFT_SAMPLE_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+export const LAUNCH_DRIFT_MIN_DELTA_PP = 1.0;
+export const LAUNCH_DRIFT_MIN_RECEIPT_ROWS = 3;   // fewer → no candidate
+export const LAUNCH_DRIFT_RECEIPT_CAP = 5;
+export const LAUNCH_DRIFT_DELTA_CAP_PP = 30;
+export const LAUNCH_DRIFT_SIGNAL_FACTOR = 0.5;
+export const LAUNCH_DRIFT_FLOOR_PERCENT = 0.05;   // denominator floor; same constant as the rarity formatter's sub-resolution bound
+
+export interface LaunchDriftObservation { apiName: string; percent: number; observedAt: Date }
+export interface LaunchDriftUnlockRow { apiName: string; displayName: string; unlockedAt: Date; percentNow: number | null }
+
+export interface LaunchDriftInput {
+  releaseDate: Date;
+  observations: readonly LaunchDriftObservation[]; // ascending observedAt, all achievements of the game
+  unlocks: readonly LaunchDriftUnlockRow[];
+}
+
+export function deriveLaunchDrift(input: LaunchDriftInput): SteamLaunchDriftStats | null;
+export function launchDriftBaseSignal(stats: SteamLaunchDriftStats): number;
+export function launchDriftDaysSince(stats: SteamLaunchDriftStats, now: Date): number;
+```
+
+`deriveLaunchDrift` algorithm, in order: (a) group observations by `apiName`, keep ascending order; (b) for each unlock, find the latest observation of its `apiName` with `observedAt ≤ unlockedAt`; discard the unlock if none exists, if it is older than `LAUNCH_DRIFT_SAMPLE_MAX_AGE_MS`, or if `percentNow` is null; the survivors are the bracketed set; (c) filter to `percentNow − percentAtUnlock ≥ LAUNCH_DRIFT_MIN_DELTA_PP`; (d) if fewer than `LAUNCH_DRIFT_MIN_RECEIPT_ROWS` remain, return `null`; (e) sort per decision 4, slice to the cap; (f) `curve` is the headline's full series as numbers; return `null` if it has fewer than 2 points (cannot happen after (b) with ≥ 1 later observation, but the guard keeps `<Sparkline>`'s own `< 2 → null` from ever being the thing that hides a beat). `observationCount` counts distinct `observedAt` values across the game. `launchDriftBaseSignal` is `Math.min(headline delta, LAUNCH_DRIFT_DELTA_CAP_PP) * LAUNCH_DRIFT_SIGNAL_FACTOR`. `launchDriftDaysSince` is `max(0, floor((now − max(receipt.unlockedAt)) / day))`.
+
+Export everything from the barrel `packages/shared/src/index.ts` next to the other `./steam/*.ts` lines (types via `export type`).
+
+### Chunks
+
+Each chunk is one commit, each carries its tests, each leaves `verify:cc` green. Chunk 2 depends on chunk 1; chunk 3 depends on chunk 1 only, so 2 and 3 can be separate sessions in either order.
+
+#### Chunk 1 — shared types and the deriver
+
+**Files:** `packages/shared/src/home/recap-chapter.ts`, `packages/shared/src/home/recap-scoring.ts`, `packages/shared/src/home/recap-scoring.test.ts`, `packages/shared/src/steam/launch-drift.ts` (new), `packages/shared/src/steam/launch-drift.test.ts` (new), `packages/shared/src/index.ts`.
+
+**Copies:** the `SteamAchievementClusterStats` doc-comment style and the `deriveSteamGameRecap` deriver-in-shared pattern (`packages/shared/src/steam/game-recap.ts` and its test).
+
+**Tests (`launch-drift.test.ts`), each a named `it`:** returns `null` with no observations; returns `null` when every unlock predates the first observation; discards an unlock whose nearest earlier sample is 4 days old and keeps one at 2 days; discards a row with a +0.9pp delta and keeps +1.0pp; returns `null` with two qualifying rows and stats with three; ranks `0 → 5.0` (floor denominator, ratio 100) above `2.0 → 20.0` (ratio 10) above `10.0 → 40.0` (ratio 4, larger absolute); breaks a ratio tie by absolute delta; caps the receipt at 5 and sets `headline === receipt[0]`; `curve` is the headline's series only, ascending, and includes observations after the unlock; `observationCount` counts distinct timestamps not rows; `launchDriftBaseSignal` caps at `30 × 0.5 = 15` for a +36.9pp headline and returns `0.5` for +1.0pp; `launchDriftDaysSince` clamps at 0 for a future timestamp. Use the Beast numbers from the third reading as the fixture (`Corvus's End` 0.7 → 28.4, `Bestie` 1.4 → 34.3, `Munitions Master` 0.1 → 5.7) so the fixture is also documentation. In `recap-scoring.test.ts`, add one steam-moment candidate with `launchDrift` set and assert `toDescriptor` carries it through and `null`s it when absent.
+
+**Web typecheck note:** adding the third `momentType` literal breaks nothing at compile time in `apps/web` because `momentCopy` falls through to the cluster branch and `momentAccentClass`'s `switch` has no exhaustiveness assertion — check both and, if either has gained a `never` guard since this was written, add the minimal case in this chunk so the shared change stays green on its own.
+
+#### Chunk 2 — api detector
+
+**Files:** `apps/api/src/recap/steam-moments.service.ts`, `apps/api/src/recap/steam-moments.service.spec.ts`, `apps/api/src/recap/recap-subjects.service.ts` (comment-only unless the check below fails).
+
+**Copies:** `detectAchievementClusters` in the same file — its query-then-group shape, its curation handling (`excludeUnfeaturedGames` on the joined rows, `game.removedAt === null`, non-game `appType` exclusion via the separate enrichment lookup), its candidate literal, and its place in `detectAll`'s `Promise.all`.
+
+**`detectLaunchRarityDrift(now, curation)`**, added to `detectAll`:
+
+1. Import `LAUNCH_WINDOW_MS` from `../steam/global-rarity.poller` (the same constant the poller uses to pick daily-sampled titles, so "captured while in the window" means the same thing on both sides).
+2. `steamGameEnrichment.findMany({ where: { releaseDate: { not: null, gte: new Date(now − LAUNCH_WINDOW_MS − 120 days) } }, select: { appid, releaseDate, appType } })`. The 120-day tail is not an eligibility rule; it bounds the query so a library with years of enrichment does not load every row. Eligibility is decided in step 4.
+3. `steamAchievementRarityHistory.findMany({ where: { appid: { in: appids } }, orderBy: { observedAt: "asc" }, select: { appid, apiName, percent, observedAt } })` and `steamPlayerUnlock.findMany({ where: { appid: { in: appids } }, select: { appid, apiName, unlockedAt, achievement: { select: { displayName, game: { select: { name, removedAt } }, rarity: { select: { percent } } } } } })`. Two queries, not a join through history — history has no relation to unlocks, and the derive step wants both lists whole.
+4. Per appid: skip if no history rows or no unlocks; skip if `game.removedAt !== null`, if `appType` is not a game (same predicate `detectAchievementClusters` uses), or if `excludeUnfeaturedGames` drops it; **skip unless the first history row's `observedAt` is ≤ `releaseDate + LAUNCH_WINDOW_MS`** — that is the "captured while in the window" rule. Build `LaunchDriftInput` (`percentNow` from `achievement.rarity?.percent ?? null`) and call `deriveLaunchDrift`. `null` → no candidate.
+5. Emit `{ kind: "steam-moment", slug: \`steam-moment-launch-drift-${appid}\`, momentType: "LAUNCH_RARITY_DRIFT", appid, name, baseSignal: launchDriftBaseSignal(stats), daysSince: launchDriftDaysSince(stats, now), launchDrift: stats }`.
+
+**`recap-subjects.service.ts`:** confirm `allSteamMomentAppids` is built from every `steam-moment` candidate regardless of `momentType` (the comment says "both momentTypes"; the code should not enumerate literals). If it does enumerate, add the new literal. Extend the two comments that name `ACHIEVEMENT_CLUSTER` as the complementary case to name `LAUNCH_RARITY_DRIFT` beside it. No dedupe change.
+
+**Tests (`steam-moments.service.spec.ts`), new `describe("SteamMomentsService.detectLaunchRarityDrift")`:** extend `makeService` with `history?: HistoryRow[]`, `rarityUnlocks?: LaunchUnlockRow[]` and `releaseDate?: Date | null` on `EnrichmentRow`; give `steamPlayerUnlock.findMany` a `mockImplementation` that returns `rarityUnlocks` when `args.where.appid` is present and the existing `unlocks` otherwise (mirror `ownedFindMany`'s dispatch-on-`where` pattern), and add `steamAchievementRarityHistory: { findMany }`. Cases: no enrichment inside the bound → `[]` and no history query issued; a game first observed 61 days after release → `[]` (window rule); the Beast fixture → one candidate with `momentType`, slug, `baseSignal` 15, `daysSince` computed from the newest receipt unlock, `launchDrift.headline.apiName` as expected; an unfeatured Beast → `[]` (pair with the previous case, same fixture minus curation, the way the first-time tests do); `detectAll` returns first-time + cluster + launch candidates concatenated. Use `NO_CURATION` from `@vyoh/shared` as the other specs do.
+
+**Live check before commit:** `curl -s localhost:<api port>/recap/chapters | jq '.chapters[] | select(.momentType == "LAUNCH_RARITY_DRIFT") | {name, score, daysSince, headline: .launchDrift.headline}'` should print Beast of Reincarnation and Mortal Shell II (or whichever launch titles the history holds by then). If it prints nothing, run the probe and check the "Launch cohort" line before debugging the detector — an empty cohort is a data state, not a defect.
+
+#### Chunk 3 — web beat
+
+**Files:** `apps/web/src/home/recap/steam-moment-beat.tsx`, `apps/web/src/home/recap/steam-moment-beat.test.tsx`, `apps/web/src/home/recap/steam-moments-aggregator.tsx`, `apps/web/src/home/recap/moment-accent.ts`, `apps/web/src/home/landing-config.ts` (comment + a commented fixture), `apps/web/src/home/recap/use-chapters.ts` (comment naming the third type).
+
+**Copies:** the `ACHIEVEMENT_CLUSTER` branch end to end — `momentCopy` (eyebrow / masthead / leadingVisual / chapterLabel / ariaLabel / body), `clusterBody`'s `Accent` usage, `entranceForType`'s per-type timings, and the cluster receipt block (`ChapterDetail` › `ChapterReveal delay={entrance.receiptDelay}` › headline row + italic proof line).
+
+**`SteamMomentBeatProps`** gains `launchDrift: SteamLaunchDriftStats | null`; the aggregator passes `launchDrift={m.launchDrift}`.
+
+**`momentCopy`, new branch before the cluster fallthrough** (`momentType === "LAUNCH_RARITY_DRIFT"`):
+- `eyebrow: "Early on"`, `mastheadText: name`, `chapterLabel: "Early"`, `ariaLabel: \`Early achievements on ${name}\``.
+- `leadingVisual`: lucide `TrendingUp`, same class string as `Award` in the cluster branch.
+- `body: launchDriftBody({ launchDrift, accentClass })`, where the body is: `<A>{headline.displayName}</A> was <A>{formatRarityPercentEditorial(headline.percentAtUnlock)}</A> when you earned it. It's <A>{formatRarityPercentEditorial(headline.percentNow)}</A> today.` With `launchDrift === null` (dev override without stats) render `Got there before the crowd did.` so the beat never throws on a partial descriptor. Import the formatter from `@/steam/_shared/rarity-percent`.
+
+**`entranceForType`** case: `{ mastheadBlur: 16, mastheadRise: 22, mastheadDuration: 1.2, taglineDelay: 0.45, bodyDelay: 0.7, receiptDelay: 0.95 }` — cluster pacing; the receipt is the last beat, the curve draws in with it.
+
+**`moment-accent.ts`:** `case "LAUNCH_RARITY_DRIFT": return "text-indigo-300";` with a two-line comment in the file's register: cool and unused elsewhere on the page, so "you were early" sits apart from the fuchsia cluster and the teal first-time on a mixed aggregator.
+
+**Receipt block** (rendered when `launchDrift` is non-null, after the cluster block, same wrapper structure):
+- Row 1, `flex flex-wrap items-baseline gap-x-4 gap-y-2 sm:gap-x-6`: `<span className="text-2xl font-semibold tabular-nums text-foreground sm:text-3xl" style={{ textShadow: SHADOW_MASTHEAD }}>{formatRarityPercentEditorial(at)} → {formatRarityPercentEditorial(now)}</span>` — write the arrow as `<span aria-hidden="true">→</span>` with a sibling `<span className="sr-only">to</span>`; then the `·` separator span the cluster uses; then `<span className="text-sm tabular-nums text-foreground/80">{observationCount} readings over {days} days</span>` where `days` is `Math.max(1, Math.round((observedTo − observedFrom) / day))`.
+- Row 2: `<Sparkline data={launchDrift.curve} width={240} height={48} strokeWidth={1.5} stroke="currentColor" className={\`${accentClass} h-12 w-60 max-w-full\`} aria-label={\`${headline.displayName} global unlock rate, ${first} to ${last}\`} role="img" />` — `Sparkline` spreads `...rest` onto the `<svg>` and reads `aria-label` itself, so both attributes land without a wrapper; do not pass `tooltip`, the receipt row already names the endpoints.
+- Row 3, the proof line, `max-w-prose text-sm italic text-foreground/70`: `receipt.map(r => \`${r.displayName} ${fmt(at)} → ${fmt(now)}\`).join(" · ")`, and when `bracketedUnlockCount > receipt.length` append ` · and ${n} more earned early`.
+
+**Tests (`steam-moment-beat.test.tsx`), new `describe("SteamMomentBeat (LAUNCH_RARITY_DRIFT)")`** using the same `mockRecap()` / `baseProps` scaffolding with `momentType: "LAUNCH_RARITY_DRIFT"`, `firstTime: null`, `cluster: null`, and a `launchDrift` fixture built from the Beast numbers: renders the `Early on` eyebrow and the game-name `h2`; the body contains `0.7%`, `28.4%` and `when you earned it`; the headline row shows `<0.1%` for a `percentAtUnlock` of `0` (regression for the floor rule); the proof line lists every receipt `displayName` joined by `·`; `and N more earned early` appears only when `bracketedUnlockCount > receipt.length`; the sparkline `svg` has `role="img"` and an `aria-label` naming the headline; `launchDrift: null` renders the fallback sentence and no receipt block; the masthead links to `/steam/library/$appid` (copy the existing `a[to=…]` assertion). Extend `steam-moments-aggregator.test.tsx` only if it snapshot-asserts props; otherwise add one case that a `LAUNCH_RARITY_DRIFT` descriptor renders a beat (count `[data-beat]`). Run the axe scan pattern from `accessibility.test.tsx` on the new branch in the beat test file.
+
+**Visual review:** put one descriptor in `DEV_STEAM_MOMENT_OVERRIDE` (appid 2001760, Beast of Reincarnation, `momentType: "LAUNCH_RARITY_DRIFT"`, the Beast fixture as `launchDrift`), check `/` in Chrome and Firefox, then reset it to `[]` before staging. Leave the fixture as a commented block below the override, matching the comment already there, so the next review does not rebuild it.
+
+**Skeleton:** the moments aggregator has no per-type skeleton (it renders from the descriptor, and the per-beat recap query only feeds the tagline), so the skeleton convention is satisfied by inheritance — state that in the commit message rather than adding one.
+
+### Not in R3
+
+- Any trophy-case or achievement-card drift indicator (settled titles do not move; see the third reading).
+- Per-receipt-row sparklines, a game-wide rare-band curve, or a rarity-at-unlock column anywhere outside this beat.
+- Re-sampling history to true daily cadence — that is hosting (the process must be up at 05:30), tracked in the ops notes.
+- Backfilling `percentAtUnlock` for unlocks older than their nearest sample. The known-limit section says why it cannot be done.
+
 ## Pointer hygiene
 
-When R2's diagnostic first reports a game with a real slope, record the numbers here — that reading is the trigger that unblocks R3, and it should be written down rather than remembered. Until then the honest state of this arc is "recording, nothing to show", and the Status header should keep saying so rather than drifting toward "in progress".
+The trigger fired and is recorded above (third reading, 2026-09-02). From here the Status header tracks chunk shipment: update it and the R3 row in the same commit as each chunk. The mature-library re-check condition (a settled rare-band series ≥ 5pp or 2× from a non-zero origin) lives in the Status header; move it to [parked.md](../parked.md) only if the launch beat ships and the mature beat is still blank a season later.
