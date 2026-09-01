@@ -217,3 +217,29 @@ The ceiling moved 240 → 250 kB because the cost buys server rendering, which i
 | recap | 15 (≤ 20) | 98–121 ms, median 115 (≤ 220) | 0 | 0 |
 
 Recorded baselines were 24 layers / ~100 ms and 13 layers / ~195 ms respectively. The improvement is consistent with a server-rendered first paint that is no longer thrown away and re-rendered — chunk 4b found every route was failing hydration — but the probe cannot attribute it, and the pre-SSR numbers were captured on a different app shape. **Do not lower the budget rows on the strength of this**; treat it as headroom, not as a new floor.
+
+## Re-baseline — 2026-09-01 (owner-auth root wiring)
+
+Measured like-for-like: `size-limit` against a worktree build at `16cb4e02` (the last Start chunk) and against `2b963357`.
+
+| Measure | End of Start arc (`16cb4e02`) | 2026-09-01 (`2b963357`) | Limit |
+|---|---|---|---|
+| Initial JS | 244.38 kB | **247.46 kB** | 250 → **255 kB** |
+| Recharts lazy chunk | 68.25 kB | 68.25 kB | 85 kB |
+
++3.08 kB over five weeks, against 2.54 kB of headroom left — the next feature chunk would have tripped the job. Per-chunk gzip diff of the initial set (same manifest walk as `.size-limit.cjs`):
+
+| Chunk | Then | Now | Why |
+|---|---|---|---|
+| `useMutation` (new) | — | 1.79 kB | TanStack Query's mutation cache, pulled in by the owner controls below |
+| `use-viewer` (new) | — | 0.53 kB | owner-auth viewer query, read by the nav |
+| `viewer-scope` (new) | — | 0.13 kB | viewer-scoped query-key segment |
+| `champion-icon` | 0.49 kB | 7.69 kB | **relocation, not growth** — see below |
+| entry (`index`) | 148.64 kB | 142.06 kB | the champion table left it |
+
+The root entry now carries `auth/owner-badge.tsx`, `auth/logout-button.tsx`, `lib/owner-request.ts`, `steam/curation/review-dot.tsx` and `admin/use-admin-steam-games.ts` — owner-auth (2026-08-13) and curation-overlay (2026-08-21) wiring that renders for the owner but ships to every visitor. That is the +3 kB. It is intended, so the ceiling moved rather than the feature; headroom is back to ~3 %. Splitting those modules behind `isOwner` would recover most of it and is filed in [quick-wins.md](quick-wins.md).
+
+**The champion accent table did not grow.** `6e823975` (2026-08-10) moved `champion-theme` and `champion-assets.gen.ts` into `@vyoh/shared`; rolldown then grouped the table with `champion-icon.ts` instead of the entry chunk, so a per-chunk diff shows +7.2 kB on one line and −6.6 kB on another. Confirmed by grepping both builds' entry chunks for the table's contents. The table has been in the initial payload since `SplashProvider` started reading `championTheme()` at the root (2026-05-26).
+
+Method note: this section's predecessor is the 244.34 kB "after 5" figure above, not the 241.65 kB in the cutover table, which was measured mid-arc.
+

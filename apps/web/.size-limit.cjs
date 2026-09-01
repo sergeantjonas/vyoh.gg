@@ -83,9 +83,19 @@ module.exports = [
     // methods (HTML tags vs manifest walk), so treat the delta as approximate.
     // Headroom stays near what 240 kB gave, so the budget still bites on the
     // next unplanned addition.
+    //
+    // 250 kB → 255 kB on 2026-09-01: 244.38 kB at the end of the Start arc
+    // (16cb4e02, re-measured with this walk), 247.46 kB now. The +3 kB is the
+    // owner-auth and curation wiring that sits in the root graph for every
+    // visitor (owner badge, logout, review dot, admin-games hook, and the
+    // TanStack Query mutation cache they pull in) — intended, so the ceiling
+    // moves rather than the feature. The champion accent table only looks
+    // like growth in a per-chunk diff: it moved from the entry chunk into the
+    // champion-icon chunk when champion-theme moved to @vyoh/shared.
+    // Headroom is back to ~3 %.
     name: "initial JS (entry + static imports)",
     path: initialJsPaths(),
-    limit: "250 kB",
+    limit: "255 kB",
     gzip: true,
   },
   {

@@ -59,6 +59,8 @@ All five rows shipped in the 2026-05-25 session — see [library-card-enrichment
 
 ## Engineering-trust (worth doing, no UX surface)
 
+**Lazy-load the owner-only root controls** — `auth/owner-badge.tsx`, `auth/logout-button.tsx`, `steam/curation/review-dot.tsx`, `admin/use-admin-steam-games.ts` and the TanStack Query mutation cache they pull in ride in the initial JS for every visitor: ~3 kB gzip, measured 2026-09-01 in [perf-baseline.md](perf-baseline.md). The viewer query already gates the render, so a `React.lazy` split behind `isOwner` makes the public payload stop paying for owner UI. Verify with `pnpm --filter @vyoh/web size` before and after.
+
 - **Trusted Types + CSP nonces** — `Content-Security-Policy` with `require-trusted-types-for 'script'`. Signals security awareness on a public site. Vite + Nest both support it; mostly a config + script-source audit. **Deferred until hosting target is picked** (2026-05-28) — CSP delivery layer is hosting-specific (`_headers` for Cloudflare, `vercel.json` for Vercel, reverse-proxy config for self-host), so a speculative shipment would either need rework or rot. Two `dangerouslySetInnerHTML` sites (`steam/game/game-about-block.tsx:157`, `lol/_shared/static/rich-description.ts`) will need a `trusted-types` policy if HTML sinks are gated; `require-trusted-types-for 'script'` alone is fine.
 - **Sigstore signing on the deployment artifact** — `cosign sign` in CI. Reviewer who clicks "verify" sees a real signature. Niche but unmissable signal.
 
