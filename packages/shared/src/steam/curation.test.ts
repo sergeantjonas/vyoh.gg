@@ -6,6 +6,7 @@ import {
   excludeHiddenGames,
   excludeUnfeaturedGames,
   isHiddenGame,
+  visibleAppidFilter,
 } from "./curation.ts";
 
 const HIDDEN = 1091500;
@@ -73,5 +74,15 @@ describe("curationForOwner", () => {
       HIDDEN,
       PLAIN,
     ]);
+  });
+});
+
+describe("visibleAppidFilter", () => {
+  it("excludes only the privacy axis, as a fragment a capped query can apply before its take", () => {
+    expect(visibleAppidFilter(curation())).toEqual({ notIn: [HIDDEN] });
+  });
+
+  it("is an empty exclusion for the public projection", () => {
+    expect(visibleAppidFilter(NO_CURATION)).toEqual({ notIn: [] });
   });
 });

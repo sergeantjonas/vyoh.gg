@@ -517,3 +517,55 @@ describe("computeCalibrationByQueue", () => {
     expect(computeCalibrationByQueue([])).toEqual({});
   });
 });
+
+describe("tone builder edge branches", () => {
+  it("buildTiltTone is neutral when the after-bucket holds fewer than 3 games", () => {
+    // L L L L W (chronological). last = W → afterWin bucket, which has 0 games.
+    const wins = [false, false, false, false, true];
+    const ms = wins.map((win, i) =>
+      fakeMatch({
+        matchId: `t${i}`,
+        win,
+        playedAt: new Date(Date.now() - (5 - i) * HOUR_MS).toISOString(),
+      })
+    );
+    expect(buildTiltTone(ms)).toBe("neutral");
+  });
+
+  it("buildTimeSlotTone is positive when the slot WR beats overall by 10pp+", () => {
+    // 12 games at the current hour, all won. 8 games elsewhere, all lost.
+    // Overall 12/20 = 60%, slot 100% → +40pp.
+    const now = new Date("2026-05-20T14:00:00Z");
+    const ms: ReturnType<typeof fakeMatch>[] = [];
+    for (let i = 0; i < 12; i++) {
+      ms.push(
+        fakeMatch({
+          matchId: `hot-${i}`,
+          win: true,
+          playedAt: new Date("2026-05-20T14:30:00Z").toISOString(),
+        })
+      );
+    }
+    for (let i = 0; i < 8; i++) {
+      ms.push(
+        fakeMatch({
+          matchId: `cold-${i}`,
+          win: false,
+          playedAt: new Date("2026-05-20T03:30:00Z").toISOString(),
+        })
+      );
+    }
+    expect(buildTimeSlotTone(ms, now)).toBe("positive");
+  });
+
+  it("buildChampionTone reads the most-played champion, not the first seen", () => {
+    // Ahri: 1 game, lost. Zed: 3 games, all won. Overall 3/4 = 75%; Zed 100% → +25pp.
+    const ms = [
+      fakeMatch({ matchId: "a1", champion: "Ahri", win: false }),
+      fakeMatch({ matchId: "z1", champion: "Zed", win: true }),
+      fakeMatch({ matchId: "z2", champion: "Zed", win: true }),
+      fakeMatch({ matchId: "z3", champion: "Zed", win: true }),
+    ];
+    expect(buildChampionTone(ms)).toBe("positive");
+  });
+});

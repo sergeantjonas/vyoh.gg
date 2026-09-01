@@ -4,8 +4,10 @@ import {
   MEANINGFUL_PLAYTIME_MINUTES,
   RECENT_PLAYTIME_MINUTES,
   engagementCohort,
+  excludeBarelyPlayedInWindow,
   excludeBarelyTouched,
   isMeaningfullyPlayed,
+  isRecentlyEngaged,
   selectEngagementCohort,
   summariseEngagement,
 } from "./engagement.ts";
@@ -110,5 +112,24 @@ describe("thresholds", () => {
   it("orders the floors from most to least permissive", () => {
     expect(RECENT_PLAYTIME_MINUTES).toBeLessThan(MEANINGFUL_PLAYTIME_MINUTES);
     expect(MEANINGFUL_PLAYTIME_MINUTES).toBeLessThan(COMPLETIONIST_PLAYTIME_MINUTES);
+  });
+});
+
+describe("isRecentlyEngaged", () => {
+  it("clears at exactly the window floor, which sits below the lifetime floor", () => {
+    expect(RECENT_PLAYTIME_MINUTES).toBeLessThan(MEANINGFUL_PLAYTIME_MINUTES);
+    expect(isRecentlyEngaged(RECENT_PLAYTIME_MINUTES)).toBe(true);
+    expect(isRecentlyEngaged(RECENT_PLAYTIME_MINUTES - 1)).toBe(false);
+  });
+});
+
+describe("excludeBarelyPlayedInWindow", () => {
+  it("keeps only games at or above the window floor and preserves order", () => {
+    const games = [
+      { appid: 1, windowMinutes: RECENT_PLAYTIME_MINUTES + 5 },
+      { appid: 2, windowMinutes: 0 },
+      { appid: 3, windowMinutes: RECENT_PLAYTIME_MINUTES },
+    ];
+    expect(excludeBarelyPlayedInWindow(games).map((g) => g.appid)).toEqual([1, 3]);
   });
 });

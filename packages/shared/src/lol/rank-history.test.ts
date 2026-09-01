@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { RANKED_QUEUE_KEYS } from "./queue-types.ts";
 import {
   type RankHistoryPoint,
   detectSeasons,
+  emptyRankHistory,
   formatRank,
   formatRankTitle,
   normalizeLp,
@@ -236,5 +238,20 @@ describe("pickHigherRank", () => {
     const a = solo("GOLD", "II", 50);
     const b = flex("GOLD", "II", 50);
     expect(pickHigherRank(a, b)).toBe(a);
+  });
+});
+
+describe("emptyRankHistory", () => {
+  it("carries every ranked ladder as an empty series, so a third ladder cannot land absent", () => {
+    const history = emptyRankHistory();
+    expect(Object.keys(history).sort()).toEqual([...RANKED_QUEUE_KEYS].sort());
+    for (const key of RANKED_QUEUE_KEYS) expect(history[key]).toEqual([]);
+  });
+
+  it("returns a fresh object each call", () => {
+    const a = emptyRankHistory();
+    const b = emptyRankHistory();
+    a.solo.push({} as never);
+    expect(b.solo).toEqual([]);
   });
 });

@@ -194,3 +194,14 @@ describe("selectHighestRegret", () => {
     ).toBeNull();
   });
 });
+
+describe("scoreCandidate matched ordering", () => {
+  it("lists matched genres strongest-share first when a game carries more than one", () => {
+    const scored = scoreCandidate(
+      game(14, "Remnant II", ["Third-Person Shooter", "Souls-like"]),
+      CONTEXT
+    );
+    expect(scored.matched).toEqual(["Souls-like", "Third-Person Shooter"]);
+    expect(scored.genreCount).toBe(2);
+  });
+});
