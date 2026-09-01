@@ -84,6 +84,7 @@ All run on `main` @ `045217d6` in the devcontainer.
 | `pnpm --filter @vyoh/web build` | **PASS** — client + server bundles, `dist/` 13 MB |
 | `pnpm --filter @vyoh/web size` | **PASS, 1.0 % headroom** — initial JS (entry + static imports) **247.46 kB gzip / 250 kB limit**; Recharts lazy chunk 68.25 kB / 85 kB |
 | `pnpm run coverage:cc` | **PASS** on every threshold — table below |
+| GitHub Actions on `main` (`gh run list`) | **Red since 2026-08-16** — three runs, each failing only the "Production dependency audit" job on `nanoid`, `deepmerge-ts`, `mysql2`; lint/test and bundle-budget jobs green throughout. Fixed by `51d59a9b`. |
 | Perf probe | **Not run** — needs a warm dev server; see § 7 |
 
 Bundle against [perf-baseline.md:194–196](perf-baseline.md): the post-Start figure recorded on 2026-07-27 was **241.65 kB** with "~3.3 % headroom". Today's 247.46 kB is **+3.1 kB since the end of the Start arc** (244.34 kB after chunk 5, per the note's own 07-27 re-baseline; the 241.65 kB figure is mid-arc) with no entry explaining it. → F-2.
