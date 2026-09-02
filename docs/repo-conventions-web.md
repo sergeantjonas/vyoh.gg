@@ -120,6 +120,15 @@ The **locale** argument has the identical shape and is easier to miss, because p
 - **A clean console proves nothing without a positive check that the client bundle ran.** Chunk 4b reported "14 routes clean" against a harness that served no `dist/client`, so no JS had evaluated and there was nothing left to throw an error. Assert something only hydration produces — the container probe presses ⌘K and requires the palette to open.
 - **Count failed requests too.** The 404ing stylesheet raised no hydration error and no page error. It was visible only as a `response` with status ≥ 400.
 
+## Shell fixtures that must survive refactors
+
+Four pieces of the web shell look incidental and are load-bearing. Each has broken something when touched casually, so they are listed here rather than left to comments a refactor can delete.
+
+- **`LazyMotion` loads `domMax`** in [apps/web/src/main.tsx](../apps/web/src/main.tsx). Do not downgrade to `domAnimation` for bundle size: every `layout` / `layoutId` animation (identity morphs, panel heroes, chapter transitions) depends on the `domMax` feature set and silently stops animating without it.
+- **`SplashProvider` wraps the app** and is mounted in `__root.tsx`; surfaces claim the page-wide champion backdrop through `useSplashChampion(name)` from [apps/web/src/lol/_shared/assets/splash-backdrop.tsx](../apps/web/src/lol/_shared/assets/splash-backdrop.tsx). Panels never claim it (see [panel-compositor-load.md](working-notes/cross-cutting/panel-compositor-load.md)).
+- **Top-level route transitions are keyed on the first path segment** in `__root.tsx` (`topLevelScope(pathname)`), which is also the key the cross-scope scroll reset and the outlet error boundary use. Changing the key changes all three.
+- **`SHOULD_ANIMATE` in [apps/web/src/components/count-up.tsx](../apps/web/src/components/count-up.tsx)** is the test bypass that lets happy-dom render the final number synchronously. Removing it makes every CountUp assertion time out.
+
 ## Styling
 
 ### Clickable elements must carry `cursor-pointer`

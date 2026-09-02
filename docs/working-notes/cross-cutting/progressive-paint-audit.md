@@ -1,5 +1,7 @@
 # Progressive paint audit — baseline 2026-06-09
 
+**Status:** Reference — chunks 0a/0b/0c/2/4/6 shipped, chunk 3 sits at the measurement floor (monitor-only), chunks 1/5 deprioritised. The live artefact is the per-route paint budget table, which now lives in [repo-conventions-web.md](../../repo-conventions-web.md) § "Layer-count + paint budget per route scenario"; this note keeps the diagnostic trail behind it.
+
 Cross-section measurement of compositor + paint cost on the four representative routes in [panel-compositor-load.md](panel-compositor-load.md). Baseline is what gets compared against once Chunks 0a/0b/0c land. Captured by `tools/perf-probe` (chromium, 1440×900, dev server on `:2009`).
 
 ## Method

@@ -1,5 +1,7 @@
 # Multi-beat chapter architecture & choreography arc
 
+**Status:** Shipped — historical. The multi-beat primitives landed in `apps/web/src/home/recap/` (detail under § Status below); the live design language is [subject-chapter-design-spec.md](./subject-chapter-design-spec.md), not the v2/v3 pitches in this file.
+
 Architecture + design plan for the multi-beat chapter experience. Replaces the shipped sticky-stage cross-fade (`0740849d`, 2026-06-05) which read as mushy and unread-able. Sub-note of [self-portrait-recap-arc.md](./self-portrait-recap-arc.md). Sibling of [r13-exit-dissolve.md](./r13-exit-dissolve.md) and [subject-chapter-design-spec.md](./subject-chapter-design-spec.md).
 
 **History of this note's recommendation:**

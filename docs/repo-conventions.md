@@ -12,7 +12,7 @@ Web-surface conventions — server rendering and hydration, the production build
 
 Each integration owns its own top-level route tree: `/lol/...`, `/steam/...`, and future streams get their own (`/music` for Spotify, `/code` for GitHub + WakaTime, etc.). Never embed Steam-specific components into LoL-scoped routes (e.g. `/lol/$accountSlug/*`) — and don't do the reverse.
 
-`/` is for cross-stream *synthesis* — content that combines multiple streams into one verdict (chronotype hour-bucketing across LoL + commits, "what am I doing right now" picking the dominant live stream). A "top tracks this week" or "latest commit" tile on `/` is wrong-place; it belongs on its per-stream route. `/` may carry at most a single curated highlight per stream that links into the deep route.
+`/` is for cross-stream *synthesis* — content that combines multiple streams into one verdict (chronotype hour-bucketing across LoL + commits, "what am I doing right now" picking the dominant live stream). A "top tracks this week" or "latest commit" tile on `/` is wrong-place; it belongs on its per-stream route. Outside the recap, `/` may carry at most a single curated highlight per stream that links into the deep route. The recap itself is the sanctioned exception: its chapters are ranked *across* streams by one scoring pass (`recap-scoring.ts`), so several Steam-subject chapters in a row is the ranking's output, not a Steam feed. A per-stream list that bypasses that ranking is still wrong-place.
 
 **How to apply:** When scoping any new integration UI, default to its own route subtree. Only put something on `/` if it is explicitly cross-stream synthesis. If a working note says "Profile-page section placeholder" without naming the page, treat it as ambiguous and confirm the surface — don't assume the LoL profile page just because it has stacked `Profile*` components.
 
@@ -57,6 +57,8 @@ Note the limit of the guarantee: this is compile-time only. `class-validator` co
 ### Centralise domain invariants that must apply to every aggregation in a feature
 
 If a predicate or filter must hold for *every* stat computation, rollup, or display in a feature domain, define it as a named helper in `packages/shared/src/<domain>/` — never inline it at each call site. An inlined filter can be silently omitted when a new aggregation is added under time pressure; a named helper cannot.
+
+The LoL instance is the remake flag. Remakes are **persisted** as `remake: true` at ingest, detected by `isRemakeMatch()` in `packages/shared/src/lol/remake.ts` as `gameEndedInEarlySurrender && gameDuration < REMAKE_DURATION_S` (210 s). The duration bound is what separates a true remake from the Season 2 2026 inting-surrender mechanic, a mid-game surrender that happens after 3.5 min and does affect LP — so a shorter or longer threshold changes win rates, not just a label. Every stat (win rate, KDA, streaks, habits, champion aggregation, recent-form pips) filters remakes out; the match card shows "Remake" instead of Win/Loss.
 
 **How to apply:** When writing a new LoL aggregation, call `excludeRemakes()` from `@vyoh/shared` before computing stats — never re-derive `!m.remake` inline. For other feature domains, check whether must-hold preconditions exist and define a named helper in `packages/shared/src/<domain>/` the same way. If the helper doesn't exist yet, create it in the same change.
 

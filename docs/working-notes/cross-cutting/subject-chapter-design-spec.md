@@ -1,5 +1,7 @@
 # Subject-chapter design spec
 
+**Status:** Reference — living vocabulary for per-subject chapters (Ahri, Steam subjects, moment chapters). Read before scoping any new chapter or editorial surface; the plan itself lives in [self-portrait-recap-arc.md](./self-portrait-recap-arc.md).
+
 Crystallized from the R-2 Ahri chapter build. Read this before scoping or implementing any new per-subject chapter (R-3 Steam game subjects, future LoL champion chapters, moment chapters). Skim time: ~5 minutes. Implementation time saved: hours of re-discovering rejected paths.
 
 This is a **vocabulary doc**, not a plan. The "what we build next" lives in [self-portrait-recap-arc.md](./self-portrait-recap-arc.md). This file documents the *how*: which primitives are mature, which patterns work, which experiments we tried and rejected.

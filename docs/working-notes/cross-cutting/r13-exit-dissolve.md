@@ -1,5 +1,7 @@
 # R-13 beat exit-dissolve — three lanes & spike plans
 
+**Status:** Shipped 2026-06-04 — historical post-mortem. The resolution landed on Lane 3 (sticky restructure with IntersectionObserver-triggered Motion `animate()`), the lane this note originally rejected; the audit trail is under § Resolution v2. Read only when revisiting beat exit motion.
+
 Sub-note of [self-portrait-recap-arc.md](./self-portrait-recap-arc.md) R-13. Captures the research, the diagnosed root cause of the prior thrashing arc, and three concrete lanes for the next attempt with a recommendation.
 
 ## Status
