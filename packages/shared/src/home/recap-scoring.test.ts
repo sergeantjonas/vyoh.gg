@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { SteamLaunchDriftStats } from "./recap-chapter.ts";
 import type { RecapCandidate } from "./recap-scoring.ts";
 import {
   RECAP_HALF_LIFE_DAYS,
@@ -185,6 +186,58 @@ describe("selectChapters", () => {
       { floor: 0, steamSubjectCap: 1, lolMomentCap: 1 }
     );
     expect(result).toHaveLength(2);
+  });
+
+  it("passes launchDrift through to the steam-moment descriptor and nulls it when absent", () => {
+    const headline = {
+      apiName: "corvus_end",
+      displayName: "Corvus's End",
+      unlockedAt: "2026-08-05T00:00:00.000Z",
+      percentAtUnlock: 0.7,
+      percentNow: 28.4,
+    };
+    const launchDrift: SteamLaunchDriftStats = {
+      releaseDate: "2026-08-03",
+      observedFrom: "2026-08-04T00:00:00.000Z",
+      observedTo: "2026-08-31T00:00:00.000Z",
+      observationCount: 4,
+      bracketedUnlockCount: 3,
+      headline,
+      curve: [0.7, 6.2, 18.9, 28.4],
+      receipt: [headline],
+    };
+    const result = selectChapters(
+      [
+        {
+          kind: "steam-moment",
+          slug: "drift",
+          momentType: "LAUNCH_RARITY_DRIFT",
+          appid: 2001760,
+          name: "Beast of Reincarnation",
+          baseSignal: 15,
+          daysSince: 0,
+          launchDrift,
+        },
+        {
+          kind: "steam-moment",
+          slug: "cluster",
+          momentType: "ACHIEVEMENT_CLUSTER",
+          appid: 99,
+          name: "Game 99",
+          baseSignal: 14,
+          daysSince: 0,
+        },
+      ],
+      { floor: 0 }
+    );
+    expect(result.find((c) => c.slug === "drift")).toMatchObject({
+      kind: "steam-moment",
+      launchDrift,
+    });
+    expect(result.find((c) => c.slug === "cluster")).toMatchObject({
+      kind: "steam-moment",
+      launchDrift: null,
+    });
   });
 
   it("exposes RECAP_SCORE_FLOOR as the default floor", () => {

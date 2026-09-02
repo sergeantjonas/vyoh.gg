@@ -305,6 +305,23 @@ export type {
   SteamUnlock,
 } from "./steam/game-recap.ts";
 export {
+  LAUNCH_DRIFT_DELTA_CAP_PP,
+  LAUNCH_DRIFT_FLOOR_PERCENT,
+  LAUNCH_DRIFT_MIN_DELTA_PP,
+  LAUNCH_DRIFT_MIN_RECEIPT_ROWS,
+  LAUNCH_DRIFT_RECEIPT_CAP,
+  LAUNCH_DRIFT_SAMPLE_MAX_AGE_MS,
+  LAUNCH_DRIFT_SIGNAL_FACTOR,
+  deriveLaunchDrift,
+  launchDriftBaseSignal,
+  launchDriftDaysSince,
+} from "./steam/launch-drift.ts";
+export type {
+  LaunchDriftInput,
+  LaunchDriftObservation,
+  LaunchDriftUnlockRow,
+} from "./steam/launch-drift.ts";
+export {
   GENRE_TAG_RANK_LIMIT,
   PORTRAIT_GENRE_TAGS,
   isGenreTag,
@@ -434,6 +451,8 @@ export type {
   RecapChaptersResponse,
   SteamAchievementClusterStats,
   SteamFirstTimeStats,
+  SteamLaunchDriftStats,
+  SteamLaunchDriftUnlock,
   SteamMomentChapterDescriptor,
   SteamSubjectChapterDescriptor,
 } from "./home/recap-chapter.ts";

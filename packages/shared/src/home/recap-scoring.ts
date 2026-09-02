@@ -28,6 +28,7 @@ import type {
   RecapChapterFraming,
   SteamAchievementClusterStats,
   SteamFirstTimeStats,
+  SteamLaunchDriftStats,
   SteamMomentChapterDescriptor,
 } from "./recap-chapter.ts";
 
@@ -134,6 +135,7 @@ export type RecapCandidate =
       daysSince: number;
       firstTime?: SteamFirstTimeStats | null;
       cluster?: SteamAchievementClusterStats | null;
+      launchDrift?: SteamLaunchDriftStats | null;
       offMeta?: boolean;
       framing?: RecapChapterFraming | null;
     };
@@ -196,6 +198,7 @@ function toDescriptor({ candidate, score }: ScoredCandidate): RecapChapterDescri
     name: candidate.name,
     firstTime: candidate.firstTime ?? null,
     cluster: candidate.cluster ?? null,
+    launchDrift: candidate.launchDrift ?? null,
     framing,
   };
 }

@@ -255,16 +255,75 @@ export interface SteamAchievementClusterStats {
 }
 
 /**
+ * One owner unlock on a launch-window title, paired with the global rarity
+ * Steam reported at the most recent observation before the unlock and the
+ * value it carries today.
+ *
+ *   - `percentAtUnlock` — the raw reading Steam sent, never more than
+ *     `LAUNCH_DRIFT_SAMPLE_MAX_AGE_MS` older than `unlockedAt`. May be a
+ *     literal `0`: that is Steam's floor for any share below its one-decimal
+ *     resolution, not a measurement of zero, and every surface renders it as
+ *     `<0.1%`.
+ *   - `percentNow` — the current value from the rarity row.
+ *
+ * Unlocks with no qualifying earlier sample are absent from the receipt
+ * entirely rather than falling back to softer copy; see the known-limit
+ * section of docs/working-notes/steam/achievement-rarity-drift.md.
+ */
+export interface SteamLaunchDriftUnlock {
+  apiName: string;
+  displayName: string;
+  unlockedAt: string;
+  percentAtUnlock: number;
+  percentNow: number;
+}
+
+/**
+ * Launch-window rarity drift carried on a `LAUNCH_RARITY_DRIFT` Steam moment
+ * chapter — a game the owner played inside its release window, whose global
+ * unlock rates climbed under them as the rest of the player base caught up:
+ *
+ *   - `releaseDate` — `yyyy-mm-dd`, from the game's enrichment row.
+ *   - `observedFrom` / `observedTo` — ISO bounds of the rarity history the
+ *     curve is drawn from.
+ *   - `observationCount` — distinct observation timestamps for the game, not
+ *     history rows. It is the honest denominator for "N readings over D days".
+ *   - `bracketedUnlockCount` — owner unlocks that had a qualifying sample,
+ *     counted before the visibility filter, so the chapter can say how many
+ *     more were earned early than the receipt names.
+ *   - `headline` — `receipt[0]`, hoisted for the prose. Identity holds only
+ *     server-side; across the wire it is a separate object, so a consumer must
+ *     not filter the receipt tail by reference.
+ *   - `curve` — the headline achievement's global percentage at each
+ *     observation, ascending, at least two points.
+ *   - `receipt` — 3–5 unlocks ranked by relative gain, absolute gain as the
+ *     tiebreak. Fewer than three qualifying rows produces no stats at all.
+ *
+ * Null on other momentTypes.
+ */
+export interface SteamLaunchDriftStats {
+  releaseDate: string;
+  observedFrom: string;
+  observedTo: string;
+  observationCount: number;
+  bracketedUnlockCount: number;
+  headline: SteamLaunchDriftUnlock;
+  curve: number[];
+  receipt: SteamLaunchDriftUnlock[];
+}
+
+/**
  * Steam moment chapter — single-event narrative (achievement cluster, first
- * play of a tracked game). `FIRST_TIME_GAME` ships in R-7f;
- * `ACHIEVEMENT_CLUSTER` ships in R-7g. `name` is the Steam display name
- * carried inline so the chapter can render the masthead without a second
- * roundtrip through `useSteamGameRecap`.
+ * play of a tracked game, rarity drift on a launch-window title).
+ * `FIRST_TIME_GAME` ships in R-7f; `ACHIEVEMENT_CLUSTER` ships in R-7g;
+ * `LAUNCH_RARITY_DRIFT` ships in R3 of the achievement-rarity-drift arc.
+ * `name` is the Steam display name carried inline so the chapter can render
+ * the masthead without a second roundtrip through `useSteamGameRecap`.
  */
 export interface SteamMomentChapterDescriptor {
   kind: "steam-moment";
   slug: string;
-  momentType: "ACHIEVEMENT_CLUSTER" | "FIRST_TIME_GAME";
+  momentType: "ACHIEVEMENT_CLUSTER" | "FIRST_TIME_GAME" | "LAUNCH_RARITY_DRIFT";
   score: number;
   daysSince: number;
   ageBucket: RecapAgeBucket;
@@ -272,6 +331,7 @@ export interface SteamMomentChapterDescriptor {
   name: string;
   firstTime: SteamFirstTimeStats | null;
   cluster: SteamAchievementClusterStats | null;
+  launchDrift: SteamLaunchDriftStats | null;
   framing: RecapChapterFraming | null;
 }
 

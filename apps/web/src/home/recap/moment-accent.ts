@@ -13,8 +13,9 @@
 //   - Negative sequence beats (Cold streak) live in rose.
 //   - Peak / "this was your best" beats (RANK_UP, KDA_OUTLIER) share gold.
 //   - Curious / return / fresh beats land in violet/teal/sky.
-//   - Steam-side moments (FIRST_TIME_GAME, ACHIEVEMENT_CLUSTER) get their
-//     own family so they don't collide with LoL moment colours.
+//   - Steam-side moments (FIRST_TIME_GAME, ACHIEVEMENT_CLUSTER,
+//     LAUNCH_RARITY_DRIFT) get their own family so they don't collide with
+//     LoL moment colours.
 // Each class is a single Tailwind `text-*-300` so the contrast against the
 // blurred-splash backdrop matches the existing stroke-outlined accent
 // shape (paint-order + textShadow are applied at the call site).
@@ -62,5 +63,10 @@ export function momentAccentClass(momentType: MomentAccentType): string {
       return "text-teal-300";
     case "ACHIEVEMENT_CLUSTER":
       return "text-fuchsia-300";
+    // Cool and unused anywhere else on the page, so "you were early" sits
+    // apart from the fuchsia cluster and the teal first-time when a mixed
+    // aggregator stacks all three Steam moments.
+    case "LAUNCH_RARITY_DRIFT":
+      return "text-indigo-300";
   }
 }
