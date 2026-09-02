@@ -13,6 +13,7 @@ import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
 import type { RiotMatchTimeline } from "../riot/types";
 import { LolService } from "./lol.service";
+import { ownerParticipant, storedMatchOf } from "./match-projection";
 import { frameAtMinute, resolveParticipantId } from "./timeline-summary-mapper";
 
 // Trailing window for the per-champion landing-chapter recap. 365 days
@@ -297,16 +298,8 @@ export class LolChampionAnalyticsService {
 
     const map = new Map<number, ChampionRuneDiversityEntry>();
     for (const cache of caches) {
-      const detail = cache.detail as unknown as {
-        info: {
-          participants: Array<{
-            puuid: string;
-            win: boolean;
-            perks?: { styles?: Array<{ selections?: Array<{ perk?: number }> }> };
-          }>;
-        };
-      };
-      const me = detail.info.participants.find((p) => p.puuid === summoner.puuid);
+      const detail = storedMatchOf(cache.detail);
+      const me = ownerParticipant(detail, summoner.puuid);
       if (!me) continue;
       const keystoneId = me.perks?.styles?.[0]?.selections?.[0]?.perk ?? 0;
       if (keystoneId === 0) continue;

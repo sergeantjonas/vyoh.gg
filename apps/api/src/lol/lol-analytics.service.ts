@@ -23,6 +23,7 @@ import {
 import { OWNER_TIME_ZONE } from "@vyoh/shared";
 import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { ownerParticipant, storedMatchOf } from "./match-projection";
 
 const EMPTY_CALIBRATION: PregameCalibrationByQueue = {};
 
@@ -546,17 +547,8 @@ export class LolAnalyticsService {
     }
     const map = new Map<string, PairAcc>();
     for (const cache of caches) {
-      const detail = cache.detail as unknown as {
-        info: {
-          participants: Array<{
-            puuid: string;
-            championName: string;
-            teamId: number;
-            win: boolean;
-          }>;
-        };
-      };
-      const me = detail.info.participants.find((p) => p.puuid === summoner.puuid);
+      const detail = storedMatchOf(cache.detail);
+      const me = ownerParticipant(detail, summoner.puuid);
       if (!me) continue;
       const teammates = detail.info.participants.filter(
         (p) => p.teamId === me.teamId && p.puuid !== me.puuid
@@ -624,21 +616,8 @@ export class LolAnalyticsService {
       firstTower: { count: 0, wins: 0 },
     };
     for (const cache of caches) {
-      const detail = cache.detail as unknown as {
-        info: {
-          participants: Array<{
-            puuid: string;
-            win: boolean;
-            teamId: number;
-            firstBloodKill?: boolean;
-          }>;
-          teams: Array<{
-            teamId: number;
-            objectives?: { tower?: { first?: boolean } };
-          }>;
-        };
-      };
-      const me = detail.info.participants.find((p) => p.puuid === summoner.puuid);
+      const detail = storedMatchOf(cache.detail);
+      const me = ownerParticipant(detail, summoner.puuid);
       if (!me) continue;
       result.games += 1;
       if (me.firstBloodKill) {
@@ -646,7 +625,7 @@ export class LolAnalyticsService {
         if (me.win) result.firstBlood.wins += 1;
       }
       const myTeam = detail.info.teams.find((t) => t.teamId === me.teamId);
-      if (myTeam?.objectives?.tower?.first) {
+      if (myTeam?.objectives.tower.first) {
         result.firstTower.count += 1;
         if (me.win) result.firstTower.wins += 1;
       }
@@ -718,48 +697,23 @@ export class LolAnalyticsService {
       tally.games += 1;
     };
     for (const cache of caches) {
-      const detail = cache.detail as unknown as {
-        info: {
-          participants: Array<{
-            puuid: string;
-            teamId: number;
-            teamPosition?: string;
-            challenges?: {
-              dragonTakedowns?: number;
-              baronTakedowns?: number;
-              riftHeraldTakedowns?: number;
-            };
-          }>;
-          teams: Array<{
-            teamId: number;
-            objectives?: {
-              dragon?: { kills?: number };
-              baron?: { kills?: number };
-              riftHerald?: { kills?: number };
-            };
-          }>;
-        };
-      };
-      const me = detail.info.participants.find((p) => p.puuid === summoner.puuid);
+      const detail = storedMatchOf(cache.detail);
+      const me = ownerParticipant(detail, summoner.puuid);
       if (!me) continue;
       if (!me.teamPosition) continue; // SR-only; ARAM/Arena have no neutral objectives
       const myTeam = detail.info.teams.find((t) => t.teamId === me.teamId);
-      if (!myTeam?.objectives) continue;
+      if (!myTeam) continue;
       result.games += 1;
       accrue(
         result.dragons,
         me.challenges?.dragonTakedowns,
-        myTeam.objectives.dragon?.kills
+        myTeam.objectives.dragon.kills
       );
-      accrue(
-        result.barons,
-        me.challenges?.baronTakedowns,
-        myTeam.objectives.baron?.kills
-      );
+      accrue(result.barons, me.challenges?.baronTakedowns, myTeam.objectives.baron.kills);
       accrue(
         result.heralds,
         me.challenges?.riftHeraldTakedowns,
-        myTeam.objectives.riftHerald?.kills
+        myTeam.objectives.riftHerald.kills
       );
     }
 
@@ -819,23 +773,8 @@ export class LolAnalyticsService {
     const result = makeEmpty();
     const champMap = new Map<string, { games: number; wins: number }>();
     for (const cache of caches) {
-      const detail = cache.detail as unknown as {
-        info: {
-          participants: Array<{
-            puuid: string;
-            win: boolean;
-            championName: string;
-            kills: number;
-            deaths: number;
-            assists: number;
-            totalDamageTaken?: number;
-            damageSelfMitigated?: number;
-            totalDamageDealtToChampions?: number;
-            challenges?: { effectiveHealAndShielding?: number };
-          }>;
-        };
-      };
-      const me = detail.info.participants.find((p) => p.puuid === summoner.puuid);
+      const detail = storedMatchOf(cache.detail);
+      const me = ownerParticipant(detail, summoner.puuid);
       if (!me) continue;
       result.games += 1;
       if (me.win) result.wins += 1;
@@ -843,9 +782,9 @@ export class LolAnalyticsService {
       result.deaths += me.deaths;
       result.assists += me.assists;
       result.healAndShield += me.challenges?.effectiveHealAndShielding ?? 0;
-      result.damageTaken += me.totalDamageTaken ?? 0;
-      result.selfMitigated += me.damageSelfMitigated ?? 0;
-      result.damageToChampions += me.totalDamageDealtToChampions ?? 0;
+      result.damageTaken += me.totalDamageTaken;
+      result.selfMitigated += me.damageSelfMitigated;
+      result.damageToChampions += me.totalDamageDealtToChampions;
       const prev = champMap.get(me.championName) ?? { games: 0, wins: 0 };
       champMap.set(me.championName, {
         games: prev.games + 1,
@@ -906,17 +845,8 @@ export class LolAnalyticsService {
       bottomTwo: { games: 0, wins: 0 },
     };
     for (const cache of caches) {
-      const detail = cache.detail as unknown as {
-        info: {
-          participants: Array<{
-            puuid: string;
-            win: boolean;
-            teamId: number;
-            totalDamageDealtToChampions?: number;
-          }>;
-        };
-      };
-      const me = detail.info.participants.find((p) => p.puuid === summoner.puuid);
+      const detail = storedMatchOf(cache.detail);
+      const me = ownerParticipant(detail, summoner.puuid);
       if (!me) continue;
       const team = detail.info.participants.filter((p) => p.teamId === me.teamId);
       if (team.length < 4) continue; // skip Arena subteams / malformed rows
@@ -994,19 +924,8 @@ export class LolAnalyticsService {
     const counts = { damage: 0, vision: 0, cs: 0 };
     let sampleSize = 0;
     for (const cache of caches) {
-      const detail = cache.detail as unknown as {
-        info: {
-          participants: Array<{
-            puuid: string;
-            teamId: number;
-            totalDamageDealtToChampions?: number;
-            visionScore?: number;
-            totalMinionsKilled?: number;
-            neutralMinionsKilled?: number;
-          }>;
-        };
-      };
-      const me = detail.info.participants.find((p) => p.puuid === summoner.puuid);
+      const detail = storedMatchOf(cache.detail);
+      const me = ownerParticipant(detail, summoner.puuid);
       if (!me) continue;
       const team = detail.info.participants.filter((p) => p.teamId === me.teamId);
       if (team.length < 4) continue; // skip Arena subteams / malformed rows

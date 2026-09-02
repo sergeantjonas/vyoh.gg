@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { RiotMatch, RiotMatchParticipant } from "../riot/types";
-import { projectMatchForStorage } from "./match-projection";
+import {
+  ownerParticipant,
+  projectMatchForStorage,
+  storedMatchOf,
+} from "./match-projection";
 
 function buildParticipant(
   overrides: Partial<RiotMatchParticipant>
@@ -224,5 +228,41 @@ describe("projectMatchForStorage", () => {
     for (const p of stored.info.participants) {
       expect(p.isOwner).toBe(true);
     }
+  });
+});
+
+describe("ownerParticipant", () => {
+  it("returns the owner's full row from a projected match", () => {
+    const stored = projectMatchForStorage(buildMatch(), new Set(["puuid-owner"]));
+    const me = ownerParticipant(storedMatchOf(stored), "puuid-owner");
+    expect(me?.puuid).toBe("puuid-owner");
+    // Owner-only fields survive the projection and are typed as present.
+    expect(me?.firstBloodKill).toBe(false);
+    expect(me?.perks.styles).toHaveLength(2);
+  });
+
+  it("returns undefined when the puuid is not in the match", () => {
+    const stored = projectMatchForStorage(buildMatch(), new Set(["puuid-owner"]));
+    expect(ownerParticipant(storedMatchOf(stored), "puuid-stranger")).toBeUndefined();
+  });
+
+  it("resolves a row stored before the isOwner flag existed", () => {
+    // Pre-projection cache rows are raw Riot JSON: full participants, no flag.
+    const raw = buildMatch({
+      participants: [
+        buildParticipant({ puuid: "puuid-owner", totalDamageTaken: 18_400 }),
+        buildParticipant({ puuid: "puuid-other", championName: "Lux" }),
+      ],
+    });
+    const me = ownerParticipant(storedMatchOf(raw), "puuid-owner");
+    expect(me?.puuid).toBe("puuid-owner");
+    expect(me?.totalDamageTaken).toBe(18_400);
+  });
+
+  it("refuses a row the projection stored lean, even for a roster puuid", () => {
+    // A match synced for account A holds account B as a lean teammate; reading
+    // B's owner-only fields off it would be the bug this accessor exists to stop.
+    const stored = projectMatchForStorage(buildMatch(), new Set(["puuid-owner"]));
+    expect(ownerParticipant(storedMatchOf(stored), "puuid-other")).toBeUndefined();
   });
 });

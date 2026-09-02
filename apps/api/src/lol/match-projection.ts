@@ -1,4 +1,33 @@
-import type { RiotMatch, RiotMatchParticipantOther, StoredMatch } from "../riot/types";
+import type {
+  RiotMatch,
+  RiotMatchParticipantOther,
+  RiotMatchParticipantOwner,
+  StoredMatch,
+} from "../riot/types";
+
+// The MatchDetailCache JSON column holds exactly what projectMatchForStorage
+// wrote, so this is the one place aggregations trust the Prisma `Json` to be
+// a StoredMatch. They read through it instead of re-declaring the participant
+// shape inline — an inline shape can list a field the projection strips from
+// teammates and type-check perfectly while reading `undefined`.
+export function storedMatchOf(detail: unknown): StoredMatch {
+  return detail as StoredMatch;
+}
+
+// The participant a row was projected for is stored in full, so it carries
+// every Riot field; every other row is the lean RiotMatchParticipantOther.
+// Matches on puuid, then rejects a row explicitly flagged lean: the flag is
+// absent on rows written before the projection existed (also full), and a
+// roster account that was *not* this row's owner is lean and must not be read
+// as if it were.
+export function ownerParticipant(
+  match: StoredMatch,
+  puuid: string
+): RiotMatchParticipantOwner | undefined {
+  const row = match.info.participants.find((p) => p.puuid === puuid);
+  if (row === undefined || row.isOwner === false) return undefined;
+  return row as RiotMatchParticipantOwner;
+}
 
 export function projectMatchForStorage(
   raw: RiotMatch,
