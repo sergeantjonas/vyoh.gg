@@ -93,6 +93,21 @@ export function formatTimeAgo(iso: string): string {
   return `${days}d ago`;
 }
 
+// Suffix-less sibling of formatTimeAgo for chip positions that already carry
+// their own framing ("· 5m", "unlocked 3h"). Clamps to at least "1m" — the
+// recap chips sit next to a verb, where "0m" reads as a glitch — and treats a
+// future or unparsable timestamp as "just now" rather than a negative count.
+export function formatElapsedCompact(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return "just now";
+  const minutes = Math.floor(ms / 60_000);
+  if (minutes < 60) return `${Math.max(1, minutes)}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}d`;
+}
+
 // Intl.RelativeTimeFormat-backed relative timestamp covering the full
 // minute → year chain ("5 minutes ago", "yesterday", "3 months ago",
 // "2 years ago"). Distinct from formatTimeAgo, which is the compact

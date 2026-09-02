@@ -1,5 +1,6 @@
 export {
   formatDuration,
+  formatElapsedCompact,
   formatGameTime,
   formatGold,
   formatHoursMinutes,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatDuration,
+  formatElapsedCompact,
   formatGameTime,
   formatGold,
   formatHoursMinutes,
@@ -197,6 +198,28 @@ describe("formatTimeAgo", () => {
 
   it("renders multi-day diffs in days", () => {
     expect(formatTimeAgo(ago(2 * 24 * 60 * 60_000))).toBe("2d ago");
+  });
+});
+
+describe("formatElapsedCompact", () => {
+  const ago = (ms: number) => new Date(Date.now() - ms).toISOString();
+
+  it("clamps sub-minute diffs to 1m instead of 0m", () => {
+    expect(formatElapsedCompact(ago(0))).toBe("1m");
+    expect(formatElapsedCompact(ago(30_000))).toBe("1m");
+  });
+
+  it("renders minutes, hours and days without a suffix", () => {
+    expect(formatElapsedCompact(ago(5 * 60_000))).toBe("5m");
+    expect(formatElapsedCompact(ago(3 * 60 * 60_000))).toBe("3h");
+    expect(formatElapsedCompact(ago(2 * 24 * 60 * 60_000))).toBe("2d");
+  });
+
+  it("treats future and unparsable timestamps as just now", () => {
+    expect(formatElapsedCompact(new Date(Date.now() + 60_000).toISOString())).toBe(
+      "just now"
+    );
+    expect(formatElapsedCompact("not a date")).toBe("just now");
   });
 });
 

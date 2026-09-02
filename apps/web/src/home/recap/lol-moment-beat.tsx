@@ -112,7 +112,7 @@ function matchStatsReceipt({ matchStats }: { matchStats: LolMomentMatchStats }) 
         className="text-sm tabular-nums text-foreground/80"
         style={{ textShadow: SHADOW_BODY }}
       >
-        {formatDuration(matchStats.durationSec)}
+        {formatWholeMinutes(matchStats.durationSec)}
       </span>
     </div>
   );
@@ -573,7 +573,9 @@ function formatDaysSince(daysSince: number): string {
   return `${Math.round(daysSince / 30)} months ago`;
 }
 
-function formatDuration(durationSec: number): string {
+// Whole-minute match length for the beat chip; the shared formatDuration
+// carries seconds, which is more precision than the chip has room for.
+function formatWholeMinutes(durationSec: number): string {
   const minutes = Math.max(1, Math.round(durationSec / 60));
   return `${minutes}m`;
 }

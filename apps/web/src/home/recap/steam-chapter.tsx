@@ -7,6 +7,7 @@ import type {
   SteamUnlock,
 } from "@vyoh/shared";
 import {
+  formatElapsedCompact,
   formatPlaytime,
   formatReleaseDateChip,
   verdictParagraphSteam,
@@ -16,6 +17,7 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 
 import { CountUp } from "@/components/count-up";
+import { firstSentence } from "@/home/_shared/first-sentence";
 import { currentBrusselsHour, paletteForHour } from "@/home/ambient-hero";
 import { STEAM_FEATURED_APPID } from "@/home/landing-config";
 import { formatRarityPercentEditorial } from "@/steam/_shared/rarity-percent";
@@ -64,33 +66,6 @@ const EYEBROW_FOR_BUCKET: Record<NonNullable<SteamGameRecap["ageBucket"]>, strin
   season: "This season on",
   year: "Earlier this year",
 };
-
-function formatRelative(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime();
-  if (!Number.isFinite(ms) || ms < 0) return "just now";
-  const minutes = Math.floor(ms / 60_000);
-  if (minutes < 60) return `${Math.max(1, minutes)}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  return `${days}d`;
-}
-
-/**
- * Extract the editorial subtitle from a Steam short description. The full
- * blurb is multiple sentences separated by `\r\n\r\n` paragraphs — we want
- * just the first sentence's worth so the masthead doesn't drown under a
- * marketing paragraph. Falls back to the empty string when nothing parses.
- */
-function firstSentence(short: string | null): string {
-  if (!short) return "";
-  // Take everything up to the first paragraph break.
-  const para = short.split(/\r?\n\r?\n/)[0] ?? short;
-  // Then up to the first sentence terminator. Period is fine; "!" and "?"
-  // are rare on Steam taglines but cheap to support.
-  const match = para.match(/^(.+?[.!?])(\s|$)/);
-  return (match?.[1] ?? para).trim();
-}
 
 /**
  * Standout-unlock receipt — the chapter's editorial "this is the moment that
@@ -225,7 +200,7 @@ function RecentUnlockRow({
             </span>
           </>
         ) : null}
-        <span>{formatRelative(unlock.unlockedAt)}</span>
+        <span>{formatElapsedCompact(unlock.unlockedAt)}</span>
       </span>
     </Link>
   );
@@ -657,7 +632,7 @@ export function SteamChapter({
   // empty-state copy line from verdictParagraphSteam handles the
   // never-played edge structurally without a separate unmount path.
   const name = framing?.title ?? recap?.name ?? "";
-  const tagline = useMemo(() => firstSentence(recap?.shortDescription ?? null), [recap]);
+  const tagline = useMemo(() => firstSentence(recap?.shortDescription), [recap]);
   const eyebrow =
     framing?.eyebrow ??
     (recap?.ageBucket ? EYEBROW_FOR_BUCKET[recap.ageBucket] : "Steam");

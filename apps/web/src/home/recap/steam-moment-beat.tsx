@@ -11,6 +11,7 @@ import type { ReactNode } from "react";
 import { useMemo } from "react";
 
 import { Sparkline } from "@/components/ui/sparkline";
+import { firstSentence } from "@/home/_shared/first-sentence";
 import { formatRarityPercentEditorial } from "@/steam/_shared/rarity-percent";
 import { steamLibraryLogoUrl } from "@/steam/_shared/steam-image";
 import { useSteamGameRecap } from "@/steam/use-steam-game-recap";
@@ -358,21 +359,6 @@ function formatDaysSince(daysSince: number): string {
   if (daysSince < 14) return "last week";
   if (daysSince < 30) return `${Math.round(daysSince / 7)} weeks ago`;
   return `${Math.round(daysSince / 30)} months ago`;
-}
-
-/**
- * Extract the editorial subtitle from a Steam short description. The full
- * blurb is multiple sentences separated by `\r\n\r\n` paragraphs — we want
- * just the first sentence so the masthead doesn't drown under a marketing
- * paragraph. Mirrors the helper in `steam-chapter.tsx`; deliberately
- * duplicated to keep the moment chapter independent of the heavier
- * subject-chapter module.
- */
-function firstSentence(short: string | null | undefined): string {
-  if (!short) return "";
-  const para = short.split(/\r?\n\r?\n/)[0] ?? short;
-  const match = para.match(/^(.+?[.!?])(\s|$)/);
-  return (match?.[1] ?? para).trim();
 }
 
 export interface SteamMomentBeatProps {

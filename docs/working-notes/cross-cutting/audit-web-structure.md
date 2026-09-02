@@ -1,17 +1,19 @@
 # Web structure findings — 2026-06-11 audit
 
-**Status:** Active — W5 shipped with the TanStack Start migration (2026-07-27: `queryOptions` factories in 15 hooks, `ensureQueryData` in 11 route loaders). W1–W3 remain quick wins (≤1 sub-session each), tracked under Adjacent maintenance in [open-work.md](../open-work.md); W4 is parked until chapter #3 is scoped ([parked.md](../parked.md)). Re-verified 2026-09-01: `formatRelative` still has 3 copies, `firstSentence` 2, the sheen recipe is still inline at its 3 sites, `match-detail-recap-tab.tsx` is 908 lines.
+**Status:** Active — W5 shipped with the TanStack Start migration (2026-07-27: `queryOptions` factories in 15 hooks, `ensureQueryData` in 11 route loaders). W1 shipped 2026-09-02 (see § W1). W2–W3 remain quick wins (≤1 sub-session each), tracked under Adjacent maintenance in [open-work.md](../open-work.md); W4 is parked until chapter #3 is scoped ([parked.md](../parked.md)). Re-verified 2026-09-01: the sheen recipe is still inline at its 3 sites, `match-detail-recap-tab.tsx` is 908 lines.
 
 Parent index: [audit-2026-06-11.md](audit-2026-06-11.md). Baseline verdict: `apps/web` is structurally healthy — clean lol/steam/home domain boundaries, two-tier `_shared/` strategy working, no circular imports, consistent `@/` imports, zero TODO debt. The items below are the residue.
 
 ## W1 — Dedupe `home/` utility functions
+
+**Shipped 2026-09-02.** The two chapter copies of `formatRelative` were identical and became `formatElapsedCompact` in `packages/shared/src/format.ts` (the compact, suffix-less sibling of `formatTimeAgo`); the footer-chips variant was `formatTimeAgo` minus a months rung, so it now calls `formatTimeAgo` and a build older than 30 days reads "45d ago" instead of "1mo ago" (an unparsable build time would read "NaNd ago" rather than "just now", unreachable since `vite.config.ts` always defines a valid ISO). `firstSentence` moved to `apps/web/src/home/_shared/first-sentence.ts` with its own test — web-only, so the `home/_shared/` bucket below is now real. The local `formatDuration` in `lol-moment-beat.tsx`, which shadowed the shared export with different output, is renamed `formatWholeMinutes`.
 
 Verified duplication (2026-06-11, `ugrep -l`):
 
 - `formatRelative()` — 3 copies: [ahri-chapter.tsx](../../../apps/web/src/home/recap/ahri-chapter.tsx), [steam-chapter.tsx](../../../apps/web/src/home/recap/steam-chapter.tsx), [footer-chips.tsx](../../../apps/web/src/home/conclusion/footer-chips.tsx).
 - `firstSentence()` — 2 copies: [steam-chapter.tsx](../../../apps/web/src/home/recap/steam-chapter.tsx), [steam-moment-beat.tsx](../../../apps/web/src/home/recap/steam-moment-beat.tsx).
 
-Per the [cross-package utilities convention](../../repo-conventions.md#cross-package-utilities-belong-in-packagessharedsrc), duplication is a defect, not style. These are web-only → extract to `apps/web/src/home/_shared/` (create the bucket; `home/` is the only domain without one). Move the existing tests with them. If the api ever needs `formatRelative`, promote to `@vyoh/shared` at that point, not pre-emptively.
+The text below is the original scoping; the `formatRelative` copies went to shared after all, since `formatTimeAgo` already lived there. Per the [cross-package utilities convention](../../repo-conventions.md#cross-package-utilities-belong-in-packagessharedsrc), duplication is a defect, not style. These are web-only → extract to `apps/web/src/home/_shared/` (create the bucket; `home/` is the only domain without one). Move the existing tests with them. If the api ever needs `formatRelative`, promote to `@vyoh/shared` at that point, not pre-emptively.
 
 ## W2 — Extract the sheen-overlay recipe
 

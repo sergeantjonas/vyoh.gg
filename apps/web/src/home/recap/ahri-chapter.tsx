@@ -15,6 +15,7 @@ import { Link } from "@tanstack/react-router";
 import {
   type ChampionRecap,
   type LolAccount,
+  formatElapsedCompact,
   formatKda,
   verdictParagraph,
 } from "@vyoh/shared";
@@ -54,17 +55,6 @@ import {
   STROKE_ACCENT,
   STROKE_LABEL,
 } from "./chapter-shadows";
-
-function formatRelative(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime();
-  if (!Number.isFinite(ms) || ms < 0) return "just now";
-  const minutes = Math.floor(ms / 60_000);
-  if (minutes < 60) return `${Math.max(1, minutes)}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  return `${days}d`;
-}
 
 /**
  * Empty-recap shape — the deriver's zero-state, hand-authored so the verdict
@@ -846,7 +836,7 @@ export function AhriChapter({ account }: { account: LolAccount }) {
                           <span aria-hidden="true" className="text-foreground/40">
                             ·
                           </span>
-                          <span>{formatRelative(m.playedAt)}</span>
+                          <span>{formatElapsedCompact(m.playedAt)}</span>
                         </span>
                       </Link>
                     </ChapterReveal>

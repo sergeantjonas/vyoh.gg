@@ -157,7 +157,7 @@ beforeEach(() => {
     isPending: false,
     isError: false,
   } as unknown as ReturnType<typeof useSteamGameRecap>);
-  // Date math in formatRelative / contextClause relies on Date.now(), so
+  // Date math in formatElapsedCompact / contextClause relies on Date.now(), so
   // pin the clock for deterministic relative-time labels.
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
