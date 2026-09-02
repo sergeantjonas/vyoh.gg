@@ -15,6 +15,10 @@ vyoh.gg/
     └── shared/   # cross-cutting types/DTOs imported by both apps
 ```
 
+## Last captured status — 2026-09-02
+
+**State-of-the-app review, architecture-scoped** ([state-review-2026-09-02.md](cross-cutting/state-review-2026-09-02.md)) — Phases 3/4/5 on `main` @ `2516c6b8`, the ones the 09-01 pass skipped, plus a delta of 0–2 and 6. Verdict: the structural claims hold (acyclic module graph, no cross-stream imports at any layer, one rate-limited Riot call site, every cron guarded, every interactive component tested). One blocking item — four `fast-uri` advisories that post-date the morning's green CI run — and a short list of convention drift concentrated in the champion detail route, two NUL bytes that make `patch.service.ts` a binary file to git, and six inline re-typings of the lean match-detail projection. Three chunks recommended.
+
 ## Last captured status — 2026-09-01
 
 **State-of-the-app review, docs-scoped** ([state-review-2026-09-01.md](cross-cutting/state-review-2026-09-01.md)) — Phases 0/1/2/6 on `main` @ `045217d6`. Verdict: the code is healthy (every validation command green, zero markers or skipped tests, coverage above every threshold), launch is blocked on buying the VPS and nothing else, and the evidence layer had fallen a month behind — this file stopped at 08-01 while 142 commits landed. The review's first chunk shipped as the commit that adds the note: the ship log below is backfilled, the two June audit notes are reconciled (W5 shipped under Start, A2 under owner-auth), V7 is marked unblocked, six stale Active labels became Reference/Shipped, and three orphan notes were archived, parked or indexed. Same day, `045217d6` fixed the Steam achievement-schema poller throwing on rows without `localized_desc`.
