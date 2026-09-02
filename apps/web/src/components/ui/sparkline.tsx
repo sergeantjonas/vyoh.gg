@@ -9,8 +9,20 @@ interface SparklineProps extends Omit<React.ComponentProps<"svg">, "stroke"> {
   height?: number;
   stroke?: string;
   strokeWidth?: number;
+  /**
+   * Colour of a wider line painted *under* the stroke, for a curve that sits
+   * on artwork rather than on a tile. An accent-tinted mark on a splash hides
+   * by hue collision, not by brightness, so a blur alone won't save it — the
+   * same reason accent glyphs pair `paint-order: stroke` with a text-stroke.
+   * Off by default: on a tile it would only muddy the line.
+   */
+  outline?: string;
   tooltip?: React.ReactNode;
 }
+
+/** Wide enough that the outline reads as an edge on both sides of a 1–2px
+ *  stroke without thickening the line's apparent weight. */
+const OUTLINE_EXTRA_WIDTH = 3;
 
 const SPARKLINE_TOOLTIP_CONTENT_CLASS = cn(
   TOOLTIP_CONTENT_COMPACT,
@@ -23,6 +35,7 @@ function Sparkline({
   height = 12,
   stroke = "var(--theme-strong)",
   strokeWidth = 1,
+  outline,
   tooltip,
   className,
   ...rest
@@ -51,6 +64,17 @@ function Sparkline({
       {...rest}
     >
       {label ? <title>{label}</title> : null}
+      {outline ? (
+        <polyline
+          points={points}
+          fill="none"
+          stroke={outline}
+          strokeWidth={strokeWidth + OUTLINE_EXTRA_WIDTH}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      ) : null}
       <polyline
         points={points}
         fill="none"

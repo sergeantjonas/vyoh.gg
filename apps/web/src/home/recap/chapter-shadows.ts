@@ -32,6 +32,15 @@ export const SHADOW_LABEL =
  */
 export const SHADOW_ACCENT = "0 1px 2px rgba(0,0,0,0.65), 0 0 6px rgba(0,0,0,0.55)";
 export const STROKE_ACCENT = "1.25px rgba(0,0,0,0.92)";
+/**
+ * The same outline role for a drawn mark rather than a glyph — an accent-tinted
+ * curve on a splash disappears for the identical hue-collision reason, and a
+ * shadow tier cannot help a 2px line. Pair with `Sparkline`'s `outline` prop,
+ * which paints it underneath the stroke exactly as `paint-order: stroke` does
+ * for text. Matches `STROKE_ACCENT`'s alpha so the two treatments agree when a
+ * curve sits beside accent copy.
+ */
+export const OUTLINE_ACCENT_CURVE = "rgba(0,0,0,0.92)";
 
 /**
  * Body/label-tier text-stroke for legibility on bright splashes where the

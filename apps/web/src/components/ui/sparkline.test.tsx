@@ -135,4 +135,23 @@ describe("Sparkline", () => {
     );
     expect((await axe(tipped)).violations).toHaveLength(0);
   });
+  it("paints no under-stroke unless an outline colour is given", () => {
+    const { container } = withProvider(<Sparkline data={[1, 5, 3]} />);
+    expect(container.querySelectorAll("polyline")).toHaveLength(1);
+  });
+
+  it("paints the outline under the stroke, wider, on the same path", () => {
+    const { container } = withProvider(
+      <Sparkline data={[1, 5, 3]} outline="rgba(0,0,0,0.92)" strokeWidth={2} />
+    );
+    const lines = container.querySelectorAll("polyline");
+    expect(lines).toHaveLength(2);
+    const [under, over] = Array.from(lines);
+    // Document order is paint order in SVG, so the outline has to come first.
+    expect(under?.getAttribute("stroke")).toBe("rgba(0,0,0,0.92)");
+    expect(Number(under?.getAttribute("stroke-width"))).toBeGreaterThan(
+      Number(over?.getAttribute("stroke-width"))
+    );
+    expect(under?.getAttribute("points")).toBe(over?.getAttribute("points"));
+  });
 });

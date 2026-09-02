@@ -18,6 +18,7 @@ import { useSteamGameRecap } from "@/steam/use-steam-game-recap";
 import { ChapterDetail, ChapterOpener } from "./chapter-bands";
 import { ChapterReveal } from "./chapter-reveal";
 import {
+  OUTLINE_ACCENT_CURVE,
   SHADOW_ACCENT,
   SHADOW_BODY,
   SHADOW_LABEL,
@@ -768,14 +769,19 @@ export function SteamMomentBeat({
                     : `${driftSpanDays(launchDrift)} days`}
                 </span>
               </div>
+              {/* Sits on the splash rather than on a tile, so the curve gets
+                  the same outline treatment the accent copy above it does —
+                  and a touch more weight than the on-tile sparklines, which
+                  never have to survive artwork behind them. */}
               <Sparkline
                 aria-label={driftCurveLabel(launchDrift)}
                 className={`${accentClass} h-12 w-60 max-w-full`}
                 data={launchDrift.curve}
                 height={48}
+                outline={OUTLINE_ACCENT_CURVE}
                 role="img"
                 stroke="currentColor"
-                strokeWidth={1.5}
+                strokeWidth={2}
                 width={240}
               />
               <p

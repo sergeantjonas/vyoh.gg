@@ -504,6 +504,12 @@ describe("SteamMomentBeat (LAUNCH_RARITY_DRIFT)", () => {
     expect(curve?.getAttribute("aria-label")).toContain("Corvus's End");
   });
 
+  it("outlines the curve so it survives the splash behind it", () => {
+    const { container } = render(<SteamMomentBeat {...driftProps} />);
+    const lines = container.querySelectorAll('svg[data-slot="sparkline"] polyline');
+    expect(lines).toHaveLength(2);
+  });
+
   it("renders a TrendingUp lucide icon as the leadingVisual", () => {
     const { container } = render(<SteamMomentBeat {...driftProps} />);
     expect(container.querySelector(".lucide-trending-up")).toBeTruthy();

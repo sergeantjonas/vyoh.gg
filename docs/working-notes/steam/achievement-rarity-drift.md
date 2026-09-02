@@ -341,7 +341,15 @@ Both findings above, closed together, because they are one problem: the beat and
 
 The live descriptor: release 2026-08-03, 12 observations over 28 days, 13 bracketed unlocks, headline `Closest Companion` 3.2% → 38.4%, receipt of five ranked `Closest Companion` (12×), `Repose for the Departed` (6.4×), `Lacerta's End` (6.3×), `Busy Paws` (6.0×), `Giant Tree in Bloom` (2.4×), and eight more earned early.
 
-**For the visual review:** the real curve is `[3.2, 29.5, 31.4, … 38.4]` — the poller appends only on movement and there was a gap after the first reading, so the sparkline reads as one steep first segment into a long plateau rather than a smooth ramp. If that shape reads as broken rather than as "it moved immediately and then settled", the fix is a curve concern, not a data one.
+**Visual review done 2026-09-02 (Chrome), one defect found and fixed.** Everything textual read correctly first time — eyebrow, prose, endpoint row, "12 readings over 28 days", the five-row proof line and "and 8 more earned early". The curve did not: a 1.5px accent stroke with **no legibility treatment at all** vanished into the Beast splash, and the artwork's sword crosses it at nearly the same angle, so it read as a stray scratch. Every sibling element in that receipt carries a `SHADOW_*` tier; the curve was the one mark shipped bare.
+
+The fix follows what [chapter-shadows.ts](../../../apps/web/src/home/recap/chapter-shadows.ts) already says about accent-tinted glyphs — they hide by *hue* collision, so they need a true outline painted under the fill, not a blur. `Sparkline` gained an opt-in `outline` prop that paints a wider line under the stroke on the same path (the `paint-order: stroke` analogue for a drawn mark), plus `OUTLINE_ACCENT_CURVE` at `STROKE_ACCENT`'s alpha so the two treatments agree. Default is off, so the seven on-tile sparklines are untouched.
+
+A CSS `filter: drop-shadow(…)` chain would have been the obvious reach and was rejected: `filter` is layer-promoting, and [repo-conventions-web.md](../../repo-conventions-web.md) requires re-probing the `recap` paint budget for that. A second `<polyline>` is pure paint on an existing layer, so no re-probe is owed.
+
+Two deviations from decision 9's pinned numbers: `strokeWidth` 1.5 → **2**, because a mark on artwork needs more weight than the on-tile precedent it was copied from. Width stays **240** — it was not the problem. The curve shape is unchanged and is honest: `[3.2, 29.5, 31.4, … 38.4]` is one steep segment into a plateau because the poller appends only on movement and there was a gap after the first reading. It reads as "it moved immediately, then settled", which is what happened.
+
+**Still outstanding: the Firefox pass.**
 
 #### Chunk 3 — web beat
 
