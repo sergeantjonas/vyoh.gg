@@ -1,11 +1,17 @@
 import { Injectable } from "@nestjs/common";
 import {
+  type LaunchDriftObservation,
+  type LaunchDriftUnlockRow,
   type RecapCandidate,
   type SteamCurationSets,
+  deriveLaunchDrift,
   excludeUnfeaturedGames,
+  launchDriftBaseSignal,
+  launchDriftDaysSince,
 } from "@vyoh/shared";
 
 import { PrismaService } from "../prisma/prisma.service";
+import { LAUNCH_WINDOW_MS } from "../steam/global-rarity.poller";
 
 /** Recency window for the FIRST_TIME_GAME detector. A new addition to the
  *  library that the owner has actually started playing within the last 30d
@@ -73,6 +79,17 @@ const CLUSTER_NAME_RECEIPT_CAP = 5;
 const CLUSTER_SIGNAL_FACTOR = 4;
 const CLUSTER_UNLOCK_CAP = 10;
 
+/** Query bound for the LAUNCH_RARITY_DRIFT detector, meant only to stop a
+ *  library with years of enrichment loading every row; eligibility is decided
+ *  by the in-window check below. The two coincide only because rarity history
+ *  starts at the 2026-08-07 seed, so no game can yet have a first observation
+ *  more than a few months old — meaning nothing this bound cuts could have
+ *  qualified anyway. That stops being true as the seed recedes: a game
+ *  released beyond the bound whose history happens to start inside its own
+ *  launch window would be dropped here rather than judged below. Widen the
+ *  tail, or key it off the oldest history row, before the seed is a year old. */
+const LAUNCH_DRIFT_ENRICHMENT_TAIL_MS = 120 * 24 * 60 * 60 * 1000;
+
 /**
  * Detectors that emit `steam-moment` candidates for the landing-page recap
  * stream. Shape mirrors `LolMomentsService` so the controller assembly and
@@ -87,11 +104,12 @@ export class SteamMomentsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async detectAll(now: Date, curation: SteamCurationSets): Promise<RecapCandidate[]> {
-    const [firstTime, clusters] = await Promise.all([
+    const [firstTime, clusters, launchDrift] = await Promise.all([
       this.detectFirstTimeGames(now, curation),
       this.detectAchievementClusters(now, curation),
+      this.detectLaunchRarityDrift(now, curation),
     ]);
-    return [...firstTime, ...clusters];
+    return [...firstTime, ...clusters, ...launchDrift];
   }
 
   /**
@@ -392,6 +410,130 @@ export class SteamMomentsService {
           capUnlockedAt: endRow.unlockedAt.toISOString(),
           unlockNames,
         },
+      });
+    }
+
+    return candidates;
+  }
+
+  /**
+   * Detect a launch-window rarity-drift moment — a game the owner played in
+   * its first weeks, whose global unlock rates climbed under them as the rest
+   * of the player base caught up. The steps:
+   *
+   *   1. Enrichment rows with a release date recent enough that a first
+   *      observation inside the launch window is still possible.
+   *   2. All rarity history and all owner unlocks for those appids, in two
+   *      queries — history has no relation to unlocks, and the deriver wants
+   *      both lists whole.
+   *   3. Filter non-games (`appType !== 0/null`), removed games, and anything
+   *      the owner curated out of `/` — same convention as the other two.
+   *   4. Require the history to *start* inside the launch window. A settled
+   *      title we only began watching later has a mature curve, and the beat
+   *      would claim a launch story it cannot support. Nothing here checks
+   *      whether the window is still open: once captured, the curve stays
+   *      until the selector's recency decay retires it.
+   *
+   * The percentage maths lives in `deriveLaunchDrift` in `@vyoh/shared`; this
+   * method only queries and groups.
+   */
+  async detectLaunchRarityDrift(
+    now: Date,
+    curation: SteamCurationSets
+  ): Promise<RecapCandidate[]> {
+    const releasedSince = new Date(
+      now.getTime() - LAUNCH_WINDOW_MS - LAUNCH_DRIFT_ENRICHMENT_TAIL_MS
+    );
+    const enrichments = await this.prisma.steamGameEnrichment.findMany({
+      where: { releaseDate: { not: null, gte: releasedSince } },
+      select: { appid: true, releaseDate: true, appType: true },
+    });
+    if (enrichments.length === 0) return [];
+
+    const appids = enrichments.map((e) => e.appid);
+    const [history, unlocks] = await Promise.all([
+      this.prisma.steamAchievementRarityHistory.findMany({
+        where: { appid: { in: appids } },
+        orderBy: { observedAt: "asc" },
+        select: { appid: true, apiName: true, percent: true, observedAt: true },
+      }),
+      this.prisma.steamPlayerUnlock.findMany({
+        where: { appid: { in: appids } },
+        select: {
+          appid: true,
+          apiName: true,
+          unlockedAt: true,
+          achievement: {
+            select: {
+              displayName: true,
+              game: { select: { name: true, removedAt: true } },
+              rarity: { select: { percent: true } },
+            },
+          },
+        },
+      }),
+    ]);
+
+    const observationsByAppid = new Map<number, LaunchDriftObservation[]>();
+    for (const row of history) {
+      const list = observationsByAppid.get(row.appid) ?? [];
+      list.push({
+        apiName: row.apiName,
+        percent: row.percent,
+        observedAt: row.observedAt,
+      });
+      observationsByAppid.set(row.appid, list);
+    }
+
+    // The game name rides along with the unlocks because enrichment covers
+    // wishlist titles too and carries no name of its own.
+    const unlocksByAppid = new Map<
+      number,
+      { name: string; rows: LaunchDriftUnlockRow[] }
+    >();
+    for (const unlock of excludeUnfeaturedGames(unlocks, curation)) {
+      if (unlock.achievement.game.removedAt !== null) continue;
+      const entry = unlocksByAppid.get(unlock.appid) ?? {
+        name: unlock.achievement.game.name,
+        rows: [],
+      };
+      entry.rows.push({
+        apiName: unlock.apiName,
+        displayName: unlock.achievement.displayName,
+        unlockedAt: unlock.unlockedAt,
+        percentNow: unlock.achievement.rarity?.percent ?? null,
+      });
+      unlocksByAppid.set(unlock.appid, entry);
+    }
+
+    const candidates: RecapCandidate[] = [];
+    for (const { appid, releaseDate, appType } of enrichments) {
+      if (releaseDate === null) continue;
+      if (appType !== null && appType !== 0) continue;
+      const observations = observationsByAppid.get(appid);
+      const owned = unlocksByAppid.get(appid);
+      if (!observations || !owned) continue;
+      // Earliest by value rather than by position: the query orders ascending,
+      // but the eligibility rule shouldn't silently depend on that.
+      const firstObserved = Math.min(...observations.map((o) => o.observedAt.getTime()));
+      if (firstObserved > releaseDate.getTime() + LAUNCH_WINDOW_MS) continue;
+
+      const stats = deriveLaunchDrift({
+        releaseDate,
+        observations,
+        unlocks: owned.rows,
+      });
+      if (!stats) continue;
+
+      candidates.push({
+        kind: "steam-moment",
+        slug: `steam-moment-launch-drift-${appid}`,
+        momentType: "LAUNCH_RARITY_DRIFT",
+        appid,
+        name: owned.name,
+        baseSignal: launchDriftBaseSignal(stats),
+        daysSince: launchDriftDaysSince(stats, now),
+        launchDrift: stats,
       });
     }
 

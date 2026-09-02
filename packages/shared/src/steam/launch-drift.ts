@@ -163,8 +163,10 @@ export function deriveLaunchDrift(input: LaunchDriftInput): SteamLaunchDriftStat
  * Recency-independent signal: the headline's absolute gain, capped so a
  * runaway launch curve cannot outrank everything else on the page forever.
  * At the cap a fresh beat scores 15 and decays past the floor after roughly
- * three weeks without a new unlock — beating an achievement cluster on day
- * one and losing to it later.
+ * three weeks without a new unlock. Note that 15 sits below the 20 a minimum
+ * qualifying achievement cluster carries, so a launch title — which reliably
+ * produces both — surfaces as a cluster rather than as a drift beat while the
+ * two compete for the same slots.
  */
 export function launchDriftBaseSignal(stats: SteamLaunchDriftStats): number {
   const delta = deltaPp(stats.headline);

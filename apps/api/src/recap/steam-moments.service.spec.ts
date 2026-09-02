@@ -15,6 +15,28 @@ interface OwnedGameRow {
 interface EnrichmentRow {
   appid: number;
   appType: number | null;
+  releaseDate?: Date | null;
+}
+
+interface HistoryRow {
+  appid: number;
+  apiName: string;
+  percent: number;
+  observedAt: Date;
+}
+
+/** Row shape of the launch-drift detector's own `steamPlayerUnlock` query —
+ *  keyed by appid rather than by `unlockedAt`, and joined through to the
+ *  current rarity value. */
+interface LaunchUnlockRow {
+  appid: number;
+  apiName: string;
+  unlockedAt: Date;
+  achievement: {
+    displayName: string;
+    game: { name: string; removedAt: Date | null };
+    rarity: { percent: number } | null;
+  };
 }
 
 interface PlaySessionRow {
@@ -46,6 +68,12 @@ function makeService(opts: {
    *  shape. Source-order matches the cluster detector's `orderBy:
    *  unlockedAt asc`, so callers should pass rows in ascending order. */
   unlocks?: UnlockRow[];
+  /** Rows returned by `steamAchievementRarityHistory.findMany`, ascending by
+   *  `observedAt` as the real query orders them. */
+  history?: HistoryRow[];
+  /** Rows returned by the launch-drift detector's appid-keyed
+   *  `steamPlayerUnlock.findMany`. */
+  rarityUnlocks?: LaunchUnlockRow[];
 }) {
   const ownedFindMany = vi
     .fn()
@@ -58,16 +86,36 @@ function makeService(opts: {
       }
       return Promise.resolve(opts.eligibleGames ?? []);
     });
+  const unlockFindMany = vi
+    .fn()
+    .mockImplementation((args: { where?: { unlockedAt?: unknown } } | undefined) => {
+      // Two detectors read the same model with different filters and want
+      // different row shapes. Both arms test positively for their own filter,
+      // because `LaunchUnlockRow` structurally satisfies the cluster row shape
+      // — a negative-only branch would mis-route silently, and typecheck.
+      if (args?.where?.unlockedAt !== undefined) {
+        return Promise.resolve(opts.unlocks ?? []);
+      }
+      return Promise.resolve(opts.rarityUnlocks ?? []);
+    });
   const prisma = {
     steamOwnedGame: { findMany: ownedFindMany },
     steamGameEnrichment: {
-      findMany: vi.fn().mockResolvedValue(opts.enrichments ?? []),
+      // Prisma sends `null` for an unset nullable column, never `undefined`,
+      // so default it here rather than letting fixtures narrow differently
+      // from the real row.
+      findMany: vi
+        .fn()
+        .mockResolvedValue(
+          (opts.enrichments ?? []).map((e) => ({ releaseDate: null, ...e }))
+        ),
     },
     steamPlaySession: {
       findMany: vi.fn().mockResolvedValue(opts.sessions ?? []),
     },
-    steamPlayerUnlock: {
-      findMany: vi.fn().mockResolvedValue(opts.unlocks ?? []),
+    steamPlayerUnlock: { findMany: unlockFindMany },
+    steamAchievementRarityHistory: {
+      findMany: vi.fn().mockResolvedValue(opts.history ?? []),
     },
   } as unknown as PrismaService;
   return { service: new SteamMomentsService(prisma), prisma };
@@ -556,17 +604,181 @@ describe("SteamMomentsService.detectAchievementClusters", () => {
   });
 });
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function daysBefore(days: number): Date {
+  return new Date(NOW.getTime() - days * DAY_MS);
+}
+
+const LAUNCH_APPID = 300;
+const LAUNCH_GAME = "Beast of Reincarnation";
+
+interface LaunchSeries {
+  apiName: string;
+  displayName: string;
+  /** Global percentage at each observation, ascending. */
+  percents: number[];
+  unlockDaysAgo: number;
+}
+
+/**
+ * Beast of Reincarnation shaped, from the arc's third probe reading: a day-one
+ * title whose rare achievements climbed thirty-odd points over the four weeks
+ * the owner played it. Corvus's End leads on relative gain (0.7 → 38.3 is
+ * 54x) and its +37.6pp clears the signal cap, so `baseSignal` lands at 15.
+ * Munitions Master was earned late, so it qualifies on absolute movement but
+ * ranks last.
+ */
+const LAUNCH_SERIES: LaunchSeries[] = [
+  {
+    apiName: "corvus_end",
+    displayName: "Corvus's End",
+    percents: [0.7, 9.4, 24.1, 38.3],
+    unlockDaysAgo: 37,
+  },
+  {
+    apiName: "bestie",
+    displayName: "Bestie",
+    percents: [1.4, 11.2, 26.0, 34.3],
+    unlockDaysAgo: 37,
+  },
+  {
+    apiName: "munitions_master",
+    displayName: "Munitions Master",
+    percents: [0.1, 1.2, 3.4, 5.7],
+    unlockDaysAgo: 9,
+  },
+];
+
+function launchFixture(
+  overrides: { releaseDaysAgo?: number; firstObservedDaysAgo?: number } = {}
+) {
+  const releaseDaysAgo = overrides.releaseDaysAgo ?? 40;
+  const observedDaysAgo = [overrides.firstObservedDaysAgo ?? 38, 30, 10, 2];
+  const history: HistoryRow[] = observedDaysAgo.flatMap((daysAgo, index) =>
+    LAUNCH_SERIES.flatMap((series) => {
+      const percent = series.percents[index];
+      return percent === undefined
+        ? []
+        : [
+            {
+              appid: LAUNCH_APPID,
+              apiName: series.apiName,
+              percent,
+              observedAt: daysBefore(daysAgo),
+            },
+          ];
+    })
+  );
+  const rarityUnlocks: LaunchUnlockRow[] = LAUNCH_SERIES.map((series) => ({
+    appid: LAUNCH_APPID,
+    apiName: series.apiName,
+    unlockedAt: daysBefore(series.unlockDaysAgo),
+    achievement: {
+      displayName: series.displayName,
+      game: { name: LAUNCH_GAME, removedAt: null },
+      rarity: { percent: series.percents.at(-1) ?? 0 },
+    },
+  }));
+  const enrichments: EnrichmentRow[] = [
+    { appid: LAUNCH_APPID, appType: 0, releaseDate: daysBefore(releaseDaysAgo) },
+  ];
+  return { enrichments, history, rarityUnlocks };
+}
+
+describe("SteamMomentsService.detectLaunchRarityDrift", () => {
+  it("returns no candidates and issues no history query when no release date is in range", async () => {
+    const { service, prisma } = makeService({ enrichments: [] });
+    const result = await service.detectLaunchRarityDrift(NOW, NO_CURATION);
+    expect(result).toEqual([]);
+    expect(prisma.steamAchievementRarityHistory.findMany).not.toHaveBeenCalled();
+    // The mock ignores `where`, so assert the bound itself: the launch window
+    // plus the query tail, and never a release date in the future.
+    expect(prisma.steamGameEnrichment.findMany).toHaveBeenCalledWith({
+      where: { releaseDate: { not: null, gte: daysBefore(180) } },
+      select: { appid: true, releaseDate: true, appType: true },
+    });
+  });
+
+  it("returns no candidates when the history starts outside the launch window", async () => {
+    // Released 100 days ago, first observed 39 days ago — 61 days after
+    // release, so the curve we hold is a mature-library curve.
+    const { service } = makeService(
+      launchFixture({ releaseDaysAgo: 100, firstObservedDaysAgo: 39 })
+    );
+    const result = await service.detectLaunchRarityDrift(NOW, NO_CURATION);
+    expect(result).toEqual([]);
+  });
+
+  it("surfaces a candidate for a title observed inside its launch window", async () => {
+    const { service } = makeService(launchFixture());
+    const result = await service.detectLaunchRarityDrift(NOW, NO_CURATION);
+    expect(result).toHaveLength(1);
+    const [candidate] = result;
+    if (candidate?.kind !== "steam-moment") throw new Error("expected steam-moment");
+    expect(candidate.momentType).toBe("LAUNCH_RARITY_DRIFT");
+    expect(candidate.appid).toBe(LAUNCH_APPID);
+    expect(candidate.name).toBe(LAUNCH_GAME);
+    expect(candidate.slug).toBe("steam-moment-launch-drift-300");
+    expect(candidate.baseSignal).toBe(15);
+    // Freshest bracketed unlock is Munitions Master, 9 days ago.
+    expect(candidate.daysSince).toBe(9);
+    expect(candidate.launchDrift?.headline.apiName).toBe("corvus_end");
+    expect(candidate.launchDrift?.receipt).toHaveLength(3);
+    expect(candidate.launchDrift?.observationCount).toBe(4);
+  });
+
+  it("drops a candidate the owner curated out of the landing page", async () => {
+    const { service } = makeService(launchFixture());
+    const result = await service.detectLaunchRarityDrift(NOW, {
+      hidden: new Set(),
+      unfeatured: new Set([LAUNCH_APPID]),
+    });
+    expect(result).toEqual([]);
+  });
+
+  it("drops a candidate whose game is no longer in the library", async () => {
+    const fixture = launchFixture();
+    const { service } = makeService({
+      ...fixture,
+      rarityUnlocks: fixture.rarityUnlocks.map((row) => ({
+        ...row,
+        achievement: {
+          ...row.achievement,
+          game: { ...row.achievement.game, removedAt: NOW },
+        },
+      })),
+    });
+    const result = await service.detectLaunchRarityDrift(NOW, NO_CURATION);
+    expect(result).toEqual([]);
+  });
+
+  it("drops a non-game appid", async () => {
+    const fixture = launchFixture();
+    const { service } = makeService({
+      ...fixture,
+      enrichments: [{ appid: LAUNCH_APPID, appType: 6, releaseDate: daysBefore(40) }],
+    });
+    const result = await service.detectLaunchRarityDrift(NOW, NO_CURATION);
+    expect(result).toEqual([]);
+  });
+});
+
 describe("SteamMomentsService.detectAll", () => {
   it("aggregates from each per-momentType detector", async () => {
-    // Verifies both detectors fan in: FIRST_TIME_GAME row + ACHIEVEMENT_
-    // CLUSTER row land in the same RecapCandidate[] result.
+    // Verifies every detector fans in: FIRST_TIME_GAME + ACHIEVEMENT_CLUSTER
+    // + LAUNCH_RARITY_DRIFT rows land in the same RecapCandidate[] result.
     const firstSeenAt = new Date("2026-05-28T10:00:00Z");
+    const launch = launchFixture();
     const { service } = makeService({
       eligibleGames: [{ appid: 100, name: "Pragmata", firstSeenAt }],
       enrichments: [
         { appid: 100, appType: 0 },
         { appid: 200, appType: 0 },
+        ...launch.enrichments,
       ],
+      history: launch.history,
+      rarityUnlocks: launch.rarityUnlocks,
       sessions: [
         {
           appid: 100,
@@ -584,10 +796,12 @@ describe("SteamMomentsService.detectAll", () => {
       ),
     });
     const result = await service.detectAll(NOW, NO_CURATION);
-    expect(result).toHaveLength(2);
+    expect(result).toHaveLength(3);
     const momentTypes = new Set(
       result.map((c) => (c.kind === "steam-moment" ? c.momentType : null))
     );
-    expect(momentTypes).toEqual(new Set(["FIRST_TIME_GAME", "ACHIEVEMENT_CLUSTER"]));
+    expect(momentTypes).toEqual(
+      new Set(["FIRST_TIME_GAME", "ACHIEVEMENT_CLUSTER", "LAUNCH_RARITY_DRIFT"])
+    );
   });
 });

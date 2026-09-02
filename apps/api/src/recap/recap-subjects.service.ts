@@ -127,9 +127,11 @@ export class RecapSubjectsService {
     // and "Playing lately" overlap by construction — a freshly-added game
     // with hours of recent play fires both, and the two are genuinely
     // exclusive framings of the same appid, so one of them has to lose.
-    // ACHIEVEMENT_CLUSTER is different: a binge day on a recently-played
-    // game is a COMPLEMENTARY fact ("you also unlocked 5 in one sitting"),
-    // not a substitute framing. Stripping the subject in that case sends the
+    // ACHIEVEMENT_CLUSTER and LAUNCH_RARITY_DRIFT are different: a binge
+    // day on a recently-played game, or a rarity curve that moved under
+    // the owner while they played it, are COMPLEMENTARY facts ("you also
+    // unlocked 5 in one sitting", "and you were early") — not substitute
+    // framings. Stripping the subject in that case sends the
     // prominent chapter slot to a less-played game while the actually-active
     // game only appears as one of up to 3 small Highlights tiles — which
     // reads as a bug to anyone looking at the page. So the dedup is narrowed
@@ -195,11 +197,12 @@ export class RecapSubjectsService {
     const activeSteamSubjectAppids = new Set(
       active.filter((c) => c.kind === "steam-subject").map((c) => c.appid)
     );
-    // Dormant top-up exclusion uses the FULL steam-moment set (both
-    // momentTypes), not just FIRST_TIME_GAME. A game with a recent
-    // ACHIEVEMENT_CLUSTER has very recent activity by definition, so it
-    // should never reappear lower down as a dormant "Earlier this year on…"
-    // row — that framing fights the cluster's "this week" register.
+    // Dormant top-up exclusion uses the FULL steam-moment set (every
+    // momentType), not just FIRST_TIME_GAME. A game with a recent
+    // ACHIEVEMENT_CLUSTER or LAUNCH_RARITY_DRIFT has very recent activity by
+    // definition, so it should never reappear lower down as a dormant
+    // "Earlier this year on…" row — that framing fights the moment's
+    // "this week" register.
     const excludeAppids = new Set([...activeSteamSubjectAppids, ...allSteamMomentAppids]);
     const steamSlack = STEAM_SUBJECT_HARD_CAP - activeSteamSubjectAppids.size;
     const dormant =
