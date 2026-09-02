@@ -7,7 +7,12 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
-import type { CachedMatchesResult, LolAccount, MatchSummary } from "@vyoh/shared";
+import type {
+  CachedMatchesResult,
+  LolAccount,
+  MatchSummary,
+  MatchSyncResult,
+} from "@vyoh/shared";
 import { useEffect, useSyncExternalStore } from "react";
 
 import { API_URL } from "@/lib/api-url";
@@ -202,9 +207,7 @@ export function useCachedMatchesWindow(
   });
 }
 
-type SyncResult = { idCount: number; backfilled: number };
-
-async function postSyncAccount(account: LolAccount): Promise<SyncResult> {
+async function postSyncAccount(account: LolAccount): Promise<MatchSyncResult> {
   const res = await fetch(
     `${API_URL}/lol/summoners/${encodeURIComponent(account.region)}/${encodeURIComponent(account.gameName)}/${encodeURIComponent(account.tagLine)}/matches/sync`,
     { method: "POST" }

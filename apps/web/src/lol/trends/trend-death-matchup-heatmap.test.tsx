@@ -1,4 +1,7 @@
-import { mockFetchRoutes } from "@/lol/_shared/static/mock-lol-static";
+import {
+  mockFetchRoutes,
+  mockLolStaticFetch,
+} from "@/lol/_shared/static/mock-lol-static";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
@@ -90,8 +93,10 @@ function match(
 }
 
 function renderTile(current: MatchSummary[]) {
-  // QueryClientProvider backs useChampionName() in the sr-only data table; the
-  // champions query stays unresolved here, so names fall back to the alias.
+  // QueryClientProvider backs useChampionName() for the row labels and the
+  // sr-only data table. With `mockFetchRoutes()` the static bundle never
+  // resolves, so names fall back to the alias; the display-name test below
+  // swaps in `mockLolStaticFetch` to exercise the mapping.
   const queryClient = new QueryClient();
   return render(
     <QueryClientProvider client={queryClient}>
@@ -141,6 +146,31 @@ describe("TrendDeathMatchupHeatmap", () => {
         "Hardest matchup: Zed — 5 deaths across 2 games, clustered around minutes 5–10."
       )
     ).toBeTruthy();
+  });
+
+  it("labels rows with the champion's display name, not the Match-V5 alias", async () => {
+    mockLolStaticFetch({
+      champions: [
+        {
+          id: 62,
+          alias: "MonkeyKing",
+          name: "Wukong",
+          roles: ["fighter"],
+          modernClasses: ["Fighter"],
+          modernSubclasses: ["Diver"],
+        },
+      ],
+    });
+    const matches = [
+      match(0, "MonkeyKing", { deathTimings: [60] }),
+      match(1, "MonkeyKing", { deathTimings: [60] }),
+      match(2, "Yasuo", { deathTimings: [60] }),
+      match(3, "Lux", { deathTimings: [60] }),
+      match(4, "Lux", { deathTimings: [60] }),
+    ];
+    renderTile(matches);
+    expect((await screen.findAllByText("Wukong")).length).toBeGreaterThan(0);
+    expect(screen.queryByText("MonkeyKi…")).toBeNull();
   });
 
   it("emits the spread-evenly verdict when no opponent has 4+ deaths", () => {

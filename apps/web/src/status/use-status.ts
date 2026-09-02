@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   LolAccount,
+  MatchSyncResult,
   StatusSnapshot,
   SyncJobTriggerResult,
   SyncStatus,
@@ -157,14 +158,12 @@ export function useSyncPatches() {
   });
 }
 
-type AccountSyncResult = { idCount: number; backfilled: number };
-
 export function useSyncAccount() {
   const queryClient = useQueryClient();
   const onError = useRelockOnUnauthorized();
-  return useMutation<AccountSyncResult, Error, LolAccount>({
+  return useMutation<MatchSyncResult, Error, LolAccount>({
     mutationFn: (account) =>
-      post<AccountSyncResult>(
+      post<MatchSyncResult>(
         `/lol/summoners/${encodeURIComponent(account.region)}/${encodeURIComponent(account.gameName)}/${encodeURIComponent(account.tagLine)}/matches/sync`
       ),
     // No cache patch — the per-account sync runs outside the cron tick, so

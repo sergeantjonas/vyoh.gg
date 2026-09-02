@@ -21,6 +21,7 @@ import type {
   LolAccount,
   MatchDetail,
   MatchSummary,
+  MatchSyncResult,
   MatchTimelineProjection,
   RankEntry,
   RankHistoryResponse,
@@ -263,7 +264,7 @@ export class LolService {
     region: string,
     gameName: string,
     tagLine: string
-  ): Promise<{ idCount: number; backfilled: number }> {
+  ): Promise<MatchSyncResult> {
     if (!this.identity.isLolAccountAllowed(gameName, tagLine, region)) {
       throw new ForbiddenException("Account not in whitelist");
     }

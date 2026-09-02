@@ -417,7 +417,7 @@ export class PatchService {
 // lookup map. Slot can be null when the wiki module didn't carry the variant
 // (rare; resolves to a null abilityIndex which the web treats as "no icon").
 function abilityKey(championId: number, slot: string | null, name: string): string {
-  return `${championId} ${slot ?? ""} ${name}`;
+  return `${championId}\u0000${slot ?? ""}\u0000${name}`;
 }
 
 // Group raw champion-section rows by subject (wiki champion name),

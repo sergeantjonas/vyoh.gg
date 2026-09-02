@@ -5,7 +5,9 @@ import { EmptyChampionIllustration, EmptyState } from "@/components/empty-state"
 import { ChartBoundary } from "@/components/error-boundary";
 import { PersonalRecord } from "@/components/personal-record";
 import { HeroLabel, HeroNumber } from "@/components/ui/hero-number";
+import { SectionTitle } from "@/components/ui/section-title";
 import { Sparkline } from "@/components/ui/sparkline";
+import { CHART_NEGATIVE, CHART_POSITIVE } from "@/lib/chart-palette";
 import { routeMeta } from "@/lib/route-meta";
 import { toastError, toastSuccess } from "@/lib/toast";
 import { TOOLTIP_CONTENT_COMPACT, TOOLTIP_CONTENT_RICH } from "@/lib/tooltip";
@@ -568,9 +570,7 @@ function ChampionDetailPage() {
               transition={{ type: "spring", stiffness: 380, damping: 30, delay: 0.06 }}
               className="flex flex-col gap-2"
             >
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                Win Rate Trend
-              </div>
+              <SectionTitle>Win rate trend</SectionTitle>
               <div className="h-24 rounded-lg border bg-card/60 px-2 py-3 backdrop-blur-sm">
                 <ChartBoundary>
                   <ResponsiveContainer width="100%" height="100%">
@@ -616,7 +616,7 @@ function ChampionDetailPage() {
                       <Line
                         type="monotone"
                         dataKey="winRate"
-                        stroke={detail.winRate >= 0.5 ? "#34d399" : "#f87171"}
+                        stroke={detail.winRate >= 0.5 ? CHART_POSITIVE : CHART_NEGATIVE}
                         strokeWidth={1.5}
                         dot={false}
                         isAnimationActive={false}
@@ -674,9 +674,7 @@ function ChampionDetailPage() {
                 transition={{ type: "spring", stiffness: 380, damping: 30, delay: 0.08 }}
                 className="flex flex-col gap-2"
               >
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Most Built Items
-                </div>
+                <SectionTitle>Most built items</SectionTitle>
                 <div className="flex flex-wrap gap-2">
                   {extras.data.topItems.map(({ itemId, games, wins }) => {
                     const item = itemsData.data?.get(itemId);
@@ -755,9 +753,7 @@ function ChampionDetailPage() {
                 className="flex flex-col gap-2"
               >
                 <div className="flex items-center justify-between">
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Matchups
-                  </div>
+                  <SectionTitle>Matchups</SectionTitle>
                   <div className="flex gap-1">
                     {(["games", "best", "hardest"] as const).map((s) => (
                       <button

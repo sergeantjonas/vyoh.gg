@@ -3,6 +3,7 @@ import type {
   CurrentPatchChangesResponse,
   PatchChangesResponse,
   PatchListEntry,
+  RankedEmblemYear,
 } from "@vyoh/shared";
 import { PatchService } from "./patch.service";
 
@@ -27,7 +28,7 @@ export class PatchController {
   // ranked emblem set the client should reference. Declared before any
   // `:version` matcher so the literal segment wins routing.
   @Get("ranked-emblem-year")
-  async getRankedEmblemYear(): Promise<{ year: number }> {
+  async getRankedEmblemYear(): Promise<RankedEmblemYear> {
     return { year: await this.patch.getRankedEmblemYear() };
   }
 

@@ -170,7 +170,9 @@ export type {
   PatchEntryChangeGroup,
   PatchEntryChangeLine,
   PatchListEntry,
+  RankedEmblemYear,
 } from "./lol/patch-changes.ts";
+export type { MatchSyncResult } from "./lol/match-sync.ts";
 export type {
   LolAbilityDescriptionDto,
   LolChampionAbilityDto,

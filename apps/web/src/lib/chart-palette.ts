@@ -36,3 +36,7 @@ export const CHART_TREND = "#a78bfa";
 export const CHART_POSITIVE = "#34d399";
 /** Semantic negative: losses, deficits, downward streaks. */
 export const CHART_NEGATIVE = "#fb7185";
+/** Riot's side colours for team-vs-team comparisons (blue side / red side).
+ *  Not the win/loss pair: a side is neither positive nor negative. */
+export const CHART_TEAM_BLUE = "hsl(220 80% 60%)";
+export const CHART_TEAM_RED = "hsl(0 80% 60%)";

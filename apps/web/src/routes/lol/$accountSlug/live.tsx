@@ -1,5 +1,11 @@
 import { EmptyLiveGameIllustration, EmptyState } from "@/components/empty-state";
 import { ChartBoundary } from "@/components/error-boundary";
+import {
+  CHART_AXIS,
+  CHART_GRID,
+  CHART_TEAM_BLUE,
+  CHART_TEAM_RED,
+} from "@/lib/chart-palette";
 import { routeMeta } from "@/lib/route-meta";
 import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { cn } from "@/lib/utils";
@@ -271,23 +277,23 @@ function LiveCompositionPanel({
               data={radarData}
               aria-label="Team composition comparison: blue versus red team"
             >
-              <PolarGrid stroke="hsl(var(--border))" />
+              <PolarGrid stroke={CHART_GRID} />
               <PolarAngleAxis
                 dataKey="subject"
-                tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
+                tick={{ fontSize: 9, fill: CHART_AXIS }}
               />
               <Radar
                 dataKey="blue"
-                fill="hsl(220 80% 60%)"
+                fill={CHART_TEAM_BLUE}
                 fillOpacity={0.25}
-                stroke="hsl(220 80% 60%)"
+                stroke={CHART_TEAM_BLUE}
                 strokeWidth={1.5}
               />
               <Radar
                 dataKey="red"
-                fill="hsl(0 80% 60%)"
+                fill={CHART_TEAM_RED}
                 fillOpacity={0.25}
-                stroke="hsl(0 80% 60%)"
+                stroke={CHART_TEAM_RED}
                 strokeWidth={1.5}
               />
             </RadarChart>

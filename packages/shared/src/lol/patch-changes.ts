@@ -1,3 +1,9 @@
+// Response of `GET /lol/patches/ranked-emblem-year`: the latest year for which
+// the wiki hosts a ranked emblem set.
+export interface RankedEmblemYear {
+  year: number;
+}
+
 // Best-effort classification derived from the wiki prose direction; see
 // `apps/api/src/lol/patch-parser.ts`. Null when the line had no direction
 // word the parser could read (mostly bug-fix prose).

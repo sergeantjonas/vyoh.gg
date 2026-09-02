@@ -31,6 +31,7 @@ import type {
   MatchNarrativeLifetime,
   MatchNarrativeWindow,
   MatchSummary,
+  MatchSyncResult,
   ObjectiveFirsts,
   ObjectiveParticipation,
   PregameCalibrationByQueue,
@@ -95,7 +96,7 @@ export class LolController {
   @HttpCode(200)
   async syncMatches(
     @Param() { region, gameName, tagLine }: AccountParamsDto
-  ): Promise<{ idCount: number; backfilled: number }> {
+  ): Promise<MatchSyncResult> {
     return this.lol.syncForSummoner(region, gameName, tagLine);
   }
 

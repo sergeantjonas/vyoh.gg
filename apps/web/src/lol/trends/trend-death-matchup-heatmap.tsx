@@ -26,6 +26,11 @@ const ROW_H = 28;
 
 const TOOLTIP_CLASS = cn(TOOLTIP_CONTENT_COMPACT, "max-w-xs");
 
+// The row label column is ICON_COL_W wide; longer display names get clipped.
+function truncateLabel(name: string): string {
+  return name.length > 8 ? `${name.slice(0, 8)}…` : name;
+}
+
 function bucketLabel(i: number): string {
   if (i === BUCKETS - 1) return `${(BUCKETS - 1) * 5}+`;
   return `${i * 5}–${(i + 1) * 5}`;
@@ -156,9 +161,7 @@ function Heatmap({ rows, maxValue }: { rows: MatchupRow[]; maxValue: number }) {
                       y={centerY + 3}
                       className="fill-foreground/80 text-[11px]"
                     >
-                      {row.championName.length > 8
-                        ? `${row.championName.slice(0, 8)}…`
-                        : row.championName}
+                      {truncateLabel(championName(row.championName))}
                     </text>
                     <text
                       x={ICON_COL_W - 6}

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { API_URL } from "@/lib/api-url";
+import type { RankedEmblemYear } from "@vyoh/shared";
 
 // Riot hasn't redesigned ranked emblems since 2023, so this matches the
 // current canonical art if the API request hasn't resolved yet (or fails).
@@ -9,7 +10,7 @@ const FALLBACK_YEAR = 2023;
 async function fetchRankedEmblemYear(): Promise<number> {
   const res = await fetch(`${API_URL}/lol/patches/ranked-emblem-year`);
   if (!res.ok) return FALLBACK_YEAR;
-  const body = (await res.json()) as { year: number };
+  const body = (await res.json()) as RankedEmblemYear;
   return typeof body.year === "number" ? body.year : FALLBACK_YEAR;
 }
 
