@@ -297,6 +297,42 @@ Reference surfaces in-tree (post-2026-06-10 consistency pass):
 7. Honour `prefers-reduced-transparency: reduce` — the project-wide `@media` rule in [apps/web/src/index.css](../apps/web/src/index.css) drops `backdrop-filter` and promotes `bg-card/40-/60` to solid `bg-card` so glass effects don't ship to users who've opted out.
 8. Pairs with the [chrome composition rule](#page-composition-chrome-belongs-at-the-lowest-level-that-visually-groups-heterogeneous-content) above: chrome decision picks the wrapper, this rule picks the *tile recipe* for whatever sits inside.
 
+## Lists, skeletons and find-by-X surfaces
+
+### Virtualize only when the list can exceed ~100 items AND grows via paged loading
+
+A virtualizer (`@tanstack/react-virtual` etc.) trades implementation cost for render cost. **Implementation cost is real:** scroll-restore needs a pin loop, the loop has to be StrictMode-resilient (mount → cleanup → remount races the first RAF and can leave scroll stuck — see the `pinCompletedRef` pattern in [apps/web/src/lol/matches/match-list.tsx](../apps/web/src/lol/matches/match-list.tsx)), the virtualizer container's `getTotalSize()` height has to land before the first scrollTo, intersection-observer plumbing has to coexist with whatever else mounts in the route, and the whole thing interacts with AnimatePresence + route transitions in ways that take a while to debug. **Render cost is negligible at small N:** 50 rows of a tilt-card with hover state and Motion variants are not a perf problem on any mainstream device.
+
+**Use a virtualizer when:**
+- The list count can exceed ~100 items (a Steam library of 500 games, an active match history of 1000+ matches), AND
+- The list grows via infinite scroll / paged loading rather than a bounded fetch, AND
+- A representative render of the full list shows actual measurable jank (long tasks > 50 ms, dropped frames on scroll).
+
+**Do NOT virtualize when:**
+- The count has a structural cap (champion list at ~150 unique champions max, patches list at ~30 over a season, profile widgets that fan out to single-digit counts).
+- The list is part of a bounded view (recap match-by-match, trend rollup rows).
+- "It might get longer eventually" — virtualize *when* it does, not pre-emptively. Future-you can always add it; future-you can't easily remove it.
+
+**How to apply:** When adding a new list surface, default to a flat unvirtualized render. Re-evaluate only if perf measurement shows a problem on a realistic dataset. Promote when ANY of the following hold on a representative dataset: more than ~200 unvirtualized items rendered at once, first-paint DOM weight above ~800 nodes from the list alone, or measurable jank during scroll or route transitions. When promoting, plan it as a focused change that's tested specifically for scroll-restore + nav-transition interactions; grid-shaped lists use TanStack's `lanes` parameter (see [library-grid-virtual.tsx](../apps/web/src/steam/library/library-grid-virtual.tsx)) with lane count driven by a media-query hook that mirrors the static-grid breakpoints it replaces.
+
+### Skeleton loaders must mirror the layout they replace
+
+A skeleton loader's job is to reserve the shape of incoming content, not to render a generic shimmer. If a page has multiple tabs/sections with different layouts (e.g. match-detail's Recap / Your game / Timeline), the skeleton must branch on the active surface — the example pattern lives in [apps/web/src/lol/matches/match-detail-skeleton.tsx](../apps/web/src/lol/matches/match-detail-skeleton.tsx), gated by tab prop in [apps/web/src/routes/lol/$accountSlug/matches/$matchId.tsx](../apps/web/src/routes/lol/$accountSlug/matches/$matchId.tsx).
+
+**How to apply:** When adding a new tab, sub-route, or layout variant to a section that has a skeleton loader, extend the skeleton in the same change — don't ship the new layout against the old skeleton. When restructuring an existing layout (adding a header strip, removing a column, changing grid shape), update the corresponding skeleton in the same commit. Treat the skeleton as part of the layout, not a separate concern.
+
+### Extend the command palette when adding filterable surfaces
+
+When adding a new filterable list, deep-link action, or "find by X" affordance, default to extending the ⌘K command palette rather than shipping a leaf-page dropdown, sticky controls bar, or one-off filter chip. The palette is the project's single "find anything" surface, with its grammar parser living in `@vyoh/shared`. Full plan and chunk list: [docs/working-notes/cross-cutting/command-palette.md](./working-notes/cross-cutting/command-palette.md).
+
+**How to apply:** When scoping any task that touches a filterable surface or adds a "find by X" intent, include an "extend palette grammar/groups" sub-chunk in the plan and update the chunk list in `command-palette.md`. If a feature genuinely doesn't fit the palette (spatial selection, live-preview range slider, drag-to-reorder), document why in the working-note before adding parallel UI.
+
+### Use `useChampionName()` for all champion name display
+
+When rendering a champion's name in any UI component, call `useChampionName()` from `@/lol/champions/use-champions` and use the returned function at the render site — never render a raw alias string directly as a display label.
+
+**How to apply:** `const championName = useChampionName()` once at the top of the component; call `championName(alias)` at each render site. The hook falls back to a normalized alias while champion data loads, so the string is always safe to render.
+
 ## Performance
 
 ### Gate engine-specific perf cliffs instead of chasing CSS parity
