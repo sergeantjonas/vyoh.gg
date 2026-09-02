@@ -720,7 +720,7 @@ describe("SteamMomentsService.detectLaunchRarityDrift", () => {
     expect(candidate.appid).toBe(LAUNCH_APPID);
     expect(candidate.name).toBe(LAUNCH_GAME);
     expect(candidate.slug).toBe("steam-moment-launch-drift-300");
-    expect(candidate.baseSignal).toBe(15);
+    expect(candidate.baseSignal).toBe(40);
     // Freshest bracketed unlock is Munitions Master, 9 days ago.
     expect(candidate.daysSince).toBe(9);
     expect(candidate.launchDrift?.headline.apiName).toBe("corvus_end");

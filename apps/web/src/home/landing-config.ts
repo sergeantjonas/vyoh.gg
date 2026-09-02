@@ -120,7 +120,7 @@ export const DEV_STEAM_MOMENT_OVERRIDE: readonly SteamMomentChapterDescriptor[] 
 //   kind: "steam-moment",
 //   slug: "steam-moment-launch-drift-2001760",
 //   momentType: "LAUNCH_RARITY_DRIFT",
-//   score: 15,
+//   score: 33.5,
 //   daysSince: 2,
 //   ageBucket: "current",
 //   appid: 2001760,

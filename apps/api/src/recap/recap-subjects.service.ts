@@ -123,6 +123,48 @@ export class RecapSubjectsService {
         this.steamMoments.detectAll(now, curation),
       ]);
 
+    // Two moment types can fire on one appid: a launch title the owner binged
+    // produces an ACHIEVEMENT_CLUSTER and a LAUNCH_RARITY_DRIFT off the same
+    // week of play, and two beats about one game read as a bug whichever order
+    // they land in. Both scales top out at 40 against the same decay and the
+    // same floor, so the score is a fair comparison here in a way it would not
+    // be if either ceiling moved — see the factor's own comment in
+    // `launch-drift.ts`. Ties go to the earlier detector in `detectAll`, which
+    // keeps the result deterministic. Runs before the moment ↔ subject dedup
+    // below so that only ever sees one moment per appid, and pre-selection so
+    // the cap isn't burned on a row that's about to be dropped.
+    const bestMomentByAppid = new Map<number, RecapCandidate>();
+    for (const c of steamMomentCandidates) {
+      if (c.kind !== "steam-moment") continue;
+      // FIRST_TIME_GAME is deliberately out of scope. Its baseSignal is
+      // play-minutes / 15 — uncapped, on no shared ceiling, and systematically
+      // under-observed because the poller only ever sees part of the play — so
+      // scoring it against a cluster would drop the first-time story on
+      // precisely the game where it is the story. It would also strand the
+      // moment ↔ subject suppression below, which needs the first-time
+      // candidate to still exist to know it should drop the subject.
+      if (c.momentType === "FIRST_TIME_GAME") continue;
+      const held = bestMomentByAppid.get(c.appid);
+      if (
+        !held ||
+        recapScore(c.baseSignal, c.daysSince) >
+          recapScore(held.baseSignal, held.daysSince)
+      ) {
+        bestMomentByAppid.set(c.appid, c);
+      }
+    }
+    const dedupedMomentCandidates = steamMomentCandidates.filter(
+      (c) =>
+        c.kind !== "steam-moment" ||
+        c.momentType === "FIRST_TIME_GAME" ||
+        bestMomentByAppid.get(c.appid) === c
+    );
+
+    const allSteamMomentAppids = new Set(
+      dedupedMomentCandidates
+        .filter((c) => c.kind === "steam-moment")
+        .map((c) => (c.kind === "steam-moment" ? c.appid : -1))
+    );
     // Steam-moment ↔ steam-subject dedup, momentType-scoped. FIRST_TIME_GAME
     // and "Playing lately" overlap by construction — a freshly-added game
     // with hours of recent play fires both, and the two are genuinely
@@ -146,13 +188,8 @@ export class RecapSubjectsService {
     // decay, calibrated against the same floor), so let the score decide and
     // drop the loser. Runs PRE-selection so neither cap gets burned on a row
     // that's about to be dropped.
-    const allSteamMomentAppids = new Set(
-      steamMomentCandidates
-        .filter((c) => c.kind === "steam-moment")
-        .map((c) => (c.kind === "steam-moment" ? c.appid : -1))
-    );
     const firstTimeByAppid = new Map<number, RecapCandidate>();
-    for (const c of steamMomentCandidates) {
+    for (const c of dedupedMomentCandidates) {
       if (c.kind === "steam-moment" && c.momentType === "FIRST_TIME_GAME") {
         firstTimeByAppid.set(c.appid, c);
       }
@@ -171,7 +208,7 @@ export class RecapSubjectsService {
       outscoredMomentAppids.add(c.appid);
       return true;
     });
-    const filteredSteamMomentCandidates = steamMomentCandidates.filter(
+    const filteredSteamMomentCandidates = dedupedMomentCandidates.filter(
       (c) =>
         c.kind !== "steam-moment" ||
         c.momentType !== "FIRST_TIME_GAME" ||

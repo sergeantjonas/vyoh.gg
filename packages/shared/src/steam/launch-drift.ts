@@ -25,7 +25,16 @@ export const LAUNCH_DRIFT_MIN_DELTA_PP = 1.0;
 export const LAUNCH_DRIFT_MIN_RECEIPT_ROWS = 3;
 export const LAUNCH_DRIFT_RECEIPT_CAP = 5;
 export const LAUNCH_DRIFT_DELTA_CAP_PP = 30;
-export const LAUNCH_DRIFT_SIGNAL_FACTOR = 0.5;
+/**
+ * Chosen so a capped beat scores `30 × 4/3 = 40` — the same ceiling as a
+ * capped achievement cluster (`CLUSTER_UNLOCK_CAP × CLUSTER_SIGNAL_FACTOR`).
+ * The two moment types share a decay and a floor, and a launch title the owner
+ * binged produces both, so they get compared by score whenever they collide on
+ * one appid. That comparison is only meaningful if the scales agree: at any
+ * lower factor the drift beat loses to every qualifying cluster by arithmetic
+ * rather than by being the weaker story.
+ */
+export const LAUNCH_DRIFT_SIGNAL_FACTOR = 4 / 3;
 /**
  * Denominator floor for the relative ranking. Steam reports a literal `0` for
  * any share below its one-decimal resolution, so the raw value would divide by
@@ -162,11 +171,8 @@ export function deriveLaunchDrift(input: LaunchDriftInput): SteamLaunchDriftStat
 /**
  * Recency-independent signal: the headline's absolute gain, capped so a
  * runaway launch curve cannot outrank everything else on the page forever.
- * At the cap a fresh beat scores 15 and decays past the floor after roughly
- * three weeks without a new unlock. Note that 15 sits below the 20 a minimum
- * qualifying achievement cluster carries, so a launch title — which reliably
- * produces both — surfaces as a cluster rather than as a drift beat while the
- * two compete for the same slots.
+ * At the cap a fresh beat scores 40 and decays past the floor after about six
+ * weeks without a new unlock.
  */
 export function launchDriftBaseSignal(stats: SteamLaunchDriftStats): number {
   const delta = deltaPp(stats.headline);

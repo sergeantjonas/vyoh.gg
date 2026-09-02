@@ -1,4 +1,9 @@
-import type { SteamCurationSets, SteamOwnedGame, SteamOwnedGames } from "@vyoh/shared";
+import type {
+  RecapCandidate,
+  SteamCurationSets,
+  SteamOwnedGame,
+  SteamOwnedGames,
+} from "@vyoh/shared";
 import { NO_CURATION } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
 import type { SteamGameCurationService } from "../steam/game-curation.service";
@@ -1320,6 +1325,162 @@ describe("RecapSubjectsService.getChapters", () => {
       const chapters = await service.getChapters(NOW);
       expect(chapters.filter((c) => c.kind === "steam-subject")).toHaveLength(1);
       expect(chapters.filter((c) => c.kind === "steam-moment")).toHaveLength(1);
+    });
+  });
+
+  describe("Steam moment same-appid dedup", () => {
+    // A launch title the owner binged fires ACHIEVEMENT_CLUSTER and
+    // LAUNCH_RARITY_DRIFT off the same week of play. Both scales top out at
+    // 40 against the same decay, so the stronger story keeps the appid and the
+    // page never shows two beats about one game.
+    const DRIFT_APPID = 2001760;
+
+    function driftCandidate(appid: number, baseSignal: number) {
+      const headline = {
+        apiName: "closest_companion",
+        displayName: "Closest Companion",
+        unlockedAt: "2026-05-13T20:00:00.000Z",
+        percentAtUnlock: 3.2,
+        percentNow: 38.4,
+      };
+      return {
+        kind: "steam-moment" as const,
+        slug: `steam-moment-launch-drift-${appid}`,
+        momentType: "LAUNCH_RARITY_DRIFT" as const,
+        appid,
+        name: "Beast of Reincarnation",
+        baseSignal,
+        daysSince: 20,
+        launchDrift: {
+          releaseDate: "2026-04-24",
+          observedFrom: "2026-04-26T05:30:00.000Z",
+          observedTo: NOW.toISOString(),
+          observationCount: 12,
+          bracketedUnlockCount: 5,
+          headline,
+          curve: [3.2, 12.0, 25.5, 38.4],
+          receipt: [headline],
+        },
+      };
+    }
+
+    function clusterCandidate(appid: number, baseSignal: number) {
+      return {
+        kind: "steam-moment" as const,
+        slug: `steam-moment-cluster-${appid}`,
+        momentType: "ACHIEVEMENT_CLUSTER" as const,
+        appid,
+        name: "Beast of Reincarnation",
+        baseSignal,
+        daysSince: 20,
+        cluster: {
+          unlockCount: 10,
+          spanHours: 6,
+          capUnlockedAt: "2026-05-13T20:00:00.000Z",
+          unlockNames: ["A", "B", "C", "D", "E"],
+        },
+      };
+    }
+
+    function firstTimeCandidate(appid: number, baseSignal: number) {
+      return {
+        kind: "steam-moment" as const,
+        slug: `steam-moment-first-${appid}`,
+        momentType: "FIRST_TIME_GAME" as const,
+        appid,
+        name: "Beast of Reincarnation",
+        baseSignal,
+        daysSince: 20,
+        firstTime: {
+          windowPlayMinutes: 150,
+          sessionCount: 3,
+          firstSessionMinutes: 60,
+          addedAt: "2026-05-11T10:00:00.000Z",
+          firstPlayedAt: "2026-05-13T12:00:00.000Z",
+        },
+      };
+    }
+
+    function serviceWith(candidates: RecapCandidate[]): RecapSubjectsService {
+      const ownedGames = {
+        getOwnedGames: vi.fn().mockResolvedValue(makeOwnedGames([])),
+      } as unknown as SteamOwnedGamesService;
+      const lolMoments = {
+        detectAll: vi.fn().mockResolvedValue([]),
+      } as unknown as LolMomentsService;
+      const steamMoments = {
+        detectAll: vi.fn().mockResolvedValue(candidates),
+      } as unknown as SteamMomentsService;
+      return new RecapSubjectsService(
+        ownedGames,
+        emptyPrisma(),
+        lolMoments,
+        steamMoments,
+        CURATION_STUB
+      );
+    }
+
+    it("keeps only the higher-scoring moment when two fire on one appid", async () => {
+      const service = serviceWith([
+        clusterCandidate(DRIFT_APPID, 20),
+        driftCandidate(DRIFT_APPID, 40),
+      ]);
+      const moments = (await service.getChapters(NOW)).filter(
+        (c) => c.kind === "steam-moment"
+      );
+      expect(moments).toHaveLength(1);
+      expect(moments[0]?.kind === "steam-moment" && moments[0].momentType).toBe(
+        "LAUNCH_RARITY_DRIFT"
+      );
+    });
+
+    it("keeps the cluster when it outscores the drift beat on the same appid", async () => {
+      const service = serviceWith([
+        clusterCandidate(DRIFT_APPID, 40),
+        driftCandidate(DRIFT_APPID, 20),
+      ]);
+      const moments = (await service.getChapters(NOW)).filter(
+        (c) => c.kind === "steam-moment"
+      );
+      expect(moments).toHaveLength(1);
+      expect(moments[0]?.kind === "steam-moment" && moments[0].momentType).toBe(
+        "ACHIEVEMENT_CLUSTER"
+      );
+    });
+
+    it("leaves a FIRST_TIME_GAME beside a cluster on the same appid", async () => {
+      // FIRST_TIME_GAME's baseSignal is play-minutes / 15 — on no shared
+      // ceiling and under-observed by the poller — so it is exempt: scoring it
+      // against a cluster would drop the first-time story on the one game
+      // where it is the story. It also has to survive to here for the
+      // moment ↔ subject suppression to fire, which the specs above pin.
+      // 20 at 20 days decays to 7.43 — above the floor on its own, and below
+      // the cluster's 14.86, so an unscoped dedup would drop it.
+      const service = serviceWith([
+        firstTimeCandidate(DRIFT_APPID, 20),
+        clusterCandidate(DRIFT_APPID, 40),
+      ]);
+      const moments = (await service.getChapters(NOW)).filter(
+        (c) => c.kind === "steam-moment"
+      );
+      expect(moments).toHaveLength(2);
+      expect(
+        new Set(moments.map((c) => (c.kind === "steam-moment" ? c.momentType : null)))
+      ).toEqual(new Set(["FIRST_TIME_GAME", "ACHIEVEMENT_CLUSTER"]));
+    });
+
+    it("leaves moments on different appids alone", async () => {
+      const service = serviceWith([
+        clusterCandidate(DRIFT_APPID, 40),
+        driftCandidate(2584270, 40),
+      ]);
+      const moments = (await service.getChapters(NOW)).filter(
+        (c) => c.kind === "steam-moment"
+      );
+      expect(moments).toHaveLength(2);
+      expect(new Set(moments.map((c) => c.appid))).toEqual(
+        new Set([DRIFT_APPID, 2584270])
+      );
     });
   });
 

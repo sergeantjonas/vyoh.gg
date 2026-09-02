@@ -194,16 +194,17 @@ describe("launchDriftBaseSignal", () => {
       spec("c", RISING, 2),
     ]);
     expect(stats.headline.percentNow).toBe(37.0);
-    expect(launchDriftBaseSignal(stats)).toBe(15);
+    // The cap puts a runaway curve level with a capped achievement cluster.
+    expect(launchDriftBaseSignal(stats)).toBe(40);
   });
 
-  it("scales a bare 1.0pp move to half a point", () => {
+  it("scales a bare 1.0pp move proportionally", () => {
     const stats = derived([
       spec("a", [1.0, 1.4, 1.7, 2.0], 2),
       spec("b", [1.0, 1.4, 1.7, 2.0], 2),
       spec("c", [1.0, 1.4, 1.7, 2.0], 2),
     ]);
-    expect(launchDriftBaseSignal(stats)).toBe(0.5);
+    expect(launchDriftBaseSignal(stats)).toBeCloseTo(4 / 3);
   });
 });
 
