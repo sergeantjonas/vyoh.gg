@@ -124,7 +124,7 @@ The **locale** argument has the identical shape and is easier to miss, because p
 
 Four pieces of the web shell look incidental and are load-bearing. Each has broken something when touched casually, so they are listed here rather than left to comments a refactor can delete.
 
-- **`LazyMotion` loads `domMax`** in [apps/web/src/main.tsx](../apps/web/src/main.tsx). Do not downgrade to `domAnimation` for bundle size: every `layout` / `layoutId` animation (identity morphs, panel heroes, chapter transitions) depends on the `domMax` feature set and silently stops animating without it.
+- **`LazyMotion` loads `domMax`** in [apps/web/src/router.tsx](../apps/web/src/router.tsx). Do not downgrade to `domAnimation` for bundle size: every `layout` / `layoutId` animation (identity morphs, panel heroes, chapter transitions) depends on the `domMax` feature set and silently stops animating without it.
 - **`SplashProvider` wraps the app** and is mounted in `__root.tsx`; surfaces claim the page-wide champion backdrop through `useSplashChampion(name)` from [apps/web/src/lol/_shared/assets/splash-backdrop.tsx](../apps/web/src/lol/_shared/assets/splash-backdrop.tsx). Panels never claim it (see [panel-compositor-load.md](working-notes/cross-cutting/panel-compositor-load.md)).
 - **Top-level route transitions are keyed on the first path segment** in `__root.tsx` (`topLevelScope(pathname)`), which is also the key the cross-scope scroll reset and the outlet error boundary use. Changing the key changes all three.
 - **`SHOULD_ANIMATE` in [apps/web/src/components/count-up.tsx](../apps/web/src/components/count-up.tsx)** is the test bypass that lets happy-dom render the final number synchronously. Removing it makes every CountUp assertion time out.
