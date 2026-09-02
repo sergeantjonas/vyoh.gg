@@ -33,7 +33,13 @@ overrides:
   # ajv's URI parser, one copy under both prisma and the webpack that
   # @tanstack/router-plugin drags in. ajv declares `^3.0.1`, so this stays
   # inside the range it asked for — fast-uri 4.x exists and would not.
-  fast-uri@<3.1.5: ^3.1.5
+  # Widened from `<3.1.5` on 2026-09-02: four SSRF / host-confusion advisories
+  # landed past the previous floor, all patched in 3.1.6.
+  fast-uri@<3.1.6: ^3.1.6
+  # Under express (body-parser) via @nestjs/platform-express — a request path.
+  # Two moderates (array-limit bypass, isBuffer DoS) patched together in 6.16.0;
+  # below CI's `--audit-level=high` gate, but Dependabot fails on them anyway.
+  qs@<6.16.0: ^6.16.0
   # The only runtime path of the five: steam-user reaches it through
   # socks-proxy-agent > socks. SSRF via leading-zero octets decoded as decimal,
   # and steam-user is the one place we hand a remote-controlled host to a proxy.

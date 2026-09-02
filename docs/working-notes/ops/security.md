@@ -36,6 +36,8 @@ What moved, in order:
 
 **2026-09-01 re-derivation.** The audit job had been red on every push to `main` since 2026-08-16 — three runs, each failing that job alone while lint, tests and the bundle budget passed. Three high advisories had surfaced since the sweep, all transitive and all on `--prod` paths: `nanoid` (GHSA-2v37-7h3g-55p8, widened past the `<3.3.17` floor the override pinned — the exact case the range-tracking lesson above describes), and `deepmerge-ts` + `mysql2` under the `prisma` CLI, which pins both exactly. Overrides added mirroring the advisory ranges; `prisma generate`, the api build and the api suite pass on `deepmerge-ts@8.0.2` / `mysql2@3.24.2`. Back to the one accepted moderate.
 
+**2026-09-02 re-derivation.** Caught locally by the state review the day after the previous fix, before it reached CI: four high `fast-uri` advisories (SSRF and host confusion, all patched in 3.1.6) landed past the `<3.1.5` floor — the same range-vs-floor failure as `nanoid` and `brace-expansion` before it, one patch version later. Override widened to mirror the advisory. Took the two moderate `qs` advisories (`express > body-parser`, a request path) in the same pass so Dependabot has nothing to fail on; `qs@6.16.0` resolves cleanly and the api suite passes. Back to the one accepted moderate.
+
 **Not ours to fix:** `find-my-way` and `valibot` arrive through `@prisma/dev` (the local Prisma dev server) and `@hono/node-server` through the `shadcn` CLI. Overridden rather than waiting on upstream, but they'll resolve naturally on a Prisma/shadcn bump.
 
 ## Deferred
