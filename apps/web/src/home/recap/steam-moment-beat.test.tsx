@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { configureAxe } from "jest-axe";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@tanstack/react-router", () => ({
@@ -69,6 +70,7 @@ const baseProps = {
     firstPlayedAt: "2026-05-30T20:00:00.000Z",
   },
   cluster: null,
+  launchDrift: null,
   nudged: true,
 };
 
@@ -373,6 +375,161 @@ describe("SteamMomentBeat per-type leadingVisual (R-7h.2)", () => {
     };
     const { container } = render(<SteamMomentBeat {...clusterProps} />);
     expect(container.querySelector(".lucide-award")).toBeTruthy();
+  });
+});
+
+// color-contrast needs real computed styles; aria-hidden-focus is a Radix
+// false positive under happy-dom. Same configuration as accessibility.test.tsx.
+const axe = configureAxe({
+  rules: {
+    "color-contrast": { enabled: false },
+    "aria-hidden-focus": { enabled: false },
+  },
+});
+
+describe("SteamMomentBeat (LAUNCH_RARITY_DRIFT)", () => {
+  const headline = {
+    apiName: "corvus_end",
+    displayName: "Corvus's End",
+    unlockedAt: "2026-08-05T21:14:00.000Z",
+    percentAtUnlock: 0.7,
+    percentNow: 28.4,
+  };
+  const driftProps = {
+    ...baseProps,
+    appid: 2001760,
+    name: "Beast of Reincarnation",
+    slug: "steam-moment-launch-drift-2001760",
+    momentType: "LAUNCH_RARITY_DRIFT" as const,
+    firstTime: null,
+    cluster: null,
+    launchDrift: {
+      releaseDate: "2026-08-03",
+      observedFrom: "2026-08-04T05:30:00.000Z",
+      observedTo: "2026-08-31T05:30:00.000Z",
+      observationCount: 12,
+      bracketedUnlockCount: 7,
+      headline,
+      curve: [0.7, 2.1, 6.2, 9.8, 13.4, 16.1, 18.9, 21.7, 24.0, 25.8, 27.2, 28.4],
+      receipt: [
+        headline,
+        {
+          apiName: "bestie",
+          displayName: "Bestie",
+          unlockedAt: "2026-08-05T22:02:00.000Z",
+          percentAtUnlock: 1.4,
+          percentNow: 34.3,
+        },
+        {
+          apiName: "munitions_master",
+          displayName: "Munitions Master",
+          unlockedAt: "2026-08-16T18:25:00.000Z",
+          percentAtUnlock: 3.4,
+          percentNow: 5.7,
+        },
+      ],
+    },
+  };
+
+  it("renders the drift eyebrow + masthead", () => {
+    render(<SteamMomentBeat {...driftProps} />);
+    expect(screen.getByText("Early on")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe(
+      "Beast of Reincarnation"
+    );
+  });
+
+  it("states the headline's rarity when earned against today's", () => {
+    const { container } = render(<SteamMomentBeat {...driftProps} />);
+    // formatRarityPercentEditorial keeps the decimal below 10% and rounds
+    // above it, so 28.4 renders as "28%".
+    expect(container.textContent).toContain("when you earned it");
+    expect(container.textContent).toContain("0.7%");
+    expect(container.textContent).toContain("28%");
+  });
+
+  it("renders a sub-resolution origin as <0.1% rather than 0.0%", () => {
+    const props = {
+      ...driftProps,
+      launchDrift: {
+        ...driftProps.launchDrift,
+        headline: { ...headline, percentAtUnlock: 0 },
+        receipt: [
+          { ...headline, percentAtUnlock: 0 },
+          ...driftProps.launchDrift.receipt.slice(1),
+        ],
+      },
+    };
+    const { container } = render(<SteamMomentBeat {...props} />);
+    // Assert on the receipt's endpoint row specifically — the prose body
+    // states the same value, so a container-wide check would stay green if
+    // only the row lost the formatter.
+    const endpoints = container.querySelector("span.text-2xl.tabular-nums");
+    expect(endpoints?.textContent).toContain("<0.1%");
+    expect(container.textContent).not.toContain("0.0%");
+  });
+
+  it("lists every receipt row in the proof line", () => {
+    const { container } = render(<SteamMomentBeat {...driftProps} />);
+    const proof = container.querySelector("p.italic");
+    expect(proof?.textContent).toContain("Corvus's End");
+    expect(proof?.textContent).toContain("Bestie");
+    expect(proof?.textContent).toContain("Munitions Master");
+    expect(proof?.textContent).toContain("·");
+  });
+
+  it("reports the readings and the span they cover", () => {
+    const { container } = render(<SteamMomentBeat {...driftProps} />);
+    expect(container.textContent).toContain("12 readings over 27 days");
+  });
+
+  it("appends the earned-early remainder only when the receipt is truncated", () => {
+    const truncated = render(<SteamMomentBeat {...driftProps} />);
+    expect(truncated.container.textContent).toContain("and 4 more earned early");
+    truncated.unmount();
+
+    const whole = render(
+      <SteamMomentBeat
+        {...driftProps}
+        launchDrift={{ ...driftProps.launchDrift, bracketedUnlockCount: 3 }}
+      />
+    );
+    expect(whole.container.textContent).not.toContain("more earned early");
+  });
+
+  it("labels the curve for screen readers", () => {
+    const { container } = render(<SteamMomentBeat {...driftProps} />);
+    const curve = container.querySelector('svg[data-slot="sparkline"]');
+    expect(curve?.getAttribute("role")).toBe("img");
+    expect(curve?.getAttribute("aria-label")).toContain("Corvus's End");
+  });
+
+  it("renders a TrendingUp lucide icon as the leadingVisual", () => {
+    const { container } = render(<SteamMomentBeat {...driftProps} />);
+    expect(container.querySelector(".lucide-trending-up")).toBeTruthy();
+  });
+
+  it("links the masthead to the game route", () => {
+    const { container } = render(<SteamMomentBeat {...driftProps} />);
+    expect(container.querySelector('a[to="/steam/library/$appid"]')).toBeTruthy();
+  });
+
+  it("falls back to a bare sentence and no receipt when stats are absent", () => {
+    const { container } = render(<SteamMomentBeat {...driftProps} launchDrift={null} />);
+    expect(container.textContent).toContain("Got there before the crowd did.");
+    expect(container.querySelector('svg[data-slot="sparkline"]')).toBeNull();
+  });
+
+  it("applies the LAUNCH_RARITY_DRIFT eyebrow accent", () => {
+    const { container } = render(<SteamMomentBeat {...driftProps} />);
+    const eyebrow = container.querySelector("p.uppercase span:not([aria-hidden])");
+    expect(eyebrow?.className).toContain("text-indigo-300");
+  });
+
+  it("has no axe violations", async () => {
+    const { container } = render(<SteamMomentBeat {...driftProps} />);
+    const results = await axe(container);
+    expect(results.violations).toHaveLength(0);
   });
 });
 

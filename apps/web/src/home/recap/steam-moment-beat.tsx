@@ -2,13 +2,16 @@ import { Link } from "@tanstack/react-router";
 import type {
   SteamAchievementClusterStats,
   SteamFirstTimeStats,
+  SteamLaunchDriftStats,
   SteamMomentChapterDescriptor,
 } from "@vyoh/shared";
 import { OWNER_TIME_ZONE, formatPlaytime, formatReleaseDateChip } from "@vyoh/shared";
-import { Award, Sparkles } from "lucide-react";
+import { Award, Sparkles, TrendingUp } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo } from "react";
 
+import { Sparkline } from "@/components/ui/sparkline";
+import { formatRarityPercentEditorial } from "@/steam/_shared/rarity-percent";
 import { steamLibraryLogoUrl } from "@/steam/_shared/steam-image";
 import { useSteamGameRecap } from "@/steam/use-steam-game-recap";
 
@@ -30,8 +33,9 @@ interface MomentCopy {
   mastheadText: string;
   /** Visual element rendered inline before the masthead text — gives each
    *  momentType a recognisable silhouette before the prose lands (R-7h.2).
-   *  FIRST_TIME_GAME → Sparkles, ACHIEVEMENT_CLUSTER → Award. Null when the
-   *  momentType is text-only. */
+   *  FIRST_TIME_GAME → Sparkles, ACHIEVEMENT_CLUSTER → Award,
+   *  LAUNCH_RARITY_DRIFT → TrendingUp. Null when the momentType is
+   *  text-only. */
   leadingVisual: ReactNode | null;
   chapterLabel: string;
   ariaLabel: string;
@@ -67,7 +71,8 @@ function Accent({
 /**
  * Per-momentType editorial copy. FIRST_TIME_GAME ships in R-7f;
  * ACHIEVEMENT_CLUSTER lands in R-7g and replaces the placeholder branch
- * with cluster-specific prose. The function shape mirrors `momentCopy` in
+ * with cluster-specific prose; LAUNCH_RARITY_DRIFT is the rarity-curve
+ * register. The function shape mirrors `momentCopy` in
  * `lol-moment-chapter.tsx` so both moment chapters stay legible side by
  * side.
  */
@@ -76,9 +81,10 @@ function momentCopy(args: {
   name: string;
   firstTime: SteamFirstTimeStats | null;
   cluster: SteamAchievementClusterStats | null;
+  launchDrift: SteamLaunchDriftStats | null;
   accentClass: string;
 }): MomentCopy {
-  const { momentType, name, firstTime, cluster, accentClass } = args;
+  const { momentType, name, firstTime, cluster, launchDrift, accentClass } = args;
   if (momentType === "FIRST_TIME_GAME") {
     const playLine = firstTime ? formatPlaytime(firstTime.windowPlayMinutes) : null;
     return {
@@ -99,6 +105,25 @@ function momentCopy(args: {
       chapterLabel: "First time",
       ariaLabel: `First time playing ${name}`,
       body: firstTimeBody({ firstTime, playLine, accentClass }),
+    };
+  }
+  if (momentType === "LAUNCH_RARITY_DRIFT") {
+    return {
+      eyebrow: "Early on",
+      mastheadText: name,
+      // TrendingUp is the curve the beat is about, stated as a glyph before
+      // the sparkline lands in the receipt — the same "read the shape first"
+      // job the Award glyph does for a cluster.
+      leadingVisual: (
+        <TrendingUp
+          aria-hidden="true"
+          className={`size-16 shrink-0 ${accentClass} drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] sm:size-20`}
+          strokeWidth={1.5}
+        />
+      ),
+      chapterLabel: "Early",
+      ariaLabel: `Early achievements on ${name}`,
+      body: launchDriftBody({ launchDrift, accentClass }),
     };
   }
   // ACHIEVEMENT_CLUSTER — the cluster receipt is the chapter's narrative
@@ -256,6 +281,54 @@ function clusterBody({
   );
 }
 
+/**
+ * Compose the LAUNCH_RARITY_DRIFT prose body. One sentence, one achievement:
+ * what the global unlock rate was when the owner earned it against what it is
+ * now. The receipt below carries the curve and the other early unlocks, so
+ * this paragraph stays a claim rather than a table.
+ */
+function launchDriftBody({
+  launchDrift,
+  accentClass,
+}: {
+  launchDrift: SteamLaunchDriftStats | null;
+  accentClass: string;
+}): ReactNode {
+  if (!launchDrift) {
+    return <>Got there before the crowd did.</>;
+  }
+  const A = ({ children }: { children: ReactNode }) => (
+    <Accent className={accentClass}>{children}</Accent>
+  );
+  const { headline } = launchDrift;
+  return (
+    <>
+      <A>{headline.displayName}</A> was{" "}
+      <A>{formatRarityPercentEditorial(headline.percentAtUnlock)}</A> when you earned it.
+      It's <A>{formatRarityPercentEditorial(headline.percentNow)}</A> today.
+    </>
+  );
+}
+
+/** Whole days of rarity history behind the curve, floored at 1 so a pair of
+ *  same-day readings doesn't read as "over 0 days". */
+function driftSpanDays(stats: SteamLaunchDriftStats): number {
+  const spanMs = Date.parse(stats.observedTo) - Date.parse(stats.observedFrom);
+  return Math.max(1, Math.round(spanMs / (24 * 60 * 60 * 1000)));
+}
+
+/** Names the curve's own endpoints, which start at the first observation of
+ *  the game rather than at the unlock — so the label can't claim the headline
+ *  percentages the prose already states. */
+function driftCurveLabel(stats: SteamLaunchDriftStats): string {
+  const from = stats.curve[0];
+  const to = stats.curve[stats.curve.length - 1];
+  if (from === undefined || to === undefined) {
+    return `${stats.headline.displayName} global unlock rate`;
+  }
+  return `${stats.headline.displayName} global unlock rate, ${formatRarityPercentEditorial(from)} to ${formatRarityPercentEditorial(to)}`;
+}
+
 /** "3.5h" / "45m" — a compact span label for the cluster prose. Sub-hour
  *  spans round to whole minutes; ≥1h shows a single decimal. Pair-printed
  *  with the unlock count, so a tight beat doesn't drown under a verbose
@@ -309,6 +382,7 @@ export interface SteamMomentBeatProps {
   momentType: MomentType;
   firstTime: SteamFirstTimeStats | null;
   cluster: SteamAchievementClusterStats | null;
+  launchDrift: SteamLaunchDriftStats | null;
   /** Per-beat active signal from the surrounding `<MultiBeat>`. Gates the
    *  ChapterReveal cascade so the moment's reveal fires when this beat
    *  becomes focal, not at chapter entrance. */
@@ -337,7 +411,8 @@ export interface SteamMomentBeatProps {
  * (R-12.7). FIRST_TIME_GAME gets a discovery/bloom register (heavier
  * blur, slight scale entrance — the sparkle leading visual reads as
  * "new!"), ACHIEVEMENT_CLUSTER gets a slower sustained reveal that
- * matches the "across N hours" framing of the receipt.
+ * matches the "across N hours" framing of the receipt, and
+ * LAUNCH_RARITY_DRIFT shares that pacing so the curve draws in last.
  */
 function entranceForType(momentType: MomentType) {
   switch (momentType) {
@@ -356,6 +431,15 @@ function entranceForType(momentType: MomentType) {
         mastheadBlur: 16,
         mastheadRise: 22,
         mastheadDuration: 1.3,
+        taglineDelay: 0.45,
+        bodyDelay: 0.7,
+        receiptDelay: 0.95,
+      };
+    case "LAUNCH_RARITY_DRIFT":
+      return {
+        mastheadBlur: 16,
+        mastheadRise: 22,
+        mastheadDuration: 1.2,
         taglineDelay: 0.45,
         bodyDelay: 0.7,
         receiptDelay: 0.95,
@@ -380,6 +464,7 @@ export function SteamMomentBeat({
   momentType,
   firstTime,
   cluster,
+  launchDrift,
   nudged,
 }: SteamMomentBeatProps) {
   // Per-game recap — taglines + release date for the masthead. The aggregator
@@ -393,7 +478,14 @@ export function SteamMomentBeat({
     [recap?.shortDescription]
   );
   const accentClass = momentAccentClass(momentType);
-  const copy = momentCopy({ momentType, name, firstTime, cluster, accentClass });
+  const copy = momentCopy({
+    momentType,
+    name,
+    firstTime,
+    cluster,
+    launchDrift,
+    accentClass,
+  });
   const whenLine = formatDaysSince(daysSince);
   const entrance = entranceForType(momentType);
   const releaseChip = useMemo(
@@ -638,6 +730,68 @@ export function SteamMomentBeat({
                     : null}
                 </p>
               ) : null}
+            </div>
+          </ChapterReveal>
+        </ChapterDetail>
+      ) : null}
+      {launchDrift ? (
+        <ChapterDetail>
+          <ChapterReveal active={nudged} delay={entrance.receiptDelay}>
+            {/* Drift receipt: the two endpoints are the loudest beat, the
+                curve gives them a shape, and the proof line names the other
+                unlocks earned while the rate was still climbing. */}
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2 sm:gap-x-6">
+                <span
+                  className="text-2xl font-semibold tabular-nums text-foreground sm:text-3xl"
+                  style={{ textShadow: SHADOW_MASTHEAD }}
+                >
+                  {formatRarityPercentEditorial(launchDrift.headline.percentAtUnlock)}{" "}
+                  <span aria-hidden="true">→</span>
+                  <span className="sr-only">to</span>{" "}
+                  {formatRarityPercentEditorial(launchDrift.headline.percentNow)}
+                </span>
+                <span
+                  aria-hidden="true"
+                  className="text-foreground/40"
+                  style={{ textShadow: SHADOW_LABEL }}
+                >
+                  ·
+                </span>
+                <span
+                  className="text-sm tabular-nums text-foreground/80"
+                  style={{ textShadow: SHADOW_BODY }}
+                >
+                  {launchDrift.observationCount} readings over{" "}
+                  {driftSpanDays(launchDrift) === 1
+                    ? "1 day"
+                    : `${driftSpanDays(launchDrift)} days`}
+                </span>
+              </div>
+              <Sparkline
+                aria-label={driftCurveLabel(launchDrift)}
+                className={`${accentClass} h-12 w-60 max-w-full`}
+                data={launchDrift.curve}
+                height={48}
+                role="img"
+                stroke="currentColor"
+                strokeWidth={1.5}
+                width={240}
+              />
+              <p
+                className="max-w-prose text-sm italic text-foreground/70"
+                style={{ textShadow: SHADOW_BODY }}
+              >
+                {launchDrift.receipt
+                  .map(
+                    (r) =>
+                      `${r.displayName} ${formatRarityPercentEditorial(r.percentAtUnlock)} → ${formatRarityPercentEditorial(r.percentNow)}`
+                  )
+                  .join(" · ")}
+                {launchDrift.bracketedUnlockCount > launchDrift.receipt.length
+                  ? ` · and ${launchDrift.bracketedUnlockCount - launchDrift.receipt.length} more earned early`
+                  : null}
+              </p>
             </div>
           </ChapterReveal>
         </ChapterDetail>

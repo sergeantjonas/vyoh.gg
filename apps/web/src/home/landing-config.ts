@@ -103,10 +103,51 @@ export const DEV_LOL_MOMENT_OVERRIDE: readonly LolMomentChapterDescriptor[] = []
 
 // Dev override: prepends synthetic Steam-moment descriptors at the head of
 // the algorithmic chapter stream so the FIRST_TIME_GAME / ACHIEVEMENT_CLUSTER
-// chapter visuals can be reviewed without a real qualifying candidate
-// (FIRST_TIME_GAME requires firstSeenAt within 30d + ≥30 min of post-add
-// session minutes — common to have zero matches on a stable library).
+// / LAUNCH_RARITY_DRIFT chapter visuals can be reviewed without a real
+// qualifying candidate (FIRST_TIME_GAME requires firstSeenAt within 30d +
+// ≥30 min of post-add session minutes — common to have zero matches on a
+// stable library; LAUNCH_RARITY_DRIFT needs three unlocks bracketed by a
+// rarity sample on a game played inside its release window).
 // Same multi-slot shape as `DEV_LOL_MOMENT_OVERRIDE`; set to `[]` outside
 // active visual review. The `appid` should point to a real owned game so
 // the hero image resolves; `name` drives the masthead text.
 export const DEV_STEAM_MOMENT_OVERRIDE: readonly SteamMomentChapterDescriptor[] = [];
+
+// Beast of Reincarnation, the day-one title the launch-drift beat was built
+// against. Paste into the override above to review the LAUNCH_RARITY_DRIFT
+// visuals; the percentages are the real third-reading values.
+// {
+//   kind: "steam-moment",
+//   slug: "steam-moment-launch-drift-2001760",
+//   momentType: "LAUNCH_RARITY_DRIFT",
+//   score: 15,
+//   daysSince: 2,
+//   ageBucket: "current",
+//   appid: 2001760,
+//   name: "Beast of Reincarnation",
+//   firstTime: null,
+//   cluster: null,
+//   framing: null,
+//   launchDrift: {
+//     releaseDate: "2026-08-03",
+//     observedFrom: "2026-08-04T05:30:00.000Z",
+//     observedTo: "2026-08-31T05:30:00.000Z",
+//     observationCount: 12,
+//     bracketedUnlockCount: 7,
+//     headline: {
+//       apiName: "corvus_end",
+//       displayName: "Corvus's End",
+//       unlockedAt: "2026-08-05T21:14:00.000Z",
+//       percentAtUnlock: 0.7,
+//       percentNow: 28.4,
+//     },
+//     curve: [0.7, 2.1, 6.2, 9.8, 13.4, 16.1, 18.9, 21.7, 24.0, 25.8, 27.2, 28.4],
+//     receipt: [
+//       { apiName: "corvus_end", displayName: "Corvus's End", unlockedAt: "2026-08-05T21:14:00.000Z", percentAtUnlock: 0.7, percentNow: 28.4 },
+//       { apiName: "bestie", displayName: "Bestie", unlockedAt: "2026-08-05T22:02:00.000Z", percentAtUnlock: 1.4, percentNow: 34.3 },
+//       { apiName: "taurus_end", displayName: "Taurus's End", unlockedAt: "2026-08-06T19:40:00.000Z", percentAtUnlock: 1.5, percentNow: 34.8 },
+//       { apiName: "closest_companion", displayName: "Closest Companion", unlockedAt: "2026-08-07T20:11:00.000Z", percentAtUnlock: 3.2, percentNow: 38.4 },
+//       { apiName: "munitions_master", displayName: "Munitions Master", unlockedAt: "2026-08-16T18:25:00.000Z", percentAtUnlock: 3.4, percentNow: 5.7 },
+//     ],
+//   },
+// },

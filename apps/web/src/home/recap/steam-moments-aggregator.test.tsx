@@ -103,6 +103,39 @@ describe("SteamMomentsAggregator", () => {
     expect(beats[1]?.textContent ?? "").toContain("Game B");
   });
 
+  it("renders a launch-drift moment as a beat", () => {
+    const headline = {
+      apiName: "corvus_end",
+      displayName: "Corvus's End",
+      unlockedAt: "2026-08-05T21:14:00.000Z",
+      percentAtUnlock: 0.7,
+      percentNow: 28.4,
+    };
+    const moments = [
+      makeMoment({
+        slug: "steam-moment-launch-drift-2001760",
+        appid: 2001760,
+        name: "Beast of Reincarnation",
+        momentType: "LAUNCH_RARITY_DRIFT",
+        firstTime: null,
+        launchDrift: {
+          releaseDate: "2026-08-03",
+          observedFrom: "2026-08-04T05:30:00.000Z",
+          observedTo: "2026-08-31T05:30:00.000Z",
+          observationCount: 12,
+          bracketedUnlockCount: 3,
+          headline,
+          curve: [0.7, 6.2, 18.9, 28.4],
+          receipt: [headline],
+        },
+      }),
+    ];
+    const { container } = render(<SteamMomentsAggregator moments={moments} />);
+    const beats = container.querySelectorAll<HTMLElement>("[data-beat]");
+    expect(beats.length).toBe(1);
+    expect(beats[0]?.textContent ?? "").toContain("Early on");
+  });
+
   it("publishes the focal beat's library hero as the atmosphere claim (per-beat backdrop)", () => {
     const moments = [
       makeMoment({ slug: "m-1", appid: 1 }),

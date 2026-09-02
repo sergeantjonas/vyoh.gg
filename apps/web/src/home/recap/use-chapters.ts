@@ -71,10 +71,10 @@ export function applyDevLolMomentOverride(
 
 /**
  * Apply `DEV_STEAM_MOMENT_OVERRIDE`. Mirrors `applyDevLolMomentOverride`
- * but operates on Steam-moment descriptors — prepends synthetic FIRST_TIME_
- * GAME / ACHIEVEMENT_CLUSTER descriptors so the Steam moment chapter
- * visuals can be reviewed without a qualifying real candidate. Empty array
- * is a no-op (production behaviour).
+ * but operates on Steam-moment descriptors — prepends synthetic
+ * FIRST_TIME_GAME / ACHIEVEMENT_CLUSTER / LAUNCH_RARITY_DRIFT descriptors so
+ * the Steam moment chapter visuals can be reviewed without a qualifying real
+ * candidate. Empty array is a no-op (production behaviour).
  */
 export function applyDevSteamMomentOverride(
   chapters: RecapChapterDescriptor[],
