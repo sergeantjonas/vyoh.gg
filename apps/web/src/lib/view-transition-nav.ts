@@ -1,7 +1,7 @@
 import { isFirefox } from "@/lib/is-firefox";
 import { isWebKit } from "@/lib/is-webkit";
 import { useNavigate } from "@tanstack/react-router";
-import { useCallback } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 
 /**
@@ -26,6 +26,20 @@ type StartViewTransitionFn = (callback: () => void | Promise<void>) => unknown;
 type DocumentWithVT = Document & {
   startViewTransition?: StartViewTransitionFn;
 };
+
+// Render-safe reader for the capability above. `supportsViewTransitions()`
+// answers the browser, so calling it in a render body makes the server and the
+// client's hydrating render disagree and costs the whole server tree — the bug
+// repo-conventions-web.md § "A server/client branch during render is a
+// hydration bug" describes. `getServerSnapshot` answers `false` for both of
+// those renders, while a component mounted by a *later* client navigation
+// reads the true value synchronously, so morph names are still in place before
+// the transition snapshot is taken.
+const NEVER_CHANGES = () => () => {};
+
+export function useViewTransitionsSupported(): boolean {
+  return useSyncExternalStore(NEVER_CHANGES, supportsViewTransitions, () => false);
+}
 
 export function supportsViewTransitions(): boolean {
   if (typeof document === "undefined") return false;

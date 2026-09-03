@@ -3,9 +3,10 @@ import { SlidePanel } from "@/_shared/slide-panel";
 import { Button } from "@/components/ui/button";
 import { routeMeta } from "@/lib/route-meta";
 import { toastError, toastSuccess } from "@/lib/toast";
+import { useHydrated } from "@/lib/use-hydrated";
 import { useThemeColor } from "@/lib/use-theme-color";
 import { cn } from "@/lib/utils";
-import { supportsViewTransitions } from "@/lib/view-transition-nav";
+import { useViewTransitionsSupported } from "@/lib/view-transition-nav";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useHeroScrolledPast } from "@/lol/_shared/analytics/use-hero-scrolled-past";
 import { championHdSplashUrl } from "@/lol/_shared/assets/champion-icon";
@@ -38,11 +39,12 @@ import { m, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 
 // Roughly the time the hero's layout-spring (stiffness 170, damping 30)
-// takes to settle. The body gates on `bodyReady` (true immediately on
-// VT browsers — the OLD snapshot covers the swap; false → flips at
-// MORPH_SETTLE_MS on non-VT browsers, where the rect-morph fallback is
-// running) so the skeleton holds across the morph window even when the
-// query already has data cached, preventing a mid-flight content swap.
+// takes to settle. The body gates on `bodyReady` so the skeleton holds across
+// the morph window even when the query already has data cached, preventing a
+// mid-flight content swap. Only a morph that is actually coming is worth
+// waiting for: an arrival with no source row named on the previous page starts
+// ready, and so does a VT browser, where the OLD snapshot covers the swap.
+// Everything else flips at MORPH_SETTLE_MS, which is the rect-morph fallback.
 // No opacity wrapper around the body — see the comment at the body
 // `<div className="flex flex-col gap-6">` below for the backdrop-filter
 // reason.
@@ -50,29 +52,37 @@ const MORPH_SETTLE_MS = 700;
 
 export const Route = createFileRoute("/lol/$accountSlug/matches/$matchId")({
   component: MatchDetailPanel,
-  // Non-blocking on purpose — this fires the detail fetch during route
-  // resolution (in parallel with the lazily-split component chunk) instead of
-  // waiting for the component to mount and call `useMatchDetail`, but it does
-  // not gate navigation on the response.
+  // Split by side, because the two sides want opposite things and the reasons
+  // the client cannot block are reasons that do not exist on a server render.
   //
-  // `ensureQueryData` (awaited) is the textbook shape and is what the Start
-  // migration's chunk 4 will need for server-priming, but it cannot land here
-  // yet. Two things in this route break under a blocking loader:
+  // On the server, awaiting is the whole point: the panel renders in place (see
+  // PanelLayer in slide-panel.tsx), and a panel rendered over a skeleton is a
+  // 200 that tells a crawler this URL is empty. 7.9 kB in 1.6 ms warm from our
+  // own Postgres, measured three times — it clears all three priming questions
+  // in repo-conventions-web.md. Fatal if it rejects: the panel *is* this route,
+  // so an error card is the honest answer and a 500 asks the crawler back.
+  //
+  // On the client it must stay non-blocking, for two reasons that are both
+  // click-path only:
   //
   //   1. `match-row.tsx` awaits `navigate()` *inside* `startViewTransition`, so
-  //      the router holding navigation open until the fetch settles freezes the
-  //      page under the VT snapshot for the whole request on Chrome/Safari.
+  //      holding navigation open until the fetch settles freezes the page under
+  //      the VT snapshot for the whole request on Chrome/Safari.
   //   2. There is no `pendingComponent`/`errorComponent` on this route, so a
   //      blocking loader would skip `MatchDetailSkeleton` entirely (the query is
   //      no longer pending at mount) and a rejection would replace the whole
   //      SlidePanel subtree — tab strip, breadcrumb and close button included —
   //      with the router's bare catch-boundary text.
-  //
-  // Keeping it non-blocking preserves the progressive render (cached hero →
-  // skeleton → content) and the in-component retry branch. Revisit when Start
-  // chunk 4 lands, alongside the VT choreography in `match-row.tsx`.
   loader: ({ context: { queryClient }, params }) => {
-    void queryClient.prefetchQuery(matchDetailQueryOptions(params.matchId));
+    const options = matchDetailQueryOptions(params.matchId);
+    // Returns a promise on the server and nothing on the client, which is why
+    // this is not an `async` function: `async` would hand the router a promise
+    // to await on the click path too, and awaiting even an already-resolved one
+    // is what the two obstacles above are about.
+    if (import.meta.env.SSR) {
+      return queryClient.ensureQueryData(options).then(() => undefined);
+    }
+    void queryClient.prefetchQuery(options);
   },
   // Static fallback drops the opaque matchId for a slug-scoped label; the
   // component enriches to `{Champion} {win|loss|remake} · {gameName#tagLine}`
@@ -120,12 +130,25 @@ function MatchDetailPanel() {
     if (activeMatch !== matchId) setActiveMatch(matchId);
   }, [activeMatch, matchId, setActiveMatch]);
 
-  const [bodyReady, setBodyReady] = useState(() => supportsViewTransitions());
+  // The body waits only for an incoming morph to settle, so the two cases that
+  // have no morph to wait for start ready: a cold arrival (nothing named a
+  // source on a previous page) and a browser driving the morph through View
+  // Transitions, which sequences itself.
+  //
+  // The cold-arrival term is what lets the server render the body at all. It is
+  // also the only term available there, and deterministically so — `activeMatch`
+  // is null on the server and on the render that hydrates it — while
+  // `useViewTransitionsSupported()` answers false for both of those renders and
+  // the true value for a component mounted by a later click. Seeding this from
+  // `supportsViewTransitions()` instead served every crawler a skeleton over
+  // fully primed data, and disagreed with Chrome and Safari at hydration.
+  const vtSupported = useViewTransitionsSupported();
+  const [bodyReady, setBodyReady] = useState(skipSlideInRef.current || vtSupported);
   useEffect(() => {
-    if (supportsViewTransitions()) return;
+    if (bodyReady) return;
     const id = window.setTimeout(() => setBodyReady(true), MORPH_SETTLE_MS);
     return () => window.clearTimeout(id);
-  }, []);
+  }, [bodyReady]);
 
   // Captured below from SlidePanel.onScrollElReady so the hero-scroll
   // detection observes the panel's own scroll container — the hook runs in
@@ -235,6 +258,10 @@ function MatchDetailPanel() {
   };
 
   const reduced = useReducedMotion();
+  // Motion emits no transform for `initial` on the server, so a subtree that
+  // now server-renders would hydrate against a client tree carrying one. Same
+  // suppression __root.tsx applies to the route fade, and for the same reason.
+  const hydrated = useHydrated();
   const detailTabs = buildMatchDetailSectionTabs({
     accountSlug,
     matchId,
@@ -376,7 +403,7 @@ function MatchDetailPanel() {
             // exit-animate. Entrance-only matches the app's mount-cascade idiom.
             <m.div
               key={tab}
-              initial={reduced ? false : { y: 10 }}
+              initial={reduced || !hydrated ? false : { y: 10 }}
               animate={{ y: 0 }}
               transition={{ duration: 0.24, ease: [0.32, 0.72, 0, 1] }}
             >

@@ -3,6 +3,7 @@ import {
   ScrollContainerProvider,
   registerOpenDetailPanel,
 } from "@/lib/scroll-container-context";
+import { useHydratedSync } from "@/lib/use-hydrated";
 import { cn } from "@/lib/utils";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
@@ -43,6 +44,26 @@ interface SlidePanelProps {
 
 const ENTER_DURATION = 0.28;
 const EASE_OUT_QUART = [0.22, 1, 0.36, 1] as const;
+
+// Portaled to the document body in the browser, rendered in place before
+// that. `react-dom/server` cannot render a portal at all, and the three routes
+// mounting a SlidePanel are the app's detail URLs, so a portal-only panel
+// served them a document with no content in it. The portal survives for the
+// steady state because rendering in place is only sound while no ancestor
+// creates a containing block for `position: fixed`, which is a property of the
+// current route chrome rather than a guarantee.
+//
+// `useHydratedSync()` and not `typeof document` is the load-bearing part, and
+// the *sync* variant specifically: this component swaps its children's parent
+// on the answer, so the deferred reader would remount the panel subtree on
+// every open rather than only on the render that hydrates. The rest of the
+// reasoning is in repo-conventions-web.md § "A server/client branch during
+// render is a hydration bug".
+function PanelLayer({ children }: { children: ReactNode }) {
+  const hydrated = useHydratedSync();
+  if (!hydrated) return <>{children}</>;
+  return <DialogPrimitive.Portal>{children}</DialogPrimitive.Portal>;
+}
 
 export function SlidePanel({
   open,
@@ -114,18 +135,23 @@ export function SlidePanel({
         if (!next) onClose();
       }}
     >
-      <DialogPrimitive.Portal>
+      <PanelLayer>
         {/* Non-blocking scrim — dims the page behind the panel so visual
             attention focuses on the panel content. pointer-events stay off
             so the visible list on the left + the section nav above stay
             clickable (modal={false} contract). Fades in with the panel. */}
-        <m.div
-          aria-hidden
-          initial={animateScrim ? { opacity: 0 } : false}
-          animate={{ opacity: 1 }}
-          transition={{ duration: ENTER_DURATION, ease: EASE_OUT_QUART }}
-          className="pointer-events-none fixed inset-0 z-30 bg-black/45"
-        />
+        {/* `open` gates this explicitly: Radix wraps each *portal* child in a
+            Presence that does it for us, and the in-place branch has none, so a
+            closed panel would paint a full-screen scrim into the server HTML. */}
+        {open && (
+          <m.div
+            aria-hidden
+            initial={animateScrim ? { opacity: 0 } : false}
+            animate={{ opacity: 1 }}
+            transition={{ duration: ENTER_DURATION, ease: EASE_OUT_QUART }}
+            className="pointer-events-none fixed inset-0 z-30 bg-black/45"
+          />
+        )}
         <DialogPrimitive.Content
           aria-describedby={undefined}
           // Don't auto-focus the first focusable child — that would scroll the
@@ -224,7 +250,7 @@ export function SlidePanel({
             </div>
           </m.div>
         </DialogPrimitive.Content>
-      </DialogPrimitive.Portal>
+      </PanelLayer>
     </DialogPrimitive.Root>
   );
 }

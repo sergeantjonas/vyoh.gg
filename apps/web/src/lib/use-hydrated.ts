@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 // False during the server render AND during the client render that hydrates it;
 // true from the first effect onwards.
@@ -18,4 +18,23 @@ export function useHydrated(): boolean {
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => setHydrated(true), []);
   return hydrated;
+}
+
+// Same question, answered without costing a *client-mounted* component a
+// second commit. `useHydrated` starts false on every mount, so a component
+// that swaps its own parent on the answer — a portal, say — remounts its whole
+// subtree every time it opens, not only on the render that hydrates. Here
+// `getServerSnapshot` answers the server render and the hydrating render,
+// while anything mounted afterwards reads `true` on its first render and never
+// swaps at all.
+//
+// Prefer this wherever the answer changes the shape of the tree. `useHydrated`
+// stays the right call when the browser-only branch simply cannot be entered
+// before an effect has run.
+const NEVER_CHANGES = () => () => {};
+const HYDRATED = () => true;
+const HYDRATING = () => false;
+
+export function useHydratedSync(): boolean {
+  return useSyncExternalStore(NEVER_CHANGES, HYDRATED, HYDRATING);
 }

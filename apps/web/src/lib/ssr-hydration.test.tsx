@@ -1,6 +1,9 @@
 import { BackdropPortal } from "@/_shared/backdrop/backdrop-portal";
+import { SlidePanel } from "@/_shared/slide-panel";
 import { useAudio } from "@/lib/use-audio";
+import { useHydratedSync } from "@/lib/use-hydrated";
 import { useMediaQuery } from "@/lib/use-media-query";
+import { useViewTransitionsSupported } from "@/lib/view-transition-nav";
 import {
   DEFAULT_SERIOUS_QUEUE_IDS,
   SeriousQueuesProvider,
@@ -71,6 +74,57 @@ describe("server rendering does not read the browser", () => {
     }
 
     expect(renderToString(<Probe />)).toBe(renderToString(<Probe />));
+  });
+
+  it("renders a slide panel's content in place rather than nothing", () => {
+    // The inverse of the backdrop assertion below, and the reason PanelLayer
+    // exists: a backdrop has nothing to say to a crawler, while the three
+    // routes mounting a SlidePanel are the app's detail URLs. Portal-only, they
+    // served a document with no content in it.
+    const html = renderToString(
+      <SlidePanel open onClose={() => {}} title="Match detail">
+        <p>Ahri · Win · 12/2/9</p>
+      </SlidePanel>
+    );
+    expect(html).toContain("Ahri · Win · 12/2/9");
+    expect(html).toContain("Match detail");
+  });
+
+  it("reports view transitions as unsupported on the server even where they exist", () => {
+    // match-hero derives a `viewTransitionName` from this. Read directly it is
+    // false on the server and true on Chrome and Safari's hydrating render,
+    // which is a mismatch on exactly the engines the morph is built for.
+    function Probe() {
+      return <span>{String(useViewTransitionsSupported())}</span>;
+    }
+    vi.stubGlobal("document", {
+      ...globalThis.document,
+      startViewTransition: () => {},
+    });
+    expect(renderToString(<Probe />)).toContain("false");
+  });
+
+  it("reports the tree as not yet hydrated on the server", () => {
+    // The sync reader still has to answer the *server* render false, or the
+    // portal it gates would be attempted where there is no DOM.
+    function Probe() {
+      return <span>{String(useHydratedSync())}</span>;
+    }
+    expect(renderToString(<Probe />)).toContain("false");
+  });
+
+  it("renders no scrim for a closed slide panel", () => {
+    // Radix wraps each *portal* child in a Presence gated on `open`, so the
+    // portaled path never had to say this. The in-place path has no such
+    // wrapper, and without an explicit gate a closed panel painted a
+    // full-screen dim over the server HTML.
+    const html = renderToString(
+      <SlidePanel open={false} onClose={() => {}} title="Match detail">
+        <p>Ahri · Win · 12/2/9</p>
+      </SlidePanel>
+    );
+    expect(html).not.toContain("bg-black/45");
+    expect(html).not.toContain("Ahri · Win · 12/2/9");
   });
 
   it("renders nothing for a backdrop portal instead of throwing", () => {

@@ -82,6 +82,22 @@ describe("SlidePanel", () => {
     expect(screen.getByRole("button", { name: /close panel/i })).toBeTruthy();
   });
 
+  it("portals the panel out of its parent once hydrated", () => {
+    // The other half of PanelLayer's contract — ssr-hydration.test.tsx pins
+    // that the panel renders in place for the server render and the one that
+    // hydrates it, and this pins that it does not stay there. Rendering in
+    // place is only safe while no ancestor creates a containing block for
+    // `position: fixed`; the portal is what stops that from being a standing
+    // assumption about every future ancestor of a detail route.
+    const { container } = wrap(
+      <SlidePanel open onClose={vi.fn()} title="Sample panel">
+        <p>Panel body content</p>
+      </SlidePanel>
+    );
+    expect(screen.getByText("Panel body content")).toBeTruthy();
+    expect(container.textContent).not.toContain("Panel body content");
+  });
+
   it("has no axe violations when open", async () => {
     wrap(
       <SlidePanel open onClose={vi.fn()} title="Sample panel">

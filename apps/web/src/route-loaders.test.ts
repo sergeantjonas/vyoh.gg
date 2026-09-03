@@ -7,6 +7,7 @@ import { steamUpcomingQueryOptions } from "@/steam/use-upcoming";
 import { steamWishlistQueryOptions } from "@/steam/use-wishlist";
 import { Route as AccountIndexRoute } from "./routes/lol/$accountSlug/index";
 import { Route as MatchesRoute } from "./routes/lol/$accountSlug/matches";
+import { Route as MatchDetailRoute } from "./routes/lol/$accountSlug/matches/$matchId";
 import { Route as PatchVersionRoute } from "./routes/lol/patches/$version";
 import { Route as PatchesIndexRoute } from "./routes/lol/patches/index";
 import { Route as AchievementsRoute } from "./routes/steam/achievements";
@@ -90,6 +91,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 describe("tolerated primes", () => {
@@ -165,6 +167,15 @@ describe("fatal primes", () => {
     fails = (url) => url.includes("/achievements");
 
     await expect(runLoader(AchievementsRoute)).rejects.toThrow();
+  });
+
+  it("/lol/$accountSlug/matches/$matchId fails on the server rather than serving a skeleton", async () => {
+    // Server-only, because the client branch is deliberately non-blocking: the
+    // panel renders in place for a server render, so a swallowed prime is a 200
+    // over a skeleton on a URL whose whole subject is the match.
+    vi.stubEnv("SSR", true);
+    fails = (url) => url.includes("/lol/matches/");
+    await expect(runLoader(MatchDetailRoute, { matchId: "EUW1_1" })).rejects.toThrow();
   });
 
   it("/lol/$accountSlug/matches fails rather than serving an empty history", async () => {

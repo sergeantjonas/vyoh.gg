@@ -1,7 +1,7 @@
 import { PersonalRecord } from "@/components/personal-record";
 import { useAudio } from "@/lib/use-audio";
 import { cn } from "@/lib/utils";
-import { supportsViewTransitions } from "@/lib/view-transition-nav";
+import { useViewTransitionsSupported } from "@/lib/view-transition-nav";
 import { queueColor } from "@/lol/_shared/queue/queue-color";
 import {
   ChampionCardChrome,
@@ -125,7 +125,7 @@ export function MatchHero({
   // is unique per snapshot. Deep-link arrivals still apply the name but
   // get the default crossfade since no source was named on the previous
   // page.
-  const viewTransitionName = supportsViewTransitions()
+  const viewTransitionName = useViewTransitionsSupported()
     ? `match-${summary.matchId}`
     : undefined;
 

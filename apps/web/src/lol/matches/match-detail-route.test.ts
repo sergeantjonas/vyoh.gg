@@ -3,7 +3,7 @@ import { matchDetailQueryOptions } from "@/lol/matches/use-match-detail";
 // scans `src/routes/` and a test module dropped in there risks being picked up
 // as a route and written into routeTree.gen.ts.
 import { Route } from "@/routes/lol/$accountSlug/matches/$matchId";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const params = { accountSlug: "vyoh-euw", matchId: "EUW1_1234567890" };
 
@@ -16,6 +16,10 @@ type LoaderArg = {
 const invokeLoader = (arg: LoaderArg) =>
   (Route.options.loader as unknown as (a: LoaderArg) => unknown)(arg);
 
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
 describe("match-detail route loader", () => {
   it("primes the match-detail query during route resolution", () => {
     const prefetchQuery = vi.fn();
@@ -27,6 +31,26 @@ describe("match-detail route loader", () => {
     expect(prefetchQuery.mock.calls[0]?.[0]).toMatchObject({
       queryKey: matchDetailQueryOptions(params.matchId).queryKey,
     });
+  });
+
+  it("awaits the detail on the server so the panel is not a skeleton", async () => {
+    // The inverse of the case below, and the reason the branch exists. The
+    // panel renders in place for a server render, so without this the document
+    // carries the data in its dehydrated payload and a skeleton in its markup.
+    // Rejecting is deliberate: the panel is this route, so a 500 asks a crawler
+    // back rather than teaching it the URL is empty.
+    vi.stubEnv("SSR", true);
+    const ensureQueryData = vi.fn().mockResolvedValue({});
+    const prefetchQuery = vi.fn();
+
+    const result = invokeLoader({
+      context: { queryClient: { prefetchQuery, ensureQueryData } },
+      params,
+    } as unknown as LoaderArg);
+
+    expect(ensureQueryData).toHaveBeenCalledTimes(1);
+    expect(prefetchQuery).not.toHaveBeenCalled();
+    await expect(result).resolves.toBeUndefined();
   });
 
   it("does not gate navigation on the fetch", () => {
