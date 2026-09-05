@@ -224,7 +224,7 @@ Built in an isolated scratchpad workspace pinned to this repo's exact versions (
 
 - **React Compiler composition.** react-compiler runs through `@rolldown/plugin-babel` in this repo; the probe did not test that composing with `tanstackStart()`. This is chunk 3's main uncleared risk.
 - **Does `routeTree.gen.ts` regen identically under the Start plugin?** The probe used a fresh route tree, not this repo's. Verify on the chunk 3 cutover.
-- **Per-surface SSR decisions.** See "What does not render server-side today" above — each of those is a chunk 4 call, not a blanket policy.
+- **Per-surface SSR decisions.** See "What still does not render server-side" above — each of those is a chunk 4 call, not a blanket policy.
 - **Hosting.md update timing.** The "Static SPAs are served by Nginx directly" line in hosting.md becomes wrong the moment chunk 6 lands. Update hosting.md in the same commit window, not separately.
 
 ## Cross-references
