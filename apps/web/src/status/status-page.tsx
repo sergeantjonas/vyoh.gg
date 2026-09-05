@@ -195,7 +195,9 @@ function TickHistory({ ticks }: { ticks: SyncTick[] }) {
                 style={{ width: `${(tick.durationMs / slowest) * 100}%` }}
               />
             )}
-            <span>{TICK_TIME_FMT.format(new Date(tick.startedAt))}</span>
+            <span className="font-medium text-foreground">
+              {TICK_TIME_FMT.format(new Date(tick.startedAt))}
+            </span>
             <span className="text-center font-mono">{tick.durationMs} ms</span>
             <span className="text-right">
               {sumBackfilled(tick)} new match{sumBackfilled(tick) === 1 ? "" : "es"}
@@ -525,9 +527,9 @@ function AppWindowRow({ window }: { window: AppWindowSnapshot }) {
 function MethodRow({ method }: { method: MethodLimiterSnapshot }) {
   return (
     <tr className="border-t">
-      <td className="py-1.5 pr-3">{method.regional}</td>
-      <td className="px-2 py-1.5 font-mono text-xs">{method.family}</td>
-      <td className="px-2 py-1.5">
+      <td className="py-2 pr-3">{method.regional}</td>
+      <td className="px-2 py-2 font-mono text-xs">{method.family}</td>
+      <td className="px-2 py-2">
         <div className="flex flex-col items-end gap-1">
           <span className="font-mono">
             {method.reservoir ?? "—"} / {method.capacity}
@@ -539,8 +541,8 @@ function MethodRow({ method }: { method: MethodLimiterSnapshot }) {
           />
         </div>
       </td>
-      <td className="px-3 py-1.5 text-right font-mono">{method.counts.QUEUED}</td>
-      <td className="px-3 py-1.5 text-right font-mono">{method.counts.EXECUTING}</td>
+      <td className="px-2 py-2 text-right font-mono">{method.counts.QUEUED}</td>
+      <td className="py-2 pl-2 text-right font-mono">{method.counts.EXECUTING}</td>
     </tr>
   );
 }

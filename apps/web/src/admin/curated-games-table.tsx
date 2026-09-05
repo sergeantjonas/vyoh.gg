@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ControlHint } from "@/components/ui/control-hint";
+import { cn } from "@/lib/utils";
 import { STATUS_TABLE_HEAD_CLASS } from "@/status/status-primitives";
 import { type AdminSteamGame, OWNER_TIME_ZONE } from "@vyoh/shared";
 import { Check, Eye, EyeOff, Star, StarOff, Trash2 } from "lucide-react";
@@ -76,19 +77,22 @@ export function CuratedGamesTable({ rows }: { rows: AdminSteamGame[] }) {
                   <ControlHint label={hidden ? "Show to visitors" : "Hide from visitors"}>
                     <Button
                       variant="ghost"
-                      size="icon-xs"
+                      size="xs"
                       aria-pressed={hidden}
-                      aria-label={hidden ? "Show to visitors" : "Hide from visitors"}
+                      aria-label={
+                        hidden
+                          ? "Hidden — show to visitors"
+                          : "Listed — hide from visitors"
+                      }
                       disabled={busy}
                       onClick={() =>
                         update.mutate({ appid: row.appid, patch: { hidden: !hidden } })
                       }
                     >
-                      {hidden ? (
-                        <EyeOff className="text-amber-400" />
-                      ) : (
-                        <Eye className="text-muted-foreground" />
-                      )}
+                      {hidden ? <EyeOff /> : <Eye />}
+                      <span className={cn(!hidden && "text-muted-foreground")}>
+                        {hidden ? "Hidden" : "Listed"}
+                      </span>
                     </Button>
                   </ControlHint>
                   {hidden && (
@@ -108,10 +112,12 @@ export function CuratedGamesTable({ rows }: { rows: AdminSteamGame[] }) {
                   >
                     <Button
                       variant="ghost"
-                      size="icon-xs"
+                      size="xs"
                       aria-pressed={unfeatured}
                       aria-label={
-                        unfeatured ? "Allow as a chapter" : "Never feature as a chapter"
+                        unfeatured
+                          ? "Unfeatured — allow as a chapter"
+                          : "Featurable — never feature as a chapter"
                       }
                       disabled={busy}
                       onClick={() =>
@@ -121,11 +127,10 @@ export function CuratedGamesTable({ rows }: { rows: AdminSteamGame[] }) {
                         })
                       }
                     >
-                      {unfeatured ? (
-                        <StarOff className="text-muted-foreground" />
-                      ) : (
-                        <Star className="text-foreground/70" />
-                      )}
+                      {unfeatured ? <StarOff /> : <Star />}
+                      <span className={cn(!unfeatured && "text-muted-foreground")}>
+                        {unfeatured ? "Unfeatured" : "Featurable"}
+                      </span>
                     </Button>
                   </ControlHint>
                 </td>
@@ -159,11 +164,12 @@ export function CuratedGamesTable({ rows }: { rows: AdminSteamGame[] }) {
                     <Button
                       variant="ghost"
                       size="icon-xs"
+                      className="text-muted-foreground hover:text-destructive"
                       aria-label="Forget this ruling entirely"
                       disabled={busy}
                       onClick={() => clear.mutate(row.appid)}
                     >
-                      <Trash2 className="text-destructive/80" />
+                      <Trash2 />
                     </Button>
                   </ControlHint>
                 </td>

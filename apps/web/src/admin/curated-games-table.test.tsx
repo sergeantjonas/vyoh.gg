@@ -101,6 +101,18 @@ describe("CuratedGamesTable", () => {
     expect(screen.getByText("21 Aug 2026")).toBeTruthy();
   });
 
+  it("names each axis's state in the row, so a mixed overlay reads without hovering", () => {
+    renderTable([
+      row(),
+      row({ appid: 2, hiddenAt: "2026-08-21T03:50:00.000Z" }),
+      row({ appid: 3, unfeaturedAt: "2026-08-21T03:50:00.000Z" }),
+    ]);
+    expect(screen.getAllByText("Listed")).toHaveLength(2);
+    expect(screen.getByText("Hidden")).toBeTruthy();
+    expect(screen.getAllByText("Featurable")).toHaveLength(2);
+    expect(screen.getByText("Unfeatured")).toBeTruthy();
+  });
+
   it("reflects both axes as pressed state", () => {
     renderTable([
       row({
