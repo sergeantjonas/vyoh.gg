@@ -880,7 +880,7 @@ describe("StatusPage — Steam sync", () => {
     const card = within(sectionFor("Steam sync"));
     for (const job of steamJobs) {
       expect(card.getByText(job.label)).toBeTruthy();
-      expect(card.getByText(job.cron)).toBeTruthy();
+      expect(card.getByText(job.cron ?? "on demand")).toBeTruthy();
     }
   });
 
@@ -920,6 +920,21 @@ describe("StatusPage — Steam sync", () => {
     expect(
       within(row).getByText(/error: Steam Web API 503 Service Unavailable/)
     ).toBeTruthy();
+  });
+
+  it("labels an on-demand job in place of a cron expression", () => {
+    const onDemand: SyncJobStatus = {
+      name: "steam-game-refresh",
+      stream: "steam",
+      label: "Per-game refresh",
+      cron: null,
+      running: false,
+      lastRun: null,
+    };
+    mockStatus({ data: makeSnapshot({ jobs: [...steamJobs, onDemand] }) });
+    renderWithTooltip(<StatusPage />);
+
+    expect(within(rowFor("Per-game refresh")).getByText("on demand")).toBeTruthy();
   });
 
   it("counts the failing jobs in the card header", () => {

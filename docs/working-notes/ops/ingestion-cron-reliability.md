@@ -84,7 +84,7 @@ Surfaces read the flag rather than the frozen count: the per-game panel says "Pr
 
 ## Remaining
 
-Nothing. The residual risk is now a full day rather than a week or a month, and it self-corrects on restart.
+Nothing. The residual risk is now a full day rather than a week or a month, and it self-corrects on restart. The per-game "fetch now" that this finding made worth having is its own arc: [steam/per-game-refresh.md](../steam/per-game-refresh.md).
 
 The one thing to re-check when hosting lands: with the process up continuously the daily ticks carry the load, and the boot passes become the deploy-time safety net they were designed to be — deploys land exactly the kind of short downtime that used to eat a whole fire. If the Steam budget ever tightens, the caps and windows in each poller are the knobs; they were set to preserve each poller's previous effective cadence, not to a measured limit.
 

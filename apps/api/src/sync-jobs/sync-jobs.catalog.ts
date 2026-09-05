@@ -3,7 +3,8 @@ import type { SyncJobStream } from "@vyoh/shared";
 export interface SyncJobDefinition {
   stream: SyncJobStream;
   label: string;
-  cron: string;
+  // Null for an on-demand job: it has no `@Cron` handler, only a trigger.
+  cron: string | null;
 }
 
 /**
@@ -18,6 +19,7 @@ export interface SyncJobDefinition {
  *
  * Adding an entry here is what makes a job addressable: `SyncJobRegistry.run()`
  * is keyed on `SyncJobName`, so a job that isn't listed cannot be recorded.
+ * On-demand jobs sit last in their stream, after every cadence.
  */
 export const SYNC_JOBS = {
   "lol-patch-notes": {
@@ -69,6 +71,11 @@ export const SYNC_JOBS = {
     stream: "steam",
     label: "Tag catalog",
     cron: "45 4 1 * *",
+  },
+  "steam-game-refresh": {
+    stream: "steam",
+    label: "Per-game refresh",
+    cron: null,
   },
 } as const satisfies Record<string, SyncJobDefinition>;
 

@@ -314,6 +314,11 @@ export type {
   SteamCompletionCandidates,
 } from "./steam/completion-candidates.ts";
 export type { SteamChronotype, SteamChronotypeHour } from "./steam/chronotype.ts";
+export type {
+  SteamGameRefreshLegs,
+  SteamGameRefreshResult,
+  SteamGameRefreshRun,
+} from "./steam/game-refresh.ts";
 export type { GameUnlockTimeline } from "./steam/unlock-timeline.ts";
 export {
   STEAM_RECAP_RECENT_UNLOCKS_LIMIT,

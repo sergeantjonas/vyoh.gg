@@ -23,6 +23,13 @@ interface JobState {
   lastRun: SyncJobRun | null;
 }
 
+// What `execute()` hands back: the work's own result, or the refusal when a
+// run is already in flight. Mirrors the `triggered: false` shape of a trigger
+// so both kinds of manual job read the same way to a caller.
+export type SyncJobExecution<T> =
+  | { ran: true; result: T }
+  | { ran: false; reason: "already running" };
+
 /**
  * Single source of truth for "is a scheduled job running, and how did it last
  * go" — the state the status board needs and that a poller's private `running`
@@ -55,24 +62,45 @@ export class SyncJobRegistry {
    * tells nobody anything. Returns false when the run was skipped.
    */
   async run(name: SyncJobName, work: () => Promise<unknown>): Promise<boolean> {
-    const job = this.state(name);
-    if (job.running) {
-      this.logger.warn(`${name}: previous run still in flight — skipping`);
-      return false;
+    try {
+      const outcome = await this.execute(name, work);
+      if (!outcome.ran) {
+        this.logger.warn(`${name}: previous run still in flight — skipping`);
+        return false;
+      }
+    } catch (err) {
+      this.logger.error(`${name} failed`, err instanceof Error ? err.stack : err);
     }
+    return true;
+  }
+
+  /**
+   * Runs a job's work and hands its result back, for a manual trigger whose
+   * caller is waiting on the answer — a per-game refresh is a few Steam calls
+   * and the point of asking is to read what changed. Recorded exactly like a
+   * scheduled run, so the board shows the same duration and outcome; the
+   * difference from `run()` is that a failure is rethrown, because here there
+   * is a caller to tell.
+   */
+  async execute<T>(
+    name: SyncJobName,
+    work: () => Promise<T>
+  ): Promise<SyncJobExecution<T>> {
+    const job = this.state(name);
+    if (job.running) return { ran: false, reason: "already running" };
 
     job.running = true;
     const startedAt = new Date();
     try {
-      await work();
+      const result = await work();
       job.lastRun = this.finish(startedAt, "ok");
+      return { ran: true, result };
     } catch (err) {
-      this.logger.error(`${name} failed`, err instanceof Error ? err.stack : err);
       job.lastRun = { ...this.finish(startedAt, "error"), error: messageFor(err) };
+      throw err;
     } finally {
       job.running = false;
     }
-    return true;
   }
 
   /**
@@ -81,8 +109,8 @@ export class SyncJobRegistry {
    * reports only whether the run began; the outcome reaches the caller on the
    * next status snapshot, the same way a cron run's does.
    *
-   * `run()` flips `running` before its first await, so the status returned here
-   * already reflects the run this call started.
+   * `execute()` flips `running` before its first await, so the status returned
+   * here already reflects the run this call started.
    */
   trigger(name: SyncJobName, work: () => Promise<unknown>): SyncJobTriggerResult {
     if (this.state(name).running) {

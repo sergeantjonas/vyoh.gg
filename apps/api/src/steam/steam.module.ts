@@ -9,6 +9,8 @@ import { SteamEnrichmentService } from "./enrichment.service";
 import { FaceDetectionService } from "./face-detection.service";
 import { SteamGameCurationService } from "./game-curation.service";
 import { SteamGameRecapService } from "./game-recap.service";
+import { SteamGameRefreshController } from "./game-refresh.controller";
+import { SteamGameRefreshService } from "./game-refresh.service";
 import { SteamGlobalRarityPoller } from "./global-rarity.poller";
 import { SteamGlobalRarityService } from "./global-rarity.service";
 import { SteamGridDbService } from "./griddb.service";
@@ -39,7 +41,7 @@ import { SteamWishlistHeroService } from "./wishlist-hero.service";
   // that declares the controller, not from wherever the guard was defined, so
   // omitting this import fails at bootstrap rather than at the route.
   imports: [AuthModule, SyncJobsModule],
-  controllers: [SteamController],
+  controllers: [SteamController, SteamGameRefreshController],
   providers: [
     SteamRateLimiterService,
     SteamClientService,
@@ -65,6 +67,7 @@ import { SteamWishlistHeroService } from "./wishlist-hero.service";
     SteamGlobalRarityPoller,
     SteamAchievementsService,
     SteamGameRecapService,
+    SteamGameRefreshService,
     SteamGridDbService,
     SteamTagService,
     SteamTagPoller,

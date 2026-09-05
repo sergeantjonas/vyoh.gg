@@ -78,7 +78,7 @@ export function StatusPage() {
 
       <SyncJobsCard
         title="Steam sync"
-        description="Cron-driven pollers. No manual trigger — each reconciles on its own schedule and on boot."
+        description="Cron-driven pollers, each reconciling on its own schedule and on boot, plus the owner's on-demand per-game refresh."
         jobs={data.jobs.filter((job) => job.stream === "steam")}
       />
 

@@ -159,6 +159,48 @@ describe("SyncJobRegistry", () => {
     expect(statusFor(registry, JOB).running).toBe(false);
   });
 
+  it("execute() returns the work's result and records the run", async () => {
+    const registry = new SyncJobRegistry();
+
+    const outcome = await registry.execute(JOB, async () => ({ rows: 3 }));
+
+    expect(outcome).toEqual({ ran: true, result: { rows: 3 } });
+    expect(statusFor(registry, JOB)).toMatchObject({
+      running: false,
+      lastRun: { outcome: "ok" },
+    });
+  });
+
+  it("execute() refuses while the job is mid-run, without touching the record", async () => {
+    const registry = new SyncJobRegistry();
+    const gate = deferred();
+    const first = registry.execute(JOB, () => gate.promise);
+
+    await expect(registry.execute(JOB, async () => 1)).resolves.toEqual({
+      ran: false,
+      reason: "already running",
+    });
+    expect(statusFor(registry, JOB).running).toBe(true);
+
+    gate.resolve();
+    await first;
+  });
+
+  // Unlike run(), execute() has a caller waiting: the failure is recorded for
+  // the board and still reaches whoever asked.
+  it("execute() rethrows a failure after recording it", async () => {
+    const registry = new SyncJobRegistry();
+
+    await expect(
+      registry.execute(JOB, () => Promise.reject(new Error("steam down")))
+    ).rejects.toThrow("steam down");
+
+    expect(statusFor(registry, JOB)).toMatchObject({
+      running: false,
+      lastRun: { outcome: "error", error: "steam down" },
+    });
+  });
+
   it("keeps each job's overlap guard to itself", async () => {
     const registry = new SyncJobRegistry();
     const gate = deferred();

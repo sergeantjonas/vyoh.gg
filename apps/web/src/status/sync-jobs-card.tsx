@@ -77,7 +77,9 @@ function SyncJobRow({ job, action }: { job: SyncJobStatus; action?: ReactNode })
     <li className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-md bg-muted/30 px-3 py-1.5 text-xs">
       <span className="flex items-center gap-2">
         <span className="font-medium text-foreground">{job.label}</span>
-        <span className="font-mono text-[10px] text-muted-foreground">{job.cron}</span>
+        <span className="font-mono text-[10px] text-muted-foreground">
+          {job.cron ?? "on demand"}
+        </span>
       </span>
       <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground">
         {lastRun ? (

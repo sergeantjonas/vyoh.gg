@@ -100,7 +100,8 @@ export interface SyncJobStatus {
   label: string;
   // The cron expression the job is registered under, so the board can say how
   // often a run is expected without the reader knowing the schedule by heart.
-  cron: string;
+  // Null for a job that only runs when the owner asks (the per-game refresh).
+  cron: string | null;
   running: boolean;
   lastRun: SyncJobRun | null;
 }
