@@ -1,5 +1,5 @@
 import { useIsOwner } from "@/auth/use-viewer";
-import { SectionTitle } from "@/components/ui/section-title";
+import { StatusCard } from "@/status/status-primitives";
 import { AddLolAccountDialog } from "./add-lol-account-dialog";
 import { LolAccountsTable } from "./lol-accounts-table";
 import { useAdminLolAccounts } from "./use-admin-accounts";
@@ -29,16 +29,12 @@ export function TrackedAccountsSection() {
   if (!isOwner) return null;
 
   return (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <SectionTitle as="h2">Tracked accounts</SectionTitle>
-        <AddLolAccountDialog />
-      </div>
+    <StatusCard title="Tracked accounts" action={<AddLolAccountDialog />}>
       {lol.data ? (
         <LolAccountsTable rows={lol.data} />
       ) : (
         <p className="text-sm text-muted-foreground">Loading roster…</p>
       )}
-    </section>
+    </StatusCard>
   );
 }

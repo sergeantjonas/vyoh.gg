@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ControlHint } from "@/components/ui/control-hint";
 import { cn } from "@/lib/utils";
+import { STATUS_TABLE_HEAD_CLASS } from "@/status/status-primitives";
 import { type AdminLolAccount, OWNER_TIME_ZONE } from "@vyoh/shared";
 import { Crown, Eye, EyeOff, Flame, Pause, Play, Star, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -41,7 +42,7 @@ export function LolAccountsTable({ rows }: { rows: AdminLolAccount[] }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="text-xs uppercase tracking-wide text-muted-foreground">
+        <thead className={STATUS_TABLE_HEAD_CLASS}>
           <tr>
             <th className="py-2 pr-3 text-left font-medium">Account</th>
             <th className="px-2 py-2 text-left font-medium">Role</th>

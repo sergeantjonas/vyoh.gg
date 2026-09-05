@@ -1,5 +1,5 @@
 import { useIsOwner } from "@/auth/use-viewer";
-import { SectionTitle } from "@/components/ui/section-title";
+import { Badge, StatusCard } from "@/status/status-primitives";
 import { CuratedGamesTable } from "./curated-games-table";
 import { useAdminSteamGames } from "./use-admin-steam-games";
 
@@ -23,20 +23,16 @@ export function CuratedGamesSection() {
   const pending = games.data?.pendingReview ?? 0;
 
   return (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-3">
-        <SectionTitle as="h2">Curated Steam games</SectionTitle>
-        {pending > 0 && (
-          <span className="rounded-md border border-amber-400/40 bg-amber-400/10 px-2 py-1 text-xs font-medium text-amber-200/90">
-            {pending} awaiting your ruling
-          </span>
-        )}
-      </div>
+    <StatusCard
+      title="Curated Steam games"
+      badges={pending > 0 && <Badge tone="warn">{pending} awaiting your ruling</Badge>}
+      description="Per-game privacy and featuring overlay. New purchases arrive hidden until you rule on them."
+    >
       {games.data ? (
         <CuratedGamesTable rows={games.data.entries} />
       ) : (
         <p className="text-sm text-muted-foreground">Loading the overlay…</p>
       )}
-    </section>
+    </StatusCard>
   );
 }

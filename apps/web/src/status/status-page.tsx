@@ -3,8 +3,6 @@ import { TrackedAccountsSection } from "@/admin/tracked-accounts-section";
 import { OwnerAction } from "@/auth/owner-action";
 import { useIsOwner } from "@/auth/use-viewer";
 import { Button } from "@/components/ui/button";
-import { CardTitle } from "@/components/ui/card-title";
-import { SectionTitle } from "@/components/ui/section-title";
 import { useMe } from "@/identity/use-me";
 import { toastError, toastInfo, toastSuccess } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -26,7 +24,13 @@ const TICK_TIME_FMT = new Intl.DateTimeFormat("en-GB", {
   timeZone: OWNER_TIME_ZONE,
 });
 import { Lock, Pause, Play, RefreshCw } from "lucide-react";
-import { Badge, Metric } from "./status-primitives";
+import {
+  Badge,
+  Metric,
+  STATUS_ROW_CLASS,
+  STATUS_TABLE_HEAD_CLASS,
+  StatusCard,
+} from "./status-primitives";
 import { StatusSkeleton } from "./status-skeleton";
 import { SyncJobsCard } from "./sync-jobs-card";
 import {
@@ -94,32 +98,36 @@ export function StatusPage() {
 
       <CuratedGamesSection />
 
-      <section className="flex flex-col gap-3">
-        <SectionTitle as="h2">Rate limiter — app windows</SectionTitle>
-        <div className="grid gap-2 md:grid-cols-2">
+      <StatusCard
+        title="Rate limiter — app windows"
+        description="Riot's per-key ceilings, a fast and a slow window per regional, shared by every method behind them."
+      >
+        <div className="grid gap-1.5 md:grid-cols-2">
           {data.rateLimiter.app.map((w) => (
             <AppWindowRow key={`${w.regional}-${w.role}`} window={w} />
           ))}
         </div>
-      </section>
+      </StatusCard>
 
-      <section className="flex flex-col gap-3">
-        <SectionTitle as="h2">Rate limiter — method families</SectionTitle>
+      <StatusCard
+        title="Rate limiter — method families"
+        description="Per-endpoint Riot limits, one limiter per regional and method family, created lazily on first use."
+      >
         {data.rateLimiter.method.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No method limiters initialised yet — limiters are created lazily on the first
             request per (regional, family) pair.
           </p>
         ) : (
-          <div className="overflow-hidden rounded-md border">
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+              <thead className={STATUS_TABLE_HEAD_CLASS}>
                 <tr>
-                  <th className="px-3 py-2 text-left">Regional</th>
-                  <th className="px-3 py-2 text-left">Family</th>
-                  <th className="px-3 py-2 text-right">Reservoir</th>
-                  <th className="px-3 py-2 text-right">Queued</th>
-                  <th className="px-3 py-2 text-right">Executing</th>
+                  <th className="py-2 pr-3 text-left font-medium">Regional</th>
+                  <th className="px-2 py-2 text-left font-medium">Family</th>
+                  <th className="px-2 py-2 text-right font-medium">Reservoir</th>
+                  <th className="px-2 py-2 text-right font-medium">Queued</th>
+                  <th className="py-2 pl-2 text-right font-medium">Executing</th>
                 </tr>
               </thead>
               <tbody>
@@ -130,7 +138,7 @@ export function StatusPage() {
             </table>
           </div>
         )}
-      </section>
+      </StatusCard>
 
       {data.sync.history.length > 1 && <TickHistory ticks={data.sync.history.slice(1)} />}
     </div>
@@ -166,16 +174,19 @@ function TickHistory({ ticks }: { ticks: SyncTick[] }) {
   // as a style rather than a signal.
   const banded = Math.min(...durations) !== slowest;
   return (
-    <section className="flex flex-col gap-3">
-      <SectionTitle as="h2">Recent ticks</SectionTitle>
-      <ul className="flex flex-col gap-1 text-sm">
+    <StatusCard
+      title="Recent ticks"
+      description="Match-sync ticks before the current one, newest first. The band behind a row is its duration against the slowest tick shown."
+    >
+      <ul className="flex flex-col gap-1.5">
         {ticks.map((tick) => (
           <li
             key={tick.startedAt}
-            className="relative isolate grid grid-cols-3 items-center overflow-hidden rounded-md border bg-muted/20 px-3 py-1.5 text-xs text-muted-foreground"
+            className={cn(
+              STATUS_ROW_CLASS,
+              "relative isolate grid grid-cols-3 gap-0 overflow-hidden text-muted-foreground"
+            )}
           >
-            {/* Duration relative to the slowest tick shown, so a spike reads
-                at a glance without a column of numbers to compare. */}
             {banded && (
               <span
                 aria-hidden="true"
@@ -192,7 +203,7 @@ function TickHistory({ ticks }: { ticks: SyncTick[] }) {
           </li>
         ))}
       </ul>
-    </section>
+    </StatusCard>
   );
 }
 
@@ -273,16 +284,16 @@ function SyncCard({
   };
 
   return (
-    <section className="flex flex-col gap-3 rounded-md border p-4">
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3">
-          <CardTitle as="h2">Match sync</CardTitle>
-          <div className="flex items-center gap-2 text-xs">
-            {!enabled && <Badge tone="muted">paused</Badge>}
-            {running && <Badge tone="active">running</Badge>}
-            {enabled && !running && tick && <Badge tone="ok">idle</Badge>}
-          </div>
-        </div>
+    <StatusCard
+      title="Match sync"
+      badges={
+        <>
+          {!enabled && <Badge tone="muted">paused</Badge>}
+          {running && <Badge tone="active">running</Badge>}
+          {enabled && !running && tick && <Badge tone="ok">idle</Badge>}
+        </>
+      }
+      action={
         <div className="flex flex-col items-end gap-1.5">
           <div className="flex gap-2">
             <OwnerAction isOwner={isOwner} label="Trigger a sync tick now">
@@ -330,8 +341,8 @@ function SyncCard({
             </Link>
           )}
         </div>
-      </div>
-
+      }
+    >
       {tick === null ? (
         <p className="text-sm text-muted-foreground">
           No tick has completed yet — the cron runs every 5 minutes (and once on boot).
@@ -362,7 +373,7 @@ function SyncCard({
           </ul>
         </>
       )}
-    </section>
+    </StatusCard>
   );
 }
 
@@ -488,7 +499,7 @@ function ReservoirBar({
 
 function AppWindowRow({ window }: { window: AppWindowSnapshot }) {
   return (
-    <div className="flex flex-col gap-1.5 rounded-md border p-3">
+    <div className="flex flex-col gap-1.5 rounded-md bg-muted/30 px-3 py-2">
       <div className="flex items-center justify-between text-xs">
         <span className="font-medium">
           {window.regional}
@@ -514,9 +525,9 @@ function AppWindowRow({ window }: { window: AppWindowSnapshot }) {
 function MethodRow({ method }: { method: MethodLimiterSnapshot }) {
   return (
     <tr className="border-t">
-      <td className="px-3 py-1.5">{method.regional}</td>
-      <td className="px-3 py-1.5 font-mono text-xs">{method.family}</td>
-      <td className="px-3 py-1.5">
+      <td className="py-1.5 pr-3">{method.regional}</td>
+      <td className="px-2 py-1.5 font-mono text-xs">{method.family}</td>
+      <td className="px-2 py-1.5">
         <div className="flex flex-col items-end gap-1">
           <span className="font-mono">
             {method.reservoir ?? "—"} / {method.capacity}

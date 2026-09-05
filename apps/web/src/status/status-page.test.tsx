@@ -853,9 +853,7 @@ describe("StatusPage", () => {
       }),
     });
     renderWithTooltip(<StatusPage />);
-    const history = screen.getByText(/Recent ticks/).parentElement;
-    if (!history) throw new Error("missing recent-ticks parent");
-    expect(within(history).getByText(/1 new match$/)).toBeTruthy();
+    expect(within(sectionFor("Recent ticks")).getByText(/1 new match$/)).toBeTruthy();
   });
 });
 

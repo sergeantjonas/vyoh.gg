@@ -71,11 +71,17 @@ export function StatusSkeleton() {
       <SyncCardSkeleton />
       <JobsCardSkeleton rows={2} descriptionLines={2} />
       <JobsCardSkeleton rows={9} descriptionLines={3} />
-      <div className="flex flex-col gap-3">
-        <ShimmerBlock className="h-4 w-56 rounded" />
-        <div className="grid gap-2 md:grid-cols-2">
+      <div className="flex flex-col gap-3 rounded-md border p-4">
+        <div className="flex items-start justify-between gap-3">
+          <ShimmerBlock className="h-4 w-56 rounded" />
+          <div className="flex flex-col items-end gap-1">
+            <ShimmerBlock className="h-3 w-72 rounded" />
+            <ShimmerBlock className="h-3 w-48 rounded" />
+          </div>
+        </div>
+        <div className="grid gap-1.5 md:grid-cols-2">
           {range(4).map((i) => (
-            <ShimmerBlock key={i} className="h-[76px] w-full rounded-md" />
+            <ShimmerBlock key={i} className="h-[66px] w-full rounded-md" />
           ))}
         </div>
       </div>

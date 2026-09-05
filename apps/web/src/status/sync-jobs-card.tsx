@@ -1,4 +1,3 @@
-import { CardTitle } from "@/components/ui/card-title";
 import {
   type SyncJobHealth,
   type SyncJobStatus,
@@ -6,7 +5,7 @@ import {
   syncJobHealth,
 } from "@vyoh/shared";
 import type { ReactNode } from "react";
-import { Badge } from "./status-primitives";
+import { Badge, STATUS_ROW_CLASS, StatusCard } from "./status-primitives";
 
 const HEALTH_LABEL: Record<SyncJobHealth, string> = {
   running: "running",
@@ -41,19 +40,11 @@ export function SyncJobsCard({
   const failing = jobs.filter((job) => syncJobHealth(job) === "error").length;
 
   return (
-    <section className="flex flex-col gap-3 rounded-md border p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <CardTitle as="h2">{title}</CardTitle>
-          {failing > 0 && (
-            <span className="text-xs">
-              <Badge tone="bad">{failing} failing</Badge>
-            </span>
-          )}
-        </div>
-        <p className="max-w-sm text-right text-xs text-muted-foreground">{description}</p>
-      </div>
-
+    <StatusCard
+      title={title}
+      badges={failing > 0 && <Badge tone="bad">{failing} failing</Badge>}
+      description={description}
+    >
       {jobs.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No scheduled jobs reported — the api is running without its schedulers.
@@ -65,7 +56,7 @@ export function SyncJobsCard({
           ))}
         </ul>
       )}
-    </section>
+    </StatusCard>
   );
 }
 
@@ -74,7 +65,7 @@ function SyncJobRow({ job, action }: { job: SyncJobStatus; action?: ReactNode })
   const { lastRun } = job;
 
   return (
-    <li className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-md bg-muted/30 px-3 py-1.5 text-xs">
+    <li className={STATUS_ROW_CLASS}>
       <span className="flex items-center gap-2">
         <span className="font-medium text-foreground">{job.label}</span>
         <span className="font-mono text-[10px] text-muted-foreground">

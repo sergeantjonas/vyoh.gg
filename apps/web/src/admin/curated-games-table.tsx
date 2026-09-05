@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ControlHint } from "@/components/ui/control-hint";
+import { STATUS_TABLE_HEAD_CLASS } from "@/status/status-primitives";
 import { type AdminSteamGame, OWNER_TIME_ZONE } from "@vyoh/shared";
 import { Check, Eye, EyeOff, Star, StarOff, Trash2 } from "lucide-react";
 import { useClearSteamCuration, useUpdateSteamCuration } from "./use-admin-steam-games";
@@ -40,7 +41,7 @@ export function CuratedGamesTable({ rows }: { rows: AdminSteamGame[] }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="text-xs uppercase tracking-wide text-muted-foreground">
+        <thead className={STATUS_TABLE_HEAD_CLASS}>
           <tr>
             <th className="py-2 pr-3 text-left font-medium">Game</th>
             <th className="px-2 py-2 text-left font-medium">Visibility</th>
