@@ -356,6 +356,23 @@ describe("useStatusStream", () => {
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["status"] });
   });
 
+  it("reports connecting, then live on open, then polling on error, then live again", () => {
+    const { result } = renderHook(() => useStatusStream(), {
+      wrapper: makeWrapper(freshClient()),
+    });
+    const source = FakeEventSource.instances[0];
+    expect(result.current).toBe("connecting");
+
+    act(() => source?.fire("open", null));
+    expect(result.current).toBe("live");
+
+    act(() => source?.fire("error", null));
+    expect(result.current).toBe("polling");
+
+    act(() => source?.fire("open", null));
+    expect(result.current).toBe("live");
+  });
+
   it("closes the EventSource on unmount", () => {
     const { unmount } = renderHook(() => useStatusStream(), {
       wrapper: makeWrapper(freshClient()),

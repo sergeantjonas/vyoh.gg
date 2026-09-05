@@ -1,4 +1,4 @@
-import { SectionTitle } from "@/components/ui/section-title";
+import { CardTitle } from "@/components/ui/card-title";
 import {
   type SyncJobHealth,
   type SyncJobStatus,
@@ -44,7 +44,7 @@ export function SyncJobsCard({
     <section className="flex flex-col gap-3 rounded-md border p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <SectionTitle as="h2">{title}</SectionTitle>
+          <CardTitle as="h2">{title}</CardTitle>
           {failing > 0 && (
             <span className="text-xs">
               <Badge tone="bad">{failing} failing</Badge>

@@ -288,7 +288,7 @@ function mockMutations(
 }
 
 beforeEach(() => {
-  vi.mocked(useStatusStream).mockReturnValue(undefined);
+  vi.mocked(useStatusStream).mockReturnValue("connecting");
   // Owner by default so the pre-auth cases below keep exercising the controls
   // themselves; the gated shape gets its own describe block.
   vi.mocked(useIsOwner).mockReturnValue(true);
@@ -343,6 +343,24 @@ describe("StatusPage", () => {
     mockStatus({ data: makeSnapshot() });
     renderWithTooltip(<StatusPage />);
     expect(useStatusStream).toHaveBeenCalled();
+  });
+
+  it("shows no freshness pill until the stream has reported anything", () => {
+    mockStatus({ data: makeSnapshot() });
+    renderWithTooltip(<StatusPage />);
+    expect(screen.queryByText("Live")).toBeNull();
+    expect(screen.queryByText("Polling")).toBeNull();
+  });
+
+  it("labels the page live while the stream is open and polling once it drops", () => {
+    mockStatus({ data: makeSnapshot() });
+    vi.mocked(useStatusStream).mockReturnValue("live");
+    const { unmount } = renderWithTooltip(<StatusPage />);
+    expect(screen.getByText("Live")).toBeTruthy();
+    unmount();
+    vi.mocked(useStatusStream).mockReturnValue("polling");
+    renderWithTooltip(<StatusPage />);
+    expect(screen.getByText("Polling")).toBeTruthy();
   });
 
   it("renders sync card with header, metrics and app windows", () => {
@@ -534,6 +552,9 @@ describe("StatusPage", () => {
     renderWithTooltip(<StatusPage />);
     expect(screen.getByText("match-by-id")).toBeTruthy();
     expect(screen.getByText(/7 \/ 20/)).toBeTruthy();
+    // 7/20 = 35% remaining → the same amber bar the app windows draw.
+    const row = screen.getByText("match-by-id").closest("tr");
+    expect(row?.querySelector(".bg-amber-500")).toBeTruthy();
   });
 
   it("renders the 'Recent ticks' history section when more than one tick is present", () => {
@@ -558,6 +579,48 @@ describe("StatusPage", () => {
     expect(screen.getByText("999 ms")).toBeTruthy();
     // sumBackfilled(tickOlder) = 2 + 1 = 3 → "3 new matches"
     expect(screen.getByText(/3 new matches/)).toBeTruthy();
+  });
+
+  it("bands each tick row by its duration relative to the slowest shown", () => {
+    const slow: SyncTick = {
+      ...tick,
+      startedAt: "2026-05-19T11:55:00.000Z",
+      durationMs: 2000,
+    };
+    const fast: SyncTick = {
+      ...tick,
+      startedAt: "2026-05-19T11:50:00.000Z",
+      durationMs: 500,
+    };
+    mockStatus({
+      data: makeSnapshot({
+        sync: {
+          enabled: true,
+          running: false,
+          lastTick: tick,
+          history: [tick, slow, fast],
+        },
+      }),
+    });
+    renderWithTooltip(<StatusPage />);
+    const bands = screen.getAllByTestId("tick-duration-band");
+    expect(bands.map((band) => band.style.width)).toEqual(["100%", "25%"]);
+  });
+
+  it("draws no band when every tick shown took the same time", () => {
+    const same: SyncTick = { ...tick, startedAt: "2026-05-19T11:55:00.000Z" };
+    mockStatus({
+      data: makeSnapshot({
+        sync: {
+          enabled: true,
+          running: false,
+          lastTick: tick,
+          history: [tick, same, same],
+        },
+      }),
+    });
+    renderWithTooltip(<StatusPage />);
+    expect(screen.queryAllByTestId("tick-duration-band")).toHaveLength(0);
   });
 
   it("fires toastInfo when syncNow.mutate resolves with triggered=true", async () => {
@@ -737,8 +800,9 @@ describe("StatusPage", () => {
         },
       }),
     });
-    const { container } = renderWithTooltip(<StatusPage />);
-    expect(container.querySelectorAll(".bg-emerald-500").length).toBeGreaterThan(0);
+    renderWithTooltip(<StatusPage />);
+    const windows = sectionFor("Rate limiter — app windows");
+    expect(windows.querySelectorAll(".bg-emerald-500").length).toBeGreaterThan(0);
   });
 
   it("shows 'waiting' when historical is skipped but not yet done", () => {

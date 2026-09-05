@@ -8,7 +8,7 @@ import type {
   SyncTick,
   SyncTriggerResult,
 } from "@vyoh/shared";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { viewerQueryKey } from "@/auth/use-viewer";
 import { API_URL } from "@/lib/api-url";
@@ -56,14 +56,22 @@ export function useStatus() {
   });
 }
 
+// What the page can truthfully claim about its freshness: `live` while the
+// EventSource is open, `polling` once it has dropped (the browser reconnects on
+// its own; the 5 s refetch carries the gap), `connecting` before either.
+export type StatusStreamState = "connecting" | "live" | "polling";
+
 // Subscribes to the status SSE stream and pushes snapshots / tick events
 // straight into the React Query cache. The `useStatus` query becomes a
 // passive consumer of the streamed cache.
-export function useStatusStream(): void {
+export function useStatusStream(): StatusStreamState {
   const queryClient = useQueryClient();
+  const [state, setState] = useState<StatusStreamState>("connecting");
 
   useEffect(() => {
     const source = new EventSource(`${API_URL}/status/stream`);
+    const onOpen = () => setState("live");
+    const onError = () => setState("polling");
 
     const onSnapshot = (e: MessageEvent) => {
       try {
@@ -89,15 +97,21 @@ export function useStatusStream(): void {
       }
     };
 
+    source.addEventListener("open", onOpen);
+    source.addEventListener("error", onError);
     source.addEventListener("snapshot", onSnapshot);
     source.addEventListener("tick", onTick);
 
     return () => {
+      source.removeEventListener("open", onOpen);
+      source.removeEventListener("error", onError);
       source.removeEventListener("snapshot", onSnapshot);
       source.removeEventListener("tick", onTick);
       source.close();
     };
   }, [queryClient]);
+
+  return state;
 }
 
 // The cron mutations patch the cached sync state in-place on success so the

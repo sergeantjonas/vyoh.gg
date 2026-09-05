@@ -3,6 +3,7 @@ import { TrackedAccountsSection } from "@/admin/tracked-accounts-section";
 import { OwnerAction } from "@/auth/owner-action";
 import { useIsOwner } from "@/auth/use-viewer";
 import { Button } from "@/components/ui/button";
+import { CardTitle } from "@/components/ui/card-title";
 import { SectionTitle } from "@/components/ui/section-title";
 import { useMe } from "@/identity/use-me";
 import { toastError, toastInfo, toastSuccess } from "@/lib/toast";
@@ -29,6 +30,7 @@ import { Badge, Metric } from "./status-primitives";
 import { StatusSkeleton } from "./status-skeleton";
 import { SyncJobsCard } from "./sync-jobs-card";
 import {
+  type StatusStreamState,
   useSetSyncEnabled,
   useStatus,
   useStatusStream,
@@ -38,7 +40,7 @@ import {
 } from "./use-status";
 
 export function StatusPage() {
-  useStatusStream();
+  const stream = useStatusStream();
   const { data, isPending, error, refetch, isFetching } = useStatus();
 
   if (isPending) {
@@ -57,10 +59,13 @@ export function StatusPage() {
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Status</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold tracking-tight">Status</h1>
+          <StreamPill state={stream} />
+        </div>
         <p className="text-sm text-muted-foreground">
           Live view of the match-sync cron, the Steam pollers, and the Riot rate-limiter
-          chain. Updates every 2 s via SSE.
+          chain. Streams every 2 s; falls back to a 5 s poll when the stream drops.
         </p>
       </header>
 
@@ -127,26 +132,67 @@ export function StatusPage() {
         )}
       </section>
 
-      {data.sync.history.length > 1 && (
-        <section className="flex flex-col gap-3">
-          <SectionTitle as="h2">Recent ticks</SectionTitle>
-          <ul className="flex flex-col gap-1 text-sm">
-            {data.sync.history.slice(1).map((tick) => (
-              <li
-                key={tick.startedAt}
-                className="flex items-center justify-between rounded-md border bg-muted/20 px-3 py-1.5 text-xs text-muted-foreground"
-              >
-                <span>{TICK_TIME_FMT.format(new Date(tick.startedAt))}</span>
-                <span>{tick.durationMs} ms</span>
-                <span>
-                  {sumBackfilled(tick)} new match{sumBackfilled(tick) === 1 ? "" : "es"}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {data.sync.history.length > 1 && <TickHistory ticks={data.sync.history.slice(1)} />}
     </div>
+  );
+}
+
+const STREAM_PILL: Record<StatusStreamState, { label: string; dot: string } | null> = {
+  connecting: null,
+  live: { label: "Live", dot: "bg-emerald-500 animate-pulse" },
+  polling: { label: "Polling", dot: "bg-amber-500" },
+};
+
+// The pill only says what the EventSource has actually reported, and stays
+// silent until it has reported anything.
+function StreamPill({ state }: { state: StatusStreamState }) {
+  const pill = STREAM_PILL[state];
+  if (!pill) return null;
+  return (
+    <span
+      aria-live="polite"
+      className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-medium text-[10px] uppercase tracking-[0.18em] text-muted-foreground"
+    >
+      <span aria-hidden="true" className={cn("size-1.5 rounded-full", pill.dot)} />
+      {pill.label}
+    </span>
+  );
+}
+
+function TickHistory({ ticks }: { ticks: SyncTick[] }) {
+  const durations = ticks.map((tick) => tick.durationMs);
+  const slowest = Math.max(...durations, 1);
+  // A flat history has no spike to show; tinting every row in full would read
+  // as a style rather than a signal.
+  const banded = Math.min(...durations) !== slowest;
+  return (
+    <section className="flex flex-col gap-3">
+      <SectionTitle as="h2">Recent ticks</SectionTitle>
+      <ul className="flex flex-col gap-1 text-sm">
+        {ticks.map((tick) => (
+          <li
+            key={tick.startedAt}
+            className="relative isolate grid grid-cols-3 items-center overflow-hidden rounded-md border bg-muted/20 px-3 py-1.5 text-xs text-muted-foreground"
+          >
+            {/* Duration relative to the slowest tick shown, so a spike reads
+                at a glance without a column of numbers to compare. */}
+            {banded && (
+              <span
+                aria-hidden="true"
+                data-testid="tick-duration-band"
+                className="absolute inset-y-0 left-0 -z-10 bg-foreground/[0.06]"
+                style={{ width: `${(tick.durationMs / slowest) * 100}%` }}
+              />
+            )}
+            <span>{TICK_TIME_FMT.format(new Date(tick.startedAt))}</span>
+            <span className="text-center font-mono">{tick.durationMs} ms</span>
+            <span className="text-right">
+              {sumBackfilled(tick)} new match{sumBackfilled(tick) === 1 ? "" : "es"}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -230,7 +276,7 @@ function SyncCard({
     <section className="flex flex-col gap-3 rounded-md border p-4">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <SectionTitle as="h2">Match sync</SectionTitle>
+          <CardTitle as="h2">Match sync</CardTitle>
           <div className="flex items-center gap-2 text-xs">
             {!enabled && <Badge tone="muted">paused</Badge>}
             {running && <Badge tone="active">running</Badge>}
@@ -416,13 +462,31 @@ function PatchSyncAction({ job }: { job: SyncJobStatus }) {
   );
 }
 
-function AppWindowRow({ window }: { window: AppWindowSnapshot }) {
+// Remaining reservoir as a share of capacity; a null reservoir means the
+// limiter has not been asked yet, which is a full window, not an empty one.
+function ReservoirBar({
+  reservoir,
+  capacity,
+  className,
+}: {
+  reservoir: number | null;
+  capacity: number;
+  className?: string;
+}) {
   const pct =
-    window.reservoir === null
-      ? 100
-      : Math.max(0, Math.min(100, (window.reservoir / window.capacity) * 100));
+    reservoir === null ? 100 : Math.max(0, Math.min(100, (reservoir / capacity) * 100));
   const tone = pct < 20 ? "bg-destructive" : pct < 50 ? "bg-amber-500" : "bg-emerald-500";
+  return (
+    <div className={cn("h-1.5 overflow-hidden rounded-full bg-muted", className)}>
+      <div
+        className={cn("h-full transition-all duration-500 ease-out", tone)}
+        style={{ width: `${pct}%` }}
+      />
+    </div>
+  );
+}
 
+function AppWindowRow({ window }: { window: AppWindowSnapshot }) {
   return (
     <div className="flex flex-col gap-1.5 rounded-md border p-3">
       <div className="flex items-center justify-between text-xs">
@@ -437,12 +501,7 @@ function AppWindowRow({ window }: { window: AppWindowSnapshot }) {
           {window.reservoir ?? "—"} / {window.capacity}
         </span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-        <div
-          className={cn("h-full transition-all duration-500 ease-out", tone)}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
+      <ReservoirBar reservoir={window.reservoir} capacity={window.capacity} />
       <div className="flex gap-3 font-mono text-[10px] text-muted-foreground">
         <span>Q {window.counts.QUEUED}</span>
         <span>exec {window.counts.EXECUTING}</span>
@@ -457,8 +516,17 @@ function MethodRow({ method }: { method: MethodLimiterSnapshot }) {
     <tr className="border-t">
       <td className="px-3 py-1.5">{method.regional}</td>
       <td className="px-3 py-1.5 font-mono text-xs">{method.family}</td>
-      <td className="px-3 py-1.5 text-right font-mono">
-        {method.reservoir ?? "—"} / {method.capacity}
+      <td className="px-3 py-1.5">
+        <div className="flex flex-col items-end gap-1">
+          <span className="font-mono">
+            {method.reservoir ?? "—"} / {method.capacity}
+          </span>
+          <ReservoirBar
+            reservoir={method.reservoir}
+            capacity={method.capacity}
+            className="w-24"
+          />
+        </div>
       </td>
       <td className="px-3 py-1.5 text-right font-mono">{method.counts.QUEUED}</td>
       <td className="px-3 py-1.5 text-right font-mono">{method.counts.EXECUTING}</td>
