@@ -1,17 +1,12 @@
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { LiveMatch, LolAccount } from "@vyoh/shared";
+import type { LiveGameEvent, LiveMatch, LolAccount } from "@vyoh/shared";
 import { useEffect, useRef } from "react";
 
 import { API_URL } from "@/lib/api-url";
 
-type LiveGameEventPayload = {
-  type: "game-started" | "game-ended";
-  puuid: string;
-};
-
 type LiveGameEventCallbacks = {
-  onGameStarted?: (event: LiveGameEventPayload) => void;
-  onGameEnded?: (event: LiveGameEventPayload) => void;
+  onGameStarted?: (event: LiveGameEvent) => void;
+  onGameEnded?: (event: LiveGameEvent) => void;
 };
 
 function summonerBase(account: LolAccount): string {
@@ -89,7 +84,7 @@ export function useLiveGameEvents(
     const onEvent = (e: MessageEvent) => {
       void queryClient.invalidateQueries({ queryKey: liveGameQueryKey(acc) });
       try {
-        const payload = JSON.parse(e.data) as LiveGameEventPayload;
+        const payload = JSON.parse(e.data) as LiveGameEvent;
         if (import.meta.env.DEV) {
           console.debug("[live] event", payload.type, payload.puuid);
         }

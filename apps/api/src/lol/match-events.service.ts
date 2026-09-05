@@ -1,18 +1,11 @@
 import { Injectable } from "@nestjs/common";
-import type { SyncTick } from "@vyoh/shared";
+import type { LiveGameEvent, SyncTick } from "@vyoh/shared";
 import { type Observable, Subject, filter } from "rxjs";
 
 export interface MatchUpdatedEvent {
   puuid: string;
   added: number;
   source: "head" | "historical";
-}
-
-export type LiveGameEventType = "game-started" | "game-ended";
-
-export interface LiveGameEvent {
-  type: LiveGameEventType;
-  puuid: string;
 }
 
 // Tiny pub/sub for match-backfill and live-game notifications. Cron/poller

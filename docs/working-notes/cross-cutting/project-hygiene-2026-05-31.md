@@ -1,6 +1,6 @@
 # Project hygiene audit — 2026-05-31
 
-**Status:** All sweep chunks shipped 2026-05-31 (F2 `4dc74ea`, Q1 `10e0e97`, R3 `41bb88c`, C1 `af6347b`, X1 `85e1885`, X2 `4db2835`). D3 followed same-day (`c8d4023`). D2 spot-check closed same-day as outcome #1 (routing-only, no transforms to extract). Deferred: D1, D4 below remain open.
+**Status:** All sweep chunks shipped 2026-05-31 (F2 `4dc74ea`, Q1 `10e0e97`, R3 `41bb88c`, C1 `af6347b`, X1 `85e1885`, X2 `4db2835`). D3 followed same-day (`c8d4023`). D2 spot-check closed same-day as outcome #1 (routing-only, no transforms to extract). D4 closed 2026-07-26 (premise stale) and its seven-site residual shipped 2026-09-02 / 2026-09-05. D1 remains open.
 
 Second-round structural/duplication audit, ~13 days after [project-hygiene-2026-05-18.md](project-hygiene-2026-05-18.md). Ran as a four-Explore fan-out (web structure, api structure, cross-package duplication, readability/generalization). **Headline:** boundaries and conventions remain disciplined; the new drift is concentrated in time/queue/playtime formatters that re-fragmented since F1, plus a clean generalization opportunity in Steam fact-chips.
 
@@ -256,5 +256,7 @@ So the note's premise — "web infers types from runtime fetch responses" — wa
 
 - api → shared: `lol.controller.ts:86` (`Promise<{ idCount, backfilled }>`), `patch.controller.ts:30` (`Promise<{ year: number }>`), `health.controller.ts:6` (no return type).
 - web mirrors to delete once the above export real types: `use-matches.ts:196`, `use-status.ts:120`, `use-ranked-emblem-year.ts:12`, and the SSE payload in `use-live-match.ts:7` (which mirrors `match-events.service.ts:13`, an api-local type that never reached shared).
+
+**Residual shipped.** `MatchSyncResult` and `RankedEmblemYear` on 2026-09-02; `HealthResponse` (`packages/shared/src/health.ts`) and `LiveGameEvent` (moved into `packages/shared/src/lol/live-game.ts` beside the payload it announces) on 2026-09-05, with the `use-live-match.ts` mirror deleted. Zero non-shared JSON handlers and zero web mirrors remain.
 
 **Two things this note got right, and they outlive it.** First, the convention was real but undocumented and unlinted — nothing in [repo-conventions.md](../../repo-conventions.md) stated it, `biome.json` has no `useExplicitType`, and `apps/api/src/conventions.spec.ts` had no controller lint. It survived on discipline alone. The rule is now written down as part of this closure. Second, **no response payload is validated at runtime anywhere** in the app: `class-validator` covers request params only, and the workspace has no zod/valibot/arktype. That is a genuine gap, but it is a runtime-validation concern rather than a type-sharing one, so it is filed separately in [parked.md](../parked.md) with its own trigger instead of being smuggled in under D4.

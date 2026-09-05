@@ -225,6 +225,7 @@ export type {
   LiveBan,
   LiveRankEntry,
   LiveMastery,
+  LiveGameEvent,
 } from "./lol/live-game.ts";
 export type {
   MatchTimelineProjection,
@@ -496,6 +497,7 @@ export type {
   RecapCandidate,
   RecapSelectionOptions,
 } from "./home/recap-scoring.ts";
+export type { HealthResponse } from "./health.ts";
 export { syncJobHealth } from "./status.ts";
 export type {
   AppWindowSnapshot,

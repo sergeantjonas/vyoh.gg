@@ -49,3 +49,9 @@ export interface LiveMatch {
   participants: LiveGameParticipant[];
   bans: LiveBan[];
 }
+
+// Payload of the `live-game-updated` SSE message on `GET …/live/events`.
+export interface LiveGameEvent {
+  type: "game-started" | "game-ended";
+  puuid: string;
+}
