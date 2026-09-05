@@ -1,7 +1,7 @@
 import { useIsOwner } from "@/auth/use-viewer";
 import { viewerScope, viewerScopedQuery } from "@/auth/viewer-scope";
 import { HttpError } from "@/lib/http-error";
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { SteamCompletionCandidates } from "@vyoh/shared";
 
 import { API_URL } from "@/lib/api-url";
@@ -25,12 +25,15 @@ async function fetchCompletionCandidates(): Promise<SteamCompletionCandidates> {
 
 // Ranked server-side; the surfaces only cap what they show. Same 30min
 // stale-time as library completion — both move on the daily unlocks poller.
-export function useCompletionCandidates() {
-  const scope = viewerScope(useIsOwner());
-  return useQuery({
-    queryKey: ["steam", "achievements", "completion-candidates", scope],
+export function completionCandidatesQueryOptions(isOwner = false) {
+  return queryOptions({
+    queryKey: ["steam", "achievements", "completion-candidates", viewerScope(isOwner)],
     queryFn: fetchCompletionCandidates,
     staleTime: 30 * 60 * 1_000,
     ...viewerScopedQuery,
   });
+}
+
+export function useCompletionCandidates() {
+  return useQuery(completionCandidatesQueryOptions(useIsOwner()));
 }

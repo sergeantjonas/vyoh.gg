@@ -72,6 +72,7 @@ export { parseMatchQuery } from "./lol/match-query.ts";
 export type { MatchOutcomeFilter, ParsedMatchQuery } from "./lol/match-query.ts";
 export { parsePaletteVerb } from "./command-palette/parse-palette-verb.ts";
 export type {
+  PaletteHuntVerb,
   PaletteVerb,
   PalettePatchesVerb,
   PaletteShareVerb,

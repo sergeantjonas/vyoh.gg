@@ -1,3 +1,4 @@
+import { NEAREST_HUNDRED_LIMIT } from "@/steam/_shared/nearest-entries";
 import { useCompletionCandidates } from "@/steam/use-completion-candidates";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
 import { render, screen } from "@testing-library/react";
@@ -5,7 +6,7 @@ import type { SteamCompletionCandidate, SteamOwnedGame } from "@vyoh/shared";
 import { configureAxe } from "jest-axe";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { NEAREST_HUNDRED_LIMIT, NearestHundred } from "./nearest-hundred";
+import { NearestHundred } from "./nearest-hundred";
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, ...props }: { children: ReactNode }) => (

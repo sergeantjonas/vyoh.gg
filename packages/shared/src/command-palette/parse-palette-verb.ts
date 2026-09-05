@@ -10,6 +10,7 @@
 //   /patches 25.10 @jonas-eune     → /lol/patches/25.10?as=jonas-eune
 //   /share                         → share cards for both flagship recap chapters
 //   /share champion|conclusion     → one chapter's share card
+//   /hunt                          → the games nearest 100% achievements
 //
 // Designed as a discriminated union so future global surfaces
 // (champion DB, item meta, tier list) plug in by adding a `kind`.
@@ -25,7 +26,13 @@ export type PaletteShareVerb = {
   chapter: "champion" | "conclusion" | null;
 };
 
-export type PaletteVerb = PalettePatchesVerb | PaletteShareVerb;
+// Carries no arguments: the ranking is server-side and the palette shows its
+// head. Trailing tokens are ignored, same as the other verbs.
+export type PaletteHuntVerb = {
+  kind: "hunt";
+};
+
+export type PaletteVerb = PalettePatchesVerb | PaletteShareVerb | PaletteHuntVerb;
 
 const VERSION_RE = /^\d+\.\d+(?:\.\d+)?$/;
 const SLUG_TOKEN_RE = /^@([a-z0-9-]+)$/;
@@ -43,6 +50,8 @@ export function parsePaletteVerb(input: string): PaletteVerb | null {
     }
     return { kind: "share", chapter };
   }
+
+  if (head === "/hunt") return { kind: "hunt" };
 
   if (head !== "/patches") return null;
 

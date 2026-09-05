@@ -1,39 +1,11 @@
 import { SectionTitle } from "@/components/ui/section-title";
+import { type NearestEntry, joinNearestEntries } from "@/steam/_shared/nearest-entries";
 import { formatRarityPercentEditorial } from "@/steam/_shared/rarity-percent";
-import { steamCapsuleUrl } from "@/steam/_shared/steam-image";
 import { useCompletionCandidates } from "@/steam/use-completion-candidates";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
 import { Link } from "@tanstack/react-router";
-import type { SteamCompletionCandidate, SteamOwnedGame } from "@vyoh/shared";
+import type { SteamCompletionCandidate } from "@vyoh/shared";
 import { useMemo } from "react";
-
-// A planner, not a leaderboard: past the first handful the list stops being
-// "what could I finish next" and becomes the whole backlog again.
-export const NEAREST_HUNDRED_LIMIT = 8;
-
-interface NearestEntry extends SteamCompletionCandidate {
-  name: string;
-  capsuleUrl: string;
-}
-
-export function joinNearestEntries(
-  candidates: SteamCompletionCandidate[],
-  owned: SteamOwnedGame[]
-): NearestEntry[] {
-  const gameById = new Map(owned.map((g) => [g.appid, g]));
-  const entries: NearestEntry[] = [];
-  for (const c of candidates) {
-    const game = gameById.get(c.appid);
-    if (!game) continue;
-    entries.push({
-      ...c,
-      name: game.name,
-      capsuleUrl: steamCapsuleUrl(c.appid, game.assetTimestamp),
-    });
-    if (entries.length === NEAREST_HUNDRED_LIMIT) break;
-  }
-  return entries;
-}
 
 // The average and the blocker come from the locked achievements that have
 // been polled, so the caption speaks about "them" rather than the full count.

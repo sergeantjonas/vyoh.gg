@@ -129,4 +129,13 @@ describe("parsePaletteVerb", () => {
       chapter: "conclusion",
     });
   });
+
+  it("parses /hunt regardless of case and trailing tokens", () => {
+    expect(parsePaletteVerb("/hunt")).toEqual({ kind: "hunt" });
+    expect(parsePaletteVerb("/HUNT portal")).toEqual({ kind: "hunt" });
+  });
+
+  it("returns null on hunt without the slash", () => {
+    expect(parsePaletteVerb("hunt")).toBeNull();
+  });
 });

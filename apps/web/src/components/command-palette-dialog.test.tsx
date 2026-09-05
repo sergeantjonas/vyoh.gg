@@ -1,5 +1,7 @@
+import { seedViewer } from "@/auth/mock-viewer";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { SteamCompletionCandidates, SteamOwnedGames } from "@vyoh/shared";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CommandPalette } from "./command-palette";
@@ -98,6 +100,7 @@ vi.mock("@/home/recap/share-chapter-card", () => ({
 
 function wrap(ui: ReactNode) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  seedViewer(client);
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 
@@ -356,8 +359,10 @@ describe("CommandPaletteDialog", () => {
     fireEvent.keyDown(input, { key: "Escape" });
     expect(onOpenChange).toHaveBeenCalledWith(false);
     // Re-mount to verify the input was reset by the close handler.
+    const remountClient = new QueryClient();
+    seedViewer(remountClient);
     rerender(
-      <QueryClientProvider client={new QueryClient()}>
+      <QueryClientProvider client={remountClient}>
         <CommandPaletteDialog open onOpenChange={onOpenChange} />
       </QueryClientProvider>
     );
@@ -411,6 +416,7 @@ describe("CommandPaletteDialog", () => {
     ];
     pathnameRef.current = "/lol/jonas-euw";
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    seedViewer(client);
     const playedAt = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     client.setQueryData(
       ["lol", "matches-cached-infinite", "EUW1", "Jonas", "EUW", undefined],
@@ -476,6 +482,7 @@ describe("CommandPaletteDialog", () => {
     ];
     pathnameRef.current = "/lol/jonas-euw";
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    seedViewer(client);
     const now = Date.now();
     const playedMinAgo = new Date(now - 10 * 60 * 1000).toISOString();
     const playedHourAgo = new Date(now - 3 * 60 * 60 * 1000).toISOString();
@@ -660,6 +667,7 @@ describe("CommandPaletteDialog", () => {
     it("shows 'Game: Elden Ring' on /steam/library/1245620 when the owned-games cache is warm", () => {
       pathnameRef.current = "/steam/library/1245620";
       const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      seedViewer(client);
       client.setQueryData(["steam", "owned-games"], {
         games: [
           {
@@ -784,6 +792,7 @@ describe("CommandPaletteDialog", () => {
 
     function renderWithSteamCache() {
       const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      seedViewer(client);
       client.setQueryData(["steam", "owned-games"], ownedGames);
       return render(
         <QueryClientProvider client={client}>
@@ -900,6 +909,7 @@ describe("CommandPaletteDialog", () => {
 
     function renderWithWishlistCache() {
       const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      seedViewer(client);
       client.setQueryData(["steam", "wishlist"], wishlist);
       return render(
         <QueryClientProvider client={client}>
@@ -981,6 +991,90 @@ describe("CommandPaletteDialog", () => {
         target: { value: "wishlist wukong" },
       });
       expect(screen.queryByRole("option", { name: /Black Myth: Wukong/ })).toBeNull();
+    });
+  });
+
+  describe("hunt verb (/hunt)", () => {
+    // Both reads are seeded under the public scope the seeded viewer resolves
+    // to, so the verb's queries are cache hits and no fetch is attempted.
+    function renderWithHuntCache(candidates: SteamCompletionCandidates["candidates"]) {
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      seedViewer(client);
+      client.setQueryData(["steam", "owned-games", "public"], {
+        games: [
+          { appid: 400, name: "Portal", assetTimestamp: null },
+          { appid: 1145360, name: "Hades", assetTimestamp: null },
+        ],
+        lastSyncedAt: "2026-09-05T00:00:00.000Z",
+      } as unknown as SteamOwnedGames);
+      client.setQueryData(["steam", "achievements", "completion-candidates", "public"], {
+        candidates,
+      } satisfies SteamCompletionCandidates);
+      return render(
+        <QueryClientProvider client={client}>
+          <CommandPaletteDialog open onOpenChange={vi.fn()} />
+        </QueryClientProvider>
+      );
+    }
+    const hades = {
+      appid: 1145360,
+      total: 49,
+      unlocked: 46,
+      remaining: 3,
+      remainingAvgPercent: 30,
+      remainingMinPercent: 8,
+      score: 2.1,
+    };
+    const portal = {
+      appid: 400,
+      total: 15,
+      unlocked: 14,
+      remaining: 1,
+      remainingAvgPercent: 60,
+      remainingMinPercent: 60,
+      score: 0.4,
+    };
+
+    it("typing /hunt collapses other groups and lists the page entry, then the games in server order", () => {
+      renderWithHuntCache([hades, portal]);
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "/hunt" },
+      });
+      expect(screen.queryByRole("option", { name: /^Home$/ })).toBeNull();
+      expect(screen.queryByRole("option", { name: /Patches/ })).toBeNull();
+      expect(screen.queryByRole("option", { name: /Ahri chapter card/ })).toBeNull();
+      const names = screen.getAllByRole("option").map((o) => o.textContent);
+      expect(names[0]).toBe("Nearest 100%");
+      expect(names[1]).toContain("Hades");
+      expect(names[1]).toContain("3 of 49 left");
+      expect(names[2]).toContain("Portal");
+    });
+
+    it("selecting a game navigates to its library page", () => {
+      renderWithHuntCache([portal]);
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "/hunt" },
+      });
+      fireEvent.click(screen.getByRole("option", { name: /Portal/ }));
+      expect(navigateSpy).toHaveBeenCalledWith({ to: "/steam/library/400" });
+    });
+
+    it("selecting the page entry navigates to the signature page", () => {
+      renderWithHuntCache([]);
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "/hunt" },
+      });
+      fireEvent.click(screen.getByRole("option", { name: "Nearest 100%" }));
+      expect(navigateSpy).toHaveBeenCalledWith({ to: "/steam/achievements/signature" });
+    });
+
+    it("free text surfaces the page entry without ranking the library", () => {
+      renderWithHuntCache([portal]);
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "nearest" },
+      });
+      expect(screen.getByRole("option", { name: "Nearest 100%" })).not.toBeNull();
+      expect(screen.queryByRole("option", { name: /Portal/ })).toBeNull();
     });
   });
 

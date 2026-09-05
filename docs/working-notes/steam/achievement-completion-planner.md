@@ -1,6 +1,6 @@
 # Steam — achievement completion planner ("nearest 100%")
 
-**Status:** Active — chunks 1 (api + shared scoring) and 2 (signature-page section) shipped 2026-09-05; chunk 3 (`/hunt` palette verb) open.
+**Status:** Shipped — all three chunks landed 2026-09-05: api + shared scoring, the "Nearest 100%" section on the signature page, and the `/hunt` palette verb.
 
 Read this when: touching the completion-candidates endpoint, the scoring in `packages/shared/src/steam/completion-candidates.ts`, or adding another surface that ranks games by achievement progress.
 
@@ -22,4 +22,8 @@ The library-completion read answers "how far along is each game" and the rarest 
 
 1. **Api + shared** — `SteamCompletionCandidates` type and `buildCompletionCandidates()` in shared; `getCompletionCandidates(curation)` on the achievements service; `GET /steam/achievements/completion-candidates` with `@WithViewer()`. Shipped 2026-09-05.
 2. **Web section** — `useCompletionCandidates()` hook (viewer-scoped key, `credentials: "include"`), a "Nearest 100%" section on the signature page joined with owned games for names and capsules, capped at eight rows, test file in the same commit. No loader await: the signature page has no loader and the section is not crawler-relevant. Shipped 2026-09-05 as `nearest-hundred.tsx`, placed after the 100%'d hall so "finished" reads into "closest to finished".
-3. **Palette verb** — `/hunt` in `parsePaletteVerb`, listing the top candidates as entries that navigate to `/steam/library/$appid`; parser and dialog tests. Flip this Status to Shipped and point the F3 entry here.
+3. **Palette verb** — `/hunt` in `parsePaletteVerb`, a "Nearest 100%" group with the signature page as its first entry and the ranked games below it, each navigating to `/steam/library/$appid`; parser and dialog tests. Shipped 2026-09-05. Unlike the Steam library group, the verb *fetches* (two queries, disabled until the verb is typed) instead of reading the cache: the ranking lives on a page most visits never open, so a cache-only read would answer with nothing exactly when the verb is typed cold. Resolving the viewer for the queries' scope is what made every dialog test seed the viewer.
+
+## Follow-up found while wiring the verb
+
+The dialog and the Steam-game preview read owned games with `getQueryData(["steam", "owned-games"])`, but the hook's key has carried a trailing viewer-scope segment since the hidden-games arc, and `getQueryData` matches exactly. Outside tests (which seed the unscoped key) the Steam library group and the `dev:`/`pub:`/`franchise:` grammar therefore see an empty cache. Tracked in [open-work.md](../open-work.md); not fixed here.

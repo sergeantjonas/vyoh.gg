@@ -1,3 +1,4 @@
+import { useIsOwner } from "@/auth/use-viewer";
 import { LeagueOfLegendsIcon, SteamIcon } from "@/components/brand-icons";
 import { buildChips, buildSteamChips } from "@/components/command-palette-chips";
 import { matchesQuery } from "@/components/command-palette-matcher";
@@ -27,7 +28,10 @@ import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useChampionName, useChampions } from "@/lol/champions/use-champions";
 import { prefetchCachedMatches } from "@/lol/matches/use-matches";
-import { useQueryClient } from "@tanstack/react-query";
+import { joinNearestEntries } from "@/steam/_shared/nearest-entries";
+import { completionCandidatesQueryOptions } from "@/steam/use-completion-candidates";
+import { steamOwnedGamesQueryOptions } from "@/steam/use-owned-games";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { InfiniteData } from "@tanstack/react-query";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import {
@@ -46,6 +50,7 @@ import {
 } from "@vyoh/shared";
 import {
   CalendarClock,
+  Crosshair,
   Crown,
   Fingerprint,
   Gamepad2,
@@ -335,7 +340,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
     });
   }
 
-  // When a global verb (`/patches …`, `/share …`, `wishlist …`) is parsed,
+  // When a global verb (`/patches …`, `/share …`, `/hunt`, `wishlist …`) is parsed,
   // all other groups — including the Matches list — collapse so the palette
   // reads as a single resolved intent. The chip / match-filter groups would
   // be visual noise relative to that intent.
@@ -400,6 +405,30 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
     : shareTargets.filter((t) => passesFreeText(t.value));
   const showShare =
     shareVerb !== null || (showNonMatchGroups && visibleShareTargets.length > 0);
+
+  // `/hunt` lists the games nearest 100% achievements as destinations. Unlike
+  // the Steam library group this fetches rather than reading the cache: the
+  // ranking lives on a page most visits never open, so a cache-only read would
+  // answer with nothing exactly when the verb is typed cold. Both queries stay
+  // disabled until the verb is in play so opening the palette costs nothing.
+  const huntVerb = paletteVerb?.kind === "hunt";
+  const isOwner = useIsOwner();
+  const huntCandidates = useQuery({
+    ...completionCandidatesQueryOptions(isOwner),
+    enabled: huntVerb,
+  });
+  const huntGames = useQuery({
+    ...steamOwnedGamesQueryOptions(isOwner),
+    enabled: huntVerb,
+  });
+  const huntEntries = useMemo(() => {
+    if (!huntVerb || !huntCandidates.data || !huntGames.data) return [];
+    return joinNearestEntries(huntCandidates.data.candidates, huntGames.data.games);
+  }, [huntVerb, huntCandidates.data, huntGames.data]);
+  const huntLoading = huntVerb && (huntCandidates.isPending || huntGames.isPending);
+  const huntFailed = huntVerb && (huntCandidates.isError || huntGames.isError);
+  const showHunt =
+    huntVerb || (showNonMatchGroups && passesFreeText("hunt nearest 100% achievements"));
 
   const pages = [
     { value: "home", icon: <Home />, label: "Home", path: "/" },
@@ -861,6 +890,52 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
               >
                 <Share2 className="size-4" />
                 <span>{t.label}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {showHunt && (
+          <CommandGroup heading="Nearest 100%">
+            <CommandItem
+              value="hunt nearest 100% achievements"
+              onSelect={() =>
+                go({
+                  path: "/steam/achievements/signature",
+                  label: "Nearest 100%",
+                  kind: "page",
+                })
+              }
+            >
+              <Crosshair className="size-4" />
+              <span>Nearest 100%</span>
+            </CommandItem>
+            {huntLoading && (
+              <CommandItem value="hunt loading" disabled>
+                <Loader2 className="size-4 animate-spin" />
+                <span className="text-muted-foreground">Ranking the library…</span>
+              </CommandItem>
+            )}
+            {huntFailed && (
+              <CommandItem value="hunt failed" disabled>
+                <span className="text-muted-foreground">
+                  Couldn't rank the library right now.
+                </span>
+              </CommandItem>
+            )}
+            {huntEntries.map((e) => (
+              <CommandItem
+                key={e.appid}
+                value={`hunt-game:${e.appid} ${e.name.toLowerCase()}`}
+                onSelect={() =>
+                  go({ path: `/steam/library/${e.appid}`, label: e.name, kind: "page" })
+                }
+              >
+                <SteamIcon className="size-4 shrink-0" />
+                <span className="min-w-0 flex-1 truncate">{e.name}</span>
+                <span className="ml-2 shrink-0 text-xs tabular-nums text-muted-foreground">
+                  {e.remaining} of {e.total} left
+                </span>
               </CommandItem>
             ))}
           </CommandGroup>
