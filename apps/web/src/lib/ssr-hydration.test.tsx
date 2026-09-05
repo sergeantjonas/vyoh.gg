@@ -48,6 +48,7 @@ import { NowPlayingStrip } from "@/home/conclusion/now-playing-strip";
 afterEach(() => {
   window.localStorage.clear();
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
 });
 
 describe("server rendering does not read the browser", () => {
@@ -88,6 +89,19 @@ describe("server rendering does not read the browser", () => {
     );
     expect(html).toContain("Ahri · Win · 12/2/9");
     expect(html).toContain("Match detail");
+  });
+
+  it("renders a CountUp at its final value on the server", async () => {
+    // The champion hero's numbers reach a crawler through this. Test mode
+    // already bypasses the animation, so the module is re-imported under a
+    // mode that would animate; the cold-arrival gate has to be what settles it.
+    vi.stubEnv("MODE", "development");
+    vi.resetModules();
+    const { CountUp } = await import("@/components/count-up");
+    expect(renderToString(<CountUp to={193} />)).toContain("193");
+    // A gated CountUp holds at 0 on both sides — and this is what proves the
+    // stub reached the module, since test mode would have settled it at 193.
+    expect(renderToString(<CountUp to={193} start={false} />)).toContain("0");
   });
 
   it("reports view transitions as unsupported on the server even where they exist", () => {

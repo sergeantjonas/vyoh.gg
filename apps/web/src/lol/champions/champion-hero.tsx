@@ -1,4 +1,4 @@
-import { supportsViewTransitions } from "@/lib/view-transition-nav";
+import { useViewTransitionsSupported } from "@/lib/view-transition-nav";
 import {
   type ChampionOrigin,
   useActiveChampion,
@@ -23,9 +23,12 @@ export function ChampionHero({
   const heroRef = useRef<HTMLDivElement>(null);
   // Mirror the source card's view-transition-name when VT is supported and
   // we arrived from the list (activePosition was set by the row click).
-  // Deep-link arrivals fall through to the browser's default crossfade.
+  // Deep-link arrivals fall through to the browser's default crossfade. Read
+  // through the render-safe hook: the server and the hydrating render both
+  // answer false, while a hero mounted by a click still reads the true value.
+  const viewTransitionsSupported = useViewTransitionsSupported();
   const viewTransitionName =
-    supportsViewTransitions() && activePosition
+    viewTransitionsSupported && activePosition
       ? `champion-${alias}-${activePosition}`
       : undefined;
   // Captured once on mount so StrictMode's double-invocation doesn't lose the

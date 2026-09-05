@@ -10,8 +10,9 @@ import {
 } from "@/lib/chart-palette";
 import { findPatchBoundaries } from "@/lol/_shared/patch/patch-version";
 import { ConclusionCard } from "@/lol/_shared/ui/conclusion-card";
-import { computeKdaSeries, computeTrendSummary } from "@/lol/trends/trend-stats";
+import { computeKdaSeries } from "@/lol/trends/trend-stats";
 import type { KdaPoint } from "@/lol/trends/trend-stats";
+import { computeTrendSummary } from "@vyoh/shared";
 import { type MatchSummary, excludeRemakes, formatKda } from "@vyoh/shared";
 import { useReducedMotion } from "motion/react";
 import { useMemo } from "react";

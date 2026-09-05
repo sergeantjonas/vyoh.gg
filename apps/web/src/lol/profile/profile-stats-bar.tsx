@@ -2,7 +2,7 @@ import { CountUp } from "@/components/count-up";
 import { PersonalRecord } from "@/components/personal-record";
 import { HeroLabel, HeroNumber } from "@/components/ui/hero-number";
 import { useMatchWindow } from "@/lol/matches/match-window-context";
-import { computeTrendSummary } from "@/lol/trends/trend-stats";
+import { computeTrendSummary } from "@vyoh/shared";
 import { excludeRemakes } from "@vyoh/shared";
 import { type Variants, m } from "motion/react";
 import type { ReactNode } from "react";

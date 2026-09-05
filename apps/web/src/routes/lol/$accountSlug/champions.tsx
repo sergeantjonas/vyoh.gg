@@ -27,6 +27,7 @@ import { ChampionsSkeleton } from "@/lol/champions/champions-skeleton";
 import { useCachedMatchesWindow } from "@/lol/matches/use-matches";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Outlet, createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
+import { CHAMPION_DETAIL_WINDOW } from "@vyoh/shared";
 import { useEffect, useMemo, useState } from "react";
 
 interface ChampionsSearch {
@@ -47,9 +48,9 @@ export const Route = createFileRoute("/lol/$accountSlug/champions")({
     }),
 });
 
-// Match the Champion detail page's window so navigating list → detail doesn't
+// The champion detail page's window, so navigating list → detail doesn't
 // switch dataset under the user.
-const CHAMPIONS_FETCH_COUNT = 2000;
+const CHAMPIONS_FETCH_COUNT = CHAMPION_DETAIL_WINDOW;
 
 function RoleChipStrip({
   value,

@@ -1,4 +1,5 @@
 import { ForbiddenException } from "@nestjs/common";
+import { CHAMPION_DETAIL_WINDOW } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
 import type { IdentityService } from "../identity/identity.service";
 import type { PrismaService } from "../prisma/prisma.service";
@@ -26,6 +27,7 @@ function makeService(
   opts: {
     isLolAccountAllowed?: ReturnType<typeof vi.fn>;
     resolveSummoner?: ReturnType<typeof vi.fn>;
+    getCachedMatches?: ReturnType<typeof vi.fn>;
   } = {}
 ): LolChampionAnalyticsService {
   const identity = {
@@ -33,6 +35,8 @@ function makeService(
   } as unknown as IdentityService;
   const lol = {
     resolveSummoner: opts.resolveSummoner ?? vi.fn(),
+    getCachedMatches:
+      opts.getCachedMatches ?? vi.fn().mockResolvedValue({ matches: [], total: 0 }),
   } as unknown as LolService;
   return new LolChampionAnalyticsService(
     prisma as unknown as PrismaService,
@@ -70,6 +74,64 @@ describe("LolChampionAnalyticsService.getChampionExtras", () => {
       { champion: "Lux", games: 2, wins: 2 },
       { champion: "Syndra", games: 1, wins: 0 },
     ]);
+  });
+
+  it("computes the detail and overall aggregates over the queue-scoped window", async () => {
+    const prisma = makePrisma();
+    const resolveSummoner = vi.fn().mockResolvedValue({ puuid: "puuid-vyoh" });
+    const summary = (over: {
+      matchId: string;
+      champion: string;
+      queueId: number;
+      win: boolean;
+    }) => ({
+      kills: 5,
+      deaths: 3,
+      assists: 7,
+      durationSec: 1800,
+      playedAt: "2026-09-01T00:00:00.000Z",
+      remake: false,
+      teamPosition: "MIDDLE",
+      gameVersion: "16.17",
+      ...over,
+    });
+    const getCachedMatches = vi.fn().mockResolvedValue({
+      total: 3,
+      matches: [
+        summary({ matchId: "1", champion: "Ahri", queueId: 420, win: true }),
+        summary({ matchId: "2", champion: "Ahri", queueId: 450, win: false }),
+        summary({ matchId: "3", champion: "Lux", queueId: 440, win: false }),
+      ],
+    });
+
+    const result = await makeService(prisma, {
+      resolveSummoner,
+      getCachedMatches,
+    }).getChampionExtras("euw1", "Vyoh", "Ahri", "Ahri", [420, 440]);
+
+    expect(getCachedMatches).toHaveBeenCalledWith(
+      "euw1",
+      "Vyoh",
+      "Ahri",
+      0,
+      CHAMPION_DETAIL_WINDOW
+    );
+    // The ARAM game is outside the requested queues on both aggregates.
+    expect(result.detail).toMatchObject({ champion: "Ahri", games: 1, wins: 1 });
+    expect(result.overall).toMatchObject({ games: 2, wins: 1, winRate: 0.5 });
+  });
+
+  it("answers a null detail for a champion with no matches in the window", async () => {
+    const prisma = makePrisma();
+    const resolveSummoner = vi.fn().mockResolvedValue({ puuid: "puuid-vyoh" });
+    const result = await makeService(prisma, { resolveSummoner }).getChampionExtras(
+      "euw1",
+      "Vyoh",
+      "Ahri",
+      "Ahri"
+    );
+    expect(result.detail).toBeNull();
+    expect(result.overall.games).toBe(0);
   });
 
   it("caps topItems at 6", async () => {

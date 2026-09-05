@@ -1,3 +1,4 @@
+import { useHydratedSync } from "@/lib/use-hydrated";
 import { animate, useMotionValue, useReducedMotion } from "motion/react";
 import { useEffect, useState } from "react";
 
@@ -33,7 +34,13 @@ export function CountUp({
   delay?: number;
 }) {
   const reduced = useReducedMotion();
-  const skip = !SHOULD_ANIMATE || reduced === true;
+  // A cold arrival starts settled: the server has to emit the final number for
+  // anyone reading the HTML, and the hydrating render has to agree with it.
+  // Only a CountUp mounted after hydration — a click-path panel, a chapter
+  // pinning into view — counts up from zero. A gated one (`start={false}`)
+  // is exempt: it holds at 0 on both sides and must not flash the final value.
+  const hydrated = useHydratedSync();
+  const skip = !SHOULD_ANIMATE || reduced === true || (!hydrated && start);
   const value = useMotionValue(skip ? to : 0);
   const [display, setDisplay] = useState(skip ? to : 0);
 

@@ -1,11 +1,14 @@
 import { ForbiddenException, Injectable } from "@nestjs/common";
 import {
+  CHAMPION_DETAIL_WINDOW,
   type ChampionBuildFlowEntry,
   type ChampionExtras,
   type ChampionLanePhase,
   type ChampionRecap,
   type ChampionRuneDiversityEntry,
   type MatchSummary,
+  computeChampionDetail,
+  computeTrendSummary,
   deriveChampionRecap,
   excludeRemakes,
 } from "@vyoh/shared";
@@ -102,7 +105,28 @@ export class LolChampionAnalyticsService {
       .sort((a, b) => b[1].games - a[1].games)
       .map(([champion, s]) => ({ champion, games: s.games, wins: s.wins }));
 
-    return { topItems, matchups };
+    // The detail and overall aggregates the champion panel renders from. Same
+    // window, same queue filter and same shared functions as the client runs
+    // over its own copy of the window, so a server render — which never holds
+    // the 361 kB window — agrees to the digit with a client that does.
+    const window = await this.lol.getCachedMatches(
+      region,
+      gameName,
+      tagLine,
+      0,
+      CHAMPION_DETAIL_WINDOW
+    );
+    const scoped =
+      queues && queues.length > 0
+        ? window.matches.filter((m) => queues.includes(m.queueId))
+        : window.matches;
+
+    return {
+      topItems,
+      matchups,
+      detail: computeChampionDetail(championKey, scoped),
+      overall: computeTrendSummary(scoped),
+    };
   }
 
   /**

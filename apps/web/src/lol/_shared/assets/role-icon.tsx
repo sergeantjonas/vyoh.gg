@@ -1,8 +1,12 @@
 import { cn } from "@/lib/utils";
 import { roleIconUrl } from "@/lol/_shared/assets/champion-icon";
+import { type RolePosition, isRolePosition } from "@vyoh/shared";
 import { useState } from "react";
 
-export type RolePosition = "TOP" | "JUNGLE" | "MIDDLE" | "BOTTOM" | "UTILITY";
+// The type and its guard live in shared so the api can run the same champion
+// aggregation; re-exported here because every LoL surface reaches for them
+// alongside the icon.
+export { isRolePosition, type RolePosition };
 
 export const ROLE_ORDER: RolePosition[] = [
   "TOP",
@@ -19,16 +23,6 @@ export const ROLE_LABEL: Record<RolePosition, string> = {
   BOTTOM: "Bot",
   UTILITY: "Support",
 };
-
-export function isRolePosition(value: string): value is RolePosition {
-  return (
-    value === "TOP" ||
-    value === "JUNGLE" ||
-    value === "MIDDLE" ||
-    value === "BOTTOM" ||
-    value === "UTILITY"
-  );
-}
 
 const POSITION_SLUG: Record<RolePosition, string> = {
   TOP: "top",

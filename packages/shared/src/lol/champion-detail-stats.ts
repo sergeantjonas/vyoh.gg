@@ -1,9 +1,18 @@
 // Baseline: personal — per-champion aggregates from your own match history. The
 // Champion-detail delta tiles compare these to your account-wide averages — a
 // personal baseline both directions.
-import { type RolePosition, isRolePosition } from "@/lol/_shared/assets/role-icon";
-import type { MatchSummary } from "@vyoh/shared";
-import type { ChampionRoleSplit, ChampionStats } from "./champion-stats";
+import type { ChampionRoleSplit, ChampionStats } from "./champion-stats.ts";
+import { excludeRemakes } from "./exclude-remakes.ts";
+import type { MatchSummary } from "./match.ts";
+import { type RolePosition, isRolePosition } from "./role-position.ts";
+
+// How many recent matches the champion detail is aggregated over. Wide enough
+// to span ~6 patches at any realistic play rate, and decoupled from the
+// matches-list count selector so champion stats, sparkline, per-patch strip and
+// patch boundaries all read one dataset. The champion table reads the same
+// window so list → detail never switches dataset, and the api computes the
+// same aggregate over it so a server render agrees with a client that holds it.
+export const CHAMPION_DETAIL_WINDOW = 2000;
 
 export interface ChampionDetailStats extends ChampionStats {
   avgKills: number;
@@ -20,7 +29,9 @@ export function computeChampionDetail(
   allMatches: MatchSummary[]
 ): ChampionDetailStats | null {
   const key = championKey.toLowerCase();
-  const champMatches = allMatches.filter((m) => m.champion.toLowerCase() === key);
+  const champMatches = excludeRemakes(allMatches).filter(
+    (m) => m.champion.toLowerCase() === key
+  );
   if (champMatches.length === 0) return null;
 
   // Preserve original-case alias from match data for display/CDragon lookups

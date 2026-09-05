@@ -208,6 +208,17 @@ export {
   pickHigherRank,
 } from "./lol/rank-history.ts";
 export type { ChampionExtras, ItemStats, MatchupStats } from "./lol/champion-extras.ts";
+export { isRolePosition } from "./lol/role-position.ts";
+export type { RolePosition } from "./lol/role-position.ts";
+export type { ChampionRoleSplit, ChampionStats } from "./lol/champion-stats.ts";
+export {
+  CHAMPION_DETAIL_WINDOW,
+  buildWinRateSeries,
+  computeChampionDetail,
+} from "./lol/champion-detail-stats.ts";
+export type { ChampionDetailStats } from "./lol/champion-detail-stats.ts";
+export { computeTrendSummary } from "./lol/trend-summary.ts";
+export type { TrendSummary } from "./lol/trend-summary.ts";
 export type {
   LiveMatch,
   LiveGameParticipant,

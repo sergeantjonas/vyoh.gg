@@ -1,6 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { championExtrasQueryOptions } from "@/lol/champions/use-champion-extras";
 import { patchChangesQueryOptions } from "@/lol/patches/use-patch-changes";
 import { patchListQueryOptions } from "@/lol/patches/use-patch-list";
 import { gameAchievementsQueryOptions } from "@/steam/game/use-game-achievements";
@@ -8,6 +9,7 @@ import { gameDescriptionQueryOptions } from "@/steam/game/use-game-description";
 import { steamGameQueryOptions } from "@/steam/game/use-steam-game";
 import { steamUpcomingQueryOptions } from "@/steam/use-upcoming";
 import { steamWishlistQueryOptions } from "@/steam/use-wishlist";
+import { Route as ChampionDetailRoute } from "./routes/lol/$accountSlug/champions/$championKey";
 import { Route as AccountIndexRoute } from "./routes/lol/$accountSlug/index";
 import { Route as MatchesRoute } from "./routes/lol/$accountSlug/matches";
 import { Route as MatchDetailRoute } from "./routes/lol/$accountSlug/matches/$matchId";
@@ -248,6 +250,61 @@ describe("fatal primes", () => {
     });
     await expect(
       runLoader(GamePanelRoute, { appid: "440" }, queryClient)
+    ).resolves.toBeUndefined();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("/lol/$accountSlug/champions/$championKey fails on the server when the extras fail", async () => {
+    // The extras carry the detail aggregate the body renders from; without them
+    // a server render is a skeleton under a 200 on a URL whose subject is the
+    // champion. Server only — the client branch primes nothing.
+    vi.stubEnv("SSR", true);
+    fails = (url) => url.includes("/champions/Ahri/stats");
+    await expect(
+      runLoader(ChampionDetailRoute, { accountSlug: "ahri", championKey: "Ahri" })
+    ).rejects.toThrow();
+  });
+
+  it("/lol/$accountSlug/champions/$championKey warms the key the panel reads", async () => {
+    // The hook keys on the account and the serious-queue ids sorted; the loader
+    // has neither a viewer nor a stored preference, so it must build the same
+    // key from the provider's default or the page renders its pending branch
+    // while looking primed.
+    vi.stubEnv("SSR", true);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    await runLoader(
+      ChampionDetailRoute,
+      { accountSlug: "ahri", championKey: "Ahri" },
+      queryClient
+    );
+    const account = {
+      slug: "ahri",
+      puuid: "p",
+      region: "euw1",
+      gameName: "a",
+      tagLine: "b",
+    };
+    expect(
+      queryClient.getQueryData(
+        championExtrasQueryOptions(account as never, "Ahri", [420, 440]).queryKey
+      )
+    ).toBeDefined();
+  });
+
+  it("/lol/$accountSlug/champions/$championKey primes nothing for an unknown slug or on the client", async () => {
+    vi.stubEnv("SSR", true);
+    await expect(
+      runLoader(ChampionDetailRoute, { accountSlug: "nobody", championKey: "Ahri" })
+    ).resolves.toBeUndefined();
+    expect(
+      vi.mocked(fetch).mock.calls.some(([u]) => String(u).includes("/champions/"))
+    ).toBe(false);
+    vi.stubEnv("SSR", false);
+    vi.mocked(fetch).mockClear();
+    await expect(
+      runLoader(ChampionDetailRoute, { accountSlug: "ahri", championKey: "Ahri" })
     ).resolves.toBeUndefined();
     expect(fetch).not.toHaveBeenCalled();
   });

@@ -1,6 +1,6 @@
-import type { MatchSummary } from "@vyoh/shared";
 import { describe, expect, it } from "vitest";
-import { buildWinRateSeries, computeChampionDetail } from "./champion-detail-stats";
+import { buildWinRateSeries, computeChampionDetail } from "./champion-detail-stats.ts";
+import type { MatchSummary } from "./match.ts";
 
 function buildMatch(overrides: Partial<MatchSummary>): MatchSummary {
   return {
@@ -39,6 +39,16 @@ describe("computeChampionDetail", () => {
   it("returns null when the champion has no matches", () => {
     expect(computeChampionDetail("Ahri", [])).toBeNull();
     expect(computeChampionDetail("Ahri", [buildMatch({ champion: "Yasuo" })])).toBeNull();
+  });
+
+  it("leaves remakes out of every aggregate", () => {
+    const detail = computeChampionDetail("Ahri", [
+      buildMatch({ matchId: "1", win: true }),
+      buildMatch({ matchId: "2", win: false, remake: true }),
+    ]);
+    expect(detail?.games).toBe(1);
+    expect(detail?.winRate).toBe(1);
+    expect(detail?.matchHistory).toHaveLength(1);
   });
 
   it("aggregates KDA totals, averages, win rate, and total duration", () => {

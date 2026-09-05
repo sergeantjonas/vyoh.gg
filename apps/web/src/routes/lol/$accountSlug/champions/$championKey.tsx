@@ -7,12 +7,15 @@ import { PersonalRecord } from "@/components/personal-record";
 import { HeroLabel, HeroNumber } from "@/components/ui/hero-number";
 import { SectionTitle } from "@/components/ui/section-title";
 import { Sparkline } from "@/components/ui/sparkline";
+import { meQueryOptions } from "@/identity/use-me";
 import { CHART_NEGATIVE, CHART_POSITIVE } from "@/lib/chart-palette";
 import { routeMeta } from "@/lib/route-meta";
 import { toastError, toastSuccess } from "@/lib/toast";
 import { TOOLTIP_CONTENT_COMPACT, TOOLTIP_CONTENT_RICH } from "@/lib/tooltip";
+import { useHydratedSync } from "@/lib/use-hydrated";
 import { useThemeColor } from "@/lib/use-theme-color";
 import { cn } from "@/lib/utils";
+import { findAccountBySlug } from "@/lol/_shared/account/find-account-by-slug";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useHeroScrolledPast } from "@/lol/_shared/analytics/use-hero-scrolled-past";
 import {
@@ -28,6 +31,7 @@ import { findPatchBoundaries } from "@/lol/_shared/patch/patch-version";
 import { ThisPatchBadge } from "@/lol/_shared/patch/this-patch-badge";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import {
+  DEFAULT_SERIOUS_QUEUE_IDS,
   filterToSerious,
   useSeriousQueues,
 } from "@/lol/_shared/serious-queues/serious-queues";
@@ -36,28 +40,30 @@ import { WinRateBar } from "@/lol/_shared/ui/win-rate-bar";
 import { useActiveChampion } from "@/lol/champions/active-champion-context";
 import { ChampionBuildPath } from "@/lol/champions/champion-build-path";
 import { ChampionCardChrome } from "@/lol/champions/champion-card";
-import {
-  buildWinRateSeries,
-  computeChampionDetail,
-} from "@/lol/champions/champion-detail-stats";
 import { ChampionHero } from "@/lol/champions/champion-hero";
 import { ChampionLanePhase } from "@/lol/champions/champion-lane-phase";
 import { ChampionPatchHistory } from "@/lol/champions/champion-patch-history";
 import { ChampionPositionHeatmap } from "@/lol/champions/champion-position-heatmap";
 import { ChampionRuneDiversity } from "@/lol/champions/champion-rune-diversity";
 import { buildPatchDrift } from "@/lol/champions/patch-drift";
-import { useChampionExtras } from "@/lol/champions/use-champion-extras";
+import {
+  championExtrasQueryOptions,
+  useChampionExtras,
+} from "@/lol/champions/use-champion-extras";
 import { useChampionInfo, useChampionName } from "@/lol/champions/use-champions";
 import { buildWeakestMatchup } from "@/lol/champions/weakest-matchup";
 import { useItems } from "@/lol/matches/use-items";
 import { useCachedMatchesWindow } from "@/lol/matches/use-matches";
 import { TrendDeathMatchupHeatmap } from "@/lol/trends/trend-death-matchup-heatmap";
-import { computeTrendSummary } from "@/lol/trends/trend-stats";
 import { TrendTiltIndicator } from "@/lol/trends/trend-tilt-indicator";
 import { TrendTimeHeatmap } from "@/lol/trends/trend-time-heatmap";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
+  CHAMPION_DETAIL_WINDOW,
+  buildWinRateSeries,
+  computeChampionDetail,
+  computeTrendSummary,
   excludeRemakes,
   formatKda,
   formatPercent,
@@ -83,6 +89,31 @@ import { API_PUBLIC_URL } from "@/lib/api-url";
 
 export const Route = createFileRoute("/lol/$accountSlug/champions/$championKey")({
   component: ChampionDetailPage,
+  // Server only. The body is derived from the 2000-match window, which at
+  // 361 kB (182 kB for the main champion alone) the priming rule in
+  // repo-conventions-web.md keeps client-side, so the server primes the
+  // champion extras instead: the api computes the same detail and overall
+  // aggregates over the same window with the same shared functions, and the
+  // page reads them until the window lands (2.8 kB before the aggregates,
+  // measured 2 ms). Fatal: the panel *is* this route, and a champion with no
+  // matches still answers — `detail` comes back null and the empty state
+  // renders. Not primed: the window, the build flow (370 ms) and the static
+  // bundle (883 kB) — so a server render names champions by the alias the api
+  // stores (`MonkeyKing` for Wukong) until the bundle lands. The client branch
+  // does nothing — the champion table already holds the window, and the
+  // panel's own query covers a cold client-side navigation.
+  loader: ({ context: { queryClient }, params }) => {
+    if (!import.meta.env.SSR) return;
+    return queryClient.ensureQueryData(meQueryOptions()).then((me) => {
+      const account = findAccountBySlug(me.lol, params.accountSlug);
+      if (!account) return;
+      return queryClient
+        .ensureQueryData(
+          championExtrasQueryOptions(account, params.championKey, SERVER_QUEUE_IDS)
+        )
+        .then(() => undefined);
+    });
+  },
   // Static fallback uses the raw alias (e.g. `JarvanIV`) — the component
   // enriches to the display name (`Jarvan IV`) + canonical `gameName#tagLine`
   // once useChampionName + useAccountFromSlug resolve.
@@ -106,6 +137,7 @@ function DeltaTile({
 }) {
   const isZero = Math.abs(value) < 0.005;
   const positive = value > 0;
+  const hydrated = useHydratedSync();
   return (
     // Y-only entrance — opacity-animating this frosted element would suppress
     // its own backdrop-filter until opacity reaches 1 (the tile flattens into
@@ -114,7 +146,7 @@ function DeltaTile({
     // into the splash on settle). Same fix pattern as 8dde234d.
     // See [[ancestor-opacity-suppresses-backdrop-filter]].
     <m.div
-      initial={{ y: 6 }}
+      initial={hydrated ? { y: 6 } : false}
       animate={{ y: 0 }}
       transition={{ type: "spring", stiffness: 380, damping: 30 }}
       className="flex flex-1 flex-col gap-1 rounded-lg border bg-card/60 p-4 backdrop-blur-sm"
@@ -155,17 +187,16 @@ function WinRateTooltip({
   );
 }
 
-// Wide enough to span ~6 patches at any realistic play rate. Decoupled from
-// the matches-list count selector so champion stats / sparkline / per-patch
-// strip / patch boundaries all read from the same dataset and don't drift
-// out of sync depending on the user's matches-list view scope.
-const CHAMPION_DETAIL_FETCH_COUNT = 2000;
+// The loader has no viewer and no stored preference to read, so it primes the
+// key the hydrating render will build from the provider's default — the same
+// ids, sorted the way `useChampionExtras` sorts them.
+const SERVER_QUEUE_IDS = [...DEFAULT_SERIOUS_QUEUE_IDS].sort((a, b) => a - b);
 
 function ChampionDetailPage() {
   const { accountSlug, championKey } = Route.useParams();
   const account = useAccountFromSlug(accountSlug);
   const { ids } = useSeriousQueues();
-  const { data } = useCachedMatchesWindow(account, CHAMPION_DETAIL_FETCH_COUNT);
+  const { data } = useCachedMatchesWindow(account, CHAMPION_DETAIL_WINDOW);
   const matches = useMemo(
     () => (data ? filterToSerious(data.matches, ids) : undefined),
     [data, ids]
@@ -200,15 +231,26 @@ function ChampionDetailPage() {
   const info = useChampionInfo(championKey);
   const extras = useChampionExtras(accountSlug, championKey);
   const itemsData = useItems();
+  // Motion emits no transform for `initial` on the server, so the entrance
+  // transforms below are off for the render that hydrates; a panel mounted by
+  // a click reads true on its first render and still animates in.
+  const hydrated = useHydratedSync();
 
-  const detail = useMemo(
+  // Window-derived when the window is here — the champion table shares it, so
+  // a click from the list never waits — and the api's copy of the same
+  // aggregate otherwise. A server render and a cold arrival never have the
+  // window; the two agree because they run the same shared functions over the
+  // same window filtered to the same queues.
+  const windowDetail = useMemo(
     () => (matches ? computeChampionDetail(championKey, matches) : null),
     [championKey, matches]
   );
-  const overall = useMemo(
+  const windowOverall = useMemo(
     () => (matches ? computeTrendSummary(matches) : null),
     [matches]
   );
+  const detail = matches ? windowDetail : (extras.data?.detail ?? null);
+  const overall = matches ? windowOverall : (extras.data?.overall ?? null);
   const series = useMemo(
     () => (detail ? buildWinRateSeries(detail.matchHistory) : []),
     [detail]
@@ -505,7 +547,7 @@ function ChampionDetailPage() {
               opacity-animating ancestor would suppress backdrop-filter on
               entrance (see [[ancestor-opacity-suppresses-backdrop-filter]]). */}
           <m.div
-            initial={{ y: 6 }}
+            initial={hydrated ? { y: 6 } : false}
             animate={{ y: 0 }}
             transition={{ type: "spring", stiffness: 380, damping: 30 }}
             className="flex gap-4"
@@ -565,7 +607,7 @@ function ChampionDetailPage() {
           {/* Win rate trend sparkline — only meaningful with enough games */}
           {series.length >= 5 && (
             <m.div
-              initial={{ y: 6 }}
+              initial={hydrated ? { y: 6 } : false}
               animate={{ y: 0 }}
               transition={{ type: "spring", stiffness: 380, damping: 30, delay: 0.06 }}
               className="flex flex-col gap-2"
@@ -669,7 +711,7 @@ function ChampionDetailPage() {
           {extras.data && extras.data.topItems.length > 0 && (
             <CvSection minHeight={150}>
               <m.div
-                initial={{ y: 6 }}
+                initial={hydrated ? { y: 6 } : false}
                 animate={{ y: 0 }}
                 transition={{ type: "spring", stiffness: 380, damping: 30, delay: 0.08 }}
                 className="flex flex-col gap-2"
@@ -747,7 +789,7 @@ function ChampionDetailPage() {
           {sortedMatchups.length > 0 && (
             <CvSection minHeight={340}>
               <m.div
-                initial={{ y: 6 }}
+                initial={hydrated ? { y: 6 } : false}
                 animate={{ y: 0 }}
                 transition={{ type: "spring", stiffness: 380, damping: 30, delay: 0.1 }}
                 className="flex flex-col gap-2"
@@ -888,22 +930,30 @@ function ChampionDetailPage() {
               frosted
             />
           </CvSection>
-          <CvSection minHeight={280}>
-            <ChartBoundary>
-              <ChampionPositionHeatmap matches={champMatches} frosted />
-            </ChartBoundary>
-          </CvSection>
-          <CvSection minHeight={280}>
-            <ChartBoundary>
-              <TrendDeathMatchupHeatmap current={champMatches} frosted />
-            </ChartBoundary>
-          </CvSection>
-          <CvSection minHeight={280}>
-            <TrendTimeHeatmap current={champMatches} frosted />
-          </CvSection>
-          <CvSection minHeight={200}>
-            <TrendTiltIndicator current={champMatches} previous={[]} frosted />
-          </CvSection>
+          {/* Window-derived, so nothing until the window is here: a server render
+              has the aggregates but not the matches, and these would otherwise
+              emit their "0 games" empty states into the document only to flip
+              once the window lands. Chart geometry is not what a crawler reads. */}
+          {matches && (
+            <>
+              <CvSection minHeight={280}>
+                <ChartBoundary>
+                  <ChampionPositionHeatmap matches={champMatches} frosted />
+                </ChartBoundary>
+              </CvSection>
+              <CvSection minHeight={280}>
+                <ChartBoundary>
+                  <TrendDeathMatchupHeatmap current={champMatches} frosted />
+                </ChartBoundary>
+              </CvSection>
+              <CvSection minHeight={280}>
+                <TrendTimeHeatmap current={champMatches} frosted />
+              </CvSection>
+              <CvSection minHeight={200}>
+                <TrendTiltIndicator current={champMatches} previous={[]} frosted />
+              </CvSection>
+            </>
+          )}
         </div>
       </div>
     </SlidePanel>

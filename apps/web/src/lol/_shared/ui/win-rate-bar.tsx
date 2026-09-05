@@ -1,3 +1,4 @@
+import { useHydratedSync } from "@/lib/use-hydrated";
 import { cn } from "@/lib/utils";
 import { m, useReducedMotion } from "motion/react";
 
@@ -12,6 +13,10 @@ export function WinRateBar({
   className?: string;
 }) {
   const reduced = useReducedMotion();
+  // Motion emits no transform for `initial` on the server, so a bar that
+  // server-renders would hydrate against a client tree carrying `scaleX(0)`.
+  // The sync reader keeps the entrance for bars mounted after hydration.
+  const hydrated = useHydratedSync();
   return (
     <div
       className={cn(
@@ -27,7 +32,7 @@ export function WinRateBar({
             : "bg-gradient-to-r from-red-500/70 to-red-400/90"
         )}
         style={{ transformOrigin: "left" }}
-        initial={{ scaleX: reduced ? winRate : 0 }}
+        initial={reduced || !hydrated ? false : { scaleX: 0 }}
         animate={{ scaleX: winRate }}
         transition={{ type: "spring", stiffness: 220, damping: 28, delay: 0.1 }}
       />
