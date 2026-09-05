@@ -7,6 +7,7 @@ import { useGameAchievements } from "./use-game-achievements";
 import { useGameDescription } from "./use-game-description";
 import { useGameScreenshots } from "./use-game-screenshots";
 import { useGameUnlockTimeline } from "./use-game-unlock-timeline";
+import { useSteamGame } from "./use-steam-game";
 
 function makeWrapper() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -56,6 +57,11 @@ const cases: SteamHookCase[] = [
     name: "useGameDescription",
     call: () => useGameDescription(42),
     url: "http://localhost:2010/steam/game/42/description",
+  },
+  {
+    name: "useSteamGame",
+    call: () => useSteamGame(42),
+    url: "http://localhost:2010/steam/game/42",
   },
 ];
 

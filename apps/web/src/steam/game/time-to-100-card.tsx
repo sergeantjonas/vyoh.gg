@@ -1,4 +1,5 @@
 import { CardShell } from "@/components/card-shell";
+import { useHydrated } from "@/lib/use-hydrated";
 import type { SteamAchievement } from "@vyoh/shared";
 import { relativeTimeAgo } from "@vyoh/shared";
 import { useGameAchievements } from "./use-game-achievements";
@@ -56,6 +57,11 @@ function computeVerdict(
 
 export function TimeTo100Card({ appid, frosted = true }: TimeTo100CardProps) {
   const { data, isPending } = useGameAchievements(appid);
+  // The in-progress verdict is a relative timestamp, so a server render and the
+  // hydrating render can disagree on it whatever the loader primed. Client-only
+  // costs a below-fold fact card nothing a crawler wants.
+  const hydrated = useHydrated();
+  if (!hydrated) return null;
   if (isPending || !data || data.achievements === null) return null;
   const achievements = data.achievements;
   if (achievements.length === 0) return null;

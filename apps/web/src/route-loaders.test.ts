@@ -3,6 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { patchChangesQueryOptions } from "@/lol/patches/use-patch-changes";
 import { patchListQueryOptions } from "@/lol/patches/use-patch-list";
+import { gameAchievementsQueryOptions } from "@/steam/game/use-game-achievements";
+import { gameDescriptionQueryOptions } from "@/steam/game/use-game-description";
+import { steamGameQueryOptions } from "@/steam/game/use-steam-game";
 import { steamUpcomingQueryOptions } from "@/steam/use-upcoming";
 import { steamWishlistQueryOptions } from "@/steam/use-wishlist";
 import { Route as AccountIndexRoute } from "./routes/lol/$accountSlug/index";
@@ -11,6 +14,7 @@ import { Route as MatchDetailRoute } from "./routes/lol/$accountSlug/matches/$ma
 import { Route as PatchVersionRoute } from "./routes/lol/patches/$version";
 import { Route as PatchesIndexRoute } from "./routes/lol/patches/index";
 import { Route as AchievementsRoute } from "./routes/steam/achievements";
+import { Route as GamePanelRoute } from "./routes/steam/library/$appid";
 import { Route as PortraitRoute } from "./routes/steam/portrait";
 import { Route as UpcomingRoute } from "./routes/steam/upcoming";
 import { Route as WishlistRoute } from "./routes/steam/wishlist";
@@ -29,6 +33,8 @@ const API = "http://localhost:2010";
 // of `/lol/patches/26.3/changes` and the whole point of the $version case is
 // failing one without the other.
 let fails: (url: string) => boolean = () => false;
+// A 404 is a settled answer rather than an outage, and one loader tells them apart.
+let notFound: (url: string) => boolean = () => false;
 
 // Mutable so the empty-season case can drain it without a second fetch mock.
 let patchList: Array<{ version: string; patchDate: string }> = [];
@@ -71,14 +77,19 @@ function runLoader(
 
 beforeEach(() => {
   fails = () => false;
+  notFound = () => false;
   patchList = [{ version: "26.3", patchDate: "2026-08-01" }];
   vi.stubGlobal(
     "fetch",
     vi.fn((input: RequestInfo | URL) => {
       const url = String(input);
-      const status = fails(url) ? 500 : 200;
+      const status = fails(url) ? 500 : notFound(url) ? 404 : 200;
       const body =
-        status === 500 ? { message: "upstream is having a moment" } : jsonFor(url);
+        status === 500
+          ? { message: "upstream is having a moment" }
+          : status === 404
+            ? { message: "not in the tracked library" }
+            : jsonFor(url);
       return Promise.resolve(
         new Response(JSON.stringify(body), {
           status,
@@ -117,6 +128,48 @@ describe("tolerated primes", () => {
     await expect(
       runLoader(AccountIndexRoute, { accountSlug: "ahri" })
     ).resolves.toBeUndefined();
+  });
+
+  it("/steam/library/$appid survives its description and achievements failing", async () => {
+    // Both are regions of a panel whose identity card still says something
+    // true without them, so a failing one must not take the row down with it —
+    // and the sibling that was going to succeed must still land in the cache.
+    vi.stubEnv("SSR", true);
+    fails = (url) => url.endsWith("/description");
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    await expect(
+      runLoader(GamePanelRoute, { appid: "440" }, queryClient)
+    ).resolves.toEqual({
+      rowMissing: false,
+    });
+    expect(queryClient.getQueryData(steamGameQueryOptions(440).queryKey)).toBeDefined();
+    expect(
+      queryClient.getQueryData(gameAchievementsQueryOptions(440).queryKey)
+    ).toBeDefined();
+    expect(
+      queryClient.getQueryData(gameDescriptionQueryOptions(440).queryKey)
+    ).toBeUndefined();
+  });
+
+  it("/steam/library/$appid carries a 404 row out as loader data instead of failing", async () => {
+    // The server primes the public projection, so the owner's hidden games are
+    // the rows that 404 here; failing would turn the owner's own refresh into
+    // an error card. The flag is how the hydrating render agrees with the
+    // server, since a failed query is not dehydrated.
+    vi.stubEnv("SSR", true);
+    notFound = (url) => url.endsWith("/steam/game/440");
+    await expect(runLoader(GamePanelRoute, { appid: "440" })).resolves.toEqual({
+      rowMissing: true,
+    });
+  });
+
+  it("/steam/library/$appid reports the row present when it primes", async () => {
+    vi.stubEnv("SSR", true);
+    await expect(runLoader(GamePanelRoute, { appid: "440" })).resolves.toEqual({
+      rowMissing: false,
+    });
   });
 
   it("/steam/portrait survives either half failing", async () => {
@@ -176,6 +229,27 @@ describe("fatal primes", () => {
     vi.stubEnv("SSR", true);
     fails = (url) => url.includes("/lol/matches/");
     await expect(runLoader(MatchDetailRoute, { matchId: "EUW1_1" })).rejects.toThrow();
+  });
+
+  it("/steam/library/$appid fails on the server when the game row is down", async () => {
+    // The row is what the whole body gates on; without it the document is a
+    // skeleton under a 200, which teaches a crawler the URL is empty.
+    vi.stubEnv("SSR", true);
+    fails = (url) => url.endsWith("/steam/game/440");
+    await expect(runLoader(GamePanelRoute, { appid: "440" })).rejects.toThrow();
+  });
+
+  it("/steam/library/$appid primes nothing on the client", async () => {
+    // A click from the library already holds the row in the owned-games list,
+    // and the panel's own query covers a cold client-side navigation.
+    vi.stubEnv("SSR", false);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    await expect(
+      runLoader(GamePanelRoute, { appid: "440" }, queryClient)
+    ).resolves.toBeUndefined();
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("/lol/$accountSlug/matches fails rather than serving an empty history", async () => {

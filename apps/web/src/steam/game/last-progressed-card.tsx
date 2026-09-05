@@ -1,4 +1,5 @@
 import { CardShell } from "@/components/card-shell";
+import { useHydrated } from "@/lib/use-hydrated";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
 import { relativeTimeAgo } from "@vyoh/shared";
 import { useGameAchievements } from "./use-game-achievements";
@@ -132,8 +133,12 @@ export function LastProgressedCard({ appid, frosted = true }: LastProgressedCard
   // page (library list, AchievementPanel), so this card adds no wire fetches.
   const owned = useSteamOwnedGames();
   const ach = useGameAchievements(appid);
+  // The verdict is a relative timestamp, so a server render and the hydrating
+  // render can disagree on it whatever gets primed; client-only, like the
+  // Timeline card beside it.
+  const hydrated = useHydrated();
 
-  if (owned.isPending || ach.isPending) return null;
+  if (!hydrated || owned.isPending || ach.isPending) return null;
 
   const game = owned.data?.games.find((g) => g.appid === appid);
   if (!game) return null;

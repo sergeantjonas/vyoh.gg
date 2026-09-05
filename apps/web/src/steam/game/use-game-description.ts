@@ -1,7 +1,7 @@
 import { useIsOwner } from "@/auth/use-viewer";
 import { viewerScope, viewerScopedQuery } from "@/auth/viewer-scope";
 import { HttpError } from "@/lib/http-error";
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { SteamGameDescription } from "@vyoh/shared";
 
 import { API_URL } from "@/lib/api-url";
@@ -27,12 +27,15 @@ async function fetchGameDescription(appid: number): Promise<SteamGameDescription
 // releases, so the monthly enrichment cadence is plenty — within a session
 // the description is effectively immutable. 1h stale-time matches the other
 // per-game hooks (useGameScreenshots, useGameAchievements) for cache cohesion.
-export function useGameDescription(appid: number) {
-  const scope = viewerScope(useIsOwner());
-  return useQuery({
-    queryKey: ["steam", "game", appid, "description", scope],
+export function gameDescriptionQueryOptions(appid: number, isOwner = false) {
+  return queryOptions({
+    queryKey: ["steam", "game", appid, "description", viewerScope(isOwner)],
     queryFn: () => fetchGameDescription(appid),
     staleTime: 60 * 60 * 1_000,
     ...viewerScopedQuery,
   });
+}
+
+export function useGameDescription(appid: number) {
+  return useQuery(gameDescriptionQueryOptions(appid, useIsOwner()));
 }

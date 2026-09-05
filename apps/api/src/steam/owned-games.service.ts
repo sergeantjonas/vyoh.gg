@@ -5,13 +5,14 @@ import type {
   SteamGameScreenshots,
   SteamGameTrailer,
   SteamLibrarySummary,
+  SteamOwnedGame,
   SteamOwnedGames,
   SteamPlatform,
   SteamPlatformMix,
   SteamReviewSummary,
   SteamScreenshotEntry,
 } from "@vyoh/shared";
-import { OWNER_TIME_ZONE, excludeHiddenGames } from "@vyoh/shared";
+import { OWNER_TIME_ZONE, excludeHiddenGames, isHiddenGame } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamAchievementSchemaService } from "./achievement-schema.service";
 import { SteamEnrichmentService } from "./enrichment.service";
@@ -106,6 +107,25 @@ export function buildRecentPlaytimeSeries(
   if (currentAppid !== null) out.set(currentAppid, series);
   return out;
 }
+
+const SNAPSHOT_ROW_SELECT = {
+  appid: true,
+  playtimeForeverMinutes: true,
+  playtime2WeeksMinutes: true,
+  game: {
+    select: {
+      name: true,
+      rtimeLastPlayed: true,
+    },
+  },
+} as const;
+
+type SnapshotRow = {
+  appid: number;
+  playtimeForeverMinutes: number;
+  playtime2WeeksMinutes: number | null;
+  game: { name: string; rtimeLastPlayed: Date | null };
+};
 
 @Injectable()
 export class SteamOwnedGamesService {
@@ -395,17 +415,7 @@ export class SteamOwnedGamesService {
 
     const snapshots = await this.prisma.steamPlaytimeSnapshot.findMany({
       where: { snapshotDate: latest.snapshotDate, game: { removedAt: null } },
-      select: {
-        appid: true,
-        playtimeForeverMinutes: true,
-        playtime2WeeksMinutes: true,
-        game: {
-          select: {
-            name: true,
-            rtimeLastPlayed: true,
-          },
-        },
-      },
+      select: SNAPSHOT_ROW_SELECT,
       orderBy: { playtimeForeverMinutes: "desc" },
     });
 
@@ -419,16 +429,53 @@ export class SteamOwnedGamesService {
     // appid — left-join semantics preserved: rows without an enrichment entry
     // serialize as per-field nulls and the image helpers fall back to legacy
     // unhashed paths.
+    return {
+      games: await this.projectRows(rows, latest.snapshotDate),
+      lastSyncedAt: latest.snapshotDate.toISOString(),
+    };
+  }
+
+  // One row of the same projection, for the game panel's server render. The
+  // list is ~660 kB and stays client-side by the priming rule in
+  // repo-conventions-web.md, so a cold arrival on `/steam/library/$appid` needs
+  // the row on its own. A hidden game answers null for every viewer the
+  // curation hides it from — the same disappearance as falling out of the list.
+  async getOwnedGame(
+    appid: number,
+    curation: SteamCurationSets
+  ): Promise<SteamOwnedGame | null> {
+    if (isHiddenGame(appid, curation)) return null;
+    const latest = await this.prisma.steamPlaytimeSnapshot.findFirst({
+      select: { snapshotDate: true },
+      orderBy: { snapshotDate: "desc" },
+    });
+    if (latest === null) return null;
+    const row = await this.prisma.steamPlaytimeSnapshot.findFirst({
+      where: { appid, snapshotDate: latest.snapshotDate, game: { removedAt: null } },
+      select: SNAPSHOT_ROW_SELECT,
+    });
+    if (row === null) return null;
+    const [game] = await this.projectRows([row], latest.snapshotDate);
+    return game ?? null;
+  }
+
+  // Joins the latest-snapshot rows with their 30-day playtime series and the
+  // enrichment row, left-join semantics: a game without enrichment serialises
+  // as per-field nulls and the image helpers fall back to legacy CDN paths.
+  private async projectRows(
+    rows: readonly SnapshotRow[],
+    snapshotDate: Date
+  ): Promise<SteamOwnedGame[]> {
     const appids = rows.map((r) => r.appid);
     // 30-day playtime sparkline series — fetch every snapshot in the window
     // for the currently-owned set in a single sorted query, then group + diff
     // in memory. 500 games × 31 days bounds this at ~15k rows, well within
     // a single round-trip.
-    const since = new Date(latest.snapshotDate);
+    const since = new Date(snapshotDate);
     since.setUTCDate(since.getUTCDate() - 30);
     const recentRows = await this.prisma.steamPlaytimeSnapshot.findMany({
       where: {
-        snapshotDate: { gte: since, lte: latest.snapshotDate },
+        snapshotDate: { gte: since, lte: snapshotDate },
         game: { removedAt: null },
         appid: { in: appids },
       },
@@ -479,72 +526,69 @@ export class SteamOwnedGamesService {
     });
     const byAppid = new Map(enrichments.map((e) => [e.appid, e]));
 
-    return {
-      games: rows.map((r) => {
-        const e = byAppid.get(r.appid);
-        return {
-          appid: r.appid,
-          name: r.game.name,
-          playtimeForeverMinutes: r.playtimeForeverMinutes,
-          playtime2WeeksMinutes: r.playtime2WeeksMinutes,
-          assetUrlFormat: e?.assetUrlFormat ?? null,
-          // BigInt over the wire would force JSON.stringify(bigint) handling
-          // everywhere downstream. Steam's epoch fits well inside Number's
-          // safe range — narrow at the boundary.
-          assetTimestamp: e?.assetTimestamp != null ? Number(e.assetTimestamp) : null,
-          libraryCapsulePath: e?.libraryCapsulePath ?? null,
-          libraryCapsule2xPath: e?.libraryCapsule2xPath ?? null,
-          libraryHeroPath: e?.libraryHeroPath ?? null,
-          libraryHero2xPath: e?.libraryHero2xPath ?? null,
-          headerPath: e?.headerPath ?? null,
-          heroCapsulePath: e?.heroCapsulePath ?? null,
-          logoPath: e?.logoPath ?? null,
-          appType: e?.appType ?? null,
-          tagIds: e?.tagIds ?? [],
-          rtimeLastPlayedAt: r.game.rtimeLastPlayed?.toISOString() ?? null,
-          shortDescription: e?.shortDescription ?? null,
-          steamDeckCompat: e?.steamDeckCompat ?? null,
-          platformWindows: e?.platformWindows ?? null,
-          platformMac: e?.platformMac ?? null,
-          platformLinux: e?.platformLinux ?? null,
-          platformVr: e?.platformVr ?? null,
-          // Json column comes back as Prisma.JsonValue. The poller only ever
-          // writes the SteamReviewSummary shape (or JsonNull), so cast at the
-          // boundary rather than runtime-validating every row.
-          reviewSummary:
-            e?.reviewSummary != null
-              ? (e.reviewSummary as unknown as SteamReviewSummary)
-              : null,
-          gameRating:
-            e?.gameRating != null ? (e.gameRating as unknown as SteamGameRating) : null,
-          publisherNames: e?.publisherNames ?? [],
-          developerNames: e?.developerNames ?? [],
-          franchiseNames: e?.franchiseNames ?? [],
-          subjectXPercent: e?.subjectXPercent ?? null,
-          subjectYPercent: e?.subjectYPercent ?? null,
-          flipHero: e?.flipHero ?? false,
-          dominantHex: e?.dominantHex ?? null,
-          microtrailerWebm: e?.microtrailerWebm ?? null,
-          microtrailerMp4: e?.microtrailerMp4 ?? null,
-          microtrailerPoster: e?.microtrailerPoster ?? null,
-          microtrailerName: e?.microtrailerName ?? null,
-          // Cast at the boundary — the projection writes a strict
-          // SteamGameTrailer[] shape and the column is Json (no
-          // index-signature contract), same convention as reviewSummary
-          // and gameRating above. Prisma DB null and JSON null both
-          // collapse to TS null at the row.trailers field.
-          trailers:
-            e?.trailers != null ? (e.trailers as unknown as SteamGameTrailer[]) : null,
-          recentPlaytimeMinutes: recentByAppid.get(r.appid) ?? [],
-          // Prisma's `@db.Date` column comes back as a JS Date pinned to UTC
-          // midnight. Date-only ISO string keeps the wire shape compact and
-          // sidesteps any timezone interpretation downstream (the chapter
-          // chip only cares about year/month, not local-clock midnight).
-          releaseDate: e?.releaseDate?.toISOString().slice(0, 10) ?? null,
-        };
-      }),
-      lastSyncedAt: latest.snapshotDate.toISOString(),
-    };
+    return rows.map((r) => {
+      const e = byAppid.get(r.appid);
+      return {
+        appid: r.appid,
+        name: r.game.name,
+        playtimeForeverMinutes: r.playtimeForeverMinutes,
+        playtime2WeeksMinutes: r.playtime2WeeksMinutes,
+        assetUrlFormat: e?.assetUrlFormat ?? null,
+        // BigInt over the wire would force JSON.stringify(bigint) handling
+        // everywhere downstream. Steam's epoch fits well inside Number's
+        // safe range — narrow at the boundary.
+        assetTimestamp: e?.assetTimestamp != null ? Number(e.assetTimestamp) : null,
+        libraryCapsulePath: e?.libraryCapsulePath ?? null,
+        libraryCapsule2xPath: e?.libraryCapsule2xPath ?? null,
+        libraryHeroPath: e?.libraryHeroPath ?? null,
+        libraryHero2xPath: e?.libraryHero2xPath ?? null,
+        headerPath: e?.headerPath ?? null,
+        heroCapsulePath: e?.heroCapsulePath ?? null,
+        logoPath: e?.logoPath ?? null,
+        appType: e?.appType ?? null,
+        tagIds: e?.tagIds ?? [],
+        rtimeLastPlayedAt: r.game.rtimeLastPlayed?.toISOString() ?? null,
+        shortDescription: e?.shortDescription ?? null,
+        steamDeckCompat: e?.steamDeckCompat ?? null,
+        platformWindows: e?.platformWindows ?? null,
+        platformMac: e?.platformMac ?? null,
+        platformLinux: e?.platformLinux ?? null,
+        platformVr: e?.platformVr ?? null,
+        // Json column comes back as Prisma.JsonValue. The poller only ever
+        // writes the SteamReviewSummary shape (or JsonNull), so cast at the
+        // boundary rather than runtime-validating every row.
+        reviewSummary:
+          e?.reviewSummary != null
+            ? (e.reviewSummary as unknown as SteamReviewSummary)
+            : null,
+        gameRating:
+          e?.gameRating != null ? (e.gameRating as unknown as SteamGameRating) : null,
+        publisherNames: e?.publisherNames ?? [],
+        developerNames: e?.developerNames ?? [],
+        franchiseNames: e?.franchiseNames ?? [],
+        subjectXPercent: e?.subjectXPercent ?? null,
+        subjectYPercent: e?.subjectYPercent ?? null,
+        flipHero: e?.flipHero ?? false,
+        dominantHex: e?.dominantHex ?? null,
+        microtrailerWebm: e?.microtrailerWebm ?? null,
+        microtrailerMp4: e?.microtrailerMp4 ?? null,
+        microtrailerPoster: e?.microtrailerPoster ?? null,
+        microtrailerName: e?.microtrailerName ?? null,
+        // Cast at the boundary — the projection writes a strict
+        // SteamGameTrailer[] shape and the column is Json (no
+        // index-signature contract), same convention as reviewSummary
+        // and gameRating above. Prisma DB null and JSON null both
+        // collapse to TS null at the row.trailers field.
+        trailers:
+          e?.trailers != null ? (e.trailers as unknown as SteamGameTrailer[]) : null,
+        recentPlaytimeMinutes: recentByAppid.get(r.appid) ?? [],
+        // Prisma's `@db.Date` column comes back as a JS Date pinned to UTC
+        // midnight. Date-only ISO string keeps the wire shape compact and
+        // sidesteps any timezone interpretation downstream (the chapter
+        // chip only cares about year/month, not local-clock midnight).
+        releaseDate: e?.releaseDate?.toISOString().slice(0, 10) ?? null,
+      };
+    });
   }
 
   // Per-app description payload for the /steam/game/:appid "About this game"

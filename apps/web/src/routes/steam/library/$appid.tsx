@@ -1,5 +1,7 @@
 import { CvSection } from "@/_shared/cv-section";
 import { SlidePanel } from "@/_shared/slide-panel";
+import { HttpError } from "@/lib/http-error";
+import { primeQuietly } from "@/lib/prime-quietly";
 import { routeMeta } from "@/lib/route-meta";
 import { toastError, toastSuccess } from "@/lib/toast";
 import { useThemeColor } from "@/lib/use-theme-color";
@@ -16,12 +18,16 @@ import { CompletionVerdictCard } from "@/steam/game/completion-verdict-card";
 import { GameAboutBlock } from "@/steam/game/game-about-block";
 import { GameDetailSkeleton } from "@/steam/game/game-detail-skeleton";
 import { GamePanelHero } from "@/steam/game/game-panel-hero";
+import { resolveGameRow } from "@/steam/game/game-row-state";
 import { GameScreenshotStrip } from "@/steam/game/game-screenshot-strip";
 import { GameUnlockTimeline } from "@/steam/game/game-unlock-timeline";
 import { LastProgressedCard } from "@/steam/game/last-progressed-card";
 import { RarestUnlockCard } from "@/steam/game/rarest-unlock-card";
 import { RaritySignatureCard } from "@/steam/game/rarity-signature-card";
 import { TimeTo100Card } from "@/steam/game/time-to-100-card";
+import { gameAchievementsQueryOptions } from "@/steam/game/use-game-achievements";
+import { gameDescriptionQueryOptions } from "@/steam/game/use-game-description";
+import { steamGameQueryOptions, useSteamGame } from "@/steam/game/use-steam-game";
 import { useActiveGame } from "@/steam/library/active-game-context";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -44,6 +50,45 @@ export const Route = createFileRoute("/steam/library/$appid")({
   validateSearch: (search: Record<string, unknown>): SteamGameSearch => ({
     ach: typeof search.ach === "string" ? search.ach : undefined,
   }),
+  // Server only. The panel renders in place for a server render (PanelLayer in
+  // slide-panel.tsx), and the body gates on the game's library row — which the
+  // component reads from the ~660 kB owned-games list, kept client-side by the
+  // priming rule in repo-conventions-web.md. So the server primes the row on
+  // its own (3.9 kB / 14 ms) plus the two regions a crawler reads — the
+  // description (7.7 kB) and the achievement list (7 kB), both tolerated
+  // because the identity card still says something true without them. Not
+  // primed: screenshots and the unlock timeline, which are media and chart
+  // geometry rather than text, and the list itself.
+  //
+  // The row is fatal on an outage — the panel *is* this route — but a 404 is
+  // tolerated and carried out as loader data. A server render primes the
+  // public projection, so the owner's hidden games are exactly the rows that
+  // 404 here, and a fatal prime would turn the owner's own refresh into an
+  // error card; the client re-asks with the cookie once the viewer resolves.
+  // The flag is what lets the hydrating render agree with the server, since a
+  // failed query is not dehydrated and would otherwise hydrate as pending. A
+  // visitor on an unowned appid gets the "not in the snapshot" line under a
+  // 200, which is the price of that.
+  //
+  // The client branch does nothing: a click from the library already holds the
+  // row, and a cold client-side navigation lets the component's own query fetch it.
+  loader: ({ context: { queryClient }, params }) => {
+    if (!import.meta.env.SSR) return;
+    const appid = Number.parseInt(params.appid, 10);
+    return Promise.all([
+      queryClient.ensureQueryData(steamGameQueryOptions(appid)).then(
+        () => false,
+        (error: unknown) => {
+          if (error instanceof HttpError && error.status === 404) return true;
+          throw error;
+        }
+      ),
+      primeQuietly(
+        queryClient.prefetchQuery(gameDescriptionQueryOptions(appid)),
+        queryClient.prefetchQuery(gameAchievementsQueryOptions(appid))
+      ),
+    ]).then(([rowMissing]) => ({ rowMissing }));
+  },
   // Static fallback used until `SteamGamePanel` enriches `document.title`
   // with the resolved game name (see `useEffect` below). Crawlers that
   // never run the component still get a non-numeric title.
@@ -60,11 +105,29 @@ function SteamGamePanel() {
   const { appid: appidParam } = Route.useParams();
   const { ach } = Route.useSearch();
   const appid = Number.parseInt(appidParam, 10);
-  const { data, isPending, isError } = useSteamOwnedGames();
+  const owned = useSteamOwnedGames();
   const navigate = useNavigate();
   const { activeGame, setActiveGame } = useActiveGame();
 
-  const game = data?.games.find((g) => g.appid === appid);
+  // Two sources for one row. A click from the library already holds the whole
+  // list, so the row is there on the first render and the single-row query
+  // never fires. A cold arrival has the row alone, primed by the loader on the
+  // server and hydrated into the client cache — a disabled query still reads
+  // what the cache holds — and fetches it itself on a cold client-side
+  // navigation while the list is still loading.
+  const ownedRow = owned.data?.games.find((g) => g.appid === appid);
+  const single = useSteamGame(appid, { enabled: ownedRow === undefined });
+  const loaderData = Route.useLoaderData();
+  const rowState = resolveGameRow(
+    ownedRow,
+    owned,
+    single,
+    loaderData?.rowMissing === true
+  );
+  const game = rowState.kind === "ready" ? rowState.game : undefined;
+  const isPending = rowState.kind === "pending";
+  const missing = rowState.kind === "missing";
+  const isError = rowState.kind === "error";
 
   // Captured at first paint — if `activeGame === appid` at mount, the user
   // clicked this row from the list (handler set it pre-navigate). Cold
@@ -276,7 +339,7 @@ function SteamGamePanel() {
           <p className="text-sm text-destructive">Playtime is unavailable right now.</p>
         )}
 
-        {data && !game && (
+        {missing && (
           <p className="text-sm text-muted-foreground">
             App {appidParam} isn't in the current library snapshot. It may be unowned,
             refunded, or hidden from the public profile.

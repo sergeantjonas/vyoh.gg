@@ -101,6 +101,53 @@ describe("getOwnedGames", () => {
   });
 });
 
+describe("getOwnedGame", () => {
+  function service(row: ReturnType<typeof snapshotRow> | null) {
+    const findFirst = vi
+      .fn()
+      .mockResolvedValueOnce({ snapshotDate: SNAPSHOT_DATE })
+      .mockResolvedValueOnce(row);
+    const prisma = {
+      steamPlaytimeSnapshot: { findFirst, findMany: vi.fn().mockResolvedValue([]) },
+      steamGameEnrichment: { findMany: vi.fn().mockResolvedValue([]) },
+    } as unknown as PrismaService;
+    return {
+      svc: new SteamOwnedGamesService(
+        prisma,
+        ...([{}, {}, {}, {}, {}, {}] as never as [
+          never,
+          never,
+          never,
+          never,
+          never,
+          never,
+        ])
+      ),
+      findFirst,
+    };
+  }
+
+  it("answers null for a hidden appid before touching the database", async () => {
+    const { svc, findFirst } = service(snapshotRow(HIDDEN, "Something Private"));
+    await expect(svc.getOwnedGame(HIDDEN, curation())).resolves.toBeNull();
+    expect(findFirst).not.toHaveBeenCalled();
+  });
+
+  it("projects the row when nothing hides it", async () => {
+    const { svc } = service(snapshotRow(HIDDEN, "Something Private"));
+    await expect(svc.getOwnedGame(HIDDEN, NO_CURATION)).resolves.toMatchObject({
+      appid: HIDDEN,
+      name: "Something Private",
+      playtimeForeverMinutes: 600,
+    });
+  });
+
+  it("answers null for an appid missing from the latest snapshot", async () => {
+    const { svc } = service(null);
+    await expect(svc.getOwnedGame(VISIBLE, NO_CURATION)).resolves.toBeNull();
+  });
+});
+
 describe("getOwnerWishlist", () => {
   function service() {
     const client = {

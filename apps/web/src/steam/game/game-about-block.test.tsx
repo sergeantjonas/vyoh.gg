@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import type { SteamGameDescription } from "@vyoh/shared";
+import { useReducedMotion } from "motion/react";
 import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GameAboutBlock } from "./game-about-block";
@@ -11,7 +12,9 @@ vi.mock("./use-game-description", () => ({
 }));
 
 // Default to "no reduce motion" so the html branch renders <video>.
-// Individual tests override via mockReturnValueOnce.
+// Individual tests override via mockReturnValue — the component reads the
+// preference on every render and only honours it once hydrated, so a one-shot
+// value would be consumed by the pre-hydration render.
 vi.mock("motion/react", () => ({
   useReducedMotion: vi.fn(() => false),
 }));
@@ -22,6 +25,7 @@ function renderWithClient(ui: ReactElement) {
 }
 
 beforeEach(() => {
+  vi.mocked(useReducedMotion).mockReturnValue(false);
   vi.mocked(useGameDescription).mockReset();
 });
 
@@ -114,8 +118,7 @@ describe("GameAboutBlock", () => {
   });
 
   it("swaps <video> for an <img> using the poster under prefers-reduced-motion", async () => {
-    const { useReducedMotion } = await import("motion/react");
-    vi.mocked(useReducedMotion).mockReturnValueOnce(true);
+    vi.mocked(useReducedMotion).mockReturnValue(true);
     const hash = "b2d503549e33e6603c86b6bd7babdb38";
     const payload: SteamGameDescription = {
       appid: 1245620,

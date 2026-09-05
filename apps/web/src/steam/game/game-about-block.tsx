@@ -1,4 +1,5 @@
 import { CardTitle } from "@/components/ui/card-title";
+import { useHydrated } from "@/lib/use-hydrated";
 import { cn } from "@/lib/utils";
 import { bbcodeToHtml, sanitizeRichHtml } from "@vyoh/shared";
 import { useReducedMotion } from "motion/react";
@@ -13,7 +14,7 @@ import { useGameDescription } from "./use-game-description";
 // many that the section dominates.
 const MEDIA_RENDER_CAP = 5;
 
-// Post-sanitiser editorial polish. Three passes over the rendered DOM tree:
+// Post-sanitiser editorial polish, one string pass over the sanitiser's output:
 //
 // 1. **Reduced motion**: each `<video>` with a `poster` becomes a `<img>`
 //    pointing at the poster. WebM never gets downloaded — saves bandwidth
@@ -26,47 +27,62 @@ const MEDIA_RENDER_CAP = 5;
 //    cap. The first N are typically the editorial highlights publishers
 //    care about; the long tail is decorative spacers and screenshot dumps.
 //
-// DOMParser is used over regex because the input has nested structure
-// (`<video><source></video>`) and attribute order matters less than
-// structural fidelity. happy-dom supports DOMParser in tests.
+// A string pass rather than DOMParser: the input is `sanitizeRichHtml`'s own
+// output, which has already normalised every tag to lowercase with
+// `k="escaped"` attributes and no comments, so tag boundaries are unambiguous
+// here — and this runs during render, which on the server has no DOM (the
+// description is primed by the route loader, so the server does reach it).
+const ABOUT_MEDIA_RE = /<video\b([^>]*)>[\s\S]*?<\/video>|<img\b([^>]*)>/g;
+const ATTR_RE = /([a-zA-Z-]+)="([^"]*)"/g;
+
+function attrsOf(raw: string): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const m of raw.matchAll(ATTR_RE)) out.set(m[1] as string, m[2] as string);
+  return out;
+}
+
+function serializeAttrs(attrs: Map<string, string>): string {
+  return Array.from(attrs, ([k, v]) => ` ${k}="${v}"`).join("");
+}
+
 function postProcessAboutHtml(
   html: string,
   opts: { reduceMotion: boolean; maxMedia: number }
 ): string {
-  const doc = new DOMParser().parseFromString(`<div>${html}</div>`, "text/html");
-  const root = doc.body.firstElementChild;
-  if (!root) return html;
-
-  if (opts.reduceMotion) {
-    for (const video of Array.from(root.querySelectorAll("video"))) {
-      const poster = video.getAttribute("poster");
-      if (poster) {
-        const img = doc.createElement("img");
-        img.setAttribute("src", poster);
-        img.setAttribute("alt", "");
-        const w = video.getAttribute("width");
-        const h = video.getAttribute("height");
-        if (w) img.setAttribute("width", w);
-        if (h) img.setAttribute("height", h);
-        video.replaceWith(img);
-      } else {
-        video.remove();
-      }
+  // Only media that survives counts toward the cap: a poster-less video
+  // dropped under reduce-motion should not cost a later clip its slot.
+  let seen = 0;
+  return html.replace(ABOUT_MEDIA_RE, (full, videoAttrs?: string, imgAttrs?: string) => {
+    if (seen >= opts.maxMedia) return "";
+    if (imgAttrs !== undefined) {
+      seen += 1;
+      const attrs = attrsOf(imgAttrs);
+      attrs.set("loading", "lazy");
+      attrs.set("decoding", "async");
+      return `<img${serializeAttrs(attrs)}>`;
     }
-  }
-
-  for (const img of Array.from(root.querySelectorAll("img"))) {
-    img.setAttribute("loading", "lazy");
-    img.setAttribute("decoding", "async");
-  }
-  for (const video of Array.from(root.querySelectorAll("video"))) {
-    video.setAttribute("preload", "metadata");
-  }
-
-  const media = Array.from(root.querySelectorAll("video, img"));
-  for (const el of media.slice(opts.maxMedia)) el.remove();
-
-  return root.innerHTML;
+    const attrs = attrsOf(videoAttrs ?? "");
+    if (opts.reduceMotion) {
+      const poster = attrs.get("poster");
+      if (!poster) return "";
+      seen += 1;
+      const img = new Map<string, string>([
+        ["src", poster],
+        ["alt", ""],
+      ]);
+      const w = attrs.get("width");
+      const h = attrs.get("height");
+      if (w) img.set("width", w);
+      if (h) img.set("height", h);
+      img.set("loading", "lazy");
+      img.set("decoding", "async");
+      return `<img${serializeAttrs(img)}>`;
+    }
+    seen += 1;
+    attrs.set("preload", "metadata");
+    const open = full.indexOf(">") + 1;
+    return `<video${serializeAttrs(attrs)}>${full.slice(open)}`;
+  });
 }
 
 // Render order, preferred path: rendered `about_the_game` HTML from Steam's
@@ -133,7 +149,13 @@ export function GameAboutBlock({
   frosted?: boolean;
 }) {
   const { data, isPending, isError } = useGameDescription(appid);
-  const reduceMotion = useReducedMotion() === true;
+  // Motion reads `matchMedia` on the client's first call and answers null on
+  // the server, so the preference only steers the markup once hydration is
+  // over — otherwise a reduce-motion visitor hydrates `<img>` against the
+  // server's `<video>`, and React never re-applies `dangerouslySetInnerHTML`.
+  const prefersReduced = useReducedMotion() === true;
+  const hydrated = useHydrated();
+  const reduceMotion = hydrated && prefersReduced;
   const html = useRenderedDescription(
     data?.html ?? null,
     data?.bbcode ?? null,

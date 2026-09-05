@@ -716,4 +716,54 @@ describe("SteamController", () => {
       NotFoundException
     );
   });
+
+  it("delegates to SteamOwnedGamesService.getOwnedGame with the parsed appid", async () => {
+    const game = { appid: 440, name: "Team Fortress 2" } as unknown;
+    const stub = vi.fn().mockResolvedValue(game);
+    const moduleRef = await Test.createTestingModule({
+      controllers: [SteamController],
+      providers: [
+        { provide: SteamService, useValue: {} },
+        { provide: SteamOwnedGamesService, useValue: { getOwnedGame: stub } },
+        { provide: SteamTagService, useValue: {} },
+        { provide: SteamAchievementsService, useValue: {} },
+        { provide: SteamGameRecapService, useValue: {} },
+        { provide: SteamPlayerStateService, useValue: {} },
+        { provide: SteamChronotypeService, useValue: {} },
+        { provide: SteamWishlistHeroService, useValue: {} },
+        { provide: SteamUpcomingService, useValue: {} },
+        { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamGameCurationService, useValue: CURATION_STUB },
+        { provide: AuthService, useValue: {} },
+      ],
+    }).compile();
+    const controller = moduleRef.get(SteamController);
+    await expect(controller.getOwnedGame(440, false)).resolves.toBe(game);
+    expect(stub).toHaveBeenCalledWith(440, NO_CURATION);
+  });
+
+  it("answers 404 for a game row the viewer cannot see", async () => {
+    const stub = vi.fn().mockResolvedValue(null);
+    const moduleRef = await Test.createTestingModule({
+      controllers: [SteamController],
+      providers: [
+        { provide: SteamService, useValue: {} },
+        { provide: SteamOwnedGamesService, useValue: { getOwnedGame: stub } },
+        { provide: SteamTagService, useValue: {} },
+        { provide: SteamAchievementsService, useValue: {} },
+        { provide: SteamGameRecapService, useValue: {} },
+        { provide: SteamPlayerStateService, useValue: {} },
+        { provide: SteamChronotypeService, useValue: {} },
+        { provide: SteamWishlistHeroService, useValue: {} },
+        { provide: SteamUpcomingService, useValue: {} },
+        { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamGameCurationService, useValue: CURATION_STUB },
+        { provide: AuthService, useValue: {} },
+      ],
+    }).compile();
+    const controller = moduleRef.get(SteamController);
+    await expect(controller.getOwnedGame(440, false)).rejects.toBeInstanceOf(
+      NotFoundException
+    );
+  });
 });

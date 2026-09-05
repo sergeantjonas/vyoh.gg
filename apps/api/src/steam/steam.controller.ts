@@ -17,6 +17,7 @@ import type {
   SteamGameScreenshots,
   SteamLibraryCompletion,
   SteamLibrarySummary,
+  SteamOwnedGame,
   SteamOwnedGames,
   SteamPlatformMix,
   SteamPlayerState,
@@ -167,7 +168,7 @@ export class SteamController {
   /**
    * 404s a per-app route whose appid the caller isn't allowed to see.
    *
-   * The four `game/:appid/*` routes below shape their response from one appid
+   * The `game/:appid/*` routes below shape their response from one appid
    * rather than filtering a list, so the gate is a refusal rather than a filter.
    * A refusal is also the better answer: an empty achievements payload for a
    * hidden game says "this game has none", which is both a lie and a tell.
@@ -180,6 +181,27 @@ export class SteamController {
     if (isHiddenGame(appid, curation)) {
       throw new NotFoundException(`Steam app ${appid} is not in the tracked library.`);
     }
+  }
+
+  // The library row on its own. The full list stays client-side (see the
+  // priming rule in repo-conventions-web.md), so this is what a cold arrival on
+  // the game panel server-renders from. Gated in the service rather than by
+  // `assertVisible`, because the lookup already has to consult the curation to
+  // answer; the outcome is the same 404 for an unowned or hidden appid.
+  @Get("game/:appid")
+  @WithViewer()
+  async getOwnedGame(
+    @Param("appid", ParseIntPipe) appid: number,
+    @ViewerIsOwner() isOwner: boolean
+  ): Promise<SteamOwnedGame> {
+    const game = await this.ownedGames.getOwnedGame(
+      appid,
+      await this.curation.getCurationFor(isOwner)
+    );
+    if (game === null) {
+      throw new NotFoundException(`Steam app ${appid} is not in the tracked library.`);
+    }
+    return game;
   }
 
   @Get("game/:appid/achievements")
