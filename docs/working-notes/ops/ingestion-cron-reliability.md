@@ -1,6 +1,6 @@
 # Ingestion cron reliability
 
-**Status:** Shipped — three self-sealing gates fixed 2026-08-05; all four long-interval pollers converted from schedule-driven to staleness-driven 2026-08-06.
+**Status:** Active — the 2026-08 gates are shipped; one open item since 2026-09-05: games marked private on Steam are refetched every sweep and never stamped (§ Steam-private games).
 
 Opened 2026-08-05 after a reported symptom: Beast of Reincarnation (appid 2001760) had nine achievements unlocked on Steam over the preceding 24 hours and none of them in our database.
 
@@ -70,9 +70,17 @@ Three details worth keeping:
 - **`orderBy` needs `nulls: "first"` explicitly.** The columns are nullable and Postgres sorts NULLS LAST on ASC, which would park a never-stamped row permanently behind the cap — the exact failure this arc exists to remove, reintroduced one layer down.
 - **The three selections were deliberately not extracted into a shared helper.** They share a concept, not a shape: schema needs two queries across two tables, rarity needs two across two release-age cohorts with a relation gate, enrichment computes in memory over a candidate list that includes wishlist appids with no row. A generic `dueForRefresh()` would take more arguments than each call site has lines — and the shapes have diverged further since, not converged.
 
+## Steam-private games are refused per app (found 2026-09-05)
+
+Steam's library "Mark as Private" makes `GetPlayerAchievements` answer **403 `Profile is not public` for that appid only**, even to the owner's own key and with a public profile (visibility 3 confirmed the same minute a control game answered 200). Two owned games are in that state; both are also hidden on vyoh, which is how it surfaced — the 100%'d hall showed neither, and the probe found "0 / 53" with `lastUnlocksCheckedAt: null` after a sweep that had stamped 160 of 163 games.
+
+`syncUnlocks` catches the throw and `continue`s **without stamping**, so a private game is retried every four hours forever and its displayed unlocks freeze at whatever was ingested before it was marked private (Subverse: 2026-09-03). The `success: false` branch that does stamp only handles a 200 body; a 403 never reaches it.
+
+**Fix:** on a 403 whose body carries `playerstats.success === false`, stamp `lastUnlocksCheckedAt` and persist a `statsPrivateAt` (or similar) on `SteamGameAchievementMeta`, clear it on the next 200, and let the per-game panel, the hall and Nearest 100% say "achievement stats private on Steam" instead of a misleading zero. Vyoh-hiding is unrelated: no poller reads curation, and the sweep proved it by visiting the game.
+
 ## Remaining
 
-Nothing in this arc. The residual risk is now a full day rather than a week or a month, and it self-corrects on restart.
+Only the private-game stamping above. The residual risk is now a full day rather than a week or a month, and it self-corrects on restart.
 
 The one thing to re-check when hosting lands: with the process up continuously the daily ticks carry the load, and the boot passes become the deploy-time safety net they were designed to be — deploys land exactly the kind of short downtime that used to eat a whole fire. If the Steam budget ever tightens, the caps and windows in each poller are the knobs; they were set to preserve each poller's previous effective cadence, not to a measured limit.
 
