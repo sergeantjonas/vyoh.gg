@@ -237,11 +237,15 @@ function mockStatus(value: {
   data?: StatusSnapshot;
   isPending?: boolean;
   error?: Error | null;
+  refetch?: () => void;
+  isFetching?: boolean;
 }) {
   vi.mocked(useStatus).mockReturnValue({
     data: value.data,
     isPending: value.isPending ?? false,
     error: value.error ?? null,
+    refetch: value.refetch ?? vi.fn(),
+    isFetching: value.isFetching ?? false,
   } as unknown as ReturnType<typeof useStatus>);
 }
 
@@ -299,22 +303,40 @@ afterEach(() => {
 });
 
 describe("StatusPage", () => {
-  it("renders the loading state while the snapshot is pending", () => {
+  it("renders the layout skeleton while the snapshot is pending", async () => {
     mockStatus({ isPending: true });
-    renderWithTooltip(<StatusPage />);
-    expect(screen.getByText(/Loading status/)).toBeTruthy();
+    const { container } = renderWithTooltip(<StatusPage />);
+    expect(screen.getByRole("status", { name: "Loading status" })).toBeTruthy();
+    expect(screen.queryByText("Match sync")).toBeNull();
+    const axe = configureAxe({ rules: { "color-contrast": { enabled: false } } });
+    expect((await axe(container)).violations).toEqual([]);
   });
 
-  it("renders the error state when the snapshot query errors", () => {
-    mockStatus({ error: new Error("network down") });
-    renderWithTooltip(<StatusPage />);
-    expect(screen.getByText(/Failed to load status: network down/)).toBeTruthy();
+  it("renders the unavailable state with the error and a retry when the snapshot query errors", async () => {
+    const refetch = vi.fn();
+    mockStatus({ error: new Error("network down"), refetch });
+    const { container } = renderWithTooltip(<StatusPage />);
+    expect(screen.getByText(/Status is unavailable right now/)).toBeTruthy();
+    expect(screen.getByText("network down")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(refetch).toHaveBeenCalledTimes(1);
+    const axe = configureAxe({ rules: { "color-contrast": { enabled: false } } });
+    expect((await axe(container)).violations).toEqual([]);
   });
 
-  it("falls back to 'unknown' when error is null but no data is present", () => {
+  it("holds the retry button down while the snapshot is refetching", () => {
+    mockStatus({ error: new Error("network down"), isFetching: true });
+    renderWithTooltip(<StatusPage />);
+    expect(screen.getByRole("button", { name: "Try again" })).toHaveProperty(
+      "disabled",
+      true
+    );
+  });
+
+  it("falls back to 'unknown error' when error is null but no data is present", () => {
     mockStatus({});
     renderWithTooltip(<StatusPage />);
-    expect(screen.getByText(/Failed to load status: unknown/)).toBeTruthy();
+    expect(screen.getByText("unknown error")).toBeTruthy();
   });
 
   it("subscribes to the status SSE stream on mount", () => {

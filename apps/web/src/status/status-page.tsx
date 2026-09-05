@@ -26,6 +26,7 @@ const TICK_TIME_FMT = new Intl.DateTimeFormat("en-GB", {
 });
 import { Lock, Pause, Play, RefreshCw } from "lucide-react";
 import { Badge, Metric } from "./status-primitives";
+import { StatusSkeleton } from "./status-skeleton";
 import { SyncJobsCard } from "./sync-jobs-card";
 import {
   useSetSyncEnabled,
@@ -38,16 +39,18 @@ import {
 
 export function StatusPage() {
   useStatusStream();
-  const { data, isPending, error } = useStatus();
+  const { data, isPending, error, refetch, isFetching } = useStatus();
 
   if (isPending) {
-    return <p className="text-sm text-muted-foreground">Loading status…</p>;
+    return <StatusSkeleton />;
   }
   if (error || !data) {
     return (
-      <p className="text-sm text-destructive">
-        Failed to load status: {error?.message ?? "unknown"}
-      </p>
+      <StatusUnavailable
+        reason={error?.message}
+        retrying={isFetching}
+        onRetry={() => void refetch()}
+      />
     );
   }
 
@@ -143,6 +146,31 @@ export function StatusPage() {
           </ul>
         </section>
       )}
+    </div>
+  );
+}
+
+function StatusUnavailable({
+  reason,
+  retrying,
+  onRetry,
+}: {
+  reason: string | undefined;
+  retrying: boolean;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-3 py-24">
+      <p className="text-sm text-destructive">Status is unavailable right now.</p>
+      <p className="font-mono text-xs text-muted-foreground">
+        {reason ?? "unknown error"}
+      </p>
+      {/* A retry re-enters React Query's three-attempt backoff, so the button
+          stays down for the several seconds it takes to answer either way. */}
+      <Button variant="outline" size="sm" onClick={onRetry} disabled={retrying}>
+        <RefreshCw className={cn(retrying && "animate-spin")} />
+        Try again
+      </Button>
     </div>
   );
 }
