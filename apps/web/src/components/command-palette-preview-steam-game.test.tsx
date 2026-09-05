@@ -1,3 +1,4 @@
+import { seedViewer } from "@/auth/mock-viewer";
 import { CommandPalettePreviewSteamGame } from "@/components/command-palette-preview-steam-game";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
@@ -67,12 +68,16 @@ function renderWithCache(
   options: { owned?: SteamOwnedGames; completion?: SteamLibraryCompletion } = {}
 ) {
   const client = new QueryClient();
+  seedViewer(client);
   if (options.owned) {
-    client.setQueryData<SteamOwnedGames>(["steam", "owned-games"], options.owned);
+    client.setQueryData<SteamOwnedGames>(
+      ["steam", "owned-games", "public"],
+      options.owned
+    );
   }
   if (options.completion) {
     client.setQueryData<SteamLibraryCompletion>(
-      ["steam", "achievements", "library-completion"],
+      ["steam", "achievements", "library-completion", "public"],
       options.completion
     );
   }

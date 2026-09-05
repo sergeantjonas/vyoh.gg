@@ -668,7 +668,7 @@ describe("CommandPaletteDialog", () => {
       pathnameRef.current = "/steam/library/1245620";
       const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
       seedViewer(client);
-      client.setQueryData(["steam", "owned-games"], {
+      client.setQueryData(["steam", "owned-games", "public"], {
         games: [
           {
             appid: 1245620,
@@ -793,7 +793,7 @@ describe("CommandPaletteDialog", () => {
     function renderWithSteamCache() {
       const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
       seedViewer(client);
-      client.setQueryData(["steam", "owned-games"], ownedGames);
+      client.setQueryData(["steam", "owned-games", "public"], ownedGames);
       return render(
         <QueryClientProvider client={client}>
           <CommandPaletteDialog open onOpenChange={vi.fn()} />
@@ -879,6 +879,22 @@ describe("CommandPaletteDialog", () => {
       });
       expect(screen.queryByRole("option", { name: /Elden Ring/ })).toBeNull();
     });
+
+    it("ignores an unscoped owned-games entry — only the viewer-scoped key is read", () => {
+      pathnameRef.current = "/steam/library";
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      seedViewer(client);
+      client.setQueryData(["steam", "owned-games"], ownedGames);
+      render(
+        <QueryClientProvider client={client}>
+          <CommandPaletteDialog open onOpenChange={vi.fn()} />
+        </QueryClientProvider>
+      );
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "dev:from-software" },
+      });
+      expect(screen.queryByRole("option", { name: /Elden Ring/ })).toBeNull();
+    });
   });
 
   describe("Steam wishlist grammar", () => {
@@ -910,7 +926,7 @@ describe("CommandPaletteDialog", () => {
     function renderWithWishlistCache() {
       const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
       seedViewer(client);
-      client.setQueryData(["steam", "wishlist"], wishlist);
+      client.setQueryData(["steam", "wishlist", "public"], wishlist);
       return render(
         <QueryClientProvider client={client}>
           <CommandPaletteDialog open onOpenChange={vi.fn()} />

@@ -4,7 +4,10 @@
 // session, so the preview piggybacks the same warm cache the dialog's library
 // filter already consumes rather than refetching.
 
+import { useIsOwner } from "@/auth/use-viewer";
 import { steamLibraryCapsuleUrl } from "@/steam/_shared/steam-image";
+import { libraryCompletionQueryOptions } from "@/steam/use-library-completion";
+import { steamOwnedGamesQueryOptions } from "@/steam/use-owned-games";
 import { useQueryClient } from "@tanstack/react-query";
 import type { SteamLibraryCompletion, SteamOwnedGames } from "@vyoh/shared";
 import { formatPlaytime } from "@vyoh/shared";
@@ -25,12 +28,13 @@ function relativeTime(iso: string): string {
 
 export function CommandPalettePreviewSteamGame({ appid }: Props) {
   const queryClient = useQueryClient();
-  const owned = queryClient.getQueryData<SteamOwnedGames>(["steam", "owned-games"]);
-  const completion = queryClient.getQueryData<SteamLibraryCompletion>([
-    "steam",
-    "achievements",
-    "library-completion",
-  ]);
+  const isOwner = useIsOwner();
+  const owned = queryClient.getQueryData<SteamOwnedGames>(
+    steamOwnedGamesQueryOptions(isOwner).queryKey
+  );
+  const completion = queryClient.getQueryData<SteamLibraryCompletion>(
+    libraryCompletionQueryOptions(isOwner).queryKey
+  );
 
   const appidNum = Number(appid);
   if (!Number.isFinite(appidNum)) return null;

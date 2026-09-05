@@ -31,6 +31,7 @@ import { prefetchCachedMatches } from "@/lol/matches/use-matches";
 import { joinNearestEntries } from "@/steam/_shared/nearest-entries";
 import { completionCandidatesQueryOptions } from "@/steam/use-completion-candidates";
 import { steamOwnedGamesQueryOptions } from "@/steam/use-owned-games";
+import { steamWishlistQueryOptions } from "@/steam/use-wishlist";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { InfiniteData } from "@tanstack/react-query";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
@@ -470,12 +471,16 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
 
   // Steam library group: read the owned-games query cache directly per the
   // cache-hit-before-fetch invariant (architecture note in command-palette.md).
+  // The key carries the viewer scope, so the read has to resolve it the same
+  // way the hook does or it lands on an entry nothing ever fills.
   // Empty list is the natural "library not loaded yet" state — the palette
   // doesn't surface a load affordance for Steam because the library lands on
   // first /steam route mount and stale-time keeps it warm.
   const steamGames = useMemo(() => {
     if (!isSteamScope) return [];
-    const cached = queryClient.getQueryData<SteamOwnedGames>(["steam", "owned-games"]);
+    const cached = queryClient.getQueryData<SteamOwnedGames>(
+      steamOwnedGamesQueryOptions(isOwner).queryKey
+    );
     if (!cached) return [];
     const filtered = cached.games.filter((g) => {
       for (const dev of steamParsed.devs) {
@@ -495,7 +500,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
       return true;
     });
     return filtered.slice(0, 8);
-  }, [isSteamScope, queryClient, steamParsed]);
+  }, [isSteamScope, isOwner, queryClient, steamParsed]);
 
   const showSteamGames =
     isSteamScope &&
@@ -520,13 +525,15 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
   // with `?appid`, which scrolls to and highlights that row.
   const wishlistMatches = useMemo(() => {
     if (!wishlistQuery || !wishlistQuery.query) return [];
-    const cached = queryClient.getQueryData<SteamWishlist>(["steam", "wishlist"]);
+    const cached = queryClient.getQueryData<SteamWishlist>(
+      steamWishlistQueryOptions(isOwner).queryKey
+    );
     if (!cached) return [];
     const needle = wishlistQuery.query;
     return cached.items
       .filter((it) => (it.name ?? "").toLowerCase().includes(needle))
       .slice(0, 8);
-  }, [wishlistQuery, queryClient]);
+  }, [wishlistQuery, isOwner, queryClient]);
 
   const showWishlist =
     wishlistQuery !== null &&
@@ -537,7 +544,7 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
     : null;
   const steamGameTitle = steamAppid
     ? (queryClient
-        .getQueryData<SteamOwnedGames>(["steam", "owned-games"])
+        .getQueryData<SteamOwnedGames>(steamOwnedGamesQueryOptions(isOwner).queryKey)
         ?.games.find((g) => String(g.appid) === steamAppid)?.name ?? null)
     : null;
 

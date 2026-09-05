@@ -1,7 +1,7 @@
 import { useIsOwner } from "@/auth/use-viewer";
 import { viewerScope, viewerScopedQuery } from "@/auth/viewer-scope";
 import { HttpError } from "@/lib/http-error";
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { SteamLibraryCompletion } from "@vyoh/shared";
 
 import { API_URL } from "@/lib/api-url";
@@ -27,12 +27,15 @@ async function fetchLibraryCompletion(): Promise<SteamLibraryCompletion> {
 // 100%'d hall consume the same payload. 30min stale-time tracks the daily
 // unlocks poller's cadence — anything finer just amplifies traffic without
 // changing what's on screen.
-export function useLibraryCompletion() {
-  const scope = viewerScope(useIsOwner());
-  return useQuery({
-    queryKey: ["steam", "achievements", "library-completion", scope],
+export function libraryCompletionQueryOptions(isOwner = false) {
+  return queryOptions({
+    queryKey: ["steam", "achievements", "library-completion", viewerScope(isOwner)],
     queryFn: fetchLibraryCompletion,
     staleTime: 30 * 60 * 1_000,
     ...viewerScopedQuery,
   });
+}
+
+export function useLibraryCompletion() {
+  return useQuery(libraryCompletionQueryOptions(useIsOwner()));
 }
