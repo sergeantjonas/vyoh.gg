@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import { type ReactNode, createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useCompletionCandidates } from "./use-completion-candidates";
 import { useCrossGameRarest } from "./use-cross-game-rarest";
 import { useLibraryCompletion } from "./use-library-completion";
 import { useSteamLibrarySummary } from "./use-library-summary";
@@ -95,6 +96,12 @@ const cases: Case[] = [
     viewerAware: true,
     hook: () => useRecentUnlocks(10),
     url: "http://localhost:2010/steam/achievements/recent?limit=10",
+  },
+  {
+    name: "useCompletionCandidates",
+    viewerAware: true,
+    hook: () => useCompletionCandidates(),
+    url: "http://localhost:2010/steam/achievements/completion-candidates",
   },
   {
     name: "useCrossGameRarest(10)",

@@ -1,6 +1,7 @@
 import { routeMeta } from "@/lib/route-meta";
 import { CompletionistAxisCard } from "@/steam/achievements/completionist-axis-card";
 import { HundredPercentHall } from "@/steam/achievements/hundred-percent-hall";
+import { NearestHundred } from "@/steam/achievements/nearest-hundred";
 import { RarestSection } from "@/steam/achievements/rarest-section";
 import { SteamChronotypeTile } from "@/steam/achievements/steam-chronotype-tile";
 import { Link, createFileRoute } from "@tanstack/react-router";
@@ -12,7 +13,7 @@ export const Route = createFileRoute("/steam/achievements_/signature")({
     routeMeta({
       title: "Signature · Achievements · vyoh.gg",
       description:
-        "Steam achievement signature — completion verdicts and rarest unlocks on vyoh.gg.",
+        "Steam achievement signature — completion verdicts, the games nearest 100%, and rarest unlocks on vyoh.gg.",
     }),
 });
 
@@ -30,12 +31,13 @@ function SignaturePage() {
         <h1 className="text-2xl font-bold tracking-tight">Signatures</h1>
         <p className="text-sm text-muted-foreground">
           Where the library stands on the completionist axis, the games already finished,
-          and the rarest pulls so far.
+          the ones closest to it, and the rarest pulls so far.
         </p>
       </div>
       <CompletionistAxisCard />
       <SteamChronotypeTile />
       <HundredPercentHall />
+      <NearestHundred />
       <RarestSection />
     </div>
   );
