@@ -494,7 +494,7 @@ What they cover: client-side form validation, error display, server-action integ
 
 Why parked: No client forms exist. The cmdk command palette ([apps/web/src/components/command-palette-dialog.tsx](../../../apps/web/src/components/command-palette-dialog.tsx)) is the only "input" surface today. Upcoming form-shaped surfaces are single-button or OAuth-redirect, not form-library territory:
 
-- Status-page admin POST actions ([open-work.md § Status page admin surface](../open-work.md)) — single buttons with toast feedback, no form library.
+- Status-page admin POST actions ([owner-auth.md § Status page admin surface](../ops/owner-auth.md)) — single buttons with toast feedback, no form library.
 - Owner-auth GitHub OAuth flow ([owner-auth.md](../ops/owner-auth.md)) — redirect, no form.
 - API `ValidationPipe V3` ([open-work.md](../open-work.md)) — server-side, NestJS `class-validator` continues to be the right pick.
 
