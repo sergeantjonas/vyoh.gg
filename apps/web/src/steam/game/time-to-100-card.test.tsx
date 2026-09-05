@@ -35,13 +35,18 @@ function makeAchievement(overrides: Partial<SteamAchievement> = {}): SteamAchiev
   };
 }
 
-function makeData(achievements: SteamAchievement[] | null): SteamGameAchievements {
+function makeData(
+  achievements: SteamAchievement[] | null,
+  overrides: Partial<SteamGameAchievements> = {}
+): SteamGameAchievements {
   return {
     appid: 440,
     achievements,
     lastSchemaCheckedAt: null,
     lastUnlocksCheckedAt: null,
     lastRarityCheckedAt: null,
+    statsPrivateAt: null,
+    ...overrides,
   };
 }
 
@@ -69,6 +74,18 @@ afterEach(() => {
 });
 
 describe("TimeTo100Card", () => {
+  it("renders nothing when the stats are private on Steam", () => {
+    mockHook({
+      data: makeData([makeAchievement({ unlockedAt: null })], {
+        statsPrivateAt: "2026-09-05T04:05:00Z",
+      }),
+      isPending: false,
+      isError: false,
+    });
+    const { container } = renderCard(<TimeTo100Card appid={440} />);
+    expect(container.firstChild).toBeNull();
+  });
+
   it("renders nothing when the schema is null", () => {
     mockHook({ data: makeData(null), isPending: false, isError: false });
     const { container } = renderCard(<TimeTo100Card appid={440} />);

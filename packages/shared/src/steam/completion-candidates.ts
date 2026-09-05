@@ -27,6 +27,10 @@ export interface SteamCompletionCandidate {
 
 export interface SteamCompletionCandidates {
   candidates: SteamCompletionCandidate[];
+  // Games left out of the ranking because Steam keeps their achievement stats
+  // private (per-app 403): their locked set is frozen at the last sync, so
+  // "what is left" is unknowable and a score would be a guess.
+  privateAppids: number[];
 }
 
 // One locked achievement as the read path sees it: which game, and its
@@ -51,12 +55,14 @@ export function lockedAchievementCost(globalPercent: number | null): number {
  * appid; `locked` is every locked achievement across the library. A game is a
  * candidate only when it has been started (at least one unlock) and is not
  * yet finished — untouched games are not "near" anything, and finished ones
- * belong to the 100%'d hall. Ties break on fewer remaining, then appid, so
- * the order is stable across polls.
+ * belong to the 100%'d hall. Games in `privateAppids` are never candidates:
+ * Steam refuses their stats, so the locked set is a stale snapshot. Ties
+ * break on fewer remaining, then appid, so the order is stable across polls.
  */
 export function buildCompletionCandidates(
   totals: readonly { appid: number; total: number }[],
-  locked: readonly LockedAchievementRow[]
+  locked: readonly LockedAchievementRow[],
+  privateAppids: ReadonlySet<number>
 ): SteamCompletionCandidate[] {
   const byAppid = new Map<
     number,
@@ -89,6 +95,7 @@ export function buildCompletionCandidates(
 
   const candidates: SteamCompletionCandidate[] = [];
   for (const { appid, total } of totals) {
+    if (privateAppids.has(appid)) continue;
     const acc = byAppid.get(appid);
     if (!acc || acc.remaining >= total) continue;
     candidates.push({

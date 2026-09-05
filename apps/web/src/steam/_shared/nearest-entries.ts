@@ -32,3 +32,23 @@ export function joinNearestEntries(
   }
   return entries;
 }
+
+// Fixed locale on purpose: the same list is rendered on the server and on the
+// client, and a viewer-locale join would hydrate differently.
+const CONJUNCTION = new Intl.ListFormat("en", { style: "long", type: "conjunction" });
+
+// Names the games the ranking left out because Steam keeps their achievement
+// stats private, in server order, skipping appids the library cannot name.
+// Returns the joined sentence fragment ("Subverse and Five Hearts Under One
+// Roof") or null when nothing is nameable.
+export function privateGamesSentence(
+  privateAppids: readonly number[],
+  owned: readonly SteamOwnedGame[]
+): string | null {
+  const nameById = new Map(owned.map((g) => [g.appid, g.name]));
+  const names = privateAppids.flatMap((appid) => {
+    const name = nameById.get(appid);
+    return name === undefined ? [] : [name];
+  });
+  return names.length === 0 ? null : CONJUNCTION.format(names);
+}

@@ -19,6 +19,7 @@ function makeService(opts: {
     },
     steamGameAchievementMeta: {
       findUnique: vi.fn().mockResolvedValue(opts.achievementMeta ?? null),
+      findMany: vi.fn().mockResolvedValue([]),
     },
   };
   return {

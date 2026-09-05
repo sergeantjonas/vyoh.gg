@@ -33,6 +33,11 @@ export interface SteamGameAchievements {
   lastSchemaCheckedAt: string | null;
   lastUnlocksCheckedAt: string | null;
   lastRarityCheckedAt: string | null;
+  // Set while Steam refuses this game's GetPlayerAchievements with a per-app
+  // 403 (the library's "Mark as Private"). `achievements` then holds the last
+  // state synced before the refusal, so an unlock count of zero is not "none
+  // earned" — surfaces say the stats are private instead of showing it.
+  statsPrivateAt: string | null;
 }
 
 // Cross-game recent-unlocks feed. Returned by
@@ -72,6 +77,9 @@ export interface SteamGameCompletion {
   // is unlocked yet. Drives the "100%'d hall" sort and a future "last
   // touched" annotation on the completionist axis.
   lastUnlockedAt: string | null;
+  // True while Steam keeps the game's achievement stats private (per-app
+  // 403); `unlocked` is then the last synced count, not the live one.
+  statsPrivate: boolean;
 }
 
 export interface SteamLibraryCompletion {

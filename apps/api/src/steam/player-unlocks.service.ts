@@ -1,11 +1,17 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
-import { SteamClientService } from "./steam-client.service";
+import {
+  SteamClientService,
+  type SteamPlayerAchievementsResult,
+} from "./steam-client.service";
 import { STEAM_OWNER_ID } from "./steam.config";
 
 export interface UnlocksSyncResult {
   checked: number;
   newUnlocks: number;
+  // Games Steam refused with a per-app 403 (library "Mark as Private"). They
+  // count toward `checked` — the attempt was made and stamped.
+  privateOnSteam: number;
   failed: number;
 }
 
@@ -30,11 +36,18 @@ export class SteamPlayerUnlocksService {
   // schema-less appid would fail on insert; the poller's where-clause + the
   // owned-games-service on-add filter both gate by `achievementCount > 0`.
   //
-  // Steam's `success: false` (owner has no playerstats — privacy, never
-  // launched stats, etc.) returns `null` from the client method. We still
-  // stamp `lastUnlocksCheckedAt` so the meta row reflects the most recent
-  // attempt; we don't permanently skip these games because playerstats
-  // visibility can flip back on at any time.
+  // Steam's `success: false` (owner has no playerstats — never launched
+  // stats, etc.) comes back as `no-stats`. We still stamp
+  // `lastUnlocksCheckedAt` so the meta row reflects the most recent attempt;
+  // we don't permanently skip these games because playerstats visibility can
+  // flip back on at any time.
+  //
+  // A game marked private in the Steam library comes back as `private` (a 403
+  // per appid, even to the owner's key). It is stamped like any other attempt
+  // — a private game that never stamps is refetched every sweep forever — and
+  // `statsPrivateAt` records the first sweep that saw the refusal so surfaces
+  // can say so instead of showing the frozen unlock count. The next `ok` or
+  // `no-stats` answer clears it.
   // Single-game refresh used by the event-driven path (session-close hook
   // in play-sessions.service) and the recently-played backstop poller. Both
   // callers operate per-appid rather than over the full library, so a thin
@@ -51,22 +64,24 @@ export class SteamPlayerUnlocksService {
     // and a null would otherwise pass the guard and reach `syncUnlocks`,
     // where the FK to `SteamGameAchievement` rejects the insert.
     if (!meta || !(meta.achievementCount && meta.achievementCount > 0)) {
-      return { checked: 0, newUnlocks: 0, failed: 0 };
+      return { checked: 0, newUnlocks: 0, privateOnSteam: 0, failed: 0 };
     }
     return this.syncUnlocks([appid]);
   }
 
   async syncUnlocks(appids: number[]): Promise<UnlocksSyncResult> {
-    if (appids.length === 0) return { checked: 0, newUnlocks: 0, failed: 0 };
+    if (appids.length === 0)
+      return { checked: 0, newUnlocks: 0, privateOnSteam: 0, failed: 0 };
     const start = Date.now();
     let checked = 0;
     let newUnlocks = 0;
+    let privateOnSteam = 0;
     let failed = 0;
 
     for (const appid of appids) {
-      let achievements: Awaited<ReturnType<SteamClientService["getPlayerAchievements"]>>;
+      let result: SteamPlayerAchievementsResult;
       try {
-        achievements = await this.client.getPlayerAchievements(STEAM_OWNER_ID, appid);
+        result = await this.client.getPlayerAchievements(STEAM_OWNER_ID, appid);
       } catch (err) {
         failed += 1;
         this.logger.warn(`unlock fetch for appid=${appid} failed: ${err}`);
@@ -75,8 +90,23 @@ export class SteamPlayerUnlocksService {
 
       const now = new Date();
 
-      if (achievements !== null && achievements.length > 0) {
-        const unlocked = achievements
+      if (result.status === "private") {
+        await this.prisma.steamGameAchievementMeta.update({
+          where: { appid },
+          data: { lastUnlocksCheckedAt: now },
+        });
+        // Keep the first-seen timestamp across sweeps; only a null row gets stamped.
+        await this.prisma.steamGameAchievementMeta.updateMany({
+          where: { appid, statsPrivateAt: null },
+          data: { statsPrivateAt: now },
+        });
+        privateOnSteam += 1;
+        checked += 1;
+        continue;
+      }
+
+      if (result.status === "ok" && result.achievements.length > 0) {
+        const unlocked = result.achievements
           .filter((a) => a.achieved === 1 && a.unlocktime > 0)
           .map((a) => ({
             appid,
@@ -94,15 +124,15 @@ export class SteamPlayerUnlocksService {
 
       await this.prisma.steamGameAchievementMeta.update({
         where: { appid },
-        data: { lastUnlocksCheckedAt: now },
+        data: { lastUnlocksCheckedAt: now, statsPrivateAt: null },
       });
       checked += 1;
     }
 
     const duration = Date.now() - start;
     this.logger.log(
-      `checked unlocks for ${checked}/${appids.length} apps (new=${newUnlocks}, failed=${failed}) in ${duration}ms`
+      `checked unlocks for ${checked}/${appids.length} apps (new=${newUnlocks}, private=${privateOnSteam}, failed=${failed}) in ${duration}ms`
     );
-    return { checked, newUnlocks, failed };
+    return { checked, newUnlocks, privateOnSteam, failed };
   }
 }

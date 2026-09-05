@@ -42,6 +42,7 @@ export class SteamAchievementsService {
         lastSchemaCheckedAt: true,
         lastUnlocksCheckedAt: true,
         lastRarityCheckedAt: true,
+        statsPrivateAt: true,
       },
     });
 
@@ -56,6 +57,7 @@ export class SteamAchievementsService {
       lastSchemaCheckedAt: meta?.lastSchemaCheckedAt?.toISOString() ?? null,
       lastUnlocksCheckedAt: meta?.lastUnlocksCheckedAt?.toISOString() ?? null,
       lastRarityCheckedAt: meta?.lastRarityCheckedAt?.toISOString() ?? null,
+      statsPrivateAt: meta?.statsPrivateAt?.toISOString() ?? null,
     };
 
     if (empty.achievements === null) return empty;
@@ -215,7 +217,7 @@ export class SteamAchievementsService {
   async getLibraryCompletion(
     curation: SteamCurationSets
   ): Promise<SteamLibraryCompletion> {
-    const [totals, unlocks] = await Promise.all([
+    const [totals, unlocks, privateAppids] = await Promise.all([
       this.prisma.steamGameAchievement.groupBy({
         by: ["appid"],
         _count: { apiName: true },
@@ -225,6 +227,7 @@ export class SteamAchievementsService {
         _count: { apiName: true },
         _max: { unlockedAt: true },
       }),
+      this.findStatsPrivateAppids(),
     ]);
 
     const unlockMap = new Map(unlocks.map((u) => [u.appid, u]));
@@ -236,6 +239,7 @@ export class SteamAchievementsService {
         total: t._count.apiName,
         unlocked: u?._count.apiName ?? 0,
         lastUnlockedAt: u?._max.unlockedAt?.toISOString() ?? null,
+        statsPrivate: privateAppids.has(t.appid),
       };
     });
 
@@ -250,7 +254,7 @@ export class SteamAchievementsService {
   async getCompletionCandidates(
     curation: SteamCurationSets
   ): Promise<SteamCompletionCandidates> {
-    const [totals, locked] = await Promise.all([
+    const [totals, locked, privateAppids] = await Promise.all([
       this.prisma.steamGameAchievement.groupBy({
         by: ["appid"],
         _count: { apiName: true },
@@ -259,19 +263,38 @@ export class SteamAchievementsService {
         where: { unlock: null, appid: visibleAppidFilter(curation) },
         select: { appid: true, rarity: { select: { percent: true } } },
       }),
+      this.findStatsPrivateAppids(),
     ]);
 
+    const visibleTotals = excludeHiddenGames(totals, curation);
+    const lockedAppids = new Set(locked.map((row) => row.appid));
     return {
       candidates: buildCompletionCandidates(
-        excludeHiddenGames(totals, curation).map((t) => ({
-          appid: t.appid,
-          total: t._count.apiName,
-        })),
+        visibleTotals.map((t) => ({ appid: t.appid, total: t._count.apiName })),
         locked.map((row) => ({
           appid: row.appid,
           globalPercent: row.rarity?.percent ?? null,
-        }))
+        })),
+        privateAppids
       ),
+      // Reported from the visible totals rather than the meta rows so the
+      // curation filter applies once and a hidden private game stays hidden.
+      // A private game with nothing locked was finished before the refusal
+      // and sits in the hall — privacy is not why the ranking left it out.
+      privateAppids: visibleTotals
+        .map((t) => t.appid)
+        .filter((appid) => privateAppids.has(appid) && lockedAppids.has(appid)),
     };
+  }
+
+  // Games Steam currently refuses GetPlayerAchievements for (library "Mark as
+  // Private"). Two games at most in practice, so a Set over the meta rows is
+  // cheaper than joining it into the grouped queries above.
+  private async findStatsPrivateAppids(): Promise<Set<number>> {
+    const rows = await this.prisma.steamGameAchievementMeta.findMany({
+      where: { statsPrivateAt: { not: null } },
+      select: { appid: true },
+    });
+    return new Set(rows.map((r) => r.appid));
   }
 }

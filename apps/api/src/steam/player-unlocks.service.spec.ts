@@ -7,6 +7,7 @@ interface PrismaStubs {
   steamGameAchievementMeta: {
     findUnique: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
+    updateMany: ReturnType<typeof vi.fn>;
   };
   steamPlayerUnlock: { createMany: ReturnType<typeof vi.fn> };
 }
@@ -16,6 +17,7 @@ function makePrisma(): PrismaStubs {
     steamGameAchievementMeta: {
       findUnique: vi.fn(),
       update: vi.fn().mockResolvedValue(undefined),
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
     steamPlayerUnlock: {
       createMany: vi.fn().mockResolvedValue({ count: 0 }),
@@ -38,7 +40,7 @@ describe("SteamPlayerUnlocksService.refreshUnlocksForGame", () => {
     const fetch = vi.fn();
 
     const result = await makeService(prisma, fetch).refreshUnlocksForGame(404);
-    expect(result).toEqual({ checked: 0, newUnlocks: 0, failed: 0 });
+    expect(result).toEqual({ checked: 0, newUnlocks: 0, privateOnSteam: 0, failed: 0 });
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -48,7 +50,7 @@ describe("SteamPlayerUnlocksService.refreshUnlocksForGame", () => {
     const fetch = vi.fn();
 
     const result = await makeService(prisma, fetch).refreshUnlocksForGame(730);
-    expect(result).toEqual({ checked: 0, newUnlocks: 0, failed: 0 });
+    expect(result).toEqual({ checked: 0, newUnlocks: 0, privateOnSteam: 0, failed: 0 });
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -62,7 +64,7 @@ describe("SteamPlayerUnlocksService.refreshUnlocksForGame", () => {
     const fetch = vi.fn();
 
     const result = await makeService(prisma, fetch).refreshUnlocksForGame(730);
-    expect(result).toEqual({ checked: 0, newUnlocks: 0, failed: 0 });
+    expect(result).toEqual({ checked: 0, newUnlocks: 0, privateOnSteam: 0, failed: 0 });
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -71,7 +73,7 @@ describe("SteamPlayerUnlocksService.refreshUnlocksForGame", () => {
     prisma.steamGameAchievementMeta.findUnique.mockResolvedValue({
       achievementCount: 30,
     });
-    const fetch = vi.fn().mockResolvedValue([]);
+    const fetch = vi.fn().mockResolvedValue({ status: "ok", achievements: [] });
 
     await makeService(prisma, fetch).refreshUnlocksForGame(367520);
     expect(fetch).toHaveBeenCalledWith(expect.any(String), 367520);
@@ -84,23 +86,26 @@ describe("SteamPlayerUnlocksService.syncUnlocks", () => {
     const fetch = vi.fn();
     const result = await makeService(prisma, fetch).syncUnlocks([]);
 
-    expect(result).toEqual({ checked: 0, newUnlocks: 0, failed: 0 });
+    expect(result).toEqual({ checked: 0, newUnlocks: 0, privateOnSteam: 0, failed: 0 });
     expect(fetch).not.toHaveBeenCalled();
   });
 
   it("inserts only achieved=1 + unlocktime>0 rows (filters locked & zero-time)", async () => {
     const prisma = makePrisma();
     prisma.steamPlayerUnlock.createMany.mockResolvedValue({ count: 2 });
-    const fetch = vi.fn().mockResolvedValue([
-      { apiname: "ACH_DONE_A", achieved: 1, unlocktime: 1_715_000_000 },
-      { apiname: "ACH_LOCKED", achieved: 0, unlocktime: 0 },
-      { apiname: "ACH_DONE_NO_TIME", achieved: 1, unlocktime: 0 },
-      { apiname: "ACH_DONE_B", achieved: 1, unlocktime: 1_715_999_999 },
-    ]);
+    const fetch = vi.fn().mockResolvedValue({
+      status: "ok",
+      achievements: [
+        { apiname: "ACH_DONE_A", achieved: 1, unlocktime: 1_715_000_000 },
+        { apiname: "ACH_LOCKED", achieved: 0, unlocktime: 0 },
+        { apiname: "ACH_DONE_NO_TIME", achieved: 1, unlocktime: 0 },
+        { apiname: "ACH_DONE_B", achieved: 1, unlocktime: 1_715_999_999 },
+      ],
+    });
 
     const result = await makeService(prisma, fetch).syncUnlocks([367520]);
 
-    expect(result).toEqual({ checked: 1, newUnlocks: 2, failed: 0 });
+    expect(result).toEqual({ checked: 1, newUnlocks: 2, privateOnSteam: 0, failed: 0 });
     expect(prisma.steamPlayerUnlock.createMany).toHaveBeenCalledWith({
       data: [
         {
@@ -116,18 +121,45 @@ describe("SteamPlayerUnlocksService.syncUnlocks", () => {
       ],
       skipDuplicates: true,
     });
-    expect(prisma.steamGameAchievementMeta.update).toHaveBeenCalledOnce();
+    // A successful fetch is also what clears a previous private-on-Steam state.
+    expect(prisma.steamGameAchievementMeta.update).toHaveBeenCalledExactlyOnceWith({
+      where: { appid: 367520 },
+      data: { lastUnlocksCheckedAt: expect.any(Date), statsPrivateAt: null },
+    });
   });
 
-  it("still stamps meta when Steam returns null (success: false / private stats)", async () => {
+  it("still stamps meta when Steam reports no stats (200, success: false)", async () => {
     const prisma = makePrisma();
-    const fetch = vi.fn().mockResolvedValue(null);
+    const fetch = vi.fn().mockResolvedValue({ status: "no-stats" });
 
     const result = await makeService(prisma, fetch).syncUnlocks([367520]);
 
-    expect(result).toEqual({ checked: 1, newUnlocks: 0, failed: 0 });
+    expect(result).toEqual({ checked: 1, newUnlocks: 0, privateOnSteam: 0, failed: 0 });
     expect(prisma.steamPlayerUnlock.createMany).not.toHaveBeenCalled();
-    expect(prisma.steamGameAchievementMeta.update).toHaveBeenCalledOnce();
+    expect(prisma.steamGameAchievementMeta.update).toHaveBeenCalledExactlyOnceWith({
+      where: { appid: 367520 },
+      data: { lastUnlocksCheckedAt: expect.any(Date), statsPrivateAt: null },
+    });
+  });
+
+  // The bug this guards: a private game that never stamps is refetched every
+  // sweep forever, and its frozen unlock count reads as a zero.
+  it("stamps a private-on-Steam game and records the first refusal only", async () => {
+    const prisma = makePrisma();
+    const fetch = vi.fn().mockResolvedValue({ status: "private" });
+
+    const result = await makeService(prisma, fetch).syncUnlocks([3021100]);
+
+    expect(result).toEqual({ checked: 1, newUnlocks: 0, privateOnSteam: 1, failed: 0 });
+    expect(prisma.steamPlayerUnlock.createMany).not.toHaveBeenCalled();
+    expect(prisma.steamGameAchievementMeta.update).toHaveBeenCalledExactlyOnceWith({
+      where: { appid: 3021100 },
+      data: { lastUnlocksCheckedAt: expect.any(Date) },
+    });
+    expect(prisma.steamGameAchievementMeta.updateMany).toHaveBeenCalledExactlyOnceWith({
+      where: { appid: 3021100, statsPrivateAt: null },
+      data: { statsPrivateAt: expect.any(Date) },
+    });
   });
 
   it("counts a single failure and continues to the next appid", async () => {
@@ -136,12 +168,13 @@ describe("SteamPlayerUnlocksService.syncUnlocks", () => {
     const fetch = vi
       .fn()
       .mockRejectedValueOnce(new Error("upstream 500"))
-      .mockResolvedValueOnce([
-        { apiname: "ACH_A", achieved: 1, unlocktime: 1_715_000_000 },
-      ]);
+      .mockResolvedValueOnce({
+        status: "ok",
+        achievements: [{ apiname: "ACH_A", achieved: 1, unlocktime: 1_715_000_000 }],
+      });
 
     const result = await makeService(prisma, fetch).syncUnlocks([404, 367520]);
 
-    expect(result).toEqual({ checked: 1, newUnlocks: 1, failed: 1 });
+    expect(result).toEqual({ checked: 1, newUnlocks: 1, privateOnSteam: 0, failed: 1 });
   });
 });

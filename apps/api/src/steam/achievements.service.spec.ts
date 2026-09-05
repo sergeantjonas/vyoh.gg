@@ -7,12 +7,18 @@ import {
 } from "./achievements.service";
 
 interface PrismaStubs {
-  steamGameAchievementMeta: { findUnique: ReturnType<typeof vi.fn> };
+  steamGameAchievementMeta: {
+    findUnique: ReturnType<typeof vi.fn>;
+    findMany: ReturnType<typeof vi.fn>;
+  };
   steamGameAchievement: {
     findMany: ReturnType<typeof vi.fn>;
     groupBy: ReturnType<typeof vi.fn>;
   };
-  steamPlayerUnlock: { findMany: ReturnType<typeof vi.fn> };
+  steamPlayerUnlock: {
+    findMany: ReturnType<typeof vi.fn>;
+    groupBy: ReturnType<typeof vi.fn>;
+  };
 }
 
 function makeService(prisma: PrismaStubs): SteamAchievementsService {
@@ -21,9 +27,12 @@ function makeService(prisma: PrismaStubs): SteamAchievementsService {
 
 function makePrisma(): PrismaStubs {
   return {
-    steamGameAchievementMeta: { findUnique: vi.fn() },
+    steamGameAchievementMeta: {
+      findUnique: vi.fn(),
+      findMany: vi.fn().mockResolvedValue([]),
+    },
     steamGameAchievement: { findMany: vi.fn(), groupBy: vi.fn() },
-    steamPlayerUnlock: { findMany: vi.fn() },
+    steamPlayerUnlock: { findMany: vi.fn(), groupBy: vi.fn().mockResolvedValue([]) },
   };
 }
 
@@ -45,8 +54,23 @@ describe("SteamAchievementsService.getGameAchievements", () => {
       lastSchemaCheckedAt: null,
       lastUnlocksCheckedAt: null,
       lastRarityCheckedAt: null,
+      statsPrivateAt: null,
     });
     expect(prisma.steamGameAchievement.findMany).not.toHaveBeenCalled();
+  });
+
+  it("reports statsPrivateAt as ISO alongside the last synced rows", async () => {
+    const prisma = makePrisma();
+    prisma.steamGameAchievementMeta.findUnique.mockResolvedValue({
+      achievementCount: 1,
+      ...META_CHECKED,
+      statsPrivateAt: new Date("2026-09-05T04:05:00.000Z"),
+    });
+    prisma.steamGameAchievement.findMany.mockResolvedValue([]);
+
+    const result = await makeService(prisma).getGameAchievements(1034140);
+    expect(result.statsPrivateAt).toBe("2026-09-05T04:05:00.000Z");
+    expect(result.achievements).toEqual([]);
   });
 
   it("returns achievements: null when the game has no schema (achievementCount 0)", async () => {
@@ -270,5 +294,71 @@ describe("SteamAchievementsService.getCompletionCandidates", () => {
         where: { unlock: null, appid: { notIn: [] } },
       })
     );
+  });
+
+  it("leaves a stats-private game out of the ranking and names it separately", async () => {
+    const prisma = makePrisma();
+    prisma.steamGameAchievement.groupBy.mockResolvedValue(totals);
+    prisma.steamGameAchievement.findMany.mockResolvedValue(locked);
+    prisma.steamGameAchievementMeta.findMany.mockResolvedValue([{ appid: 730 }]);
+
+    const result = await makeService(prisma).getCompletionCandidates(NO_CURATION);
+    expect(result.candidates.map((c) => c.appid)).toEqual([367520]);
+    expect(result.privateAppids).toEqual([730]);
+  });
+
+  it("does not blame privacy for a game that was finished before the refusal", async () => {
+    const prisma = makePrisma();
+    prisma.steamGameAchievement.groupBy.mockResolvedValue(totals);
+    prisma.steamGameAchievement.findMany.mockResolvedValue([locked[0]]);
+    prisma.steamGameAchievementMeta.findMany.mockResolvedValue([{ appid: 730 }]);
+
+    const result = await makeService(prisma).getCompletionCandidates(NO_CURATION);
+    expect(result.privateAppids).toEqual([]);
+  });
+
+  it("keeps a hidden private game out of privateAppids for that viewer", async () => {
+    const prisma = makePrisma();
+    prisma.steamGameAchievement.groupBy.mockResolvedValue(totals);
+    prisma.steamGameAchievement.findMany.mockResolvedValue(locked);
+    prisma.steamGameAchievementMeta.findMany.mockResolvedValue([{ appid: 730 }]);
+
+    const result = await makeService(prisma).getCompletionCandidates({
+      hidden: new Set([730]),
+      unfeatured: new Set(),
+    });
+    expect(result.privateAppids).toEqual([]);
+  });
+});
+
+describe("SteamAchievementsService.getLibraryCompletion", () => {
+  it("flags the stats-private game and keeps its last synced count", async () => {
+    const prisma = makePrisma();
+    prisma.steamGameAchievement.groupBy.mockResolvedValue([
+      { appid: 367520, _count: { apiName: 4 } },
+      { appid: 1034140, _count: { apiName: 52 } },
+    ]);
+    prisma.steamPlayerUnlock.groupBy.mockResolvedValue([
+      { appid: 367520, _count: { apiName: 4 }, _max: { unlockedAt: new Date(0) } },
+    ]);
+    prisma.steamGameAchievementMeta.findMany.mockResolvedValue([{ appid: 1034140 }]);
+
+    const { stats } = await makeService(prisma).getLibraryCompletion(NO_CURATION);
+    expect(stats).toEqual([
+      {
+        appid: 367520,
+        total: 4,
+        unlocked: 4,
+        lastUnlockedAt: "1970-01-01T00:00:00.000Z",
+        statsPrivate: false,
+      },
+      {
+        appid: 1034140,
+        total: 52,
+        unlocked: 0,
+        lastUnlockedAt: null,
+        statsPrivate: true,
+      },
+    ]);
   });
 });

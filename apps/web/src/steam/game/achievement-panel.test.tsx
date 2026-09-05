@@ -38,13 +38,18 @@ function makeAchievement(overrides: Partial<SteamAchievement> = {}): SteamAchiev
   };
 }
 
-function makeData(achievements: SteamAchievement[] | null): SteamGameAchievements {
+function makeData(
+  achievements: SteamAchievement[] | null,
+  overrides: Partial<SteamGameAchievements> = {}
+): SteamGameAchievements {
   return {
     appid: 440,
     achievements,
     lastSchemaCheckedAt: null,
     lastUnlocksCheckedAt: null,
     lastRarityCheckedAt: null,
+    statsPrivateAt: null,
+    ...overrides,
   };
 }
 
@@ -63,6 +68,39 @@ describe("AchievementPanel", () => {
     mockHook({ data: makeData([]), isPending: false, isError: false });
     renderWithProviders(<AchievementPanel appid={440} />);
     expect(screen.queryByText(/Schema is in flight/)).not.toBeNull();
+  });
+
+  it("says the stats are private on Steam instead of listing the frozen rows", () => {
+    const rows = [
+      makeAchievement({
+        apiName: "A",
+        displayName: "Frozen Unlock",
+        unlockedAt: "2026-09-01T00:00:00Z",
+      }),
+      makeAchievement({ apiName: "B", displayName: "Still Locked" }),
+    ];
+    mockHook({
+      data: makeData(rows, { statsPrivateAt: "2026-09-05T04:05:00Z" }),
+      isPending: false,
+      isError: false,
+    });
+    renderWithProviders(<AchievementPanel appid={1034140} />);
+    expect(screen.getByText("Private on Steam")).toBeTruthy();
+    expect(
+      screen.getByText(/1 of 2 were unlocked when they were last visible/)
+    ).toBeTruthy();
+    expect(screen.queryByText("Frozen Unlock")).toBeNull();
+    expect(screen.queryByText(/unlocked$/)).toBeNull();
+  });
+
+  it("does not quote a snapshot that never held an unlock", () => {
+    mockHook({
+      data: makeData([makeAchievement()], { statsPrivateAt: "2026-09-05T04:05:00Z" }),
+      isPending: false,
+      isError: false,
+    });
+    renderWithProviders(<AchievementPanel appid={3021100} />);
+    expect(screen.getByText(/can't be tracked here\.$/)).toBeTruthy();
   });
 
   it("renders unlocked/total ratio and rows for both unlocked and locked achievements", () => {

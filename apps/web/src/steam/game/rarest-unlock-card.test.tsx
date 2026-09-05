@@ -42,6 +42,7 @@ function makeData(achievements: SteamAchievement[] | null): SteamGameAchievement
     lastSchemaCheckedAt: null,
     lastUnlocksCheckedAt: null,
     lastRarityCheckedAt: null,
+    statsPrivateAt: null,
   };
 }
 

@@ -47,14 +47,14 @@ function candidate(
 
 function mock(
   candidates: {
-    data?: { candidates: SteamCompletionCandidate[] };
+    data?: { candidates: SteamCompletionCandidate[]; privateAppids?: number[] };
     isPending?: boolean;
     isError?: boolean;
   },
   owned: { data?: { games: SteamOwnedGame[] }; isPending?: boolean; isError?: boolean }
 ) {
   vi.mocked(useCompletionCandidates).mockReturnValue({
-    data: candidates.data,
+    data: candidates.data && { privateAppids: [], ...candidates.data },
     isPending: candidates.isPending ?? false,
     isError: candidates.isError ?? false,
   } as unknown as ReturnType<typeof useCompletionCandidates>);
@@ -134,6 +134,30 @@ describe("NearestHundred", () => {
     expect(names).not.toContain("G2");
     expect(names[0]).toBe("G1");
     expect(names[1]).toBe("G3");
+  });
+
+  it("names the games left out because their stats are private on Steam", () => {
+    mock(
+      { data: { candidates: [candidate(1, 1, 12)], privateAppids: [2, 3, 99] } },
+      {
+        data: { games: [game(1, "Portal"), game(2, "Subverse"), game(3, "Five Hearts")] },
+      }
+    );
+    render(<NearestHundred />);
+    expect(
+      screen.getByText(
+        /Not ranked: Subverse and Five Hearts\. Steam keeps their achievement stats private/
+      )
+    ).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Nearest 100%1");
+  });
+
+  it("collapses when the only started games are private on Steam", () => {
+    mock(
+      { data: { candidates: [], privateAppids: [2] } },
+      { data: { games: [game(2, "Subverse")] } }
+    );
+    expect(render(<NearestHundred />).container.firstChild).toBeNull();
   });
 
   it("has no axe violations", async () => {

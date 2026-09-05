@@ -31,6 +31,11 @@ const STEAM_API_BASE = "https://api.steampowered.com";
 const STEAM_STORE_BASE = "https://store.steampowered.com";
 const FETCH_TIMEOUT_MS = 10_000;
 
+export type SteamPlayerAchievementsResult =
+  | { status: "ok"; achievements: SteamPlayerAchievementRaw[] }
+  | { status: "no-stats" }
+  | { status: "private" };
+
 export class SteamClientError extends Error {
   constructor(
     message: string,
@@ -246,19 +251,33 @@ export class SteamClientService {
   }
 
   // Owner's unlock state for every achievement defined in a game's schema.
-  // Returns `null` when Steam reports `success: false` — the game has no
-  // playerstats configured for this owner (never launched the stats subsystem,
-  // library hidden, or schema-less game). Distinct from the empty-array case
-  // (game has stats, owner has unlocked zero).
+  //
+  // `no-stats` is Steam's 200 `success: false` — the game has no playerstats
+  // configured for this owner (never launched the stats subsystem, or a
+  // schema-less game). Distinct from the empty-array `ok` case (game has
+  // stats, owner has unlocked zero).
+  //
+  // `private` is the library-level "Mark as Private" flag: Steam answers
+  // **403** with the same `success: false` body and `Profile is not public`
+  // for that one appid, even to the owner's own key while the profile itself
+  // is public. Every other non-2xx still throws, so a real outage keeps
+  // surfacing as a failure rather than being filed as privacy.
   async getPlayerAchievements(
     steamId: string,
     appid: number
-  ): Promise<SteamPlayerAchievementRaw[] | null> {
+  ): Promise<SteamPlayerAchievementsResult> {
     return this.limiter.schedule("player-achievements", async () => {
       const path = `/ISteamUserStats/GetPlayerAchievements/v1/?key=${encodeURIComponent(this.apiKey)}&steamid=${encodeURIComponent(steamId)}&appid=${appid}&l=english`;
-      const data = await this.fetchJson<SteamGetPlayerAchievementsResponse>(path);
-      if (!data.playerstats.success) return null;
-      return data.playerstats.achievements ?? [];
+      const { res, redactedPath } = await this.fetchResponse(path);
+      if (res.status === 403 && (await isPrivateStatsRefusal(res))) {
+        return { status: "private" };
+      }
+      const data = await this.parseJson<SteamGetPlayerAchievementsResponse>(
+        res,
+        redactedPath
+      );
+      if (!data.playerstats.success) return { status: "no-stats" };
+      return { status: "ok", achievements: data.playerstats.achievements ?? [] };
     });
   }
 
@@ -282,10 +301,30 @@ export class SteamClientService {
     });
   }
 
+  private async fetchJson<T>(pathOrUrl: string): Promise<T> {
+    const { res, redactedPath } = await this.fetchResponse(pathOrUrl);
+    return this.parseJson<T>(res, redactedPath);
+  }
+
+  private async parseJson<T>(res: Response, redactedPath: string): Promise<T> {
+    if (!res.ok) {
+      throw new SteamClientError(
+        `Steam Web API ${res.status} ${res.statusText}`,
+        res.status,
+        redactedPath
+      );
+    }
+    return res.json() as Promise<T>;
+  }
+
   // Accepts either a path under `STEAM_API_BASE` or an absolute URL — the
   // latter so the storefront-only `appdetails` endpoint can route through the
-  // same timeout/limiter wiring without forking a second helper.
-  private async fetchJson<T>(pathOrUrl: string): Promise<T> {
+  // same timeout/limiter wiring without forking a second helper. Returns the
+  // raw response so a caller can read a non-2xx body before deciding whether
+  // it is a failure; `parseJson` is the default verdict.
+  private async fetchResponse(
+    pathOrUrl: string
+  ): Promise<{ res: Response; redactedPath: string }> {
     const url = pathOrUrl.startsWith("http")
       ? pathOrUrl
       : `${STEAM_API_BASE}${pathOrUrl}`;
@@ -333,14 +372,18 @@ export class SteamClientService {
 
     const duration = Math.round(performance.now() - start);
     this.logger.log(`steam ${path} → ${res.status} (${duration}ms)`);
+    return { res, redactedPath: path };
+  }
+}
 
-    if (!res.ok) {
-      throw new SteamClientError(
-        `Steam Web API ${res.status} ${res.statusText}`,
-        res.status,
-        path
-      );
-    }
-    return res.json() as Promise<T>;
+// The 403 body Steam sends for a library-private game is the same
+// `playerstats.success: false` envelope a 200 uses for "no stats"; any other
+// 403 body (HTML error page, empty) is treated as a real failure.
+async function isPrivateStatsRefusal(res: Response): Promise<boolean> {
+  try {
+    const body = (await res.json()) as Partial<SteamGetPlayerAchievementsResponse>;
+    return body?.playerstats?.success === false;
+  } catch {
+    return false;
   }
 }

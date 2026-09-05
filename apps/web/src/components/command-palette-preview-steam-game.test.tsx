@@ -111,7 +111,13 @@ describe("CommandPalettePreviewSteamGame", () => {
     renderWithCache(<CommandPalettePreviewSteamGame appid="570" />, {
       owned: { games: [buildGame()], lastSyncedAt: null },
       completion: buildCompletion([
-        { appid: 570, total: 200, unlocked: 50, lastUnlockedAt: null },
+        {
+          appid: 570,
+          total: 200,
+          unlocked: 50,
+          lastUnlockedAt: null,
+          statsPrivate: false,
+        },
       ]),
     });
     expect(screen.getByTestId("achievement-percent").textContent).toBe("25% unlocked");

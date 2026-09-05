@@ -447,12 +447,20 @@ model SteamAchievementRarityHistory {
 // checked, no achievements (skip future fetches), N > 0 = N achievements
 // known. Lets the schema poller short-circuit games like CS2 / demos
 // without re-fetching every month.
+//
+// `statsPrivateAt` is set when Steam refuses GetPlayerAchievements for this
+// one appid with 403 `Profile is not public` — the library-level "Mark as
+// Private" flag, which applies even to the owner's own key. It records the
+// first sweep that saw the refusal and is cleared by the next successful
+// fetch, so surfaces can say "private on Steam" instead of showing the frozen
+// unlock count as a zero.
 model SteamGameAchievementMeta {
   appid                Int       @id
   achievementCount     Int?
   lastSchemaCheckedAt  DateTime?
   lastUnlocksCheckedAt DateTime?
   lastRarityCheckedAt  DateTime?
+  statsPrivateAt       DateTime?
 
   game SteamOwnedGame @relation(fields: [appid], references: [appid])
 }

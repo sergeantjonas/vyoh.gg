@@ -399,6 +399,7 @@ describe("SteamController", () => {
       lastSchemaCheckedAt: null,
       lastUnlocksCheckedAt: null,
       lastRarityCheckedAt: null,
+      statsPrivateAt: null,
     };
     const stub = vi.fn().mockResolvedValue(payload);
 

@@ -46,6 +46,7 @@ function stat(
     unlocked,
     total,
     lastUnlockedAt,
+    statsPrivate: false,
   } as unknown as SteamGameCompletion;
 }
 
@@ -121,6 +122,17 @@ describe("HundredPercentHall", () => {
     expect(screen.getByText("1 achievement")).toBeTruthy();
     // Section heading text + count.
     expect(screen.getByText("3")).toBeTruthy();
+  });
+
+  it("captions a private-on-Steam entry instead of stating its total as current", () => {
+    mock(
+      { data: { stats: [{ ...stat(1, 52, 52), statsPrivate: true }, stat(2, 3, 3)] } },
+      { data: { games: [game(1, "Subverse"), game(2, "Portal")] } }
+    );
+    render(<HundredPercentHall />);
+    expect(screen.getByText("stats private on Steam")).toBeTruthy();
+    expect(screen.queryByText("52 achievements")).toBeNull();
+    expect(screen.getByText("3 achievements")).toBeTruthy();
   });
 
   it("orders entries by lastUnlockedAt descending with no-date entries at the bottom", () => {

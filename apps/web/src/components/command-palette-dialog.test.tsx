@@ -1013,7 +1013,10 @@ describe("CommandPaletteDialog", () => {
   describe("hunt verb (/hunt)", () => {
     // Both reads are seeded under the public scope the seeded viewer resolves
     // to, so the verb's queries are cache hits and no fetch is attempted.
-    function renderWithHuntCache(candidates: SteamCompletionCandidates["candidates"]) {
+    function renderWithHuntCache(
+      candidates: SteamCompletionCandidates["candidates"],
+      privateAppids: number[] = []
+    ) {
       const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
       seedViewer(client);
       client.setQueryData(["steam", "owned-games", "public"], {
@@ -1025,6 +1028,7 @@ describe("CommandPaletteDialog", () => {
       } as unknown as SteamOwnedGames);
       client.setQueryData(["steam", "achievements", "completion-candidates", "public"], {
         candidates,
+        privateAppids,
       } satisfies SteamCompletionCandidates);
       return render(
         <QueryClientProvider client={client}>
@@ -1064,6 +1068,16 @@ describe("CommandPaletteDialog", () => {
       expect(names[1]).toContain("Hades");
       expect(names[1]).toContain("3 of 49 left");
       expect(names[2]).toContain("Portal");
+    });
+
+    it("counts the games left out because their stats are private on Steam", () => {
+      renderWithHuntCache([portal], [1145360]);
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "/hunt" },
+      });
+      const names = screen.getAllByRole("option").map((o) => o.textContent);
+      expect(names[1]).toContain("Portal");
+      expect(names[2]).toBe("1 not ranked · achievement stats private on Steam");
     });
 
     it("selecting a game navigates to its library page", () => {

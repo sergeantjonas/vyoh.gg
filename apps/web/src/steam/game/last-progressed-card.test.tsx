@@ -82,13 +82,17 @@ function mockOwned(games: SteamOwnedGame[]): void {
   );
 }
 
-function mockAchievements(achievements: SteamAchievement[] | null): void {
+function mockAchievements(
+  achievements: SteamAchievement[] | null,
+  statsPrivateAt: string | null = null
+): void {
   const data: SteamGameAchievements = {
     appid: 440,
     achievements,
     lastSchemaCheckedAt: null,
     lastUnlocksCheckedAt: null,
     lastRarityCheckedAt: null,
+    statsPrivateAt,
   };
   vi.mocked(useGameAchievements).mockReturnValue({
     data,
@@ -135,6 +139,13 @@ describe("LastProgressedCard", () => {
   it("renders nothing when the game is not in the owned-games list", () => {
     mockOwned([]);
     mockAchievements([]);
+    const { container } = renderCard();
+    expect(container.firstChild).toBeNull();
+  });
+
+  it("renders nothing when the stats are private on Steam", () => {
+    mockOwned([makeGame({ rtimeLastPlayedAt: "2026-09-01T00:00:00Z" })]);
+    mockAchievements([ach({ unlockedAt: null })], "2026-09-05T04:05:00Z");
     const { container } = renderCard();
     expect(container.firstChild).toBeNull();
   });

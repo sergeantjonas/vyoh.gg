@@ -426,6 +426,9 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
     if (!huntVerb || !huntCandidates.data || !huntGames.data) return [];
     return joinNearestEntries(huntCandidates.data.candidates, huntGames.data.games);
   }, [huntVerb, huntCandidates.data, huntGames.data]);
+  const huntPrivateCount = huntVerb
+    ? (huntCandidates.data?.privateAppids.length ?? 0)
+    : 0;
   const huntLoading = huntVerb && (huntCandidates.isPending || huntGames.isPending);
   const huntFailed = huntVerb && (huntCandidates.isError || huntGames.isError);
   const showHunt =
@@ -945,6 +948,13 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
                 </span>
               </CommandItem>
             ))}
+            {huntPrivateCount > 0 && (
+              <CommandItem value="hunt private" disabled>
+                <span className="text-muted-foreground">
+                  {huntPrivateCount} not ranked · achievement stats private on Steam
+                </span>
+              </CommandItem>
+            )}
           </CommandGroup>
         )}
 

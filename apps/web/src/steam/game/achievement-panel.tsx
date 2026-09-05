@@ -122,6 +122,35 @@ export function AchievementPanel({
   // No schema → game is achievement-less (CS2, demos). Hide the section.
   if (!data || data.achievements === null) return null;
 
+  // Steam refuses this game's stats (library "Mark as Private"), so the rows
+  // are a snapshot from before the refusal — listing them would present a
+  // frozen count as progress. Say so, and only quote the snapshot when it
+  // holds real unlocks.
+  if (data.statsPrivateAt !== null) {
+    const snapshotUnlocked = data.achievements.filter(
+      (a) => a.unlockedAt !== null
+    ).length;
+    return (
+      <section
+        className={cn(
+          "flex flex-col gap-3 rounded-lg border p-4",
+          frosted ? "bg-card/60 backdrop-blur-sm" : "bg-card/50"
+        )}
+      >
+        <header className="flex items-baseline justify-between gap-4">
+          <CardTitle as="h2">Achievements</CardTitle>
+          <p className="text-xs text-muted-foreground">Private on Steam</p>
+        </header>
+        <p className="text-sm text-muted-foreground">
+          Steam keeps this game's achievement stats private, so progress can't be tracked
+          here.
+          {snapshotUnlocked > 0 &&
+            ` ${snapshotUnlocked} of ${data.achievements.length} were unlocked when they were last visible.`}
+        </p>
+      </section>
+    );
+  }
+
   // Schema exists but no rows yet — first-deploy edge case for a freshly-
   // added game before the schema poller has caught it.
   if (data.achievements.length === 0) {

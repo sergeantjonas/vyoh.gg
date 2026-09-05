@@ -11,6 +11,9 @@ interface HallEntry {
   name: string;
   total: number;
   lastUnlockedAt: string | null;
+  // The count is frozen at the last sync Steam allowed; the caption says so
+  // instead of stating the total as current.
+  statsPrivate: boolean;
   capsuleUrl: string;
   libraryCapsulePath: string | null;
   assetTimestamp: number | null;
@@ -28,6 +31,7 @@ function joinEntries(stats: SteamGameCompletion[], owned: SteamOwnedGame[]): Hal
       name: game.name,
       total: s.total,
       lastUnlockedAt: s.lastUnlockedAt,
+      statsPrivate: s.statsPrivate,
       capsuleUrl: steamLibraryCapsuleUrl(s.appid, game.assetTimestamp),
       libraryCapsulePath: game.libraryCapsulePath,
       assetTimestamp: game.assetTimestamp,
@@ -98,7 +102,9 @@ export function HundredPercentHall() {
                   {e.name}
                 </p>
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
-                  {e.total} achievement{e.total === 1 ? "" : "s"}
+                  {e.statsPrivate
+                    ? "stats private on Steam"
+                    : `${e.total} achievement${e.total === 1 ? "" : "s"}`}
                 </p>
               </div>
             </Link>

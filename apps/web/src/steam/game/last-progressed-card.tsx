@@ -142,6 +142,9 @@ export function LastProgressedCard({ appid, frosted = true }: LastProgressedCard
 
   const game = owned.data?.games.find((g) => g.appid === appid);
   if (!game) return null;
+  // "No achievements earned yet" would read a private-on-Steam snapshot as
+  // current; the panel says why there is nothing to report.
+  if (ach.data?.statsPrivateAt) return null;
 
   const hasSchema =
     ach.data?.achievements !== null && ach.data?.achievements !== undefined;

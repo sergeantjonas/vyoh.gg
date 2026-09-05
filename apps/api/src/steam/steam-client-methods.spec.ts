@@ -212,11 +212,47 @@ describe("SteamClientService.getGameAchievementSchema", () => {
 });
 
 describe("SteamClientService.getPlayerAchievements", () => {
-  it("returns null when playerstats.success is false", async () => {
+  it("returns no-stats when a 200 carries playerstats.success false", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse({ playerstats: { success: false } }));
     const service = new SteamClientService(passThroughLimiter);
     const result = await service.getPlayerAchievements("76561198020053778", 42);
-    expect(result).toBeNull();
+    expect(result).toEqual({ status: "no-stats" });
+  });
+
+  // Steam's library "Mark as Private" answers per appid with a 403 that
+  // carries the same envelope a 200 uses — the status alone is not enough.
+  it("returns private on a 403 whose body is the success:false envelope", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          playerstats: { error: "Profile is not public", success: false },
+        }),
+        { status: 403, statusText: "Forbidden" }
+      )
+    );
+    const service = new SteamClientService(passThroughLimiter);
+    const result = await service.getPlayerAchievements("76561198020053778", 3021100);
+    expect(result).toEqual({ status: "private" });
+  });
+
+  it("still throws on a 403 with any other body", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response("<html>Forbidden</html>", { status: 403, statusText: "Forbidden" })
+    );
+    const service = new SteamClientService(passThroughLimiter);
+    await expect(
+      service.getPlayerAchievements("76561198020053778", 3021100)
+    ).rejects.toMatchObject({ name: "SteamClientError", status: 403 });
+  });
+
+  it("still throws on other non-2xx statuses", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ playerstats: { success: false } }), { status: 500 })
+    );
+    const service = new SteamClientService(passThroughLimiter);
+    await expect(
+      service.getPlayerAchievements("76561198020053778", 42)
+    ).rejects.toMatchObject({ name: "SteamClientError", status: 500 });
   });
 
   it("returns the unlock rows when playerstats.success is true", async () => {
@@ -230,14 +266,17 @@ describe("SteamClientService.getPlayerAchievements", () => {
     );
     const service = new SteamClientService(passThroughLimiter);
     const result = await service.getPlayerAchievements("76561198020053778", 42);
-    expect(result).toHaveLength(1);
+    expect(result).toEqual({
+      status: "ok",
+      achievements: [{ apiname: "FIRST_KILL", achieved: 1, unlocktime: 1700000000 }],
+    });
   });
 
   it("normalizes missing achievements array to []", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse({ playerstats: { success: true } }));
     const service = new SteamClientService(passThroughLimiter);
     const result = await service.getPlayerAchievements("76561198020053778", 42);
-    expect(result).toEqual([]);
+    expect(result).toEqual({ status: "ok", achievements: [] });
   });
 });
 

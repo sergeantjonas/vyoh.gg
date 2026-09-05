@@ -39,6 +39,9 @@ export function CompletionVerdictCard({
   // Matches the panel's null-render contract; the route renders both
   // conditionally on `game` already.
   if (isPending || !data || data.achievements === null) return null;
+  // The panel explains a private-on-Steam game; a verdict over its frozen
+  // rows would call a stale snapshot progress.
+  if (data.statsPrivateAt !== null) return null;
   const achievements = data.achievements;
   if (achievements.length === 0) return null;
 

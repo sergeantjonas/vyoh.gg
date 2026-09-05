@@ -35,13 +35,18 @@ function makeAchievement(overrides: Partial<SteamAchievement> = {}): SteamAchiev
   };
 }
 
-function makeData(achievements: SteamAchievement[] | null): SteamGameAchievements {
+function makeData(
+  achievements: SteamAchievement[] | null,
+  overrides: Partial<SteamGameAchievements> = {}
+): SteamGameAchievements {
   return {
     appid: 440,
     achievements,
     lastSchemaCheckedAt: null,
     lastUnlocksCheckedAt: null,
     lastRarityCheckedAt: null,
+    statsPrivateAt: null,
+    ...overrides,
   };
 }
 
@@ -75,6 +80,18 @@ function buildRows(
 describe("CompletionVerdictCard", () => {
   it("renders nothing while the query is pending", () => {
     mockHook({ data: undefined, isPending: true, isError: false });
+    const { container } = renderCard(<CompletionVerdictCard appid={440} />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it("renders nothing when the stats are private on Steam", () => {
+    mockHook({
+      data: makeData([makeAchievement({ unlockedAt: null })], {
+        statsPrivateAt: "2026-09-05T04:05:00Z",
+      }),
+      isPending: false,
+      isError: false,
+    });
     const { container } = renderCard(<CompletionVerdictCard appid={440} />);
     expect(container.firstChild).toBeNull();
   });

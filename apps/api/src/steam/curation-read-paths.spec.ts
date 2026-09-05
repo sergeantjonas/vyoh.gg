@@ -254,6 +254,7 @@ describe("achievements feeds", () => {
         ]),
         findMany: lockedFindMany,
       },
+      steamGameAchievementMeta: { findMany: vi.fn().mockResolvedValue([]) },
     } as unknown as PrismaService;
     return { svc: new SteamAchievementsService(prisma), unlockFindMany, lockedFindMany };
   }

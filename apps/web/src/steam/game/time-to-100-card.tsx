@@ -63,6 +63,8 @@ export function TimeTo100Card({ appid, frosted = true }: TimeTo100CardProps) {
   const hydrated = useHydrated();
   if (!hydrated) return null;
   if (isPending || !data || data.achievements === null) return null;
+  // Frozen rows on a private-on-Steam game have no timeline worth reading.
+  if (data.statsPrivateAt !== null) return null;
   const achievements = data.achievements;
   if (achievements.length === 0) return null;
 

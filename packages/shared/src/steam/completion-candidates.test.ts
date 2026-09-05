@@ -34,10 +34,26 @@ describe("buildCompletionCandidates", () => {
         { appid: 1, globalPercent: 50 },
         { appid: 1, globalPercent: 50 },
         { appid: 3, globalPercent: 50 },
-      ]
+      ],
+      new Set()
     );
     expect(candidates.map((c) => c.appid)).toEqual([3]);
     expect(candidates[0]).toMatchObject({ total: 3, unlocked: 2, remaining: 1 });
+  });
+
+  it("never ranks a game whose stats are private on Steam, however near it looks", () => {
+    const candidates = buildCompletionCandidates(
+      [
+        { appid: 1, total: 3 },
+        { appid: 2, total: 3 },
+      ],
+      [
+        { appid: 1, globalPercent: 90 },
+        { appid: 2, globalPercent: 90 },
+      ],
+      new Set([1])
+    );
+    expect(candidates.map((c) => c.appid)).toEqual([2]);
   });
 
   it("ranks several common achievements ahead of one near-floor achievement", () => {
@@ -51,7 +67,8 @@ describe("buildCompletionCandidates", () => {
         { appid: 20, globalPercent: 90 },
         { appid: 20, globalPercent: 88 },
         { appid: 20, globalPercent: 92 },
-      ]
+      ],
+      new Set()
     );
     expect(candidates.map((c) => c.appid)).toEqual([20, 10]);
     expect(candidates[0]?.score).toBeCloseTo(0.3);
@@ -65,7 +82,8 @@ describe("buildCompletionCandidates", () => {
         { appid: 7, globalPercent: 40 },
         { appid: 7, globalPercent: 10 },
         { appid: 7, globalPercent: null },
-      ]
+      ],
+      new Set()
     );
     expect(c?.remainingAvgPercent).toBeCloseTo(25);
     expect(c?.remainingMinPercent).toBe(10);
@@ -75,7 +93,8 @@ describe("buildCompletionCandidates", () => {
   it("returns null rarity fields when no locked achievement has been polled", () => {
     const [c] = buildCompletionCandidates(
       [{ appid: 7, total: 2 }],
-      [{ appid: 7, globalPercent: null }]
+      [{ appid: 7, globalPercent: null }],
+      new Set()
     );
     expect(c?.remainingAvgPercent).toBeNull();
     expect(c?.remainingMinPercent).toBeNull();
@@ -94,7 +113,8 @@ describe("buildCompletionCandidates", () => {
         { appid: 2, globalPercent: 75 },
         { appid: 2, globalPercent: 75 },
         { appid: 1, globalPercent: 50 },
-      ]
+      ],
+      new Set()
     );
     expect(candidates.map((c) => c.appid)).toEqual([1, 3, 2]);
   });

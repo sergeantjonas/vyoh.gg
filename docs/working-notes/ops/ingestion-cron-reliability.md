@@ -1,6 +1,6 @@
 # Ingestion cron reliability
 
-**Status:** Active — the 2026-08 gates are shipped; one open item since 2026-09-05: games marked private on Steam are refetched every sweep and never stamped (§ Steam-private games).
+**Status:** Shipped — the 2026-08 gates and the 2026-09-05 Steam-private stamping are in; nothing open here (§ Remaining).
 
 Opened 2026-08-05 after a reported symptom: Beast of Reincarnation (appid 2001760) had nine achievements unlocked on Steam over the preceding 24 hours and none of them in our database.
 
@@ -76,11 +76,15 @@ Steam's library "Mark as Private" makes `GetPlayerAchievements` answer **403 `Pr
 
 `syncUnlocks` catches the throw and `continue`s **without stamping**, so a private game is retried every four hours forever and its displayed unlocks freeze at whatever was ingested before it was marked private (Subverse: 2026-09-03). The `success: false` branch that does stamp only handles a 200 body; a 403 never reaches it.
 
-**Fix:** on a 403 whose body carries `playerstats.success === false`, stamp `lastUnlocksCheckedAt` and persist a `statsPrivateAt` (or similar) on `SteamGameAchievementMeta`, clear it on the next 200, and let the per-game panel, the hall and Nearest 100% say "achievement stats private on Steam" instead of a misleading zero. Vyoh-hiding is unrelated: no poller reads curation, and the sweep proved it by visiting the game.
+**Shipped 2026-09-05.** `getPlayerAchievements` now returns a three-way result — `ok`, `no-stats` (the 200 `success: false`) and `private` (a 403 whose body carries the same envelope; any other 403 body or status still throws). `syncUnlocks` stamps `lastUnlocksCheckedAt` on `private` like any other attempt, records the first refusal in `SteamGameAchievementMeta.statsPrivateAt` (migration `20260905162512`), and clears it on the next `ok` or `no-stats`; the sweep summary reports `private=N` beside `failed=N`. Vyoh-hiding is unrelated: no poller reads curation, and the sweep proved it by visiting the game.
+
+Surfaces read the flag rather than the frozen count: the per-game panel says "Private on Steam" and quotes the snapshot only when it held real unlocks; a hall tile captions "stats private on Steam" instead of stating its total as current; Nearest 100% names the games it left out in a footnote, and the `/hunt` palette group counts them in a disabled row.
+
+**Decision: a private game is never a Nearest 100% candidate.** Its locked set is frozen at the last sync Steam allowed, so "what is left" is unknowable and a score would be a guess; `buildCompletionCandidates` takes the private set as a third argument and the api reports the excluded appids as `privateAppids`, filtered through the viewer's curation so a hidden private game stays hidden. When the only started games are private the section still collapses — the ranking has nothing to rank and the per-game panel carries the message.
 
 ## Remaining
 
-Only the private-game stamping above. The residual risk is now a full day rather than a week or a month, and it self-corrects on restart.
+Nothing. The residual risk is now a full day rather than a week or a month, and it self-corrects on restart.
 
 The one thing to re-check when hosting lands: with the process up continuously the daily ticks carry the load, and the boot passes become the deploy-time safety net they were designed to be — deploys land exactly the kind of short downtime that used to eat a whole fire. If the Steam budget ever tightens, the caps and windows in each poller are the knobs; they were set to preserve each poller's previous effective cadence, not to a measured limit.
 

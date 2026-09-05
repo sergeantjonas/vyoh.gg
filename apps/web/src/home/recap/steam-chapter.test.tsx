@@ -121,6 +121,7 @@ function makeAchievements(achievements: SteamAchievement[]): SteamGameAchievemen
     lastSchemaCheckedAt: "2026-05-31T00:00:00Z",
     lastUnlocksCheckedAt: "2026-05-31T00:00:00Z",
     lastRarityCheckedAt: "2026-05-31T00:00:00Z",
+    statsPrivateAt: null,
   };
 }
 

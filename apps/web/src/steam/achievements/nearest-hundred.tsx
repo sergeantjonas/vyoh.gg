@@ -1,5 +1,9 @@
 import { SectionTitle } from "@/components/ui/section-title";
-import { type NearestEntry, joinNearestEntries } from "@/steam/_shared/nearest-entries";
+import {
+  type NearestEntry,
+  joinNearestEntries,
+  privateGamesSentence,
+} from "@/steam/_shared/nearest-entries";
 import { formatRarityPercentEditorial } from "@/steam/_shared/rarity-percent";
 import { useCompletionCandidates } from "@/steam/use-completion-candidates";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
@@ -34,8 +38,15 @@ export function NearestHundred() {
   if (candidates.isPending || owned.isPending) return null;
   if (candidates.isError || owned.isError) return null;
   // Nothing started-but-unfinished is a real state (fresh library, or every
-  // touched game already in the hall); collapse rather than announce it.
+  // touched game already in the hall); collapse rather than announce it. That
+  // includes the case where the only started games are private on Steam —
+  // the per-game panel carries that message, the ranking has nothing to rank.
   if (entries.length === 0) return null;
+
+  const privateGames = privateGamesSentence(
+    candidates.data.privateAppids,
+    owned.data.games
+  );
 
   return (
     <section className="flex flex-col gap-3">
@@ -53,6 +64,12 @@ export function NearestHundred() {
           <NearestRow key={e.appid} entry={e} rank={i + 1} />
         ))}
       </ol>
+      {privateGames !== null && (
+        <p className="text-xs text-muted-foreground/70">
+          Not ranked: {privateGames}. Steam keeps their achievement stats private, so what
+          is left is unknowable.
+        </p>
+      )}
     </section>
   );
 }

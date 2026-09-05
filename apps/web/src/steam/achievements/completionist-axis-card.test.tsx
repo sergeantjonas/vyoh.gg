@@ -20,7 +20,13 @@ vi.mock("@/steam/use-tags", () => ({
 }));
 
 function stat(appid: number, unlocked: number, total: number): SteamGameCompletion {
-  return { appid, unlocked, total, lastUnlockedAt: null } as SteamGameCompletion;
+  return {
+    appid,
+    unlocked,
+    total,
+    lastUnlockedAt: null,
+    statsPrivate: false,
+  } as SteamGameCompletion;
 }
 
 function game(appid: number, tagIds: number[] = []): SteamOwnedGame {
