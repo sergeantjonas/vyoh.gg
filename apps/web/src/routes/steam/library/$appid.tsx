@@ -24,9 +24,11 @@ import { GameUnlockTimeline } from "@/steam/game/game-unlock-timeline";
 import { LastProgressedCard } from "@/steam/game/last-progressed-card";
 import { RarestUnlockCard } from "@/steam/game/rarest-unlock-card";
 import { RaritySignatureCard } from "@/steam/game/rarity-signature-card";
+import { RefreshGameControl, RefreshGameResult } from "@/steam/game/refresh-game-control";
 import { TimeTo100Card } from "@/steam/game/time-to-100-card";
 import { gameAchievementsQueryOptions } from "@/steam/game/use-game-achievements";
 import { gameDescriptionQueryOptions } from "@/steam/game/use-game-description";
+import { useRefreshSteamGame } from "@/steam/game/use-refresh-steam-game";
 import { steamGameQueryOptions, useSteamGame } from "@/steam/game/use-steam-game";
 import { useActiveGame } from "@/steam/library/active-game-context";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
@@ -108,6 +110,9 @@ function SteamGamePanel() {
   const owned = useSteamOwnedGames();
   const navigate = useNavigate();
   const { activeGame, setActiveGame } = useActiveGame();
+  // Owned here rather than in the control: the button sits in the chip row and
+  // its result renders on its own line below, two places reading one run.
+  const refresh = useRefreshSteamGame(appid);
 
   // Two sources for one row. A click from the library already holds the whole
   // list, so the row is there on the first render and the single-row query
@@ -311,11 +316,15 @@ function SteamGamePanel() {
                       : "muted"
                   }
                 />
-                {/* Owner-only, and last in the row: it is the one chip that
-                    changes the page rather than describing it. */}
-                <HideGameButton appid={appid} className="ml-auto" />
+                {/* Owner controls last in the row: these two change the page
+                    or its data rather than describing it. The refresh carries
+                    the right-alignment because it renders for everyone (locked
+                    for a visitor); the hide toggle renders for the owner only. */}
+                <RefreshGameControl refresh={refresh} className="ml-auto" />
+                <HideGameButton appid={appid} />
               </div>
             )}
+            {refresh.data?.ran && <RefreshGameResult legs={refresh.data.legs} />}
             {game && (
               <CreditsLine
                 developers={game.developerNames}

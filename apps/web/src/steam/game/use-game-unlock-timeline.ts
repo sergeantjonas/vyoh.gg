@@ -1,7 +1,7 @@
 import { useIsOwner } from "@/auth/use-viewer";
 import { viewerScope, viewerScopedQuery } from "@/auth/viewer-scope";
 import { HttpError } from "@/lib/http-error";
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { GameUnlockTimeline } from "@vyoh/shared";
 
 import { API_URL } from "@/lib/api-url";
@@ -23,12 +23,15 @@ async function fetchGameUnlockTimeline(appid: number): Promise<GameUnlockTimelin
   return res.json() as Promise<GameUnlockTimeline>;
 }
 
-export function useGameUnlockTimeline(appid: number) {
-  const scope = viewerScope(useIsOwner());
-  return useQuery({
-    queryKey: ["steam", "game", appid, "unlock-timeline", scope],
+export function gameUnlockTimelineQueryOptions(appid: number, isOwner = false) {
+  return queryOptions({
+    queryKey: ["steam", "game", appid, "unlock-timeline", viewerScope(isOwner)],
     queryFn: () => fetchGameUnlockTimeline(appid),
     staleTime: 30 * 60 * 1_000,
     ...viewerScopedQuery,
   });
+}
+
+export function useGameUnlockTimeline(appid: number) {
+  return useQuery(gameUnlockTimelineQueryOptions(appid, useIsOwner()));
 }

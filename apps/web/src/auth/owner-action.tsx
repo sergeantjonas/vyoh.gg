@@ -18,15 +18,22 @@ export function OwnerAction({
   isOwner,
   label,
   side = "bottom",
+  className,
   children,
 }: {
   isOwner: boolean;
   label: string;
   side?: "top" | "bottom";
+  /** Layout classes for the tooltip trigger — the box a flex parent lays out; see `ControlHint`. */
+  className?: string | undefined;
   children: ReactNode;
 }) {
   return (
-    <ControlHint label={isOwner ? label : OWNER_ONLY_COPY} side={side}>
+    <ControlHint
+      label={isOwner ? label : OWNER_ONLY_COPY}
+      side={side}
+      className={className}
+    >
       {children}
     </ControlHint>
   );

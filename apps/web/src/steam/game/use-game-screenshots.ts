@@ -1,7 +1,7 @@
 import { useIsOwner } from "@/auth/use-viewer";
 import { viewerScope, viewerScopedQuery } from "@/auth/viewer-scope";
 import { HttpError } from "@/lib/http-error";
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { SteamGameScreenshots } from "@vyoh/shared";
 
 import { API_URL } from "@/lib/api-url";
@@ -29,16 +29,18 @@ async function fetchGameScreenshots(appid: number): Promise<SteamGameScreenshots
 // `enabled` option lets the hovercard skip the fetch when the game already
 // has a microtrailer that takes over the same slot — the slot would never
 // render the screenshots, so the network round-trip is pure waste.
+export function gameScreenshotsQueryOptions(appid: number, isOwner = false) {
+  return queryOptions({
+    queryKey: ["steam", "game", appid, "screenshots", viewerScope(isOwner)],
+    queryFn: () => fetchGameScreenshots(appid),
+    staleTime: 60 * 60 * 1_000,
+    ...viewerScopedQuery,
+  });
+}
+
 export function useGameScreenshots(
   appid: number,
   { enabled = true }: { enabled?: boolean } = {}
 ) {
-  const scope = viewerScope(useIsOwner());
-  return useQuery({
-    queryKey: ["steam", "game", appid, "screenshots", scope],
-    queryFn: () => fetchGameScreenshots(appid),
-    staleTime: 60 * 60 * 1_000,
-    enabled,
-    ...viewerScopedQuery,
-  });
+  return useQuery({ ...gameScreenshotsQueryOptions(appid, useIsOwner()), enabled });
 }
