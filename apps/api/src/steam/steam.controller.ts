@@ -10,6 +10,7 @@ import {
 import type {
   GameUnlockTimeline,
   SteamChronotype,
+  SteamCompletionCandidates,
   SteamGameAchievements,
   SteamGameDescription,
   SteamGameRecap,
@@ -258,6 +259,19 @@ export class SteamController {
     @ViewerIsOwner() isOwner: boolean
   ): Promise<SteamLibraryCompletion> {
     return this.achievements.getLibraryCompletion(
+      await this.curation.getCurationFor(isOwner)
+    );
+  }
+
+  // "Nearest 100%" planner — started-but-unfinished games ranked by the
+  // estimated effort left, scored in `@vyoh/shared`. Whole eligible list,
+  // already sorted; the surfaces cap what they show.
+  @Get("achievements/completion-candidates")
+  @WithViewer()
+  async getCompletionCandidates(
+    @ViewerIsOwner() isOwner: boolean
+  ): Promise<SteamCompletionCandidates> {
+    return this.achievements.getCompletionCandidates(
       await this.curation.getCurationFor(isOwner)
     );
   }

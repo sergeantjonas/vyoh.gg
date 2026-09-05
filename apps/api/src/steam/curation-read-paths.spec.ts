@@ -183,6 +183,12 @@ describe("upcoming", () => {
 describe("achievements feeds", () => {
   function service() {
     const unlockFindMany = vi.fn().mockResolvedValue([]);
+    // Locked rows are what the DB would hand back after its own filter; the
+    // hidden row is left in so the assertion proves the totals guard too.
+    const lockedFindMany = vi.fn().mockResolvedValue([
+      { appid: HIDDEN, rarity: { percent: 40 } },
+      { appid: VISIBLE, rarity: null },
+    ]);
     const prisma = {
       steamPlayerUnlock: {
         findMany: unlockFindMany,
@@ -199,9 +205,10 @@ describe("achievements feeds", () => {
           { appid: HIDDEN, _count: { apiName: 10 } },
           { appid: VISIBLE, _count: { apiName: 5 } },
         ]),
+        findMany: lockedFindMany,
       },
     } as unknown as PrismaService;
-    return { svc: new SteamAchievementsService(prisma), unlockFindMany };
+    return { svc: new SteamAchievementsService(prisma), unlockFindMany, lockedFindMany };
   }
 
   // The cap has to apply to visible rows, not to rows-then-filtered — a feed
@@ -239,6 +246,19 @@ describe("achievements feeds", () => {
 
     const all = await svc.getLibraryCompletion(NO_CURATION);
     expect(all.stats.map((s) => s.appid)).toEqual([HIDDEN, VISIBLE]);
+  });
+
+  it("drops a hidden appid from completion candidates, in the query and the result", async () => {
+    const { svc, lockedFindMany } = service();
+    const { candidates } = await svc.getCompletionCandidates(curation());
+    expect(candidates.map((c) => c.appid)).toEqual([VISIBLE]);
+    expect(lockedFindMany.mock.calls[0]?.[0]?.where).toMatchObject({
+      unlock: null,
+      appid: { notIn: [HIDDEN] },
+    });
+
+    const all = await svc.getCompletionCandidates(NO_CURATION);
+    expect(all.candidates.map((c) => c.appid)).toEqual([VISIBLE, HIDDEN]);
   });
 });
 

@@ -14,6 +14,8 @@ The Satori+Resvg OG pipeline ([og-image-pipeline.md](og-image-pipeline.md)) and 
 
 ## F3 — Achievement-hunting planner ("nearest 100%")
 
+**Promoted 2026-09-05** → [steam/achievement-completion-planner.md](../steam/achievement-completion-planner.md); the scoring there replaces the "count × average rarity" sketch below.
+
 All data exists server-side already: per-game completion and global rarity ([global-rarity poller](../../../apps/api/src/steam/global-rarity.poller.ts)). Rank owned games by remaining-achievement count × average rarity to surface "3 achievements from 100%, all common". Turns stored Steam data into an actionable surface with **zero new upstream calls**. Natural home: `/steam/achievements` section; palette grammar extension (`100% candidates`) in the same change. Cross-check [steam-api-unused-data.md](steam-api-unused-data.md) for adjacent fields worth surfacing in the same pass.
 
 ## F4 — Steam wishlist price-watch

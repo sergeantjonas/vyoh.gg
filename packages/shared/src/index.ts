@@ -292,6 +292,15 @@ export type {
   SteamRecentUnlock,
   SteamRecentUnlocks,
 } from "./steam/achievements.ts";
+export {
+  UNRATED_ACHIEVEMENT_COST,
+  buildCompletionCandidates,
+  lockedAchievementCost,
+} from "./steam/completion-candidates.ts";
+export type {
+  SteamCompletionCandidate,
+  SteamCompletionCandidates,
+} from "./steam/completion-candidates.ts";
 export type { SteamChronotype, SteamChronotypeHour } from "./steam/chronotype.ts";
 export type { GameUnlockTimeline } from "./steam/unlock-timeline.ts";
 export {

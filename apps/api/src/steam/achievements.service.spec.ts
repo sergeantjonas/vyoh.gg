@@ -8,7 +8,10 @@ import {
 
 interface PrismaStubs {
   steamGameAchievementMeta: { findUnique: ReturnType<typeof vi.fn> };
-  steamGameAchievement: { findMany: ReturnType<typeof vi.fn> };
+  steamGameAchievement: {
+    findMany: ReturnType<typeof vi.fn>;
+    groupBy: ReturnType<typeof vi.fn>;
+  };
   steamPlayerUnlock: { findMany: ReturnType<typeof vi.fn> };
 }
 
@@ -19,7 +22,7 @@ function makeService(prisma: PrismaStubs): SteamAchievementsService {
 function makePrisma(): PrismaStubs {
   return {
     steamGameAchievementMeta: { findUnique: vi.fn() },
-    steamGameAchievement: { findMany: vi.fn() },
+    steamGameAchievement: { findMany: vi.fn(), groupBy: vi.fn() },
     steamPlayerUnlock: { findMany: vi.fn() },
   };
 }
@@ -222,6 +225,50 @@ describe("SteamAchievementsService.getRecentUnlocks", () => {
     ]);
     expect(prisma.steamPlayerUnlock.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ orderBy: { unlockedAt: "desc" }, take: 10 })
+    );
+  });
+});
+
+describe("SteamAchievementsService.getCompletionCandidates", () => {
+  const totals = [
+    { appid: 367520, _count: { apiName: 4 } },
+    { appid: 730, _count: { apiName: 2 } },
+  ];
+  const locked = [
+    { appid: 367520, rarity: { percent: 20 } },
+    { appid: 730, rarity: null },
+  ];
+
+  it("joins schema totals with locked rows into ranked candidates", async () => {
+    const prisma = makePrisma();
+    prisma.steamGameAchievement.groupBy.mockResolvedValue(totals);
+    prisma.steamGameAchievement.findMany.mockResolvedValue(locked);
+
+    const { candidates } = await makeService(prisma).getCompletionCandidates(NO_CURATION);
+    expect(candidates).toEqual([
+      {
+        appid: 730,
+        total: 2,
+        unlocked: 1,
+        remaining: 1,
+        remainingAvgPercent: null,
+        remainingMinPercent: null,
+        score: 0.5,
+      },
+      {
+        appid: 367520,
+        total: 4,
+        unlocked: 3,
+        remaining: 1,
+        remainingAvgPercent: 20,
+        remainingMinPercent: 20,
+        score: 0.8,
+      },
+    ]);
+    expect(prisma.steamGameAchievement.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { unlock: null, appid: { notIn: [] } },
+      })
     );
   });
 });

@@ -1,12 +1,17 @@
 import { Injectable } from "@nestjs/common";
 import type {
   GameUnlockTimeline,
+  SteamCompletionCandidates,
   SteamCurationSets,
   SteamGameAchievements,
   SteamLibraryCompletion,
   SteamRecentUnlocks,
 } from "@vyoh/shared";
-import { excludeHiddenGames, visibleAppidFilter } from "@vyoh/shared";
+import {
+  buildCompletionCandidates,
+  excludeHiddenGames,
+  visibleAppidFilter,
+} from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 
 export const RECENT_UNLOCKS_DEFAULT_LIMIT = 10;
@@ -235,5 +240,38 @@ export class SteamAchievementsService {
     });
 
     return { stats };
+  }
+
+  // "Nearest 100%" ranking. Two queries: schema size per appid, and every
+  // locked achievement with its current rarity. The DB filter on the locked
+  // rows is the load-bearing one (that is the wide result); filtering the
+  // totals as well is the independent second guard. The scoring lives in
+  // shared so the web can explain the same number it displays.
+  async getCompletionCandidates(
+    curation: SteamCurationSets
+  ): Promise<SteamCompletionCandidates> {
+    const [totals, locked] = await Promise.all([
+      this.prisma.steamGameAchievement.groupBy({
+        by: ["appid"],
+        _count: { apiName: true },
+      }),
+      this.prisma.steamGameAchievement.findMany({
+        where: { unlock: null, appid: visibleAppidFilter(curation) },
+        select: { appid: true, rarity: { select: { percent: true } } },
+      }),
+    ]);
+
+    return {
+      candidates: buildCompletionCandidates(
+        excludeHiddenGames(totals, curation).map((t) => ({
+          appid: t.appid,
+          total: t._count.apiName,
+        })),
+        locked.map((row) => ({
+          appid: row.appid,
+          globalPercent: row.rarity?.percent ?? null,
+        }))
+      ),
+    };
   }
 }

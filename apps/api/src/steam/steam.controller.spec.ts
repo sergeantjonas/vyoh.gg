@@ -575,6 +575,36 @@ describe("SteamController", () => {
     expect(stub).toHaveBeenCalledOnce();
   });
 
+  it("delegates to SteamAchievementsService.getCompletionCandidates", async () => {
+    const payload = { candidates: [] } as unknown;
+    const stub = vi.fn().mockResolvedValue(payload);
+    const moduleRef = await Test.createTestingModule({
+      controllers: [SteamController],
+      providers: [
+        { provide: SteamService, useValue: {} },
+        { provide: SteamOwnedGamesService, useValue: {} },
+        { provide: SteamTagService, useValue: {} },
+        {
+          provide: SteamAchievementsService,
+          useValue: { getCompletionCandidates: stub },
+        },
+        { provide: SteamGameRecapService, useValue: {} },
+        { provide: SteamPlayerStateService, useValue: {} },
+        { provide: SteamChronotypeService, useValue: {} },
+        { provide: SteamWishlistHeroService, useValue: {} },
+        { provide: SteamUpcomingService, useValue: {} },
+        { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamGameCurationService, useValue: CURATION_STUB },
+        // `ViewerGuard` on the viewer-aware routes injects this. The handlers
+        // are called directly so the guard never runs; it only has to resolve.
+        { provide: AuthService, useValue: {} },
+      ],
+    }).compile();
+    const controller = moduleRef.get(SteamController);
+    await expect(controller.getCompletionCandidates(false)).resolves.toBe(payload);
+    expect(stub).toHaveBeenCalledOnce();
+  });
+
   it("delegates to SteamAchievementsService.getUnlockTimeline for a given appid", async () => {
     const payload = { appid: 730, unlocks: [] } as unknown;
     const stub = vi.fn().mockResolvedValue(payload);
