@@ -109,7 +109,9 @@ export function MatchYourGameTab({
             // pins below it on deep scroll (~42px: size-6 icon + py-2 + hairlines,
             // plus a small gap). Was +88 for the old two-row strip (champion row
             // + the detail tabs that have since moved into the section strip).
-            top: "calc(var(--account-header-h, 64px) + 52px)",
+            // The panel carries the section's declared height as
+            // `--account-header-h-fallback` until the measured var lands.
+            top: "calc(var(--account-header-h, var(--account-header-h-fallback, 64px)) + 52px)",
             alignSelf: "flex-start",
           }}
         >
