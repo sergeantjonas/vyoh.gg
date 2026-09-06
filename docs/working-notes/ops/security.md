@@ -38,6 +38,8 @@ What moved, in order:
 
 **2026-09-02 re-derivation.** Caught locally by the state review the day after the previous fix, before it reached CI: four high `fast-uri` advisories (SSRF and host confusion, all patched in 3.1.6) landed past the `<3.1.5` floor — the same range-vs-floor failure as `nanoid` and `brace-expansion` before it, one patch version later. Override widened to mirror the advisory. Took the two moderate `qs` advisories (`express > body-parser`, a request path) in the same pass so Dependabot has nothing to fail on; `qs@6.16.0` resolves cleanly and the api suite passes. Back to the one accepted moderate.
 
+**2026-09-06 check, nothing to derive.** `pnpm audit --prod --audit-level=high` and the full `pnpm audit` both report only the accepted `file-type@16` moderate under `@jimp/core`; no advisory has widened past an override range since the 2026-09-02 pass, so the block stands as written. Next check on the next Dependabot alert or CI audit failure, whichever comes first.
+
 **Not ours to fix:** `find-my-way` and `valibot` arrive through `@prisma/dev` (the local Prisma dev server) and `@hono/node-server` through the `shadcn` CLI. Overridden rather than waiting on upstream, but they'll resolve naturally on a Prisma/shadcn bump.
 
 ## Deferred
