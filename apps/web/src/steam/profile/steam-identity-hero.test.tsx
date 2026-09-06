@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import type { SteamOwnedGames, SteamPlayerState, SteamSummary } from "@vyoh/shared";
 import { configureAxe } from "jest-axe";
 import { MotionConfig } from "motion/react";
+import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SteamIdentityHero } from "./steam-identity-hero";
 
@@ -276,5 +277,26 @@ describe("SteamIdentityHero", () => {
     const { container } = renderHero();
     const results = await axe(container);
     expect(results.violations).toHaveLength(0);
+  });
+
+  it("server-renders the skeleton whatever the queries hold", () => {
+    // The mocks say the owner is mid-game with a full cache, which is what the
+    // hydrating client render sees when the root's player-state poll resolves
+    // before this chunk arrives. The server never had any of it, so the gate
+    // has to hold with the data present — drop it and React discards `/steam`.
+    playerStateMock.mockReturnValue(
+      playerState({ currentGame: { appid: 2638890, name: "Probe Game" } })
+    );
+    const html = renderToString(
+      <SectionShellProvider value={{ compact: false }}>
+        <MotionConfig reducedMotion="always">
+          <SteamIdentityHero />
+        </MotionConfig>
+      </SectionShellProvider>
+    );
+    expect(html).not.toContain("Vyoh");
+    expect(html).not.toContain("Now playing");
+    expect(html).not.toContain("lol-hero-drift");
+    expect(html).toContain("animate-pulse rounded-full bg-muted");
   });
 });

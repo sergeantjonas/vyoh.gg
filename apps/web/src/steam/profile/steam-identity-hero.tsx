@@ -1,4 +1,5 @@
 import { useSectionShellState } from "@/_shared/section-layout/section-shell-context";
+import { useHydratedSync } from "@/lib/use-hydrated";
 import { cn } from "@/lib/utils";
 import { steamLibraryHeroUrl } from "@/steam/_shared/steam-image";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
@@ -56,9 +57,25 @@ function memberSinceYear(unix: number): number {
 // "Member since {year} · Level {n} · top {p}%". Coexists with the section-wide
 // SteamProfileBackdrop (ambient blur) — this is the focused, contained banner.
 export function SteamIdentityHero() {
-  const { data: summary } = useSteamSummary();
-  const { data: playerState } = useSteamPlayerState();
-  const { data: owned } = useSteamOwnedGames();
+  // The hydrating render reads no query data, so it agrees with the server
+  // render whatever the cache holds by then. `PresenceMounts` polls player
+  // state from the root layout, which is not code-split, so on a cold arrival
+  // its answer lands before this chunk hydrates — and a live game with no
+  // owned-games list yet is taken for a real game, which put the hero art into
+  // the client's first render and nothing into the server's. No loader can
+  // settle it: the subject also comes from the 664 kB owned-games list the
+  // priming rule keeps client-side. Mounted by a client-side navigation the
+  // gate is already open, so nothing flashes. Should the route ever prime one
+  // of these three in its loader, that one must leave the gate: the server
+  // would then render it and the hydrating render would blank it — the same
+  // mismatch inverted.
+  const hydrated = useHydratedSync();
+  const summaryQuery = useSteamSummary();
+  const playerStateQuery = useSteamPlayerState();
+  const ownedQuery = useSteamOwnedGames();
+  const summary = hydrated ? summaryQuery.data : undefined;
+  const playerState = hydrated ? playerStateQuery.data : undefined;
+  const owned = hydrated ? ownedQuery.data : undefined;
   const reduced = useReducedMotion();
   // The hero owns the shared identity `layoutId` only while it's the on-screen
   // identity — i.e. at scroll-top. Once `compact` flips, the strip

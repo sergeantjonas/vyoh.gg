@@ -45,10 +45,6 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 
 ## Adjacent maintenance (sub-session each)
 
-### Steam surfaces
-
-- **`/steam` hydration mismatch** — found by the 2026-09-06 container probe and reproduced on the dev server: `SteamIdentityHero` ([steam-identity-hero.tsx](../../apps/web/src/steam/profile/steam-identity-hero.tsx)) renders the `animate-pulse` avatar skeleton on the server and the hero art + `lol-hero-drift` layer on the client, so React #418 discards the tree on every cold `/steam` arrival. Same family as the render-body reads the detail routes fixed: settle what the server sees (prime the hero's data in the loader, or gate the client-only branch on `useHydrated()`), and re-run the container probe. → [tanstack-start-migration.md](cross-cutting/tanstack-start-migration.md)
-
 ### LoL surfaces
 
 - Riot-investigation parked tail: per-account cache TTL self-healing, re-derive `reservoirIncreaseInterval` when prod-tier key lands, sync fairness if accounts ever run in parallel. → [riot-investigation-2026-05-07.md](lol/riot-investigation-2026-05-07.md)
