@@ -1,6 +1,6 @@
 # Web structure findings — 2026-06-11 audit
 
-**Status:** Active — W5 shipped with the TanStack Start migration (2026-07-27: `queryOptions` factories in 15 hooks, `ensureQueryData` in 11 route loaders). W1 shipped 2026-09-02 (see § W1). W2 shipped 2026-09-06 (see § W2). W3 remains a quick win (≤1 sub-session), tracked under Adjacent maintenance in [open-work.md](../open-work.md); W4 is parked until chapter #3 is scoped ([parked.md](../parked.md)). Re-verified 2026-09-01: `match-detail-recap-tab.tsx` is 908 lines.
+**Status:** Active — W5 shipped with the TanStack Start migration (2026-07-27: `queryOptions` factories in 15 hooks, `ensureQueryData` in 11 route loaders). W1 shipped 2026-09-02 (see § W1). W2 and W3 shipped 2026-09-06 (see § W2, § W3), which closes the audit's chunked items; W4 is parked until chapter #3 is scoped ([parked.md](../parked.md)). Re-verified 2026-09-01: `match-detail-recap-tab.tsx` was 908 lines then; the split landed 2026-09-06.
 
 Parent index: [audit-2026-06-11.md](audit-2026-06-11.md). Baseline verdict: `apps/web` is structurally healthy — clean lol/steam/home domain boundaries, two-tier `_shared/` strategy working, no circular imports, consistent `@/` imports, zero TODO debt. The items below are the residue.
 
@@ -23,7 +23,9 @@ The `--sheen-extent` sheen treatment (registered `@property` in [index.css](../.
 
 Fix shape: same as tooltip — exported recipe constant(s) in `apps/web/src/lib/` (or a `<SheenOverlay />` component if the markup is identical too, decide at implementation). All current consumers are Steam-side, but the recipe is not Steam-specific — `lib/` over `steam/_shared/`. Keep the `[data-sheen]` reduced-motion silencing contract intact (see [reduced-motion-replacements.md](reduced-motion-replacements.md)).
 
-## W3 — Decompose `match-detail-recap-tab.tsx`
+## W3 — Decompose `match-detail-recap-tab.tsx` — shipped 2026-09-06
+
+**Shipped as a pure move.** The tab file keeps `MatchRecapTab` and the seen-set (78 lines); the rest lives in [lol/matches/recap/](../../../apps/web/src/lol/matches/recap/) as `recap-motion.ts` (the four shared variants), `recap-badges.ts`, `item-slots.tsx`, `stat-bar.tsx`, `team-objective-strip.tsx` (objective pips, soul detection and chip), `match-header-strip.tsx`, `segmented-damage-bar.tsx`, `participant-row.tsx` and `team-block.tsx`. No behaviour change; the existing `match-detail-view` tests cover it. Original scope follows.
 
 [match-detail-recap-tab.tsx](../../../apps/web/src/lol/matches/match-detail-recap-tab.tsx) is 911 lines with 5+ inline sub-components (`ItemSlot(s)`, `StatBar`, `ObjectivePip`, `TeamObjectiveStrip`, …). Extract sub-components into `apps/web/src/lol/matches/recap/` (mirrors how `home/recap/` is bucketed). Pure file-move refactor — no behaviour change, no new tests required beyond moving colocated ones. Do it before the next Phase-D match-depth item touches this tab.
 
