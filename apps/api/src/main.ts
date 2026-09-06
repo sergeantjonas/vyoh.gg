@@ -4,6 +4,7 @@ import { NestFactory } from "@nestjs/core";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { AppModule } from "./app.module";
 import { requireEnv, resolveCorsOrigin } from "./env";
+import { FallbackExceptionFilter } from "./fallback-exception.filter";
 import { HttpLoggingInterceptor } from "./http-logging.interceptor";
 import { RiotExceptionFilter } from "./riot/riot.exception-filter";
 
@@ -35,7 +36,9 @@ async function bootstrap() {
     new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true })
   );
   app.useGlobalInterceptors(new HttpLoggingInterceptor());
-  app.useGlobalFilters(new RiotExceptionFilter());
+  // Catch-all first: Nest matches global filters last-registered-first, so
+  // the Riot filter only stays in charge of RiotError if it comes after.
+  app.useGlobalFilters(new FallbackExceptionFilter(), new RiotExceptionFilter());
   // `credentials` is what lets the web tier send the session cookie: in dev it
   // sits on a different port, which is a different *origin* even though it is
   // the same site. Safe alongside the origin allowlist above — a credentialed

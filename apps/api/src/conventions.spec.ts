@@ -941,3 +941,18 @@ export class SteamModule {}
     for (const src of spared) expect(unpinnedFormatters(src)).toEqual([]);
   });
 });
+
+describe("global exception filters", () => {
+  // Nest reverses the registered list and stops at the first match, so the
+  // catch-all only leaves `RiotError` to the Riot filter if it is registered
+  // first. Swapping the two arguments would disable the Riot filter with no
+  // test failing anywhere else.
+  it("register the catch-all before the Riot filter", () => {
+    const main = readFileSync(path.join(WORKSPACE_ROOT, "apps/api/src/main.ts"), "utf8");
+    const call = main.match(/useGlobalFilters\(([\s\S]*?)\);/)?.[1] ?? "";
+    expect(call).toContain("FallbackExceptionFilter");
+    expect(call.indexOf("FallbackExceptionFilter")).toBeLessThan(
+      call.indexOf("RiotExceptionFilter")
+    );
+  });
+});
