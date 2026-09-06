@@ -1,6 +1,6 @@
 # Web structure findings — 2026-06-11 audit
 
-**Status:** Active — W5 shipped with the TanStack Start migration (2026-07-27: `queryOptions` factories in 15 hooks, `ensureQueryData` in 11 route loaders). W1 shipped 2026-09-02 (see § W1). W2–W3 remain quick wins (≤1 sub-session each), tracked under Adjacent maintenance in [open-work.md](../open-work.md); W4 is parked until chapter #3 is scoped ([parked.md](../parked.md)). Re-verified 2026-09-01: the sheen recipe is still inline at its 3 sites, `match-detail-recap-tab.tsx` is 908 lines.
+**Status:** Active — W5 shipped with the TanStack Start migration (2026-07-27: `queryOptions` factories in 15 hooks, `ensureQueryData` in 11 route loaders). W1 shipped 2026-09-02 (see § W1). W2 shipped 2026-09-06 (see § W2). W3 remains a quick win (≤1 sub-session), tracked under Adjacent maintenance in [open-work.md](../open-work.md); W4 is parked until chapter #3 is scoped ([parked.md](../parked.md)). Re-verified 2026-09-01: `match-detail-recap-tab.tsx` is 908 lines.
 
 Parent index: [audit-2026-06-11.md](audit-2026-06-11.md). Baseline verdict: `apps/web` is structurally healthy — clean lol/steam/home domain boundaries, two-tier `_shared/` strategy working, no circular imports, consistent `@/` imports, zero TODO debt. The items below are the residue.
 
@@ -15,7 +15,9 @@ Verified duplication (2026-06-11, `ugrep -l`):
 
 The text below is the original scoping; the `formatRelative` copies went to shared after all, since `formatTimeAgo` already lived there. Per the [cross-package utilities convention](../../repo-conventions.md#cross-package-utilities-belong-in-packagessharedsrc), duplication is a defect, not style. These are web-only → extract to `apps/web/src/home/_shared/` (create the bucket; `home/` is the only domain without one). Move the existing tests with them. If the api ever needs `formatRelative`, promote to `@vyoh/shared` at that point, not pre-emptively.
 
-## W2 — Extract the sheen-overlay recipe
+## W2 — Extract the sheen-overlay recipe — shipped 2026-09-06
+
+**Shipped as a component rather than a constant**, because the markup was identical at all three sites: [components/sheen-overlay.tsx](../../../apps/web/src/components/sheen-overlay.tsx) exports `<SheenOverlay group="tile" | "row" />`, the two flavours spelled out as literals so Tailwind sees the named-group hover variants. The `data-sheen` reduced-motion contract is unchanged. Original scope follows.
 
 The `--sheen-extent` sheen treatment (registered `@property` in [index.css](../../../apps/web/src/index.css)) has its ~300-char component class recipe copy-pasted across 3 sites: [library-tile.tsx](../../../apps/web/src/steam/library/library-tile.tsx), [steam-game-row.tsx](../../../apps/web/src/steam/_shared/steam-game-row.tsx), [hundred-percent-hall.tsx](../../../apps/web/src/steam/achievements/hundred-percent-hall.tsx). Same disease the 2026-06-11 tooltip consolidation cured (21 local copies + ~21 inline strings before `lib/tooltip.ts`).
 

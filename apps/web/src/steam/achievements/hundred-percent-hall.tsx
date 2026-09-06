@@ -1,3 +1,4 @@
+import { SheenOverlay } from "@/components/sheen-overlay";
 import { SectionTitle } from "@/components/ui/section-title";
 import { steamLibraryCapsuleUrl } from "@/steam/_shared/steam-image";
 import { useLibraryCompletion } from "@/steam/use-library-completion";
@@ -91,11 +92,7 @@ export function HundredPercentHall() {
                   decoding="async"
                   className="size-full object-cover transition-[opacity,transform] duration-600 ease-out group-hover/tile:scale-110"
                 />
-                <div
-                  aria-hidden
-                  data-sheen
-                  className="pointer-events-none absolute inset-0 bg-[linear-gradient(210deg,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.12)_calc(var(--sheen-extent)-6%),rgba(255,255,255,0)_var(--sheen-extent))] opacity-20 transition-[--sheen-extent,opacity] duration-900 ease-out [--sheen-extent:25%] group-hover/tile:opacity-100 group-hover/tile:[--sheen-extent:42%]"
-                />
+                <SheenOverlay group="tile" />
               </div>
               <div className="flex flex-col gap-0.5 px-2.5 py-2">
                 <p className="truncate text-sm font-medium text-foreground/90 underline-offset-2 group-hover/tile:underline">

@@ -1,3 +1,4 @@
+import { SheenOverlay } from "@/components/sheen-overlay";
 import { cn } from "@/lib/utils";
 import {
   makeHeroFallbackHandlers,
@@ -157,16 +158,7 @@ export function SteamGameRowShell({
         className="pointer-events-none absolute inset-y-0 left-0 w-3/5 bg-[linear-gradient(to_right,rgba(0,0,0,0.78)_0%,rgba(0,0,0,0.55)_35%,rgba(0,0,0,0.2)_70%,rgba(0,0,0,0)_100%)]"
       />
 
-      {/* Steam-style anchored sheen — same gradient pattern as the tile
-          (see library-tile.tsx), anchored at the top-right corner. The
-          `--sheen-extent` registered CSS variable animates the falloff
-          on hover so the gloss grows inward without translating a hard
-          edge across the row. */}
-      <div
-        aria-hidden
-        data-sheen
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(210deg,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.12)_calc(var(--sheen-extent)-6%),rgba(255,255,255,0)_var(--sheen-extent))] opacity-20 transition-[--sheen-extent,opacity] duration-900 ease-out [--sheen-extent:25%] group-hover/row:opacity-100 group-hover/row:[--sheen-extent:42%]"
-      />
+      <SheenOverlay group="row" />
 
       {/* Logo wordmark — anchored vertically centered in the card. The
           logo IS the title; the text fallback only renders when the

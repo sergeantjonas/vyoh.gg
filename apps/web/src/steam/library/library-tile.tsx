@@ -1,4 +1,5 @@
 import { useIsOwner } from "@/auth/use-viewer";
+import { SheenOverlay } from "@/components/sheen-overlay";
 import { Sparkline } from "@/components/ui/sparkline";
 import { useHoverPrefetch } from "@/lib/use-hover-prefetch";
 import { cn } from "@/lib/utils";
@@ -215,19 +216,7 @@ export function LibraryTile({
                   className="absolute inset-0 h-full w-full object-cover transition-[opacity,transform] duration-600 ease-out group-hover/tile:scale-110"
                 />
               )}
-              {/* Steam-style anchored sheen — gradient stays pinned at the
-                  top-right corner (gradient direction 225° puts the bright stop
-                  at the upper-right) and the transparent end-stop animates via
-                  the registered --sheen-extent variable (see index.css). At
-                  rest the falloff reaches 25% of the diagonal — a tight gloss
-                  at the corner only. On hover it extends to 75%, growing
-                  inward toward the middle without translating any hard edge
-                  across the card. */}
-              <div
-                aria-hidden
-                data-sheen
-                className="pointer-events-none absolute inset-0 bg-[linear-gradient(210deg,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.12)_calc(var(--sheen-extent)-6%),rgba(255,255,255,0)_var(--sheen-extent))] opacity-20 transition-[--sheen-extent,opacity] duration-900 ease-out [--sheen-extent:25%] group-hover/tile:opacity-100 group-hover/tile:[--sheen-extent:42%]"
-              />
+              <SheenOverlay group="tile" />
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="truncate text-sm font-medium underline-offset-2 group-hover/tile:underline">
