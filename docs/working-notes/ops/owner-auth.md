@@ -215,7 +215,8 @@ A structural lint in [conventions.spec.ts](../../../apps/api/src/conventions.spe
 
 ### Chunk 3 — Polish, prod wiring, case study
 
-- Prod GitHub OAuth app + env vars set on the chosen hosting target.
+- ~~`compose.prod.yaml` passes the four auth env vars~~ — fixed 2026-08-20; all four are required at boot, with the root `.env.example` listing them.
+- Separate prod GitHub OAuth app (never the dev app's secret) + env values set on the chosen hosting target.
 - Cookie `domain` configured per the hosting-dependent section above.
 - README section documenting the env vars and the "log in to use admin controls" flow.
 - Optional: candidate entry in [case-study-topics.md](../cross-cutting/case-study-topics.md) — *"Single-owner auth without a framework"* is genuinely a good write-up topic (the CSRF / SameSite / state-cookie reasoning is the substance).

@@ -40,7 +40,7 @@ Pointers only — execution plans live in the linked notes.
 
 ### Owner data / playthrough signal
 
-- **Top rarest achievements per game** — `IPlayerService/GetTopAchievementsForGames`. Pre-computed by Steam, saves a join. Surfaces the *flex* (rarest unlocks the owner has on this title). → [api-surface-survey.md Chunk A3](./api-surface-survey.md).
+- ✅ **Top rarest achievements per game** — shipped as [rarest-unlock-card.tsx](../../../apps/web/src/steam/game/rarest-unlock-card.tsx), derived from our own achievement + rarity rows via `useGameAchievements` rather than the endpoint below. Original lead: `IPlayerService/GetTopAchievementsForGames`. Pre-computed by Steam, saves a join. Surfaces the *flex* (rarest unlocks the owner has on this title). → [api-surface-survey.md Chunk A3](./api-surface-survey.md).
 - **Per-game custom user stats** — `ISteamUserStats/GetUserStatsForGame`. Quantitative career stats (kills, distance travelled, time-of-day) beyond binary achievements. Game-specific schema — works best on a handful of titles, but the ones it does work on become a distinct surface. → [api-surface-survey.md Chunk A2](./api-surface-survey.md).
 
 ---

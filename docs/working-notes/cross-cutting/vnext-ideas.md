@@ -151,9 +151,9 @@ The things that don't land in screenshots but matter long-term. Cherry-pick when
 
 ### Observability
 
-**Web Vitals dashboard.** Capture LCP, INP, CLS per route, plot trends. Existing pub/sub plumbing in [web-vitals.ts](../../../apps/web/src/lib/web-vitals.ts) (called from [__root.tsx](../../../apps/web/src/routes/__root.tsx)) is the entry point; only the console reporter subscribes. Could be an internal `/perf` route or a public one — public version is a case-study anchor.
+**Web Vitals dashboard.** Capture LCP, INP, CLS per route, plot trends. Existing pub/sub plumbing in [web-vitals.ts](../../../apps/web/src/lib/web-vitals.ts) (called from [__root.tsx](../../../apps/web/src/routes/__root.tsx)) is the entry point; the console reporter and the dev-only [perf-overlay.tsx](../../../apps/web/src/components/perf-overlay.tsx) subscribe, nothing persists or plots. Could be an internal `/perf` route or a public one — public version is a case-study anchor.
 
-**Bundle size budgets in CI.** Per-route chunk thresholds, CI fails the PR if exceeded. Cheap to wire; portfolio-credible perf evidence.
+**Bundle size budgets in CI.** ✅ Shipped — `size-limit` (`@size-limit/file`, `pnpm --filter web size:cc`) runs as the "Bundle size budget" job in `ci.yml`. Original pitch: per-route chunk thresholds, CI fails the PR if exceeded.
 
 **Lighthouse CI.** Per-PR audits, score deltas in PR comments. Trivial setup.
 
@@ -204,7 +204,7 @@ If asked tomorrow "what's the next arc after the documented roadmaps land," in p
 6. ✅ **visx integration** — shipped 2026-05-11 across four surfaces in one session: death matchup heatmap on Champion detail (`@visx/heatmap` via `scaleBand` + `scaleLinear`), champion synergy chord on Profile (`@visx/chord` + `Ribbon` with bipartite symmetric matrix), LP history brush hybrid with existing Recharts chart (`@visx/brush` + `LinePath`, remount-keyed reset for visx's internal selection state), and build-order Sankey on Champion detail (`d3-sankey` since `@visx/sankey` doesn't exist; visx provides `ParentSize`). See library-shortlist for the full package list and per-call-site notes.
 7. ✅ **Server-side live-game polling + SSE push** — shipped 2026-05-10 as match-depth Phase C. `LiveGamePollerService` polls Spectator-V5 server-side (no client polling); SSE emits transitions via the existing `MatchEventsService`. "Live now" chip on Profile renders even when the account isn't currently viewed. See match-depth-roadmap.md status.
 8. ✅ **Empty-state illustrations** — shipped 2026-05-10/11. `EmptyState` primitive + 5 hand-rolled inline SVG illustrations (matches, LP history, champion portrait, duos, live game) rolled across 8 surfaces (matches list, profile LP history, champion detail, live game, champions list, trends page, recap rank arc, profile duos). Calm/abstract style: 1px strokes, dashed accents, `currentColor` driven by `text-muted-foreground/40` on the wrapper.
-9. **Web Vitals dashboard + bundle budget CI** — perf evidence the README needs.
+9. ⚠️ **Web Vitals dashboard + bundle budget CI** — bundle budget shipped (`size-limit` runs as the "Bundle size budget" job in `ci.yml`); a dev-only `PerfOverlay` reads the `web-vitals` pub/sub, but the per-route trend dashboard is still open.
 10. **Weekly digest as markdown export** — auto-generates portfolio content.
 
 ---

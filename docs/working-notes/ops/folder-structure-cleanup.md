@@ -1,6 +1,6 @@
 # Folder structure cleanup — 2026-05-14
 
-**Status:** Active — Chunks 1 + 2 shipped 2026-05-14 (`lol-analytics.service.ts` extracted; `lol/_shared/` split into 6 non-asset buckets). Asset buckets deferred to the runtime-proxy pivot; Chunks 3 + 4 conditional (Steam subfoldering revisited at S4.5 re-look; cross-domain `_assets/` only if TFT lands). Tracked under "Adjacent maintenance" in [open-work.md](../open-work.md).
+**Status:** Active — Chunks 1 + 2 shipped 2026-05-14 (`lol-analytics.service.ts` extracted; `lol/_shared/` split into 6 non-asset buckets). Asset buckets deferred to the runtime-proxy pivot; Chunk 3's web half happened organically (`apps/web/src/steam/` has nine feature subfolders as of 2026-09-06), so only the flat 73-file `apps/api/src/steam/` is left in it; Chunk 4 (cross-domain `_assets/`) only if TFT lands. Tracked under "Adjacent maintenance" in [open-work.md](../open-work.md).
 
 Audit of the monorepo layout taken after Steam S2 shipped, before S3 starts. Goal: identify cleanliness wins that can ride between content arcs without disrupting active work. **No code changes proposed mid-arc** — this note exists so the cleanup can be picked up cold when timing fits.
 
@@ -67,7 +67,9 @@ Validation: `tokf test pnpm run test:cc` (the analytics endpoints all have spec 
 
 **Ship note 2026-05-14:** Landed in a single commit. `lol.service.ts` 1,308 → 939 LOC. `resolveSummoner` made public on LolService so `getChampionExtras` could keep its upsert semantics via `this.lol.resolveSummoner(...)`; the other 4 analytics methods use their inline `findUnique` (out-of-scope inline duplication preserved as planned). Controller spec needed a stub `LolAnalyticsService` provider added — the audit's "all analytics endpoints have spec files" claim turned out to be overstated; only `getMatchesForSummoner` has a controller spec, and no service-level analytics specs exist. Lower-risk than expected.
 
-### Chunk 3 — Steam web feature subfoldering (deferred)
+### Chunk 3 — Steam feature subfoldering (web half done, api half deferred)
+
+**Update 2026-09-06:** the web side resolved itself — `apps/web/src/steam/` now holds `_shared/`, `achievements/`, `curation/`, `game/`, `library/`, `portrait/`, `profile/`, `upcoming/` and `wishlist/`, each grown at the moment its feature landed, which is exactly the fold-in-when-it-arrives rule below. What remains is `apps/api/src/steam/`, a flat folder of 73 files (services, pollers, specs) with the same feature seams. Pick it up when a Steam api change touches more than one of those seams; don't split preemptively.
 
 Scope: defer until **any one** of `wishlist`, `library`, or `platform` has ≥3 files. Currently each is 2 files (chip + hook). If S3 adds a playtime view that lives next to library-composition, fold it into `steam/library/` at that moment — don't split preemptively.
 
