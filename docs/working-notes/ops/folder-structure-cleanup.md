@@ -1,6 +1,6 @@
 # Folder structure cleanup — 2026-05-14
 
-**Status:** Active — Chunks 1 + 2 shipped 2026-05-14 (`lol-analytics.service.ts` extracted; `lol/_shared/` split into 6 non-asset buckets). Asset buckets deferred to the runtime-proxy pivot; Chunk 3's web half happened organically (`apps/web/src/steam/` has nine feature subfolders as of 2026-09-06), so only the flat 73-file `apps/api/src/steam/` is left in it; Chunk 4 (cross-domain `_assets/`) only if TFT lands. Tracked under "Adjacent maintenance" in [open-work.md](../open-work.md).
+**Status:** Active — Chunks 1 + 2 shipped 2026-05-14 (`lol-analytics.service.ts` extracted; `lol/_shared/` split into 6 non-asset buckets). Asset buckets deferred to the runtime-proxy pivot; Chunk 3's web half happened organically (`apps/web/src/steam/` has nine feature subfolders as of 2026-09-06), so only the flat 73-file `apps/api/src/steam/` is left in it — **planned as five move-only commits under § "Chunk 3-api", 2026-09-06, none landed yet**; Chunk 4 (cross-domain `_assets/`) only if TFT lands. Tracked under "Adjacent maintenance" in [open-work.md](../open-work.md).
 
 Audit of the monorepo layout taken after Steam S2 shipped, before S3 starts. Goal: identify cleanliness wins that can ride between content arcs without disrupting active work. **No code changes proposed mid-arc** — this note exists so the cleanup can be picked up cold when timing fits.
 
@@ -67,9 +67,33 @@ Validation: `tokf test pnpm run test:cc` (the analytics endpoints all have spec 
 
 **Ship note 2026-05-14:** Landed in a single commit. `lol.service.ts` 1,308 → 939 LOC. `resolveSummoner` made public on LolService so `getChampionExtras` could keep its upsert semantics via `this.lol.resolveSummoner(...)`; the other 4 analytics methods use their inline `findUnique` (out-of-scope inline duplication preserved as planned). Controller spec needed a stub `LolAnalyticsService` provider added — the audit's "all analytics endpoints have spec files" claim turned out to be overstated; only `getMatchesForSummoner` has a controller spec, and no service-level analytics specs exist. Lower-risk than expected.
 
-### Chunk 3 — Steam feature subfoldering (web half done, api half deferred)
+### Chunk 3 — Steam feature subfoldering (web half done, api half planned)
 
-**Update 2026-09-06:** the web side resolved itself — `apps/web/src/steam/` now holds `_shared/`, `achievements/`, `curation/`, `game/`, `library/`, `portrait/`, `profile/`, `upcoming/` and `wishlist/`, each grown at the moment its feature landed, which is exactly the fold-in-when-it-arrives rule below. What remains is `apps/api/src/steam/`, a flat folder of 73 files (services, pollers, specs) with the same feature seams. Pick it up when a Steam api change touches more than one of those seams; don't split preemptively.
+**Update 2026-09-06:** the web side resolved itself — `apps/web/src/steam/` now holds `_shared/`, `achievements/`, `curation/`, `game/`, `library/`, `portrait/`, `profile/`, `upcoming/` and `wishlist/`, each grown at the moment its feature landed, which is exactly the fold-in-when-it-arrives rule below. What remains is `apps/api/src/steam/`, a flat folder of 73 files (services, pollers, specs) with the same feature seams. The wait-for-a-multi-seam-change rule was set the same day and then overruled by the owner as a deliberate tidy-up pass; the plan below is what the import graph, mapped 2026-09-06, supports.
+
+#### Chunk 3-api — plan (2026-09-06)
+
+**Shape.** Seams follow the import graph rather than the web's folder names, because the api's weight sits in pollers and enrichment the web never sees. Every file keeps its name; only its directory changes, so `git log --follow` and the reviewer's diff both stay readable. `steam.module.ts`, `steam.controller.ts` (+spec), `steam.service.ts` (+spec, the summary service four seams import) and the three cross-seam lint specs (`curation-read-paths.spec.ts`, `pollers.spec.ts`, `steam-client-methods.spec.ts` stays with its subject) stay at the root: the module is the one file that has to name every seam, and the lint specs deliberately reach across them. Imports between seams are plain relative paths, as they are today — no barrels, since a barrel would hide the graph this plan is derived from.
+
+**Seams and their files** (specs move with their subject):
+
+- `client/` — `steam-client.service`, `rate-limiter.service`, `steam.config`, `types`, `steam-user.d.ts`, `steam-client-methods.spec`. Imported by every other seam: 29 files inside the folder and the fallback exception filter plus its spec outside it.
+- `presence/` — `player-state.service` + poller, `play-sessions.service`, `steam-chronotype.service`. Reads `achievements/player-unlocks` for session boundaries.
+- `store/` — `upcoming.service`, `wishlist-hero.service`. Both read `steam.service` and `wishlist-hero` reads `enrichment/`.
+- `portrait/` — `portrait.service`. Leaf.
+- `achievements/` — `achievements.service` (+ `achievements-more.spec`), `achievement-schema.service` + poller, `global-rarity.service` + poller, `player-unlocks.service` + poller, `recently-played-unlocks.poller`. The last reads `library/owned-games`.
+- `library/` — `owned-games.service` + poller (+ `owned-games-sync.spec`), `game-curation.service`, `game-recap.service`, `game-refresh.controller` + service, `steam-appid-param.dto`. `owned-games` fans into `achievements/` and `enrichment/`; `game-curation` is the most-imported file from outside the folder (8 sites, scripts and recap).
+- `enrichment/` — `enrichment.service` + poller (+ `enrichment-more.spec`), `griddb.service`, `pics.service`, `face-detection.service`, `subject-anchor.service`, `tag.service` + poller.
+
+**Commits, smallest blast radius first**, each with `git mv`, the import rewrite, `typecheck:cc`, the moved specs plus the two root lint specs, and the reviewer:
+
+1. `presence/`, `store/`, `portrait/` — three leaf seams, 14 files, validates the loop.
+2. `achievements/` — 13 files; `pollers.spec.ts` rewrites here.
+3. `library/` — 14 files; `conventions.spec.ts` carries the literal `apps/api/src/steam/game-refresh.controller.ts` for the guarded-mutation lint and must move with it; the eight `scripts/` and `recap/` imports of `game-curation` rewrite here.
+4. `enrichment/` — 14 files; `og/`, `img/` and the backfill scripts import `enrichment`, `griddb` and `subject-anchor`.
+5. `client/` — last because every seam imports it, so the rewrite is widest but by then purely mechanical; outside the folder only `fallback-exception.filter.ts` and its spec import `steam-client` and `rate-limiter`.
+
+**Not in scope:** any rename, any barrel, any behaviour change, any Nest module split — `SteamModule` keeps its single provider list. If a move exposes a circular import the flat folder was hiding, record it in this note and leave the cycle; breaking it is its own change.
 
 Scope: defer until **any one** of `wishlist`, `library`, or `platform` has ≥3 files. Currently each is 2 files (chip + hook). If S3 adds a playtime view that lives next to library-composition, fold it into `steam/library/` at that moment — don't split preemptively.
 
