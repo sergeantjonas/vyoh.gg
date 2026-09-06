@@ -1,9 +1,9 @@
 import { Injectable } from "@nestjs/common";
 import type { SteamCurationSets, SteamUpcoming, SteamUpcomingItem } from "@vyoh/shared";
 import { excludeHiddenGames, isHiddenGame } from "@vyoh/shared";
-import { PrismaService } from "../prisma/prisma.service";
-import { STEAM_OWNER_ID } from "./steam.config";
-import { SteamService, buildStoreUrl } from "./steam.service";
+import { PrismaService } from "../../prisma/prisma.service";
+import { STEAM_OWNER_ID } from "../steam.config";
+import { SteamService, buildStoreUrl } from "../steam.service";
 
 export type UpcomingSource = SteamUpcomingItem["source"];
 

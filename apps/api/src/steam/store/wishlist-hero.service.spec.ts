@@ -2,26 +2,26 @@ import { NotFoundException } from "@nestjs/common";
 import { NO_CURATION } from "@vyoh/shared";
 import type { SteamGameRating } from "@vyoh/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { UpstreamError } from "../img/upstream";
-import type { PrismaService } from "../prisma/prisma.service";
-import type { EnrichmentUpsert } from "./enrichment.service";
-import type { SteamClientService } from "./steam-client.service";
+import { UpstreamError } from "../../img/upstream";
+import type { PrismaService } from "../../prisma/prisma.service";
+import type { EnrichmentUpsert } from "../enrichment.service";
+import type { SteamClientService } from "../steam-client.service";
 import type { SteamUpcomingService, UpcomingSource } from "./upcoming.service";
 import { SteamWishlistHeroService } from "./wishlist-hero.service";
 
 const fetchUpstreamChain = vi.hoisted(() => vi.fn());
-vi.mock("../img/upstream", async () => {
+vi.mock("../../img/upstream", async () => {
   const actual =
-    await vi.importActual<typeof import("../img/upstream")>("../img/upstream");
+    await vi.importActual<typeof import("../../img/upstream")>("../../img/upstream");
   return { ...actual, fetchUpstreamChain };
 });
 
 const projectEnrichment = vi.hoisted(() => vi.fn());
-vi.mock("./enrichment.service", () => ({ projectEnrichment }));
+vi.mock("../enrichment.service", () => ({ projectEnrichment }));
 
 const extractDominantHex = vi.hoisted(() => vi.fn());
 const composeHeroUrls = vi.hoisted(() => vi.fn(() => ["https://hero"]));
-vi.mock("./subject-anchor.service", () => ({ extractDominantHex, composeHeroUrls }));
+vi.mock("../subject-anchor.service", () => ({ extractDominantHex, composeHeroUrls }));
 
 const RATING: SteamGameRating = {
   type: "ESRB",

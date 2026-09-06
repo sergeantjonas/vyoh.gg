@@ -27,7 +27,7 @@ import {
 } from "@vyoh/shared";
 import { AppModule } from "../app.module";
 import { PrismaService } from "../prisma/prisma.service";
-import { SteamPortraitService } from "../steam/portrait.service";
+import { SteamPortraitService } from "../steam/portrait/portrait.service";
 
 function numericFlag(name: string, fallback: number): number {
   const index = process.argv.indexOf(`--${name}`);

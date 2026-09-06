@@ -1,11 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common";
 import type { SteamCurationSets, SteamPlayerState } from "@vyoh/shared";
 import { isHiddenGame } from "@vyoh/shared";
-import { PrismaService } from "../prisma/prisma.service";
+import { PrismaService } from "../../prisma/prisma.service";
+import { SteamClientService } from "../steam-client.service";
+import { STEAM_OWNER_ID } from "../steam.config";
+import type { SteamPlayerRaw } from "../types";
 import { SteamPlaySessionsService } from "./play-sessions.service";
-import { SteamClientService } from "./steam-client.service";
-import { STEAM_OWNER_ID } from "./steam.config";
-import type { SteamPlayerRaw } from "./types";
 
 // Same mapping as SteamService.mapPlayerToSummary. Duplicated rather than
 // shared because the persisted state row is the canonical home for the

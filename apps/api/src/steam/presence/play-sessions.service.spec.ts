@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import type { PrismaService } from "../prisma/prisma.service";
+import type { PrismaService } from "../../prisma/prisma.service";
+import type { SteamPlayerUnlocksService } from "../player-unlocks.service";
 import {
   SteamPlaySessionsService,
   type TransitionInput,
   computeTransition,
 } from "./play-sessions.service";
-import type { SteamPlayerUnlocksService } from "./player-unlocks.service";
 
 const NOW = new Date("2026-05-16T12:00:00.000Z");
 const LAST_POLL = new Date("2026-05-16T11:58:00.000Z");

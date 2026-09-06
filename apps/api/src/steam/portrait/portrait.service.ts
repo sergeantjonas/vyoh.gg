@@ -39,7 +39,7 @@ import {
   summariseEngagement,
   summariseTasted,
 } from "@vyoh/shared";
-import { PrismaService } from "../prisma/prisma.service";
+import { PrismaService } from "../../prisma/prisma.service";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 

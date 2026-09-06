@@ -4,11 +4,11 @@ import type {
   SteamGameRating,
   SteamWishlistHeroMeta,
 } from "@vyoh/shared";
-import { UpstreamError, fetchUpstreamChain } from "../img/upstream";
-import { PrismaService } from "../prisma/prisma.service";
-import { type EnrichmentUpsert, projectEnrichment } from "./enrichment.service";
-import { SteamClientService } from "./steam-client.service";
-import { composeHeroUrls, extractDominantHex } from "./subject-anchor.service";
+import { UpstreamError, fetchUpstreamChain } from "../../img/upstream";
+import { PrismaService } from "../../prisma/prisma.service";
+import { type EnrichmentUpsert, projectEnrichment } from "../enrichment.service";
+import { SteamClientService } from "../steam-client.service";
+import { composeHeroUrls, extractDominantHex } from "../subject-anchor.service";
 import { SteamUpcomingService } from "./upcoming.service";
 
 // Metadata for the Upcoming view's imminent hero. Where it comes from depends on

@@ -426,7 +426,7 @@ owned   2622380     200 in 0.002s, 200 in 0.002s
 
 ### F-21 — `/steam/wishlist/:appid/hero-meta` fans one request into three upstream calls plus a CPU pass · HIGH · **fixed 2026-08-05**
 
-[wishlist-hero.service.ts](../../../apps/api/src/steam/wishlist-hero.service.ts), reachable with any integer appid and no ownership check. On a miss it makes a live `IStoreBrowseService/GetItems` call using our API key, then up to two more fetches against `shared.akamai.steamstatic.com`, then a Vibrant colour-extraction pass over the image. The memo is a plain `Map` with no eviction, so it is also unbounded memory keyed on attacker input.
+[wishlist-hero.service.ts](../../../apps/api/src/steam/store/wishlist-hero.service.ts), reachable with any integer appid and no ownership check. On a miss it makes a live `IStoreBrowseService/GetItems` call using our API key, then up to two more fetches against `shared.akamai.steamstatic.com`, then a Vibrant colour-extraction pass over the image. The memo is a plain `Map` with no eviction, so it is also unbounded memory keyed on attacker input.
 
 **Half fixed 2026-08-03.** The cache is now bounded (64 entries, expired-then-oldest eviction on write); real use needs exactly one, the single imminent hero. The TTL alone never evicted, because it is only consulted on a read of that same key, so an entry nobody asks for again was retained for the process lifetime.
 

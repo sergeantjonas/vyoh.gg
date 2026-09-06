@@ -1,9 +1,9 @@
 import type { SteamWishlist, SteamWishlistItem } from "@vyoh/shared";
 import { NO_CURATION } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
-import type { PrismaService } from "../prisma/prisma.service";
-import { STEAM_OWNER_ID } from "./steam.config";
-import type { SteamService } from "./steam.service";
+import type { PrismaService } from "../../prisma/prisma.service";
+import { STEAM_OWNER_ID } from "../steam.config";
+import type { SteamService } from "../steam.service";
 import { SteamUpcomingService } from "./upcoming.service";
 
 function wishlistItem(overrides: Partial<SteamWishlistItem> = {}): SteamWishlistItem {

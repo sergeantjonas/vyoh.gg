@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { PrismaService } from "../prisma/prisma.service";
+import type { PrismaService } from "../../prisma/prisma.service";
 import { SteamChronotypeService, bucketUnlocks } from "./steam-chronotype.service";
 
 const TZ = "Europe/Brussels";

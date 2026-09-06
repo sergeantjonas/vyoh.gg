@@ -5,10 +5,10 @@ import { SteamAchievementSchemaPoller } from "./achievement-schema.poller";
 import type { SteamAchievementSchemaService } from "./achievement-schema.service";
 import { SteamGlobalRarityPoller } from "./global-rarity.poller";
 import type { SteamGlobalRarityService } from "./global-rarity.service";
-import { SteamPlayerStatePoller } from "./player-state.poller";
-import type { SteamPlayerStateService } from "./player-state.service";
 import { SteamPlayerUnlocksPoller } from "./player-unlocks.poller";
 import type { SteamPlayerUnlocksService } from "./player-unlocks.service";
+import { SteamPlayerStatePoller } from "./presence/player-state.poller";
+import type { SteamPlayerStateService } from "./presence/player-state.service";
 import { SteamTagPoller } from "./tag.poller";
 import type { SteamTagService } from "./tag.service";
 

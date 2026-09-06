@@ -1,6 +1,6 @@
 # Folder structure cleanup — 2026-05-14
 
-**Status:** Active — Chunks 1 + 2 shipped 2026-05-14 (`lol-analytics.service.ts` extracted; `lol/_shared/` split into 6 non-asset buckets). Asset buckets deferred to the runtime-proxy pivot; Chunk 3's web half happened organically (`apps/web/src/steam/` has nine feature subfolders as of 2026-09-06), so only the flat 73-file `apps/api/src/steam/` is left in it — **planned as five move-only commits under § "Chunk 3-api", 2026-09-06, none landed yet**; Chunk 4 (cross-domain `_assets/`) only if TFT lands. Tracked under "Adjacent maintenance" in [open-work.md](../open-work.md).
+**Status:** Active — Chunks 1 + 2 shipped 2026-05-14 (`lol-analytics.service.ts` extracted; `lol/_shared/` split into 6 non-asset buckets). Asset buckets deferred to the runtime-proxy pivot; Chunk 3's web half happened organically (`apps/web/src/steam/` has nine feature subfolders as of 2026-09-06), so only the flat 73-file `apps/api/src/steam/` is left in it — **planned as five move-only commits under § "Chunk 3-api", 2026-09-06; commit 1 of 5 (`presence/`, `store/`, `portrait/`) landed the same day**; Chunk 4 (cross-domain `_assets/`) only if TFT lands. Tracked under "Adjacent maintenance" in [open-work.md](../open-work.md).
 
 Audit of the monorepo layout taken after Steam S2 shipped, before S3 starts. Goal: identify cleanliness wins that can ride between content arcs without disrupting active work. **No code changes proposed mid-arc** — this note exists so the cleanup can be picked up cold when timing fits.
 
@@ -87,7 +87,7 @@ Validation: `tokf test pnpm run test:cc` (the analytics endpoints all have spec 
 
 **Commits, smallest blast radius first**, each with `git mv`, the import rewrite, `typecheck:cc`, the moved specs plus the two root lint specs, and the reviewer:
 
-1. `presence/`, `store/`, `portrait/` — three leaf seams, 14 files, validates the loop.
+1. `presence/`, `store/`, `portrait/` — three leaf seams, 13 files, validates the loop. **Shipped 2026-09-06.** 61 specifiers on 60 lines rewritten across 19 files by a scratchpad script that resolves every quoted relative path against the importer's old location and re-relativises it from the new one — the first cut anchored on import keywords and missed a `typeof import("…")` inside a `vi.importActual` generic, so the script now rewrites every quoted `./`/`../` string, which is also what a `__dirname`-relative fixture path needs when its file moves. Biome re-sorts the import blocks afterwards; run it from the repo root, since from `apps/api` the path arguments miss. Nothing outside the folder changed except `scripts/probe-portrait-fingerprint.ts`.
 2. `achievements/` — 13 files; `pollers.spec.ts` rewrites here.
 3. `library/` — 14 files; `conventions.spec.ts` carries the literal `apps/api/src/steam/game-refresh.controller.ts` for the guarded-mutation lint and must move with it; the eight `scripts/` and `recap/` imports of `game-curation` rewrite here.
 4. `enrichment/` — 14 files; `og/`, `img/` and the backfill scripts import `enrichment`, `griddb` and `subject-anchor`.

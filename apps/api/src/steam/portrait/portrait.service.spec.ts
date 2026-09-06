@@ -1,6 +1,6 @@
 import { NO_CURATION } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
-import type { PrismaService } from "../prisma/prisma.service";
+import type { PrismaService } from "../../prisma/prisma.service";
 import { SteamPortraitService, pickBaselineDate } from "./portrait.service";
 
 const date = (iso: string) => new Date(`${iso}T00:00:00.000Z`);

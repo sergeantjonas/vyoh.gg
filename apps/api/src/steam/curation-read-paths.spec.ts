@@ -9,14 +9,14 @@ import { SteamAchievementsService } from "./achievements.service";
 import { SteamGameCurationService } from "./game-curation.service";
 import { SteamGameRecapService } from "./game-recap.service";
 import { SteamOwnedGamesService } from "./owned-games.service";
-import { SteamPlayerStateService } from "./player-state.service";
-import { SteamPortraitService } from "./portrait.service";
-import { SteamChronotypeService } from "./steam-chronotype.service";
+import { SteamPortraitService } from "./portrait/portrait.service";
+import { SteamPlayerStateService } from "./presence/player-state.service";
+import { SteamChronotypeService } from "./presence/steam-chronotype.service";
 import { SteamController } from "./steam.controller";
 import { SteamService } from "./steam.service";
+import { SteamUpcomingService } from "./store/upcoming.service";
+import { SteamWishlistHeroService } from "./store/wishlist-hero.service";
 import { SteamTagService } from "./tag.service";
-import { SteamUpcomingService } from "./upcoming.service";
-import { SteamWishlistHeroService } from "./wishlist-hero.service";
 
 // One spec for the read paths a hidden game must not reach, rather than a
 // scattering of additions across seven service specs. Each service's own spec

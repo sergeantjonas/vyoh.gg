@@ -84,7 +84,7 @@ The 2-minute interval falls out of a trade: under 2 minutes is overkill for "Now
 
 ## The pure transition function
 
-Sessions could be derived inline in the service method that handles each tick. They're not — the decision lives in a pure function with no Prisma, no clock injection ([apps/api/src/steam/play-sessions.service.ts:38-80](../../apps/api/src/steam/play-sessions.service.ts#L38-L80)):
+Sessions could be derived inline in the service method that handles each tick. They're not — the decision lives in a pure function with no Prisma, no clock injection ([apps/api/src/steam/presence/play-sessions.service.ts:38-80](../../apps/api/src/steam/presence/play-sessions.service.ts#L38-L80)):
 
 ```ts
 export function computeTransition(input: TransitionInput): TransitionAction {
@@ -124,7 +124,7 @@ This is one of those design moves that reads obvious in retrospect and is easy t
 
 ### Write order matters
 
-`recordTransition` runs *before* the player-state upsert ([player-state.service.ts:62-100](../../apps/api/src/steam/player-state.service.ts#L62-L100)):
+`recordTransition` runs *before* the player-state upsert ([player-state.service.ts:62-100](../../apps/api/src/steam/presence/player-state.service.ts#L62-L100)):
 
 ```ts
 await this.playSessions.recordTransition({
@@ -158,7 +158,7 @@ S6 cut that to three layers:
 
 Total: ~950 calls/day. Same coverage, near-realtime detection on the happy path, ~14× drop in volume.
 
-The session-close hook is fire-and-forget ([play-sessions.service.ts:152-156](../../apps/api/src/steam/play-sessions.service.ts#L152-L156)):
+The session-close hook is fire-and-forget ([play-sessions.service.ts:152-156](../../apps/api/src/steam/presence/play-sessions.service.ts#L152-L156)):
 
 ```ts
 private fireUnlockRefresh(appid: number): void {
@@ -197,7 +197,7 @@ If I close Game A and open Game B within a single 2-min window, the next tick se
 
 ### `previousRow` snapshot must be captured before the upsert
 
-The capture happens explicitly ([player-state.service.ts:56-59](../../apps/api/src/steam/player-state.service.ts#L56-L59)) rather than reading the row later in `recordTransition`. Looks like a redundant query — Prisma could find it again — but reading after the upsert returns the *new* row, breaking the transition logic. The early capture is the boundary that keeps "previous" actually previous.
+The capture happens explicitly ([player-state.service.ts:56-59](../../apps/api/src/steam/presence/player-state.service.ts#L56-L59)) rather than reading the row later in `recordTransition`. Looks like a redundant query — Prisma could find it again — but reading after the upsert returns the *new* row, breaking the transition logic. The early capture is the boundary that keeps "previous" actually previous.
 
 ### `gameid` is a string
 
