@@ -59,7 +59,18 @@ function summary(overrides: Partial<SteamSummary> = {}): SteamSummary {
 function owned(appid = 1245620): SteamOwnedGames {
   return {
     steamId: "76561198020053778",
-    games: [{ appid, name: "ELDEN RING", assetTimestamp: 99 }],
+    // The stat band inside the hero sums and formats these; leaving them off
+    // renders "NaNh" into every hero snapshot.
+    games: [
+      {
+        appid,
+        name: "ELDEN RING",
+        assetTimestamp: 99,
+        playtimeForeverMinutes: 22680,
+        playtime2WeeksMinutes: 0,
+        rtimeLastPlayedAt: null,
+      },
+    ],
     fetchedAt: new Date().toISOString(),
   } as unknown as SteamOwnedGames;
 }
