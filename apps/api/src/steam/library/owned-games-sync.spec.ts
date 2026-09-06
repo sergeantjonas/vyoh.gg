@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { PrismaService } from "../prisma/prisma.service";
-import type { SteamAchievementSchemaService } from "./achievements/achievement-schema.service";
-import type { SteamGlobalRarityService } from "./achievements/global-rarity.service";
-import type { SteamPlayerUnlocksService } from "./achievements/player-unlocks.service";
-import type { SteamEnrichmentService } from "./enrichment.service";
+import type { PrismaService } from "../../prisma/prisma.service";
+import type { SteamAchievementSchemaService } from "../achievements/achievement-schema.service";
+import type { SteamGlobalRarityService } from "../achievements/global-rarity.service";
+import type { SteamPlayerUnlocksService } from "../achievements/player-unlocks.service";
+import type { SteamEnrichmentService } from "../enrichment.service";
+import type { SteamClientService } from "../steam-client.service";
 import type { SteamGameCurationService } from "./game-curation.service";
 import { SteamOwnedGamesService } from "./owned-games.service";
-import type { SteamClientService } from "./steam-client.service";
 
 function makeService(opts: {
   ownedGames?: Array<{

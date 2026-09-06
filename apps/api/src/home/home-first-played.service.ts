@@ -7,7 +7,7 @@ import type {
 import { excludeHiddenGames } from "@vyoh/shared";
 import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
-import { SteamGameCurationService } from "../steam/game-curation.service";
+import { SteamGameCurationService } from "../steam/library/game-curation.service";
 
 const WINDOW_DAYS = 30;
 const STEAM_THRESHOLD_MINUTES = 30;

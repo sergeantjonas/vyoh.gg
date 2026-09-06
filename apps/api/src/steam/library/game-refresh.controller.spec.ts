@@ -1,7 +1,7 @@
 import { Test } from "@nestjs/testing";
 import type { SteamGameRefreshResult } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
-import { AuthService } from "../auth/auth.service";
+import { AuthService } from "../../auth/auth.service";
 import { SteamGameRefreshController } from "./game-refresh.controller";
 import { SteamGameRefreshService } from "./game-refresh.service";
 

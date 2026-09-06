@@ -13,15 +13,15 @@ import type {
   SteamScreenshotEntry,
 } from "@vyoh/shared";
 import { OWNER_TIME_ZONE, excludeHiddenGames, isHiddenGame } from "@vyoh/shared";
-import { PrismaService } from "../prisma/prisma.service";
-import { SteamAchievementSchemaService } from "./achievements/achievement-schema.service";
-import { SteamGlobalRarityService } from "./achievements/global-rarity.service";
-import { SteamPlayerUnlocksService } from "./achievements/player-unlocks.service";
-import { SteamEnrichmentService } from "./enrichment.service";
+import { PrismaService } from "../../prisma/prisma.service";
+import { SteamAchievementSchemaService } from "../achievements/achievement-schema.service";
+import { SteamGlobalRarityService } from "../achievements/global-rarity.service";
+import { SteamPlayerUnlocksService } from "../achievements/player-unlocks.service";
+import { SteamEnrichmentService } from "../enrichment.service";
+import { SteamClientService } from "../steam-client.service";
+import { STEAM_OWNER_ID } from "../steam.config";
+import type { SteamOwnedGameRaw } from "../types";
 import { SteamGameCurationService } from "./game-curation.service";
-import { SteamClientService } from "./steam-client.service";
-import { STEAM_OWNER_ID } from "./steam.config";
-import type { SteamOwnedGameRaw } from "./types";
 
 export interface OwnedGamesDiff {
   added: number[];

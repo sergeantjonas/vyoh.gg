@@ -17,8 +17,8 @@ import type { SteamImageService } from "../img/steam-image.service";
 import type { LolChampionAnalyticsService } from "../lol/lol-champion-analytics.service";
 import type { LolService } from "../lol/lol.service";
 import type { PrismaService } from "../prisma/prisma.service";
-import type { SteamGameCurationService } from "../steam/game-curation.service";
-import type { SteamGameRecapService } from "../steam/game-recap.service";
+import type { SteamGameCurationService } from "../steam/library/game-curation.service";
+import type { SteamGameRecapService } from "../steam/library/game-recap.service";
 import { OgService } from "./og.service";
 
 const renderMatchCardMock = vi.fn(async (_args: unknown) => Buffer.from("mock-png"));

@@ -161,7 +161,9 @@ const GUARDED_ROUTES: Record<string, string[]> = {
   ],
   // The duo LP split is the owner's own ladder movement, not the public duo list.
   "apps/api/src/lol/lol.controller.ts": ['Post("matches/sync")', 'Get("duos/lp")'],
-  "apps/api/src/steam/game-refresh.controller.ts": ['Post("game/:appid/refresh")'],
+  "apps/api/src/steam/library/game-refresh.controller.ts": [
+    'Post("game/:appid/refresh")',
+  ],
   // The admin reads are gated too, unlike every other read in the api: they
   // carry `hiddenAt`/`syncPausedAt`, which `/me` deliberately withholds.
   "apps/api/src/admin/admin-accounts.controller.ts": [

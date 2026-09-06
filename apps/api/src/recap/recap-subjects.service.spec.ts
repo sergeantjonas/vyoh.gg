@@ -6,10 +6,10 @@ import type {
 } from "@vyoh/shared";
 import { NO_CURATION } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
-import type { SteamGameCurationService } from "../steam/game-curation.service";
+import type { SteamGameCurationService } from "../steam/library/game-curation.service";
 
 import type { PrismaService } from "../prisma/prisma.service";
-import type { SteamOwnedGamesService } from "../steam/owned-games.service";
+import type { SteamOwnedGamesService } from "../steam/library/owned-games.service";
 import type { LolMomentsService } from "./lol-moments.service";
 import { RecapSubjectsService } from "./recap-subjects.service";
 import type { SteamMomentsService } from "./steam-moments.service";

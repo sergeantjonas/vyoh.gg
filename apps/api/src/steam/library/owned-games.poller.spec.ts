@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { SyncJobRegistry } from "../sync-jobs/sync-job-registry.service";
+import { SyncJobRegistry } from "../../sync-jobs/sync-job-registry.service";
 import { SteamOwnedGamesPoller } from "./owned-games.poller";
 import type { SteamOwnedGamesService } from "./owned-games.service";
 

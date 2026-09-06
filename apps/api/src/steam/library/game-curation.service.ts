@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { type SteamCurationSets, curationForOwner } from "@vyoh/shared";
-import { PrismaService } from "../prisma/prisma.service";
+import { PrismaService } from "../../prisma/prisma.service";
 
 // Nearly every Steam read path consults the overlay, so it is cached in-process
 // rather than re-queried per request. Both writers — the admin controller and

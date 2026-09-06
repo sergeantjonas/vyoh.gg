@@ -11,7 +11,7 @@ import "dotenv/config";
 import { Logger } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "../app.module";
-import { SteamOwnedGamesService } from "../steam/owned-games.service";
+import { SteamOwnedGamesService } from "../steam/library/owned-games.service";
 
 async function main() {
   const logger = new Logger("SyncSteamOwnedGames");

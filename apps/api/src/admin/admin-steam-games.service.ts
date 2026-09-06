@@ -5,7 +5,7 @@ import type {
   AdminSteamReviewCount,
 } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
-import { SteamGameCurationService } from "../steam/game-curation.service";
+import { SteamGameCurationService } from "../steam/library/game-curation.service";
 import type { UpdateSteamGameCurationDto } from "./admin-steam-games.dto";
 
 /** Per-appid facts assembled for `project`; see `resolveFacts`. */

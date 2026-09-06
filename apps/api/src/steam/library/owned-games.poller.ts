@@ -1,8 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { OWNER_TIME_ZONE } from "@vyoh/shared";
-import { SyncJobRegistry } from "../sync-jobs/sync-job-registry.service";
-import { SYNC_JOBS } from "../sync-jobs/sync-jobs.catalog";
+import { SyncJobRegistry } from "../../sync-jobs/sync-job-registry.service";
+import { SYNC_JOBS } from "../../sync-jobs/sync-jobs.catalog";
 import { SteamOwnedGamesService } from "./owned-games.service";
 
 const JOB = "steam-owned-games";

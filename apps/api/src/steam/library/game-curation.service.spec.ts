@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { PrismaService } from "../prisma/prisma.service";
+import type { PrismaService } from "../../prisma/prisma.service";
 import { SteamGameCurationService } from "./game-curation.service";
 
 type Row = {

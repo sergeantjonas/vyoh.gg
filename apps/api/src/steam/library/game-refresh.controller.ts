@@ -1,6 +1,6 @@
 import { Controller, HttpCode, Param, Post, UseGuards } from "@nestjs/common";
 import type { SteamGameRefreshResult } from "@vyoh/shared";
-import { OwnerGuard } from "../auth/owner.guard";
+import { OwnerGuard } from "../../auth/owner.guard";
 import { SteamGameRefreshService } from "./game-refresh.service";
 import { SteamAppidParamDto } from "./steam-appid-param.dto";
 

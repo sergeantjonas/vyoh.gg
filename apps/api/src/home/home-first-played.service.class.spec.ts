@@ -2,7 +2,7 @@ import { NO_CURATION } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
 import type { IdentityService } from "../identity/identity.service";
 import type { PrismaService } from "../prisma/prisma.service";
-import type { SteamGameCurationService } from "../steam/game-curation.service";
+import type { SteamGameCurationService } from "../steam/library/game-curation.service";
 import { HomeFirstPlayedService } from "./home-first-played.service";
 
 function makeService(opts: {

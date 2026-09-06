@@ -22,8 +22,8 @@ import { SteamImageService } from "../img/steam-image.service";
 import { LolChampionAnalyticsService } from "../lol/lol-champion-analytics.service";
 import { LolService } from "../lol/lol.service";
 import { PrismaService } from "../prisma/prisma.service";
-import { SteamGameCurationService } from "../steam/game-curation.service";
-import { SteamGameRecapService } from "../steam/game-recap.service";
+import { SteamGameCurationService } from "../steam/library/game-curation.service";
+import { SteamGameRecapService } from "../steam/library/game-recap.service";
 import {
   renderChampionCard,
   renderHomeCard,

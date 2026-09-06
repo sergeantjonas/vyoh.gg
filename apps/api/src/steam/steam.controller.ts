@@ -37,9 +37,9 @@ import {
   RECENT_UNLOCKS_DEFAULT_LIMIT,
   SteamAchievementsService,
 } from "./achievements/achievements.service";
-import { SteamGameCurationService } from "./game-curation.service";
-import { SteamGameRecapService } from "./game-recap.service";
-import { SteamOwnedGamesService } from "./owned-games.service";
+import { SteamGameCurationService } from "./library/game-curation.service";
+import { SteamGameRecapService } from "./library/game-recap.service";
+import { SteamOwnedGamesService } from "./library/owned-games.service";
 import { SteamPortraitService } from "./portrait/portrait.service";
 import { SteamPlayerStateService } from "./presence/player-state.service";
 import { SteamChronotypeService } from "./presence/steam-chronotype.service";

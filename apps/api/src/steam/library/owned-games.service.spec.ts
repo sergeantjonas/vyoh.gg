@@ -1,19 +1,19 @@
 import { NotFoundException } from "@nestjs/common";
 import { NO_CURATION } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
-import type { PrismaService } from "../prisma/prisma.service";
-import type { SteamAchievementSchemaService } from "./achievements/achievement-schema.service";
-import type { SteamGlobalRarityService } from "./achievements/global-rarity.service";
-import type { SteamPlayerUnlocksService } from "./achievements/player-unlocks.service";
-import type { SteamEnrichmentService } from "./enrichment.service";
+import type { PrismaService } from "../../prisma/prisma.service";
+import type { SteamAchievementSchemaService } from "../achievements/achievement-schema.service";
+import type { SteamGlobalRarityService } from "../achievements/global-rarity.service";
+import type { SteamPlayerUnlocksService } from "../achievements/player-unlocks.service";
+import type { SteamEnrichmentService } from "../enrichment.service";
+import type { SteamClientService } from "../steam-client.service";
+import type { SteamOwnedGameRaw } from "../types";
 import type { SteamGameCurationService } from "./game-curation.service";
 import {
   SteamOwnedGamesService,
   buildRecentPlaytimeSeries,
   diffOwnedGames,
 } from "./owned-games.service";
-import type { SteamClientService } from "./steam-client.service";
-import type { SteamOwnedGameRaw } from "./types";
 
 function game(appid: number, name = `Game ${appid}`): SteamOwnedGameRaw {
   return { appid, name, playtime_forever: 0 };

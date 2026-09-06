@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service";
-import type { SteamGameCurationService } from "../steam/game-curation.service";
+import type { SteamGameCurationService } from "../steam/library/game-curation.service";
 import { AdminSteamGamesService } from "./admin-steam-games.service";
 
 const AT = new Date("2026-08-20T10:00:00Z");

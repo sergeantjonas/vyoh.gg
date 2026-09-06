@@ -397,9 +397,9 @@ HTTP 500
 
 ### F-20 — `/steam/game/:appid/description` re-fetches from Steam forever for any appid we don't own · HIGH · **fixed 2026-08-03**
 
-[owned-games.service.ts:524-556](../../../apps/api/src/steam/owned-games.service.ts#L524-L556). For an appid with no `steamGameEnrichment` row — i.e. any of the tens of millions of Steam appids the owner does not have — the flow is: lookup misses, live call to Steam's storefront `appdetails`, then `prisma.steamGameEnrichment.update({ where: { appid } })`, which throws P2025 because there is no row to update. The catch swallows it and sets `html = null`.
+[owned-games.service.ts:524-556](../../../apps/api/src/steam/library/owned-games.service.ts#L524-L556). For an appid with no `steamGameEnrichment` row — i.e. any of the tens of millions of Steam appids the owner does not have — the flow is: lookup misses, live call to Steam's storefront `appdetails`, then `prisma.steamGameEnrichment.update({ where: { appid } })`, which throws P2025 because there is no row to update. The catch swallows it and sets `html = null`.
 
-**The fetched result is therefore discarded, and nothing is ever written**, so the next identical request repeats the whole thing. This is strictly worse than F-2, which at least stops fetching after the first miss. The comment at [:547](../../../apps/api/src/steam/owned-games.service.ts#L547) shows the P2025 case was anticipated as a data-completeness matter; what it misses is that the upstream call has already been paid for by the time the write fails.
+**The fetched result is therefore discarded, and nothing is ever written**, so the next identical request repeats the whole thing. This is strictly worse than F-2, which at least stops fetching after the first miss. The comment at [:547](../../../apps/api/src/steam/library/owned-games.service.ts#L547) shows the P2025 case was anticipated as a data-completeness matter; what it misses is that the upstream call has already been paid for by the time the write fails.
 
 Confirmed live — three identical calls, none of which ever drops to cache speed:
 

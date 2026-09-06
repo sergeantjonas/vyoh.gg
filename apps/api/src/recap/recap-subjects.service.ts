@@ -12,8 +12,8 @@ import {
 } from "@vyoh/shared";
 
 import { PrismaService } from "../prisma/prisma.service";
-import { SteamGameCurationService } from "../steam/game-curation.service";
-import { SteamOwnedGamesService } from "../steam/owned-games.service";
+import { SteamGameCurationService } from "../steam/library/game-curation.service";
+import { SteamOwnedGamesService } from "../steam/library/owned-games.service";
 import { LolMomentsService } from "./lol-moments.service";
 import { SteamMomentsService } from "./steam-moments.service";
 
