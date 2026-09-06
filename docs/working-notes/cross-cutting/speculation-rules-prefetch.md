@@ -1,6 +1,6 @@
 # Speculation Rules prefetch / prerender
 
-**Status:** Chunks 1–5 shipped 2026-05-28 as the cheap manual-prefetch path (TanStack Query `prefetchQuery` on hover/touchstart, no Speculation Rules API yet). Match rows, champion grid items, Steam library tiles + rows, and nav links all warm their destination's primary query on a 150 ms hover (100 ms for nav — higher intent), with pointer-down firing immediately for the touch path. Chunk 6 (Speculation Rules `<script>` block) stays gated on the Start migration — it only earns its keep once cross-document navigation is real. See [tanstack-start-migration.md](tanstack-start-migration.md).
+**Status:** Chunks 1–5 shipped 2026-05-28 as the cheap manual-prefetch path (TanStack Query `prefetchQuery` on hover/touchstart, no Speculation Rules API yet). Match rows, champion grid items, Steam library tiles + rows, and nav links all warm their destination's primary query on a 150 ms hover (100 ms for nav — higher intent), with pointer-down firing immediately for the touch path. Chunk 6 (Speculation Rules `<script>` block) was gated on the Start migration and is **closed as not applicable 2026-09-06**: Start shipped 2026-07-27, but every in-app navigation is still client-side through the router (`defaultPreload: "intent"` in `router.tsx` warms the destination's loader on hover), so a document-source prefetch rule would fetch full HTML documents the router never renders. It would earn its keep only if the app ever moved to cross-document navigation. See [tanstack-start-migration.md](tanstack-start-migration.md).
 
 Read this before any work on prefetch heuristics; coordinate with TanStack Router's existing route-chunk prefetching to avoid duplication.
 
@@ -104,7 +104,9 @@ Test: trigger fires after delay on enter; cancels on leave; fires immediately on
 - Hook-level immediacy is covered by [use-hover-prefetch.test.ts](../../../apps/web/src/lib/use-hover-prefetch.test.ts); wired-surface pass-through covered by a `pointerDown` assertion in [library-tile.test.tsx](../../../apps/web/src/steam/library/library-tile.test.tsx).
 - Real-device verification: confirmed working by owner — prefetch fires on touch start before navigation triggers, giving the route loader a warm cache.
 
-### Chunk 6 — (Conditional) Speculation Rules for Start migration
+### Chunk 6 — (Conditional) Speculation Rules for Start migration — closed 2026-09-06, not applicable
+
+The gate was "real cross-document navigation", and the Start migration did not produce it: the router still handles every link client-side and preloads on intent. A `speculationrules` prefetch would spend bandwidth on documents that are never rendered. Re-open only if navigation ever becomes cross-document. Original scope follows.
 
 - **Only after Start migration lands.** If/when there is real cross-document navigation, add a `<script type="speculationrules">` block per [06-performance.md](~/.claude/knowledge/frontend-2026/06-performance.md):
 

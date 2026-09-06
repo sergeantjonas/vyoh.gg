@@ -40,6 +40,6 @@ Same sweep window, but needs the live box rather than the repo: verify SSE in pr
 
 ## Post-launch (blocked on being live, not on the repo)
 
-- RUM backend (frontend-2026 Gap 3) once there are weekly visitors worth analyzing. → [frontend-2026-gaps.md](../cross-cutting/frontend-2026-gaps.md)
+- RUM backend (frontend-2026 Gap 3) once there are weekly visitors worth analyzing, with the Web Vitals trend dashboard from [vnext-ideas.md](../cross-cutting/vnext-ideas.md) as its read side. → [frontend-2026-gaps.md](../cross-cutting/frontend-2026-gaps.md)
 - CodeQL evaluation — its stated trigger ("auth surface lands") fires during this sweep. → [security.md](security.md)
 - Prod-tier Riot key follow-ups: re-derive `reservoirIncreaseInterval`; visitor-vs-owner stays hard-gated on the key itself. → [riot-investigation-2026-05-07.md](../lol/riot-investigation-2026-05-07.md)
