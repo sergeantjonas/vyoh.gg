@@ -1,3 +1,4 @@
+import { SectionShellProvider } from "@/_shared/section-layout/section-shell-context";
 import { SlidePanel } from "@/_shared/slide-panel";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -96,6 +97,36 @@ describe("SlidePanel", () => {
     );
     expect(screen.getByText("Panel body content")).toBeTruthy();
     expect(container.textContent).not.toContain("Panel body content");
+  });
+
+  it("docks under the section's declared header height until the measured one exists", () => {
+    // `--account-header-h` is written from JS after a ResizeObserver tick, so
+    // the server-rendered frame has nothing to dock under. The shell's
+    // `headerDockPx` stands in through a fallback var carried on the panel
+    // itself, which is what lets it survive the post-hydration portal.
+    wrap(
+      <SectionShellProvider value={{ compact: false, headerDockPx: 128 }}>
+        <SlidePanel open onClose={vi.fn()} title="Sample panel">
+          <p>Panel body content</p>
+        </SlidePanel>
+      </SectionShellProvider>
+    );
+    const panel = screen.getByRole("dialog");
+    expect(panel.style.getPropertyValue("--account-header-h-fallback")).toBe("128px");
+    expect(panel.className).toContain(
+      "top-[var(--account-header-h,var(--account-header-h-fallback,0px))]"
+    );
+  });
+
+  it("carries no dock fallback outside a section shell", () => {
+    wrap(
+      <SlidePanel open onClose={vi.fn()} title="Sample panel">
+        <p>Panel body content</p>
+      </SlidePanel>
+    );
+    expect(
+      screen.getByRole("dialog").style.getPropertyValue("--account-header-h-fallback")
+    ).toBe("");
   });
 
   it("has no axe violations when open", async () => {

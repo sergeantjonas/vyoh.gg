@@ -144,6 +144,7 @@ function SteamLayout() {
           tabIndicatorId="steam-tab-indicator"
           actions={<SteamPreferences />}
           onHeaderRect={onHeaderRect}
+          headerDockPx={104}
         >
           {/* Above the outlet rather than on one tab: the owner may land
               anywhere in the section, and a question they only get asked on

@@ -1,3 +1,4 @@
+import { useHeaderDockPx } from "@/_shared/section-layout/section-shell-context";
 import { mainScrollRef } from "@/lib/scroll-container";
 import {
   ScrollContainerProvider,
@@ -7,7 +8,7 @@ import { useHydratedSync } from "@/lib/use-hydrated";
 import { cn } from "@/lib/utils";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-import { m, useReducedMotion } from "motion/react";
+import { type MotionStyle, m, useReducedMotion } from "motion/react";
 import { type ReactNode, useEffect, useState } from "react";
 
 interface SlidePanelProps {
@@ -88,6 +89,7 @@ export function SlidePanel({
     onScrollElReady?.(el);
   };
   const reduced = useReducedMotion();
+  const headerDockPx = useHeaderDockPx();
   // Only the scrim animates on entrance — the panel chrome itself NEVER
   // animates opacity or transform. Both create a stacking context on the
   // panel, which suppresses `backdrop-filter` painting on EVERY descendant
@@ -170,7 +172,11 @@ export function SlidePanel({
               // Right-aligned side panel constrained to the site content
               // column (max-w-4xl matches nav.tsx + __root). The list peeks
               // out on the left as ambient context; clicking it closes.
-              "fixed top-[var(--account-header-h,0px)] bottom-0 right-0 z-40",
+              // Measured height first, the section's declared one until the
+              // measurement exists (see SectionShell `headerDockPx`). Carried
+              // inline on the panel itself rather than on the shell root so it
+              // survives the post-hydration portal.
+              "fixed top-[var(--account-header-h,var(--account-header-h-fallback,0px))] bottom-0 right-0 z-40",
               "w-full max-w-4xl",
               // Solid bg-card base — earlier rounds tried bg-card/50 +
               // backdrop-blur-2xl for a frosted look but the cost was
@@ -184,16 +190,19 @@ export function SlidePanel({
               // panel's static background.
               "border-l border-white/10 bg-card shadow-2xl"
             )}
-            {...(chromeBackdropUrl
-              ? {
-                  style: {
+            style={{
+              ...(headerDockPx !== undefined
+                ? ({ "--account-header-h-fallback": `${headerDockPx}px` } as MotionStyle)
+                : {}),
+              ...(chromeBackdropUrl
+                ? {
                     backgroundImage: `linear-gradient(to right, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.78) 40%, rgba(0,0,0,0.65) 100%), url(${chromeBackdropUrl})`,
                     backgroundSize: "cover, cover",
                     backgroundPosition: "center, center",
                     backgroundRepeat: "no-repeat, no-repeat",
-                  },
-                }
-              : {})}
+                  }
+                : {}),
+            }}
           >
             <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
             {/* Inner scroll surface — separate element so backdrop-filter

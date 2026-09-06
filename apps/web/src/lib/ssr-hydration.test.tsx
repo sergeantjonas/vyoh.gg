@@ -1,4 +1,5 @@
 import { BackdropPortal } from "@/_shared/backdrop/backdrop-portal";
+import { SectionShellProvider } from "@/_shared/section-layout/section-shell-context";
 import { SlidePanel } from "@/_shared/slide-panel";
 import { useAudio } from "@/lib/use-audio";
 import { useHydratedSync } from "@/lib/use-hydrated";
@@ -89,6 +90,20 @@ describe("server rendering does not read the browser", () => {
     );
     expect(html).toContain("Ahri · Win · 12/2/9");
     expect(html).toContain("Match detail");
+  });
+
+  it("docks the server-rendered panel under the section's declared header height", () => {
+    // The measured `--account-header-h` only exists after a ResizeObserver
+    // tick, so this frame is the one the declared height is for. It has to be
+    // in the served markup, not applied on the client.
+    const html = renderToString(
+      <SectionShellProvider value={{ compact: false, headerDockPx: 128 }}>
+        <SlidePanel open onClose={() => {}} title="Match detail">
+          <p>Ahri · Win · 12/2/9</p>
+        </SlidePanel>
+      </SectionShellProvider>
+    );
+    expect(html).toContain("--account-header-h-fallback:128px");
   });
 
   it("renders a CountUp at its final value on the server", async () => {

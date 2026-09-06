@@ -298,6 +298,7 @@ function AccountLayout() {
             <SectionShell
               headerRef={setHeaderEl}
               onHeaderRect={onHeaderRect}
+              headerDockPx={128}
               // Reset the scroll-driven compact state on every nav (see the
               // SectionShell prop comment for the full why).
               pathname={pathname}

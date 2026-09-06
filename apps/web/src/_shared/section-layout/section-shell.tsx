@@ -56,6 +56,14 @@ type SectionShellProps = {
   // Fires on initial mount, every ResizeObserver tick, and window resize.
   // Identity is captured in a ref so inline callbacks don't re-subscribe.
   onHeaderRect?: (rect: DOMRect) => void;
+  // Expected bottom edge of the header in viewport px. `--account-header-h`
+  // is only ever written from JS after measurement, so anything docked under
+  // the header would sit at the viewport top on the server-rendered frame;
+  // this is the CSS-visible stand-in for that frame, replaced as soon as the
+  // ResizeObserver fires. A per-section number because the LoL and Steam
+  // strips end at different heights; it is the wide-viewport measurement, so
+  // a wrapped narrow header is briefly taller than declared.
+  headerDockPx?: number | undefined;
 };
 
 export function SectionShell({
@@ -70,6 +78,7 @@ export function SectionShell({
   children,
   headerRef: externalHeaderRef,
   onHeaderRect,
+  headerDockPx,
 }: SectionShellProps) {
   const prefersReducedMotion = useReducedMotion();
 
@@ -279,7 +288,7 @@ export function SectionShell({
   );
 
   return (
-    <SectionShellProvider value={{ compact }}>
+    <SectionShellProvider value={{ compact, headerDockPx }}>
       {slot ? createPortal(header, slot) : null}
       <div className="flex flex-col gap-6">{children}</div>
     </SectionShellProvider>

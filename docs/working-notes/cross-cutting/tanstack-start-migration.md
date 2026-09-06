@@ -183,7 +183,7 @@ Each of these is now a decision rather than an omission:
 
   Four more render-body reads surfaced once the subtree rendered on the server, all of the kinds already named here: `champion-hero.tsx`'s `supportsViewTransitions()` (now `useViewTransitionsSupported()`); `CountUp`, which seeded `0` on both first renders and would have handed a crawler "0 games" — it now starts settled on a cold arrival via `useHydratedSync()` and only counts up when mounted after hydration; and the Motion `initial` transforms in the body, `WinRateBar` and the per-patch strip, gated on `useHydrated()` the way the match route's are.
 
-  **Still open:** the panel docks at `top: 0` for the pre-hydration frame, because `--account-header-h` is only ever written from JS; measured 128px on LoL and 104px on Steam, so one hardcoded fallback cannot serve both. The container probe from § "The production image is a different environment" is still owed for all three detail routes.
+  **Closed 2026-09-06:** the panel used to dock at `top: 0` for the pre-hydration frame, because `--account-header-h` is only ever written from JS; measured 128px on LoL and 104px on Steam, so one hardcoded fallback could not serve both. Each section root now declares its height through `SectionShell`'s `headerDockPx`, the panel carries it inline as `--account-header-h-fallback` (on the panel rather than the shell root so it survives the post-hydration portal), and the `top` reads the measured var first, the declared one second, 0 outside any section. **Still owed:** the container probe from § "The production image is a different environment" is still owed for all three detail routes.
 
 ## Priority slot — when to do this
 
