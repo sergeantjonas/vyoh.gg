@@ -6,6 +6,7 @@ import type {
 } from "@vyoh/shared";
 import { UpstreamError, fetchUpstreamChain } from "../../img/upstream";
 import { PrismaService } from "../../prisma/prisma.service";
+import { SteamClientService } from "../client/steam-client.service";
 import {
   type EnrichmentUpsert,
   projectEnrichment,
@@ -14,7 +15,6 @@ import {
   composeHeroUrls,
   extractDominantHex,
 } from "../enrichment/subject-anchor.service";
-import { SteamClientService } from "../steam-client.service";
 import { SteamUpcomingService } from "./upcoming.service";
 
 // Metadata for the Upcoming view's imminent hero. Where it comes from depends on

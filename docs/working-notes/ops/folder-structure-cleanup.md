@@ -1,6 +1,6 @@
 # Folder structure cleanup — 2026-05-14
 
-**Status:** Active — Chunks 1 + 2 shipped 2026-05-14 (`lol-analytics.service.ts` extracted; `lol/_shared/` split into 6 non-asset buckets). Asset buckets deferred to the runtime-proxy pivot; Chunk 3's web half happened organically (`apps/web/src/steam/` has nine feature subfolders as of 2026-09-06), so only the flat 73-file `apps/api/src/steam/` is left in it — **planned as five move-only commits under § "Chunk 3-api", 2026-09-06; commits 1 to 4 of 5 (`presence/`, `store/`, `portrait/`, `achievements/`, `library/`, `enrichment/`) landed the same day**; Chunk 4 (cross-domain `_assets/`) only if TFT lands. Tracked under "Adjacent maintenance" in [open-work.md](../open-work.md).
+**Status:** Shipped — Chunks 1 + 2 shipped 2026-05-14 (`lol-analytics.service.ts` extracted; `lol/_shared/` split into 6 non-asset buckets). Asset buckets deferred to the runtime-proxy pivot; Chunk 3's web half happened organically (`apps/web/src/steam/` has nine feature subfolders as of 2026-09-06), and the api half **shipped 2026-09-06 as five move-only commits** (§ "Chunk 3-api"): `apps/api/src/steam/` is now seven seam folders (`client/`, `presence/`, `store/`, `portrait/`, `achievements/`, `library/`, `enrichment/`) around seven root files. Chunk 3 is closed; Chunk 4 (cross-domain `_assets/`) only if TFT lands. Tracked under "Adjacent maintenance" in [open-work.md](../open-work.md).
 
 Audit of the monorepo layout taken after Steam S2 shipped, before S3 starts. Goal: identify cleanliness wins that can ride between content arcs without disrupting active work. **No code changes proposed mid-arc** — this note exists so the cleanup can be picked up cold when timing fits.
 
@@ -67,9 +67,9 @@ Validation: `tokf test pnpm run test:cc` (the analytics endpoints all have spec 
 
 **Ship note 2026-05-14:** Landed in a single commit. `lol.service.ts` 1,308 → 939 LOC. `resolveSummoner` made public on LolService so `getChampionExtras` could keep its upsert semantics via `this.lol.resolveSummoner(...)`; the other 4 analytics methods use their inline `findUnique` (out-of-scope inline duplication preserved as planned). Controller spec needed a stub `LolAnalyticsService` provider added — the audit's "all analytics endpoints have spec files" claim turned out to be overstated; only `getMatchesForSummoner` has a controller spec, and no service-level analytics specs exist. Lower-risk than expected.
 
-### Chunk 3 — Steam feature subfoldering (web half done, api half planned)
+### Chunk 3 — Steam feature subfoldering (shipped: web half organically, api half 2026-09-06)
 
-**Update 2026-09-06:** the web side resolved itself — `apps/web/src/steam/` now holds `_shared/`, `achievements/`, `curation/`, `game/`, `library/`, `portrait/`, `profile/`, `upcoming/` and `wishlist/`, each grown at the moment its feature landed, which is exactly the fold-in-when-it-arrives rule below. What remains is `apps/api/src/steam/`, a flat folder of 73 files (services, pollers, specs) with the same feature seams. The wait-for-a-multi-seam-change rule was set the same day and then overruled by the owner as a deliberate tidy-up pass; the plan below is what the import graph, mapped 2026-09-06, supports.
+**Update 2026-09-06:** the web side resolved itself — `apps/web/src/steam/` now holds `_shared/`, `achievements/`, `curation/`, `game/`, `library/`, `portrait/`, `profile/`, `upcoming/` and `wishlist/`, each grown at the moment its feature landed, which is exactly the fold-in-when-it-arrives rule below. What remained was `apps/api/src/steam/`, a flat folder of 73 files (services, pollers, specs) with the same feature seams. The wait-for-a-multi-seam-change rule was set the same day and then overruled by the owner as a deliberate tidy-up pass; the plan below is what the import graph, mapped 2026-09-06, supported, and it shipped in full the same day.
 
 #### Chunk 3-api — plan (2026-09-06)
 
@@ -77,13 +77,13 @@ Validation: `tokf test pnpm run test:cc` (the analytics endpoints all have spec 
 
 **Seams and their files** (specs move with their subject):
 
-- `client/` — `steam-client.service`, `rate-limiter.service`, `steam.config`, `types`, `steam-user.d.ts`, `steam-client-methods.spec`. Imported by every other seam: 29 files inside the folder and the fallback exception filter plus its spec outside it.
+- `client/` — `steam-client.service`, `rate-limiter.service`, `steam.config`, `types`, `steam-client-methods.spec`. Imported by every other seam: 29 files inside the folder and the fallback exception filter plus its spec outside it.
 - `presence/` — `player-state.service` + poller, `play-sessions.service`, `steam-chronotype.service`. Reads `achievements/player-unlocks` for session boundaries.
 - `store/` — `upcoming.service`, `wishlist-hero.service`. Both read `steam.service` and `wishlist-hero` reads `enrichment/`.
 - `portrait/` — `portrait.service`. Leaf.
 - `achievements/` — `achievements.service` (+ `achievements-more.spec`), `achievement-schema.service` + poller, `global-rarity.service` + poller, `player-unlocks.service` + poller, `recently-played-unlocks.poller`. The last reads `library/owned-games`.
 - `library/` — `owned-games.service` + poller (+ `owned-games-sync.spec`), `game-curation.service`, `game-recap.service`, `game-refresh.controller` + service, `steam-appid-param.dto`. `owned-games` fans into `achievements/` and `enrichment/`; `game-curation` is the most-imported file from outside the folder (8 sites, scripts and recap).
-- `enrichment/` — `enrichment.service` + poller (+ `enrichment-more.spec`), `griddb.service`, `pics.service`, `face-detection.service`, `subject-anchor.service`, `tag.service` + poller.
+- `enrichment/` — `enrichment.service` + poller (+ `enrichment-more.spec`), `griddb.service`, `pics.service` (with the `steam-user.d.ts` ambient declaration it alone consumes), `face-detection.service`, `subject-anchor.service`, `tag.service` + poller.
 
 **Commits, smallest blast radius first**, each with `git mv`, the import rewrite, `typecheck:cc`, the moved specs plus the two root lint specs, and the reviewer:
 
@@ -91,7 +91,9 @@ Validation: `tokf test pnpm run test:cc` (the analytics endpoints all have spec 
 2. `achievements/` — 14 files; `pollers.spec.ts` rewrites here. **Shipped 2026-09-06**, 76 specifiers across 31 files and five notes; the recap's `steam-moments.service.ts` and two scripts were the external importers.
 3. `library/` — 15 files; `conventions.spec.ts` names `game-refresh.controller.ts` by repo path for the guarded-mutation lint, so that literal moves with the file; the `game-curation` importers in `admin/`, `home/`, `og/` and `recap/` rewrite here, plus the `owned-games` import in `scripts/`. **Shipped 2026-09-06**, 72 specifiers across 28 files plus the lint literal, which the script cannot see because it is a repo-relative string rather than a `./` import — the one hand edit in the arc so far.
 4. `enrichment/` — 16 files; the three backfill scripts import `enrichment`, `griddb` and `subject-anchor` (the `og/` and `img/` importers the plan expected turned out to reach the seam only through `library/` and `steam.service`). **Shipped 2026-09-06**, 55 specifiers across 27 files, four notes and two case studies — `docs/case-studies/` links api files by path too, so any final sweep has to cover it — plus one comment locator in `enrichment.poller.ts` that named a former sibling.
-5. `client/` — last because every seam imports it, so the rewrite is widest but by then purely mechanical; outside the folder only `fallback-exception.filter.ts` and its spec import `steam-client` and `rate-limiter`.
+5. `client/` — last because every seam imports it, so the rewrite is widest but by then purely mechanical; outside the folder only `fallback-exception.filter.ts` and its spec import `steam-client` and `rate-limiter`. **Shipped 2026-09-06**, 45 specifiers across 29 files and eight notes, plus the one non-code reference in the whole arc: a comment in `apps/api/.env.example` naming `steam.config.ts` by path. `steam-user.d.ts` went to `enrichment/`, not `client/`: it is the ambient declaration for the `steam-user` package, whose only importer is `enrichment/pics.service.ts`, and since `tsconfig` has `"include": ["src"]` an ambient declaration is found wherever it sits, so proximity to its importer is the only thing that should decide its folder.
+
+**Chunk 3-api is complete.** The folder went from 73 flat files to seven seam folders plus the seven root files the plan reserved (module, controller and spec, summary service and spec, two cross-seam lint specs) — 66 moved files, zero behaviour changes, five reviewed commits. Every move except the lint literal and the two comment locators was done by the scratchpad script, which is worth keeping in mind for the next folder of this shape: resolve every quoted relative path against the importer's old location, re-relativise from its new one, then let Biome re-sort.
 
 **Not in scope:** any rename, any barrel, any behaviour change, any Nest module split — `SteamModule` keeps its single provider list. If a move exposes a circular import the flat folder was hiding, record it in this note and leave the cycle; breaking it is its own change.
 

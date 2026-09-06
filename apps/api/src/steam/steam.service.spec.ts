@@ -1,14 +1,14 @@
 import { NO_CURATION } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service";
-import type { SteamClientService } from "./steam-client.service";
-import { SteamService } from "./steam.service";
+import type { SteamClientService } from "./client/steam-client.service";
 import type {
   SteamGetProfileItemsEquippedResponse,
   SteamPlayerRaw,
   SteamStoreItemFullRaw,
   SteamWishlistItemRaw,
-} from "./types";
+} from "./client/types";
+import { SteamService } from "./steam.service";
 
 function makePrismaStub(): {
   prisma: PrismaService;

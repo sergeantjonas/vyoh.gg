@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { requireEnv } from "../env";
+import { requireEnv } from "../../env";
 import { SteamRateLimiterService } from "./rate-limiter.service";
 import type {
   SteamAppDetailsResponse,

@@ -22,7 +22,7 @@ Only [riot.exception-filter.ts](../../../apps/api/src/riot/riot.exception-filter
 
 ## A4 — Steam interactive-endpoint retry gap
 
-Riot calls retry explicitly (`fetchWithRetry`, MAX_RETRIES=2); Steam calls don't — pollers self-heal on the next tick (fine), but interactive endpoints (wishlist, game-detail enrichment on first view) surface one-shot upstream flake straight to the user. At the next touch of [steam-client.service.ts](../../../apps/api/src/steam/steam-client.service.ts), add a bounded retry (1 retry, idempotent GETs only) for calls on interactive paths, or deliberately record here that the web-side TanStack Query retry already covers it (it retries the whole API call, so a flaky Steam upstream gets re-attempted end-to-end — verify the QueryClient retry config counts these as retryable before closing this as no-op).
+Riot calls retry explicitly (`fetchWithRetry`, MAX_RETRIES=2); Steam calls don't — pollers self-heal on the next tick (fine), but interactive endpoints (wishlist, game-detail enrichment on first view) surface one-shot upstream flake straight to the user. At the next touch of [steam-client.service.ts](../../../apps/api/src/steam/client/steam-client.service.ts), add a bounded retry (1 retry, idempotent GETs only) for calls on interactive paths, or deliberately record here that the web-side TanStack Query retry already covers it (it retries the whole API call, so a flaky Steam upstream gets re-attempted end-to-end — verify the QueryClient retry config counts these as retryable before closing this as no-op).
 
 ## Explicitly not chunked
 

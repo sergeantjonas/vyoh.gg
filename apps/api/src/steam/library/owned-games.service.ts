@@ -17,10 +17,10 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { SteamAchievementSchemaService } from "../achievements/achievement-schema.service";
 import { SteamGlobalRarityService } from "../achievements/global-rarity.service";
 import { SteamPlayerUnlocksService } from "../achievements/player-unlocks.service";
+import { SteamClientService } from "../client/steam-client.service";
+import { STEAM_OWNER_ID } from "../client/steam.config";
+import type { SteamOwnedGameRaw } from "../client/types";
 import { SteamEnrichmentService } from "../enrichment/enrichment.service";
-import { SteamClientService } from "../steam-client.service";
-import { STEAM_OWNER_ID } from "../steam.config";
-import type { SteamOwnedGameRaw } from "../types";
 import { SteamGameCurationService } from "./game-curation.service";
 
 export interface OwnedGamesDiff {

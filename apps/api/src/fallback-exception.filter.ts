@@ -6,8 +6,8 @@ import {
   Logger,
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
-import { SteamRateLimiterTimeoutError } from "./steam/rate-limiter.service";
-import { SteamClientError } from "./steam/steam-client.service";
+import { SteamRateLimiterTimeoutError } from "./steam/client/rate-limiter.service";
+import { SteamClientError } from "./steam/client/steam-client.service";
 
 type ErrorBody = { statusCode: number; message: string };
 

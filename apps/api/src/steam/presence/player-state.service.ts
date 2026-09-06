@@ -2,9 +2,9 @@ import { Injectable, Logger } from "@nestjs/common";
 import type { SteamCurationSets, SteamPlayerState } from "@vyoh/shared";
 import { isHiddenGame } from "@vyoh/shared";
 import { PrismaService } from "../../prisma/prisma.service";
-import { SteamClientService } from "../steam-client.service";
-import { STEAM_OWNER_ID } from "../steam.config";
-import type { SteamPlayerRaw } from "../types";
+import { SteamClientService } from "../client/steam-client.service";
+import { STEAM_OWNER_ID } from "../client/steam.config";
+import type { SteamPlayerRaw } from "../client/types";
 import { SteamPlaySessionsService } from "./play-sessions.service";
 
 // Same mapping as SteamService.mapPlayerToSummary. Duplicated rather than

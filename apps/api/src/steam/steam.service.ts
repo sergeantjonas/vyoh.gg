@@ -7,14 +7,14 @@ import type {
 } from "@vyoh/shared";
 import { excludeHiddenGames, isHiddenGame } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
-import { SteamClientService } from "./steam-client.service";
-import { STEAM_OWNER_ID } from "./steam.config";
+import { SteamClientService } from "./client/steam-client.service";
+import { STEAM_OWNER_ID } from "./client/steam.config";
 import type {
   SteamGetProfileItemsEquippedResponse,
   SteamPlayerRaw,
   SteamStoreItemFullRaw,
   SteamWishlistItemRaw,
-} from "./types";
+} from "./client/types";
 
 // Steam community CDN base for equipped profile items. `image_large` and the
 // `movie_*` fields on GetProfileItemsEquipped are already prefixed with

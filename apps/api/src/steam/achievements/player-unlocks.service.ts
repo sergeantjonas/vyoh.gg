@@ -3,8 +3,8 @@ import { PrismaService } from "../../prisma/prisma.service";
 import {
   SteamClientService,
   type SteamPlayerAchievementsResult,
-} from "../steam-client.service";
-import { STEAM_OWNER_ID } from "../steam.config";
+} from "../client/steam-client.service";
+import { STEAM_OWNER_ID } from "../client/steam.config";
 
 export interface UnlocksSyncResult {
   checked: number;

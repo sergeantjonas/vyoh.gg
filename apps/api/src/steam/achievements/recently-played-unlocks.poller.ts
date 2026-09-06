@@ -4,9 +4,9 @@ import { OWNER_TIME_ZONE } from "@vyoh/shared";
 import { PrismaService } from "../../prisma/prisma.service";
 import { SyncJobRegistry } from "../../sync-jobs/sync-job-registry.service";
 import { SYNC_JOBS } from "../../sync-jobs/sync-jobs.catalog";
+import { SteamClientService } from "../client/steam-client.service";
+import { STEAM_OWNER_ID } from "../client/steam.config";
 import { SteamOwnedGamesService } from "../library/owned-games.service";
-import { SteamClientService } from "../steam-client.service";
-import { STEAM_OWNER_ID } from "../steam.config";
 import { SteamAchievementSchemaService } from "./achievement-schema.service";
 import { SteamPlayerUnlocksService } from "./player-unlocks.service";
 

@@ -7,13 +7,13 @@ import type {
   SteamScreenshotEntry,
 } from "@vyoh/shared";
 import { PrismaService } from "../../prisma/prisma.service";
-import { SteamClientService } from "../steam-client.service";
+import { SteamClientService } from "../client/steam-client.service";
 import type {
   SteamStoreItemFullRaw,
   SteamStoreItemGameRatingRaw,
   SteamStoreItemReviewSummaryRaw,
   SteamStoreItemTrailerHighlightRaw,
-} from "../types";
+} from "../client/types";
 import { SteamGridDbService } from "./griddb.service";
 import { SteamPicsService } from "./pics.service";
 import { SteamSubjectAnchorService } from "./subject-anchor.service";

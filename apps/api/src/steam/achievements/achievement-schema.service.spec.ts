@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../../prisma/prisma.service";
-import type { SteamClientService } from "../steam-client.service";
-import type { SteamGameAchievementSchema } from "../types";
+import type { SteamClientService } from "../client/steam-client.service";
+import type { SteamGameAchievementSchema } from "../client/types";
 import { SteamAchievementSchemaService } from "./achievement-schema.service";
 
 interface PrismaStubs {

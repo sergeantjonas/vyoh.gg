@@ -2,7 +2,7 @@
 
 **Status:** Reference — research session 2026-05-24, follow-up to the [library-card-enrichment.md](./library-card-enrichment.md) `GetItems` harvest. That note covered everything `IStoreBrowseService/GetItems` returns; this one inventories **the rest of the Steam Web API surface** for hidden gems we haven't wired yet.
 
-Already wired ([steam-client.service.ts](../../../apps/api/src/steam/steam-client.service.ts)):
+Already wired ([steam-client.service.ts](../../../apps/api/src/steam/client/steam-client.service.ts)):
 
 - `ISteamUser/GetPlayerSummaries`
 - `IPlayerService/GetProfileItemsEquipped`
@@ -73,7 +73,7 @@ Chunks A2 / A3 / A4 / A7 land their consumer on `/steam/library/$appid`; the con
 - L4D2: zombies killed, headshots, melee kills, special-infected kills.
 - Many single-player games: hours played in specific mode, items collected, deaths, distance travelled.
 
-The schema for each stat is the per-game `GetSchemaForGame.stats[]` block ([types.ts:205](../../../apps/api/src/steam/types.ts#L205) already references this) — `displayName` + `name` + `defaultValue`. We're already adjacent to this data.
+The schema for each stat is the per-game `GetSchemaForGame.stats[]` block ([types.ts:205](../../../apps/api/src/steam/client/types.ts#L205) already references this) — `displayName` + `name` + `defaultValue`. We're already adjacent to this data.
 
 **Render targets:**
 

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import type { SteamTagCatalog } from "@vyoh/shared";
 import { PrismaService } from "../../prisma/prisma.service";
-import { SteamClientService } from "../steam-client.service";
+import { SteamClientService } from "../client/steam-client.service";
 
 @Injectable()
 export class SteamTagService {

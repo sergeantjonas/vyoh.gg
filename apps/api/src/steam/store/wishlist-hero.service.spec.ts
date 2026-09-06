@@ -4,8 +4,8 @@ import type { SteamGameRating } from "@vyoh/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UpstreamError } from "../../img/upstream";
 import type { PrismaService } from "../../prisma/prisma.service";
+import type { SteamClientService } from "../client/steam-client.service";
 import type { EnrichmentUpsert } from "../enrichment/enrichment.service";
-import type { SteamClientService } from "../steam-client.service";
 import type { SteamUpcomingService, UpcomingSource } from "./upcoming.service";
 import { SteamWishlistHeroService } from "./wishlist-hero.service";
 

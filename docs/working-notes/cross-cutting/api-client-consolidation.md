@@ -19,7 +19,7 @@ Two upstream clients, fully separate code paths.
 - Auth: `X-Riot-Token` header
 - No request caching (rate limiter is the constraint)
 
-**Steam** — [apps/api/src/steam/rate-limiter.service.ts](../../../apps/api/src/steam/rate-limiter.service.ts) (~100 lines)
+**Steam** — [apps/api/src/steam/client/rate-limiter.service.ts](../../../apps/api/src/steam/client/rate-limiter.service.ts) (~100 lines)
 - Bottleneck, single flat reservoir: 100k calls/24h, minTime 200ms, maxConcurrent 4
 - No per-endpoint differentiation, no 429 handling (Steam has no per-second ceiling)
 - Same 15s deadline pattern
@@ -31,7 +31,7 @@ Two upstream clients, fully separate code paths.
 
 | Pattern | Lines | Files |
 |---|---|---|
-| `Promise.race(fetch, setTimeout)` timeout block, AbortController dance, undici-ignores-signal workaround | ~90 lines × 2 | [riot.service.ts:193-214](../../../apps/api/src/riot/riot.service.ts#L193-L214), [steam-client.service.ts:232-240](../../../apps/api/src/steam/steam-client.service.ts#L232-L240) |
+| `Promise.race(fetch, setTimeout)` timeout block, AbortController dance, undici-ignores-signal workaround | ~90 lines × 2 | [riot.service.ts:193-214](../../../apps/api/src/riot/riot.service.ts#L193-L214), [steam-client.service.ts:232-240](../../../apps/api/src/steam/client/steam-client.service.ts#L232-L240) |
 | Custom Error subclass shape | ~15 lines × 2 | `RiotError`, `SteamClientError` (inline) |
 | `FETCH_TIMEOUT_MS = 10_000` | 1 line × 2 | both client files |
 

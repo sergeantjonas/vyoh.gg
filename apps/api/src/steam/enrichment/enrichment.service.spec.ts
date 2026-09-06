@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { SteamStoreItemFullRaw } from "../types";
+import type { SteamStoreItemFullRaw } from "../client/types";
 import { projectEnrichment } from "./enrichment.service";
 
 function raw(overrides: Partial<SteamStoreItemFullRaw> = {}): SteamStoreItemFullRaw {

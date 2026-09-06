@@ -40,7 +40,7 @@ Four findings, each load-bearing for the design below.
 
 ## A reported 0 is a floor, not a measurement (2026-08-11)
 
-The trophy case showed four Beast of Reincarnation achievements at **0.0%** — which, beside an unlock the owner holds, states that nobody holds it. Steam had reported literal `0` for them, and nothing in the pipeline was wrong: the api coerces the endpoint's string percent at [steam-client.service.ts:280](../../../apps/api/src/steam/steam-client.service.ts#L280) and the badge printed it at one decimal.
+The trophy case showed four Beast of Reincarnation achievements at **0.0%** — which, beside an unlock the owner holds, states that nobody holds it. Steam had reported literal `0` for them, and nothing in the pipeline was wrong: the api coerces the endpoint's string percent at [steam-client.service.ts:280](../../../apps/api/src/steam/client/steam-client.service.ts#L280) and the badge printed it at one decimal.
 
 What the reading actually was: the game released **3 Aug 2026**, our rows were polled **2026-08-05 00:12** (two days in, before the owner unlocked any of them, which happened 8-09 → 8-11), and at that point its completionist achievements sat below the endpoint's one-decimal floor. Live on 8-11: 46 achievements, **none at 0**, minimum 0.9%, and `ACH_ALL_RESTING_PLACE` at **2.0%**.
 

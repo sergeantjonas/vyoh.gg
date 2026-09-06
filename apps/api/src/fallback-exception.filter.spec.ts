@@ -8,8 +8,8 @@ import {
 import { Prisma } from "@prisma/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FallbackExceptionFilter } from "./fallback-exception.filter";
-import { SteamRateLimiterTimeoutError } from "./steam/rate-limiter.service";
-import { SteamClientError } from "./steam/steam-client.service";
+import { SteamRateLimiterTimeoutError } from "./steam/client/rate-limiter.service";
+import { SteamClientError } from "./steam/client/steam-client.service";
 
 function makeHost(headersSent = false) {
   const json = vi.fn();

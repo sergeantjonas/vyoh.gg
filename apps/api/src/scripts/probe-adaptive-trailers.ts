@@ -10,7 +10,7 @@
 import "dotenv/config";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "../app.module";
-import { SteamClientService } from "../steam/steam-client.service";
+import { SteamClientService } from "../steam/client/steam-client.service";
 
 // RE4 (the one we just got working) + a couple other titles likely to have
 // adaptive_trailers: Hollow Knight, Elden Ring, Cyberpunk 2077.

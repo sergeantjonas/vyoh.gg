@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
-import { SteamClientService } from "../steam-client.service";
+import { SteamClientService } from "../client/steam-client.service";
 
 export interface RaritySyncResult {
   checked: number;

@@ -14,7 +14,7 @@ These are being wired as **Chunk 0 (data gate)** of the Steam identity hero:
 
 | Field | Live value | Source | Cost |
 |---|---|---|---|
-| `timecreated` (member since) | `1263864425` → **2010-01-19** | already on `GetPlayerSummaries` (we fetch this every poll) | **free** — just stop discarding it in `mapPlayerToSummary` ([steam.service.ts](../../../apps/api/src/steam/steam.service.ts), [types.ts `SteamPlayerRaw`](../../../apps/api/src/steam/types.ts)) |
+| `timecreated` (member since) | `1263864425` → **2010-01-19** | already on `GetPlayerSummaries` (we fetch this every poll) | **free** — just stop discarding it in `mapPlayerToSummary` ([steam.service.ts](../../../apps/api/src/steam/steam.service.ts), [types.ts `SteamPlayerRaw`](../../../apps/api/src/steam/client/types.ts)) |
 | Steam level | **14** | `IPlayerService/GetSteamLevel/v1` | +1 endpoint (32-byte response), new `getSteamLevel` client method |
 | Level percentile | **higher than 94.66% of accounts** ("top ~5%") | `IPlayerService/GetSteamLevelDistribution/v1?player_level=14` | +1 endpoint, no per-user privacy (takes a level int, not a steamid) |
 
