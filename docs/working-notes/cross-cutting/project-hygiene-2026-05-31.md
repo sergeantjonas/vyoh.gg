@@ -201,6 +201,8 @@ Each item below needs its own session because the scope or risk doesn't fit the 
 
 **Fired once, 2026-07-26.** `lol-analytics.service.ts` grew to 1443L and was split; see the resolved sketch below. The other two remain on watch.
 
+**Re-measured 2026-09-06: 1113L / 1079L / 1024L, none past the trigger, no split.** `lol.service.ts` gained 87 lines since the watch was set, all from the August correctness and security fixes (queue-id storage, the owner allowlist at the summoner choke point, bounded query params) — hardening of existing methods, not a new responsibility, so the trigger's *kind* test fails as well as its size test. Two things the method inventory shows that the sketch below does not: the core service's real weight is one method, `backfillMissingMatches` (lines 885–1097, 213 lines), which belongs beside the existing 226-line `match-sync.service.ts` rather than in a new `MatchCacheService`, so that is the first cut when the trigger fires; and `lol-static-sync.service.ts` splits more naturally by *upstream* than by source pair — the wiki client (`fetchWikiPage`, `renderWikitextToHtml`, `fetchWikiModule`, `fetchWikiCategoryMembers`, plus ability-description resolution, lines 818–1079) is ~260 lines that touch no DDragon path. Next re-measure when any arc touches one of the three.
+
 **Trigger:** any new arc that would extend one of these files past ~1250L. Examples that would qualify: a new analytics dimension (matchup-by-patch, role-vs-role), a new static sync source (Communitydragon fallback added at the service rather than at the image-resolver), a new orchestration responsibility on the core service.
 
 **Likely splits (sketch — not committed):**
