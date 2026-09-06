@@ -5,8 +5,10 @@ import {
   type Thresholds,
   ageDays,
   cohortOf,
+  countsTowardVerdict,
   delta,
   foldSeries,
+  hasSettledOrigin,
   isVisible,
   perWeek,
   ratio,
@@ -106,6 +108,30 @@ describe("isVisible", () => {
     // Guards the null-ratio path: 0 → 0.3 must fail, because 0.3pp is under the
     // pp threshold and the ratio is undefined rather than infinite.
     expect(isVisible(series({ firstPct: 0, lastPct: 0.3 }), thresholds)).toBe(false);
+  });
+});
+
+describe("countsTowardVerdict", () => {
+  // 0.0 → 2.1 clears the pp bar on its own; whether it counts depends only on
+  // which cohort is asking.
+  const offTheFloor = series({ firstPct: 0, lastPct: 2.1 });
+
+  it("keeps a rise off Steam's zero floor out of the mature verdict", () => {
+    expect(hasSettledOrigin(offTheFloor)).toBe(false);
+    expect(countsTowardVerdict(offTheFloor, "mature", thresholds)).toBe(false);
+  });
+
+  it("lets the same rise count for a launch-window title, where zero is a real origin", () => {
+    expect(countsTowardVerdict(offTheFloor, "launch", thresholds)).toBe(true);
+  });
+
+  it("still requires visibility from a settled origin", () => {
+    expect(
+      countsTowardVerdict(series({ firstPct: 8.2, lastPct: 8.3 }), "mature", thresholds)
+    ).toBe(false);
+    expect(
+      countsTowardVerdict(series({ firstPct: 8.2, lastPct: 8.9 }), "mature", thresholds)
+    ).toBe(true);
   });
 });
 

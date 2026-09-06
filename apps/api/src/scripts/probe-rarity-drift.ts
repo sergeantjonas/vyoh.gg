@@ -85,6 +85,18 @@ export const isVisible = (s: Series, t: Thresholds): boolean => {
   return Math.abs(delta(s)) >= t.visiblePp || (r !== null && r >= t.visibleRatio);
 };
 
+// A settled title's verdict only counts series that started above the floor.
+// Steam prints 0.0% for anything under one twentieth of a percent, so a rise
+// off it is the first players arriving at a rounding boundary, not the
+// population drifting — Nioh 3 cleared the pp bar this way on the third
+// reading while no settled rare-band series had reached 2× from a non-zero
+// origin. Launch-window series legitimately start at zero, so they keep both
+// arms.
+export const hasSettledOrigin = (s: Series): boolean => s.firstPct > 0;
+
+export const countsTowardVerdict = (s: Series, c: Cohort, t: Thresholds): boolean =>
+  (c !== "mature" || hasSettledOrigin(s)) && isVisible(s, t);
+
 export const ageDays = (release: Date | null, asOf: Date): number | null =>
   release === null ? null : (asOf.getTime() - release.getTime()) / DAY_MS;
 
@@ -295,7 +307,7 @@ async function main() {
       `  rare band < ${pct(thresholds.rareBand)} · visible ≥ ${thresholds.visiblePp}pp or ≥ ${thresholds.visibleRatio}x · ★ = owner-unlocked\n`
     );
     const rare = moving.filter((s) => s.lastPct < thresholds.rareBand);
-    const cleared = rare.filter((s) => isVisible(s, thresholds));
+    const cleared = rare.filter((s) => countsTowardVerdict(s, cohort(s), thresholds));
 
     if (cleared.length === 0) {
       console.log(`  ${rare.length} rare-band series move at all; none of them visibly.`);
@@ -327,12 +339,18 @@ async function main() {
       // library drift" — and those had opposite answers on the first reading.
       const byCohort = (c: Cohort) => moving.filter((s) => cohort(s) === c);
       const summarise = (c: Cohort) => {
-        const set = byCohort(c);
+        const all = byCohort(c);
+        // Everything below reads the gated set, so the max and span printed
+        // for the mature cohort can never belong to a series the verdict
+        // itself refused to count.
+        const set = c === "mature" ? all.filter(hasSettledOrigin) : all;
+        const excluded = all.length - set.length;
         const hit = set.filter((s) => isVisible(s, thresholds));
+        const rareHit = hit.filter((s) => s.lastPct < thresholds.rareBand);
         const games = new Set(set.map((s) => gameName.get(s.appid) ?? `app ${s.appid}`));
         const worst = set.reduce((max, s) => Math.max(max, Math.abs(delta(s))), 0);
         const span = set.reduce((max, s) => Math.max(max, spanDays(s)), 0);
-        return { set, hit, games, worst, span };
+        return { set, excluded, hit, rareHit, games, worst, span };
       };
 
       const launch = summarise("launch");
@@ -341,8 +359,7 @@ async function main() {
 
       const line = (label: string, r: ReturnType<typeof summarise>) =>
         console.log(
-          `  ${label.padEnd(34)} ${String(r.hit.length).padStart(3)} of ${String(r.set.length).padEnd(4)} series visible` +
-            ` · ${r.games.size} game(s) · max ${pp(r.worst)}`
+          `  ${label.padEnd(34)} ${String(r.hit.length).padStart(3)} of ${String(r.set.length).padEnd(4)} series visible (${r.rareHit.length} in the rare band) · ${r.games.size} game(s) · max ${pp(r.worst)}${r.excluded > 0 ? ` · ${r.excluded} from the floor excluded` : ""}`
         );
 
       console.log(
@@ -365,13 +382,21 @@ async function main() {
   quantum. A slope that small is unmeasurable at this span, not absent, and
   stays gated on elapsed time. Scope R3 on the launch window, or keep waiting.`
         );
-      } else if (mature.hit.length > 0) {
+      } else if (mature.rareHit.length > 0) {
         const named = new Set(
-          mature.hit.map((s) => gameName.get(s.appid) ?? `app ${s.appid}`)
+          mature.rareHit.map((s) => gameName.get(s.appid) ?? `app ${s.appid}`)
         );
         console.log(
-          `\n  Gate CLEARED on settled titles — ${mature.hit.length} series across ${named.size} game(s): ${[...named].join(", ")}.
-  This is the reading the beat needs; the launch-window rows are a separate effect.`
+          `\n  Gate CLEARED on settled titles — ${mature.rareHit.length} rare-band series across ${named.size} game(s): ${[...named].join(", ")}
+  (${mature.hit.length} visible across all bands). This is the reading the beat needs;
+  the launch-window rows are a separate effect.`
+        );
+      } else if (mature.hit.length > 0) {
+        // Common-band creep (Isaac's 0.5–1.2pp) is real movement and still not
+        // the beat's material, so it is reported and refused in one breath.
+        console.log(
+          `\n  Settled titles moved (${mature.hit.length} series visible) but none inside the rare
+  band, which is the only band the beat reads. Gate NOT cleared on settled titles.`
         );
       }
       console.log(
