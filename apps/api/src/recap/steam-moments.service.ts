@@ -11,7 +11,7 @@ import {
 } from "@vyoh/shared";
 
 import { PrismaService } from "../prisma/prisma.service";
-import { LAUNCH_WINDOW_MS } from "../steam/global-rarity.poller";
+import { LAUNCH_WINDOW_MS } from "../steam/achievements/global-rarity.poller";
 
 /** Recency window for the FIRST_TIME_GAME detector. A new addition to the
  *  library that the owner has actually started playing within the last 30d

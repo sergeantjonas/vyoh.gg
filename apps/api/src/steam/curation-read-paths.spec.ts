@@ -5,7 +5,7 @@ import { NO_CURATION } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
 import { AuthService } from "../auth/auth.service";
 import type { PrismaService } from "../prisma/prisma.service";
-import { SteamAchievementsService } from "./achievements.service";
+import { SteamAchievementsService } from "./achievements/achievements.service";
 import { SteamGameCurationService } from "./game-curation.service";
 import { SteamGameRecapService } from "./game-recap.service";
 import { SteamOwnedGamesService } from "./owned-games.service";

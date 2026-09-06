@@ -36,7 +36,7 @@ import {
   RAREST_UNLOCKS_DEFAULT_LIMIT,
   RECENT_UNLOCKS_DEFAULT_LIMIT,
   SteamAchievementsService,
-} from "./achievements.service";
+} from "./achievements/achievements.service";
 import { SteamGameCurationService } from "./game-curation.service";
 import { SteamGameRecapService } from "./game-recap.service";
 import { SteamOwnedGamesService } from "./owned-games.service";

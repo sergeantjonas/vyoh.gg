@@ -1,10 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { PrismaService } from "../prisma/prisma.service";
+import { PrismaService } from "../../prisma/prisma.service";
 import {
   SteamClientService,
   type SteamPlayerAchievementsResult,
-} from "./steam-client.service";
-import { STEAM_OWNER_ID } from "./steam.config";
+} from "../steam-client.service";
+import { STEAM_OWNER_ID } from "../steam.config";
 
 export interface UnlocksSyncResult {
   checked: number;

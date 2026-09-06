@@ -30,7 +30,7 @@
 
 import "dotenv/config";
 import { PrismaService } from "../prisma/prisma.service";
-import { RARITY_MAX_AGE_MS } from "../steam/global-rarity.poller";
+import { RARITY_MAX_AGE_MS } from "../steam/achievements/global-rarity.poller";
 
 export type Thresholds = {
   rareBand: number;

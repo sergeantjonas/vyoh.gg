@@ -1,6 +1,6 @@
 import { NO_CURATION } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
-import type { PrismaService } from "../prisma/prisma.service";
+import type { PrismaService } from "../../prisma/prisma.service";
 import { SteamAchievementsService } from "./achievements.service";
 
 function makeService(opts: {

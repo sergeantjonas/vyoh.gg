@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { PrismaService } from "../prisma/prisma.service";
-import { SyncJobRegistry } from "../sync-jobs/sync-job-registry.service";
+import type { PrismaService } from "../../prisma/prisma.service";
+import { SyncJobRegistry } from "../../sync-jobs/sync-job-registry.service";
+import type { SteamOwnedGamesService } from "../owned-games.service";
+import type { SteamClientService } from "../steam-client.service";
 import type { SteamAchievementSchemaService } from "./achievement-schema.service";
-import type { SteamOwnedGamesService } from "./owned-games.service";
 import type { SteamPlayerUnlocksService } from "./player-unlocks.service";
 import { SteamRecentlyPlayedUnlocksPoller } from "./recently-played-unlocks.poller";
-import type { SteamClientService } from "./steam-client.service";
 
 function makePrisma() {
   return {

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { PrismaService } from "../prisma/prisma.service";
-import { SteamClientService } from "./steam-client.service";
-import type { SteamGameAchievementSchema } from "./types";
+import { PrismaService } from "../../prisma/prisma.service";
+import { SteamClientService } from "../steam-client.service";
+import type { SteamGameAchievementSchema } from "../types";
 
 export interface SchemaRefreshResult {
   fetched: number;

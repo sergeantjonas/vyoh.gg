@@ -2,11 +2,11 @@ import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import type { SteamGameRefreshResult, SteamGameRefreshRun } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SyncJobRegistry } from "../sync-jobs/sync-job-registry.service";
-import { SteamAchievementSchemaService } from "./achievement-schema.service";
+import { SteamAchievementSchemaService } from "./achievements/achievement-schema.service";
+import { SteamGlobalRarityService } from "./achievements/global-rarity.service";
+import { SteamPlayerUnlocksService } from "./achievements/player-unlocks.service";
 import { SteamEnrichmentService } from "./enrichment.service";
-import { SteamGlobalRarityService } from "./global-rarity.service";
 import { SteamOwnedGamesService } from "./owned-games.service";
-import { SteamPlayerUnlocksService } from "./player-unlocks.service";
 
 const JOB = "steam-game-refresh";
 

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../../prisma/prisma.service";
-import type { SteamPlayerUnlocksService } from "../player-unlocks.service";
+import type { SteamPlayerUnlocksService } from "../achievements/player-unlocks.service";
 import {
   SteamPlaySessionsService,
   type TransitionInput,

@@ -14,7 +14,7 @@ import { Logger } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "../app.module";
 import { PrismaService } from "../prisma/prisma.service";
-import { SteamAchievementSchemaService } from "../steam/achievement-schema.service";
+import { SteamAchievementSchemaService } from "../steam/achievements/achievement-schema.service";
 
 async function main() {
   const logger = new Logger("RefreshSteamAchievementSchemas");

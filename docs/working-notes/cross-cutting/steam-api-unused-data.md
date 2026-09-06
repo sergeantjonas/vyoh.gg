@@ -36,7 +36,7 @@ We pull `GetOwnedGames` daily (04:00 Brussels poller) and use it for the library
 
 ### B — Recent 2-week activity (we fetch, then throw away the playtime)
 
-`GetRecentlyPlayedGames` is already called by the unlock backstop poller ([recently-played-unlocks.poller.ts](../../../apps/api/src/steam/recently-played-unlocks.poller.ts)), but we only use it to catch missed unlocks — the **`playtime_2weeks` per game is discarded**. Live sample: `total_count=2` (Resident Evil 4 = 2.1h/2wk, Wallpaper Engine). This is a live "what I've actually been playing lately" signal — distinct from "now playing" (live) and "most played" (lifetime). Candidate for a profile "recent activity" surface.
+`GetRecentlyPlayedGames` is already called by the unlock backstop poller ([recently-played-unlocks.poller.ts](../../../apps/api/src/steam/achievements/recently-played-unlocks.poller.ts)), but we only use it to catch missed unlocks — the **`playtime_2weeks` per game is discarded**. Live sample: `total_count=2` (Resident Evil 4 = 2.1h/2wk, Wallpaper Engine). This is a live "what I've actually been playing lately" signal — distinct from "now playing" (live) and "most played" (lifetime). Candidate for a profile "recent activity" surface.
 
 ### C — Badges / XP
 

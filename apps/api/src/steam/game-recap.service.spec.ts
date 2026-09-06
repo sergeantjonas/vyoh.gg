@@ -8,7 +8,7 @@ import type {
 } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
 
-import type { SteamAchievementsService } from "./achievements.service";
+import type { SteamAchievementsService } from "./achievements/achievements.service";
 import { SteamGameRecapService } from "./game-recap.service";
 import type { SteamOwnedGamesService } from "./owned-games.service";
 

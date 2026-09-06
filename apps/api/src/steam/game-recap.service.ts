@@ -5,7 +5,7 @@ import {
   deriveSteamGameRecap,
 } from "@vyoh/shared";
 
-import { SteamAchievementsService } from "./achievements.service";
+import { SteamAchievementsService } from "./achievements/achievements.service";
 import { SteamOwnedGamesService } from "./owned-games.service";
 
 /**

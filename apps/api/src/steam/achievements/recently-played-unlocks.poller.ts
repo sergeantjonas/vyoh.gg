@@ -1,14 +1,14 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { OWNER_TIME_ZONE } from "@vyoh/shared";
-import { PrismaService } from "../prisma/prisma.service";
-import { SyncJobRegistry } from "../sync-jobs/sync-job-registry.service";
-import { SYNC_JOBS } from "../sync-jobs/sync-jobs.catalog";
+import { PrismaService } from "../../prisma/prisma.service";
+import { SyncJobRegistry } from "../../sync-jobs/sync-job-registry.service";
+import { SYNC_JOBS } from "../../sync-jobs/sync-jobs.catalog";
+import { SteamOwnedGamesService } from "../owned-games.service";
+import { SteamClientService } from "../steam-client.service";
+import { STEAM_OWNER_ID } from "../steam.config";
 import { SteamAchievementSchemaService } from "./achievement-schema.service";
-import { SteamOwnedGamesService } from "./owned-games.service";
 import { SteamPlayerUnlocksService } from "./player-unlocks.service";
-import { SteamClientService } from "./steam-client.service";
-import { STEAM_OWNER_ID } from "./steam.config";
 
 // Hourly backstop using `GetRecentlyPlayedGames` (≤10 rows, one Steam
 // call). Covers three gaps:

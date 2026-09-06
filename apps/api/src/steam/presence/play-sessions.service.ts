@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
-import { SteamPlayerUnlocksService } from "../player-unlocks.service";
+import { SteamPlayerUnlocksService } from "../achievements/player-unlocks.service";
 
 // Inputs to the transition state machine. `openSession` is the currently
 // open row in the DB (if any); `previous` is the prior player-state row

@@ -221,4 +221,4 @@ Read paths were classified before any were changed, which is what reduced 36 can
 
 - **Numbers only — no filter needed.** All eight `home/*` services (lifetime-totals, today, weekly-totals, session-lengths, day-split, chronotype, activity-intensity), `steam-chronotype.service.ts`, `subject-anchor.service.ts`, `play-sessions.service.ts`.
 - **Identity, already gated on the hardcoded list** (so chunk 5 is a repoint, not new filtering): `recap/steam-moments.service.ts`, `recap/recap-subjects.service.ts`.
-- **Identity, unfiltered today** — the real work: `steam/portrait.service.ts`, `steam/player-state.service.ts`, and the Steam branch of `home/home-first-played.service.ts`, plus the chunk-3 list endpoints.
+- **Identity, unfiltered today** — the real work: `steam/portrait/portrait.service.ts`, `steam/presence/player-state.service.ts`, and the Steam branch of `home/home-first-played.service.ts`, plus the chunk-3 list endpoints.

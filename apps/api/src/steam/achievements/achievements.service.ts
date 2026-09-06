@@ -12,7 +12,7 @@ import {
   excludeHiddenGames,
   visibleAppidFilter,
 } from "@vyoh/shared";
-import { PrismaService } from "../prisma/prisma.service";
+import { PrismaService } from "../../prisma/prisma.service";
 
 export const RECENT_UNLOCKS_DEFAULT_LIMIT = 10;
 export const RECENT_UNLOCKS_MAX_LIMIT = 200;

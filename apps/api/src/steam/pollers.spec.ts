@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service";
 import { SyncJobRegistry } from "../sync-jobs/sync-job-registry.service";
-import { SteamAchievementSchemaPoller } from "./achievement-schema.poller";
-import type { SteamAchievementSchemaService } from "./achievement-schema.service";
-import { SteamGlobalRarityPoller } from "./global-rarity.poller";
-import type { SteamGlobalRarityService } from "./global-rarity.service";
-import { SteamPlayerUnlocksPoller } from "./player-unlocks.poller";
-import type { SteamPlayerUnlocksService } from "./player-unlocks.service";
+import { SteamAchievementSchemaPoller } from "./achievements/achievement-schema.poller";
+import type { SteamAchievementSchemaService } from "./achievements/achievement-schema.service";
+import { SteamGlobalRarityPoller } from "./achievements/global-rarity.poller";
+import type { SteamGlobalRarityService } from "./achievements/global-rarity.service";
+import { SteamPlayerUnlocksPoller } from "./achievements/player-unlocks.poller";
+import type { SteamPlayerUnlocksService } from "./achievements/player-unlocks.service";
 import { SteamPlayerStatePoller } from "./presence/player-state.poller";
 import type { SteamPlayerStateService } from "./presence/player-state.service";
 import { SteamTagPoller } from "./tag.poller";
