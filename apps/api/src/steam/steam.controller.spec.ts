@@ -14,6 +14,7 @@ import { NO_CURATION } from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
 import { AuthService } from "../auth/auth.service";
 import { SteamAchievementsService } from "./achievements/achievements.service";
+import { SteamTagService } from "./enrichment/tag.service";
 import { SteamGameCurationService } from "./library/game-curation.service";
 import { SteamGameRecapService } from "./library/game-recap.service";
 import { SteamOwnedGamesService } from "./library/owned-games.service";
@@ -24,7 +25,6 @@ import { SteamController } from "./steam.controller";
 import { SteamService } from "./steam.service";
 import { SteamUpcomingService } from "./store/upcoming.service";
 import { SteamWishlistHeroService } from "./store/wishlist-hero.service";
-import { SteamTagService } from "./tag.service";
 
 // An empty overlay, so these delegation tests keep asserting what they always
 // did. The filtering itself is owned by each service's own spec and by the

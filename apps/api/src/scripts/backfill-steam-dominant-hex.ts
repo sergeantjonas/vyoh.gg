@@ -10,7 +10,7 @@ import { Logger } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "../app.module";
 import { PrismaService } from "../prisma/prisma.service";
-import { SteamSubjectAnchorService } from "../steam/subject-anchor.service";
+import { SteamSubjectAnchorService } from "../steam/enrichment/subject-anchor.service";
 
 async function main() {
   const logger = new Logger("BackfillSteamDominantHex");

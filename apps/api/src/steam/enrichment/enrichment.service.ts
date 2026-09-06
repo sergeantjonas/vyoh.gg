@@ -6,17 +6,17 @@ import type {
   SteamReviewSummary,
   SteamScreenshotEntry,
 } from "@vyoh/shared";
-import { PrismaService } from "../prisma/prisma.service";
-import { SteamGridDbService } from "./griddb.service";
-import { SteamPicsService } from "./pics.service";
-import { SteamClientService } from "./steam-client.service";
-import { SteamSubjectAnchorService } from "./subject-anchor.service";
+import { PrismaService } from "../../prisma/prisma.service";
+import { SteamClientService } from "../steam-client.service";
 import type {
   SteamStoreItemFullRaw,
   SteamStoreItemGameRatingRaw,
   SteamStoreItemReviewSummaryRaw,
   SteamStoreItemTrailerHighlightRaw,
-} from "./types";
+} from "../types";
+import { SteamGridDbService } from "./griddb.service";
+import { SteamPicsService } from "./pics.service";
+import { SteamSubjectAnchorService } from "./subject-anchor.service";
 
 // Steam's IStoreBrowseService accepts many ids per call. Empirical batch size
 // of 50 keeps the input_json payload well under any documented URL ceiling

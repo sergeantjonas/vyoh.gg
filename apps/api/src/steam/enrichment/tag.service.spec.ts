@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { PrismaService } from "../prisma/prisma.service";
-import type { SteamClientService } from "./steam-client.service";
+import type { PrismaService } from "../../prisma/prisma.service";
+import type { SteamClientService } from "../steam-client.service";
 import { SteamTagService } from "./tag.service";
 
 interface PrismaStubs {

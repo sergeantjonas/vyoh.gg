@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { PrismaService } from "../prisma/prisma.service";
+import type { PrismaService } from "../../prisma/prisma.service";
 import { SteamGridDbService } from "./griddb.service";
 
 const ORIGINAL_KEY = process.env.STEAM_GRIDDB_API_KEY;

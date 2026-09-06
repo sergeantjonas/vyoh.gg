@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { PrismaService } from "../prisma/prisma.service";
-import { SyncJobRegistry } from "../sync-jobs/sync-job-registry.service";
+import type { PrismaService } from "../../prisma/prisma.service";
+import { SyncJobRegistry } from "../../sync-jobs/sync-job-registry.service";
+import type { SteamService } from "../steam.service";
 import { SteamEnrichmentPoller } from "./enrichment.poller";
 import type { SteamEnrichmentService } from "./enrichment.service";
-import type { SteamService } from "./steam.service";
 import type { SteamSubjectAnchorService } from "./subject-anchor.service";
 
 function makePrisma() {

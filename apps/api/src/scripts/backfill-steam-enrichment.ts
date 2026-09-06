@@ -15,7 +15,7 @@ import { NestFactory } from "@nestjs/core";
 import { NO_CURATION } from "@vyoh/shared";
 import { AppModule } from "../app.module";
 import { PrismaService } from "../prisma/prisma.service";
-import { SteamEnrichmentService } from "../steam/enrichment.service";
+import { SteamEnrichmentService } from "../steam/enrichment/enrichment.service";
 import { SteamService } from "../steam/steam.service";
 
 async function main() {

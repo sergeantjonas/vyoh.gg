@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { AuthService } from "../auth/auth.service";
 import type { PrismaService } from "../prisma/prisma.service";
 import { SteamAchievementsService } from "./achievements/achievements.service";
+import { SteamTagService } from "./enrichment/tag.service";
 import { SteamGameCurationService } from "./library/game-curation.service";
 import { SteamGameRecapService } from "./library/game-recap.service";
 import { SteamOwnedGamesService } from "./library/owned-games.service";
@@ -16,7 +17,6 @@ import { SteamController } from "./steam.controller";
 import { SteamService } from "./steam.service";
 import { SteamUpcomingService } from "./store/upcoming.service";
 import { SteamWishlistHeroService } from "./store/wishlist-hero.service";
-import { SteamTagService } from "./tag.service";
 
 // One spec for the read paths a hidden game must not reach, rather than a
 // scattering of additions across seven service specs. Each service's own spec

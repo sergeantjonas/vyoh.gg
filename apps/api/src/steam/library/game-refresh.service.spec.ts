@@ -5,7 +5,7 @@ import { SyncJobRegistry } from "../../sync-jobs/sync-job-registry.service";
 import type { SteamAchievementSchemaService } from "../achievements/achievement-schema.service";
 import type { SteamGlobalRarityService } from "../achievements/global-rarity.service";
 import type { SteamPlayerUnlocksService } from "../achievements/player-unlocks.service";
-import type { SteamEnrichmentService } from "../enrichment.service";
+import type { SteamEnrichmentService } from "../enrichment/enrichment.service";
 import { SteamGameRefreshService } from "./game-refresh.service";
 import type { SteamOwnedGamesService } from "./owned-games.service";
 

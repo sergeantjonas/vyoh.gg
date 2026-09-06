@@ -209,8 +209,8 @@ The third thing worth saying out loud: **route view-transition gotchas compound 
 
 ## Code references
 
-- [SteamSubjectAnchorService](../../apps/api/src/steam/subject-anchor.service.ts) — anchor orchestration: face → smartcrop fallback, with all four refinements applied
-- [FaceDetectionService](../../apps/api/src/steam/face-detection.service.ts) — Ultraface inference loop with two-stage resize, size filter, edge guard, 0° preference
+- [SteamSubjectAnchorService](../../apps/api/src/steam/enrichment/subject-anchor.service.ts) — anchor orchestration: face → smartcrop fallback, with all four refinements applied
+- [FaceDetectionService](../../apps/api/src/steam/enrichment/face-detection.service.ts) — Ultraface inference loop with two-stage resize, size filter, edge guard, 0° preference
 - [SteamImageService.hero / steamLibraryHeroUrl](../../apps/api/src/img/steam-image.service.ts) — proxy route with `flop` and `trim` baked into the served bytes
 - [SteamGameRowShell](../../apps/web/src/steam/_shared/steam-game-row.tsx) — row render using `subjectXPercent / subjectYPercent / flipHero` from the API payload
 - [library-row-redesign.md](../working-notes/steam/library-row-redesign.md) — the planning note with the 25-asset sample analysis that drove the abandoned approaches

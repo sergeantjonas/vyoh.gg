@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { PrismaService } from "../prisma/prisma.service";
+import { PrismaService } from "../../prisma/prisma.service";
 
 const SGDB_BASE = "https://www.steamgriddb.com/api/v2";
 const FETCH_TIMEOUT_MS = 5_000;

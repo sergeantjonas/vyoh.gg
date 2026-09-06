@@ -5,7 +5,7 @@ import type { PrismaService } from "../../prisma/prisma.service";
 import type { SteamAchievementSchemaService } from "../achievements/achievement-schema.service";
 import type { SteamGlobalRarityService } from "../achievements/global-rarity.service";
 import type { SteamPlayerUnlocksService } from "../achievements/player-unlocks.service";
-import type { SteamEnrichmentService } from "../enrichment.service";
+import type { SteamEnrichmentService } from "../enrichment/enrichment.service";
 import type { SteamClientService } from "../steam-client.service";
 import type { SteamOwnedGameRaw } from "../types";
 import type { SteamGameCurationService } from "./game-curation.service";

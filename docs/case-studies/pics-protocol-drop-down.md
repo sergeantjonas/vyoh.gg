@@ -76,7 +76,7 @@ The PICS path is opt-in at the boundary: a failure logs and `fetchLogoMap` retur
 
 ## The drop-down, end to end
 
-[`pics.service.ts`](../../apps/api/src/steam/pics.service.ts) is 162 lines. The public method is one function:
+[`pics.service.ts`](../../apps/api/src/steam/enrichment/pics.service.ts) is 162 lines. The public method is one function:
 
 ```ts
 async getLogoAssets(appids: number[]): Promise<SteamPicsLogoAsset[]> {
@@ -101,15 +101,15 @@ async getLogoAssets(appids: number[]): Promise<SteamPicsLogoAsset[]> {
 
 Four discipline points worth keeping:
 
-1. **Promise-wrap the event-based logon.** `steam-user` emits `'loggedOn'` and `'error'` as Node events. Wrap them in a single Promise that registers both listeners, settles on whichever fires first, and removes both listeners in `cleanup()` ([pics.service.ts:55-83](../../apps/api/src/steam/pics.service.ts#L55-L83)). Without the explicit cleanup, a slow logon followed by an error leaks listeners across calls.
+1. **Promise-wrap the event-based logon.** `steam-user` emits `'loggedOn'` and `'error'` as Node events. Wrap them in a single Promise that registers both listeners, settles on whichever fires first, and removes both listeners in `cleanup()` ([pics.service.ts:55-83](../../apps/api/src/steam/enrichment/pics.service.ts#L55-L83)). Without the explicit cleanup, a slow logon followed by an error leaks listeners across calls.
 
-2. **Two independent timeouts.** 20s for logon (TCP+handshake+auth), 30s for `getProductInfo` (varies with appid count). Bundling them into one timeout would obscure which step actually wedged. `withTimeout()` ([pics.service.ts:136-156](../../apps/api/src/steam/pics.service.ts#L136-L156)) rejects with a labelled error so logs read clean.
+2. **Two independent timeouts.** 20s for logon (TCP+handshake+auth), 30s for `getProductInfo` (varies with appid count). Bundling them into one timeout would obscure which step actually wedged. `withTimeout()` ([pics.service.ts:136-156](../../apps/api/src/steam/enrichment/pics.service.ts#L136-L156)) rejects with a labelled error so logs read clean.
 
 3. **`logOff()` in `finally`, swallowed errors.** A `logOff()` that throws is best-effort cleanup; rethrowing from `finally` would clobber the original error. Log and move on.
 
-4. **`createClient()` is a protected method, not a DI factory.** Nest's DI tries to resolve constructor-injected factory types at module init, which trips on `steam-user`'s JS-only export. A `protected createClient()` overridden in `pics.service.spec.ts` is a 4-line test seam ([pics.service.spec.ts](../../apps/api/src/steam/pics.service.spec.ts)) that beats fighting DI metadata.
+4. **`createClient()` is a protected method, not a DI factory.** Nest's DI tries to resolve constructor-injected factory types at module init, which trips on `steam-user`'s JS-only export. A `protected createClient()` overridden in `pics.service.spec.ts` is a 4-line test seam ([pics.service.spec.ts](../../apps/api/src/steam/enrichment/pics.service.spec.ts)) that beats fighting DI metadata.
 
-The downstream side ([`enrichment.service.ts`](../../apps/api/src/steam/enrichment.service.ts#L145-L159)) is the simpler half — call `getLogoAssets`, build a `Map<appid, logoPath>`, pass it through `projectEnrichment(raw, logoByAppid.get(raw.appid) ?? null)`. The merge is a single optional argument; the projection function has no idea PICS exists.
+The downstream side ([`enrichment.service.ts`](../../apps/api/src/steam/enrichment/enrichment.service.ts#L145-L159)) is the simpler half — call `getLogoAssets`, build a `Map<appid, logoPath>`, pass it through `projectEnrichment(raw, logoByAppid.get(raw.appid) ?? null)`. The merge is a single optional argument; the projection function has no idea PICS exists.
 
 ## What didn't (the response-shape surprise)
 
@@ -141,7 +141,7 @@ Not a hash. A comma-separated locale list. The actual hashed paths live one leve
 }
 ```
 
-So the flat field is a *marker* indicating which locales have a logo; the hash + filename live in the `_full` block as a locale-keyed map. The fix ([pics.service.ts:111-130](../../apps/api/src/steam/pics.service.ts#L111-L130)) prefers `image.english`, falls through to the first available locale, and defensively handles an older bare-string shape:
+So the flat field is a *marker* indicating which locales have a logo; the hash + filename live in the `_full` block as a locale-keyed map. The fix ([pics.service.ts:111-130](../../apps/api/src/steam/enrichment/pics.service.ts#L111-L130)) prefers `image.english`, falls through to the first available locale, and defensively handles an older bare-string shape:
 
 ```ts
 function extractLogoPath(appinfo: unknown): string | null {

@@ -37,6 +37,7 @@ import {
   RECENT_UNLOCKS_DEFAULT_LIMIT,
   SteamAchievementsService,
 } from "./achievements/achievements.service";
+import { SteamTagService } from "./enrichment/tag.service";
 import { SteamGameCurationService } from "./library/game-curation.service";
 import { SteamGameRecapService } from "./library/game-recap.service";
 import { SteamOwnedGamesService } from "./library/owned-games.service";
@@ -46,7 +47,6 @@ import { SteamChronotypeService } from "./presence/steam-chronotype.service";
 import { SteamService } from "./steam.service";
 import { SteamUpcomingService } from "./store/upcoming.service";
 import { SteamWishlistHeroService } from "./store/wishlist-hero.service";
-import { SteamTagService } from "./tag.service";
 
 @Controller("steam")
 export class SteamController {

@@ -1,11 +1,11 @@
 import { Injectable, Logger, type OnModuleInit } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { NO_CURATION, OWNER_TIME_ZONE } from "@vyoh/shared";
-import { PrismaService } from "../prisma/prisma.service";
-import { SyncJobRegistry } from "../sync-jobs/sync-job-registry.service";
-import { SYNC_JOBS } from "../sync-jobs/sync-jobs.catalog";
+import { PrismaService } from "../../prisma/prisma.service";
+import { SyncJobRegistry } from "../../sync-jobs/sync-job-registry.service";
+import { SYNC_JOBS } from "../../sync-jobs/sync-jobs.catalog";
+import { SteamService } from "../steam.service";
 import { SteamEnrichmentService } from "./enrichment.service";
-import { SteamService } from "./steam.service";
 import { SteamSubjectAnchorService } from "./subject-anchor.service";
 
 const JOB = "steam-enrichment";
@@ -19,7 +19,7 @@ const JOB = "steam-enrichment";
 //
 // Coverage spans both owned games and the wishlist, so the image proxy can
 // resolve hashed asset paths for not-yet-owned titles. On-add coverage comes
-// from the syncOwnedGames diff hook (see owned-games.service.ts); on-boot
+// from the syncOwnedGames diff hook (see library/owned-games.service.ts); on-boot
 // coverage comes from OnModuleInit, which now runs the same selection as the
 // tick rather than only picking up incomplete rows.
 const ENRICHMENT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;

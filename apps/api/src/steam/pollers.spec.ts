@@ -7,10 +7,10 @@ import { SteamGlobalRarityPoller } from "./achievements/global-rarity.poller";
 import type { SteamGlobalRarityService } from "./achievements/global-rarity.service";
 import { SteamPlayerUnlocksPoller } from "./achievements/player-unlocks.poller";
 import type { SteamPlayerUnlocksService } from "./achievements/player-unlocks.service";
+import { SteamTagPoller } from "./enrichment/tag.poller";
+import type { SteamTagService } from "./enrichment/tag.service";
 import { SteamPlayerStatePoller } from "./presence/player-state.poller";
 import type { SteamPlayerStateService } from "./presence/player-state.service";
-import { SteamTagPoller } from "./tag.poller";
-import type { SteamTagService } from "./tag.service";
 
 afterEach(() => {
   vi.restoreAllMocks();

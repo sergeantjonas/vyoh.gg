@@ -2,7 +2,7 @@
 
 **Status:** Shipped — chunks 0-6, 8, and 9a/9b/9c landed 2026-05-25 in one session; Chunk 7 (microtrailer hover preview) shipped 2026-05-28/29 through its arc note ([microtrailer-hover-preview.md](../cross-cutting/microtrailer-hover-preview.md), both rungs including the full-trailer lightbox). Backlogged rows (10-12) stay parked in [steam-integration.md candidate board](./steam-integration.md). This note is the umbrella roadmap; each chunk links out to the working-note (quick-wins, elevation arc, palette grammar, etc.) where it actually lands.
 
-Premise: the existing [enrichment.service.ts](../../../apps/api/src/steam/enrichment.service.ts) already calls `GetItems` per owned game and writes a `SteamGameEnrichment` row. The current `data_request` only opts into `include_assets`, `include_release`, `include_categories`, `include_tag_count` — but the same endpoint, same rate-limit budget, returns ~12 more field families when more flags flip on. Capturing them is purely "more `include_*: true` + more columns + more projection lines" — no new endpoint, no extra request, no second cache.
+Premise: the existing [enrichment.service.ts](../../../apps/api/src/steam/enrichment/enrichment.service.ts) already calls `GetItems` per owned game and writes a `SteamGameEnrichment` row. The current `data_request` only opts into `include_assets`, `include_release`, `include_categories`, `include_tag_count` — but the same endpoint, same rate-limit budget, returns ~12 more field families when more flags flip on. Capturing them is purely "more `include_*: true` + more columns + more projection lines" — no new endpoint, no extra request, no second cache.
 
 Sibling note: [api-surface-survey.md](./api-surface-survey.md) inventories the **rest of the Steam Web API** (Steam level, badges, per-game user stats, profile showcases, game notes, news, top-sellers, etc.) — the chunks there are *new* endpoints rather than additional `include_*` flags on this one. Pick from there once the highest-priority chunks here have landed.
 
@@ -44,7 +44,7 @@ The first chunk that touches enrichment after this note lands should consolidate
 
 - [apps/api/src/steam/steam-client.service.ts](../../../apps/api/src/steam/steam-client.service.ts) — extend `getStoreItemsFull` `data_request` with the union of flags chunks 1-9 will need: `include_basic_info`, `include_platforms`, `include_screenshots`, `include_trailers`, `include_ratings`, `include_reviews`, `include_supported_languages`, `include_full_description`, `include_included_items`. Same rate-limit family.
 - [apps/api/src/steam/types.ts](../../../apps/api/src/steam/types.ts) — extend `SteamStoreItemFullRaw` to cover all fields. Mark each field optional (`?:`) since the upstream may omit per item.
-- [apps/api/src/steam/enrichment.service.ts](../../../apps/api/src/steam/enrichment.service.ts) — leave `projectEnrichment` untouched. Per-chunk projection lands per-chunk.
+- [apps/api/src/steam/enrichment/enrichment.service.ts](../../../apps/api/src/steam/enrichment/enrichment.service.ts) — leave `projectEnrichment` untouched. Per-chunk projection lands per-chunk.
 
 **Done when:** schema typings are accurate against a probed Subverse + Stellar Blade response; no behavior change yet; one focused commit.
 

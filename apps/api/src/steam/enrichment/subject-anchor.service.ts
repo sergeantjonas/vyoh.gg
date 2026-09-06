@@ -2,8 +2,8 @@ import { Injectable, Logger } from "@nestjs/common";
 import { Vibrant } from "node-vibrant/node";
 import sharp from "sharp";
 import smartcrop from "smartcrop-sharp";
-import { UpstreamError, fetchUpstreamChain } from "../img/upstream";
-import { PrismaService } from "../prisma/prisma.service";
+import { UpstreamError, fetchUpstreamChain } from "../../img/upstream";
+import { PrismaService } from "../../prisma/prisma.service";
 import { FaceDetectionService } from "./face-detection.service";
 
 const STEAM_CDN_HOST = "https://shared.akamai.steamstatic.com";

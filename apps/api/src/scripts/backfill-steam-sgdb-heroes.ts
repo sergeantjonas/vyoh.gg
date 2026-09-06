@@ -16,7 +16,7 @@ import { Logger } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "../app.module";
 import { PrismaService } from "../prisma/prisma.service";
-import { SteamGridDbService } from "../steam/griddb.service";
+import { SteamGridDbService } from "../steam/enrichment/griddb.service";
 
 async function main() {
   const logger = new Logger("BackfillSteamSgdbHeroes");

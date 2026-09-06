@@ -5,7 +5,7 @@ import { SyncJobRegistry } from "../../sync-jobs/sync-job-registry.service";
 import { SteamAchievementSchemaService } from "../achievements/achievement-schema.service";
 import { SteamGlobalRarityService } from "../achievements/global-rarity.service";
 import { SteamPlayerUnlocksService } from "../achievements/player-unlocks.service";
-import { SteamEnrichmentService } from "../enrichment.service";
+import { SteamEnrichmentService } from "../enrichment/enrichment.service";
 import { SteamOwnedGamesService } from "./owned-games.service";
 
 const JOB = "steam-game-refresh";

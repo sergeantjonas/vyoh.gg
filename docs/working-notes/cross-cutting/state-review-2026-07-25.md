@@ -548,7 +548,7 @@ Verified the guard bites by deleting one stub: the test fails with `This test ma
 
 **CONFIRMED. FIXED 2026-07-26.**
 
-**Evidence** — the first honest CI run failed on two tests in `apps/api/src/steam/subject-anchor.service.spec.ts`, both with `Error: Test timed out in 5000ms` (vitest's default; nothing in `apps/api/vitest.config.ts` raises it).
+**Evidence** — the first honest CI run failed on two tests in `apps/api/src/steam/enrichment/subject-anchor.service.spec.ts`, both with `Error: Test timed out in 5000ms` (vitest's default; nothing in `apps/api/vitest.config.ts` raises it).
 
 It was never a threshold failure. `apps/web` passed 339/339 and `packages/shared` 25/25.
 

@@ -1,7 +1,7 @@
 import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { UpstreamError } from "../img/upstream";
-import type { PrismaService } from "../prisma/prisma.service";
+import { UpstreamError } from "../../img/upstream";
+import type { PrismaService } from "../../prisma/prisma.service";
 import type { FaceDetectionService } from "./face-detection.service";
 import {
   SteamSubjectAnchorService,
@@ -9,9 +9,9 @@ import {
 } from "./subject-anchor.service";
 
 const fetchUpstreamChain = vi.hoisted(() => vi.fn());
-vi.mock("../img/upstream", async () => {
+vi.mock("../../img/upstream", async () => {
   const actual =
-    await vi.importActual<typeof import("../img/upstream")>("../img/upstream");
+    await vi.importActual<typeof import("../../img/upstream")>("../../img/upstream");
   return { ...actual, fetchUpstreamChain };
 });
 
