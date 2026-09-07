@@ -65,7 +65,7 @@ Small extension to the match-detail panel area below the hero card. Two tiles bu
 
 **MD1 — Damage dealt stacked bar (all 10 players).** Physical / magic / true as stacked segments per participant. All three fields (`physicalDamageDealtToChampions`, `magicDamageDealtToChampions`, `trueDamageDealtToChampions`) are already in `MatchDetail.participants` — pure frontend change. For the owner row, extend with the received / mitigated view from owner-data (1.A retained).
 
-**MD2 — Full rune page panel.** Already planned in match-depth Phase E. Owner full `perks` retained from 1.A — no data work needed. Listed here so this catalog stays the catalog; the implementation arc lives in [match-depth-roadmap.md](match-depth-roadmap.md).
+**MD2 — Full rune page panel.** Already planned in match-depth Phase E. Owner full `perks` retained from 1.A, but retention is not projection: `MatchDetail` carried only the keystone until `ParticipantOwnerExtras.runes` landed 2026-09-07, and stat-shard names need a static source DDragon does not provide. Listed here so this catalog stays the catalog; the implementation arc lives in [match-depth-roadmap.md](match-depth-roadmap.md).
 
 **Sequencing:** MD1 can ship anytime; MD2 ships as part of match-depth Phase E. Either may ship before Arc 2 if scoped smaller and the owner wants a quick win.
 

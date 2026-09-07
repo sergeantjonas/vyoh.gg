@@ -1,4 +1,18 @@
+// One rune tree as picked in the loadout: the style id names the tree, the
+// perk ids are in slot order (keystone first for the primary tree).
+export interface RuneTree {
+  style: number;
+  perks: number[];
+}
+
 export interface ParticipantOwnerExtras {
+  // Absent when the stored payload lacks either tree or the stat shards;
+  // every Summoner's Rift and ARAM row carries all three.
+  runes?: {
+    primary: RuneTree;
+    secondary: RuneTree;
+    shards: { offense: number; flex: number; defense: number };
+  };
   spellCasts: {
     q: number;
     w: number;

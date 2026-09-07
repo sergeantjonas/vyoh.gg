@@ -2,6 +2,7 @@ import type {
   MatchDetail,
   MatchSummary,
   ParticipantOwnerExtras,
+  RuneTree,
   TeamSummary,
 } from "@vyoh/shared";
 import { isRemakeMatch } from "@vyoh/shared";
@@ -15,9 +16,45 @@ function isLaneRole(teamPosition: string): boolean {
   return LANE_ROLES.has(teamPosition);
 }
 
+type RiotPerkStyle = RiotMatchParticipantOwner["perks"]["styles"][number];
+
+function treeOf(style: RiotPerkStyle, id: number): RuneTree {
+  return { style: id, perks: style.selections.map((s) => s.perk) };
+}
+
+// Riot labels the trees by `description`; array order is the fallback only
+// for a payload that carries no labels at all, so a half-labelled one cannot
+// resolve both trees onto the same entry.
+function projectRunes(
+  perks: RiotMatchParticipantOwner["perks"]
+): ParticipantOwnerExtras["runes"] {
+  const labelled = perks.styles.some((s) => s.description !== undefined);
+  const primary = labelled
+    ? perks.styles.find((s) => s.description === "primaryStyle")
+    : perks.styles[0];
+  const secondary = labelled
+    ? perks.styles.find((s) => s.description === "subStyle")
+    : perks.styles[1];
+  const shards = perks.statPerks;
+  if (
+    primary?.style === undefined ||
+    secondary?.style === undefined ||
+    shards === undefined
+  ) {
+    return undefined;
+  }
+  return {
+    primary: treeOf(primary, primary.style),
+    secondary: treeOf(secondary, secondary.style),
+    shards: { offense: shards.offense, flex: shards.flex, defense: shards.defense },
+  };
+}
+
 function projectOwnerExtras(p: RiotMatchParticipantOwner): ParticipantOwnerExtras {
   const c = p.challenges;
+  const runes = projectRunes(p.perks);
   return {
+    ...(runes !== undefined ? { runes } : {}),
     spellCasts: {
       q: p.spell1Casts,
       w: p.spell2Casts,

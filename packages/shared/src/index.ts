@@ -191,6 +191,7 @@ export type {
   MatchDetail,
   ParticipantDetail,
   ParticipantOwnerExtras,
+  RuneTree,
   TeamSummary,
 } from "./lol/match-detail.ts";
 export type { RankEntry, SummonerProfile } from "./lol/profile.ts";

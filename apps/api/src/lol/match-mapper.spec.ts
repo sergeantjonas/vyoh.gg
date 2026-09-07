@@ -420,6 +420,26 @@ describe("riotMatchToDetail", () => {
               timeCCingOthers: 147,
               skillshotsHit: 22,
             },
+            perks: {
+              styles: [
+                {
+                  description: "primaryStyle",
+                  style: 8100,
+                  selections: [
+                    { perk: 8112 },
+                    { perk: 8143 },
+                    { perk: 8138 },
+                    { perk: 8135 },
+                  ],
+                },
+                {
+                  description: "subStyle",
+                  style: 8000,
+                  selections: [{ perk: 9105 }, { perk: 8014 }],
+                },
+              ],
+              statPerks: { offense: 5008, flex: 5008, defense: 5011 },
+            },
           }),
           buildOther({ puuid: "puuid-other" }),
         ],
@@ -463,6 +483,86 @@ describe("riotMatchToDetail", () => {
       timeCCingOthers: 147,
       skillshotsHit: 22,
     });
+    expect(vyoh.owner.runes).toEqual({
+      primary: { style: 8100, perks: [8112, 8143, 8138, 8135] },
+      secondary: { style: 8000, perks: [9105, 8014] },
+      shards: { offense: 5008, flex: 5008, defense: 5011 },
+    });
+  });
+
+  it("picks the trees by description rather than array order", () => {
+    const stored: StoredMatch = {
+      ...baseMatch,
+      info: {
+        ...baseMatch.info,
+        teams: [baseTeam],
+        participants: [
+          buildOwner({
+            puuid: "puuid-vyoh",
+            perks: {
+              styles: [
+                { description: "subStyle", style: 8300, selections: [{ perk: 8345 }] },
+                {
+                  description: "primaryStyle",
+                  style: 8200,
+                  selections: [{ perk: 8229 }],
+                },
+              ],
+              statPerks: { offense: 5005, flex: 5008, defense: 5001 },
+            },
+          }),
+        ],
+      },
+    };
+
+    const vyoh = riotMatchToDetail(stored).participants[0];
+    assert(vyoh?.owner?.runes !== undefined);
+    expect(vyoh.owner.runes.primary.style).toBe(8200);
+    expect(vyoh.owner.runes.secondary.style).toBe(8300);
+  });
+
+  it("omits runes when both trees are present but the stat shards are missing", () => {
+    const stored: StoredMatch = {
+      ...baseMatch,
+      info: {
+        ...baseMatch.info,
+        teams: [baseTeam],
+        participants: [
+          buildOwner({
+            puuid: "puuid-vyoh",
+            perks: {
+              styles: [
+                {
+                  description: "primaryStyle",
+                  style: 8200,
+                  selections: [{ perk: 8229 }],
+                },
+                { description: "subStyle", style: 8300, selections: [{ perk: 8345 }] },
+              ],
+            },
+          }),
+        ],
+      },
+    };
+
+    const vyoh = riotMatchToDetail(stored).participants[0];
+    assert(vyoh?.owner !== undefined);
+    expect(vyoh.owner.runes).toBeUndefined();
+  });
+
+  it("omits runes when the stored owner carries no full perk tree", () => {
+    const stored: StoredMatch = {
+      ...baseMatch,
+      info: {
+        ...baseMatch.info,
+        teams: [baseTeam],
+        participants: [buildOwner({ puuid: "puuid-vyoh" })],
+      },
+    };
+
+    const vyoh = riotMatchToDetail(stored).participants[0];
+    assert(vyoh?.owner !== undefined);
+    expect(vyoh.owner.runes).toBeUndefined();
   });
 
   it("tolerates a stored owner with no challenges block (empty challenges sub-object)", () => {

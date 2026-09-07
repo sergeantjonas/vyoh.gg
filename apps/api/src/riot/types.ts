@@ -76,10 +76,16 @@ export interface RiotMatchParticipant {
   totalTimeCCDealt: number;
   totalTimeSpentDead: number;
   longestTimeSpentLiving: number;
+  // Riot always sends the style ids, the primaryStyle/subStyle description
+  // and the stat shards. They are optional because this shape also types
+  // the stored MatchDetailCache JSON, which nothing re-validates on read.
   perks: {
     styles: {
+      description?: "primaryStyle" | "subStyle";
+      style?: number;
       selections: { perk: number }[];
     }[];
+    statPerks?: { offense: number; flex: number; defense: number };
   };
   challenges?: RiotChallenges;
 }
