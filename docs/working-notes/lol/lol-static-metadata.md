@@ -1,6 +1,6 @@
 # vyoh.gg — LoL static-metadata pipeline (post-wiki-image-migration)
 
-**Status:** Complete — Chunks 4a + 4b + 4c + 5 + 5.5 + 6 shipped 2026-05-21. Direct successor to the wiki-image migration arc (commits `c055052`, `0dcaf82`, `c4af090`). All five client-side CDragon JSON fetches in `apps/web` plus the live-game per-champion role fetch are removed; profile icons route through the project image proxy. Done criteria below all met.
+**Status:** Complete — Chunks 4a + 4b + 4c + 5 + 5.5 + 6 shipped 2026-05-21. Direct successor to the wiki-image migration arc (commits `c055052`, `0dcaf82`, `c4af090`). All five client-side CDragon JSON fetches in `apps/web` plus the live-game per-champion role fetch are removed; profile icons route through the project image proxy. Done criteria below all met. **Extended 2026-09-07:** perks gained CommunityDragon as a third source (stat shards + descriptions), see § "Wiki is the content source".
 
 Working plan for replacing the five remaining client-side DDragon/CDragon JSON fetches with a server-side static-metadata pipeline sourced primarily from the wiki, with DDragon retained narrowly as the id↔name bridge for resources that wiki doesn't self-identify.
 
@@ -33,6 +33,8 @@ Wiki has every description, image, stat, recipe, ability mapping, and rune effec
 DDragon's role narrows to one thing wiki cannot do: **translate Riot's numeric ids to canonical names for resources that wiki doesn't self-identify** — namely summoner spells and runes. Wiki templates for runes carry name + description but never a Riot `perkId`; wiki summoner spell module keys by name only. Without DDragon we couldn't detect rune churn like "Phase Rush retired, perkId reassigned to Stormraider's Surge."
 
 Items + champions + abilities self-identify on wiki (items have `["id"]` in their module, Match-V5 carries both `championId` and `championName`, abilities derive from champion + slot), so they need no DDragon involvement.
+
+**Perks have a third source since 2026-09-07.** DDragon's `runesReforged.json` stops at the five trees, so the stat shards (ids 5001–5013, `perks.statPerks` on every Match-V5 participant) had no row at all, and the wiki never populated perk descriptions because the rune wiki sync was never built. CommunityDragon's `v1/perks.json`, which the image proxy already reads for icon paths, carries both. `syncPerks` fetches it in the same cycle: shard rows land with `path: "Stat Shard"`, `slot: "Shard"` and no wiki icon name, and every perk's `descriptionHtml` is its sanitized `shortDesc`. The mirror is secondary: if it is down, the DDragon sync still runs, stored descriptions are kept, and stored shards are excluded from the missing-cycle bump so an outage cannot retire them.
 
 ### Drift-tolerant two-source sync
 

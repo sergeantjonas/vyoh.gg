@@ -10,6 +10,7 @@ import type {
   LolStaticBundle,
   LolSummonerSpellDto,
 } from "@vyoh/shared";
+import { sanitizeRichHtml } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SyncJobRegistry } from "../sync-jobs/sync-job-registry.service";
 import { SYNC_JOBS } from "../sync-jobs/sync-jobs.catalog";
@@ -30,6 +31,12 @@ const USER_AGENT = "vyoh.gg/1.0 (+https://vyoh.gg) static-metadata-sync";
 const WIKI_API = "https://wiki.leagueoflegends.com/api.php";
 const DDRAGON_VERSIONS = "https://ddragon.leagueoflegends.com/api/versions.json";
 const DDRAGON_CDN = "https://ddragon.leagueoflegends.com/cdn";
+// DDragon's runesReforged.json stops at the rune trees; the stat shards
+// (ids 5001–5013) and every perk's short description only exist in the
+// client's own perk table, which CommunityDragon mirrors. LolImageService
+// reads the same file for icon paths.
+const CDRAGON_PERKS =
+  "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/perks.json";
 
 // A perkId can briefly disappear from DDragon between Riot ship + CDN
 // propagation. Wait this many consecutive missing cycles before marking the
@@ -91,6 +98,26 @@ interface DdragonRunePath {
 }
 
 type DdragonRunesReforged = DdragonRunePath[];
+
+// `shortDesc` carries the client's own markup (`<lol-uikit-tooltipped-keyword>`,
+// `<font>`, `<statGood>`…) around plain `<b>`/`<i>`/`<br>`; sanitizeRichHtml
+// drops the unknown tags to their text and keeps the rest.
+interface CdragonPerk {
+  id: number;
+  name: string;
+  shortDesc: string;
+  iconPath: string;
+}
+
+const STAT_SHARD_PATH = "Stat Shard";
+const STAT_SHARD_SLOT = "Shard";
+
+// Null rather than "" for an empty description, so the column keeps meaning
+// "unknown" and the web fallback to `descriptionWikitext` still engages.
+function perkDescriptionHtml(shortDesc: string): string | null {
+  const html = sanitizeRichHtml(shortDesc).trim();
+  return html.length > 0 ? html : null;
+}
 
 interface WikiModuleResponse {
   query?: {
@@ -313,7 +340,7 @@ export class LolStaticSyncService {
     // payload once per cron tick in exchange for the per-ability DDragon
     // image filenames needed by the 3rd-stage proxy fallback.
     const [listBody, championModule] = await Promise.all([
-      this.fetchDdragon<DdragonChampionFullBody>(
+      this.fetchJson<DdragonChampionFullBody>(
         `${DDRAGON_CDN}/${ddragonVersion}/data/en_US/championFull.json`
       ),
       this.fetchWikiModule("Module:ChampionData/data"),
@@ -495,7 +522,7 @@ export class LolStaticSyncService {
   }
 
   async syncSummonerSpells(ddragonVersion: string): Promise<number> {
-    const body = await this.fetchDdragon<DdragonSummonerSpellsBody>(
+    const body = await this.fetchJson<DdragonSummonerSpellsBody>(
       `${DDRAGON_CDN}/${ddragonVersion}/data/en_US/summoner.json`
     );
     const now = new Date();
@@ -579,9 +606,21 @@ export class LolStaticSyncService {
   }
 
   async syncPerks(ddragonVersion: string): Promise<number> {
-    const body = await this.fetchDdragon<DdragonRunesReforged>(
+    const body = await this.fetchJson<DdragonRunesReforged>(
       `${DDRAGON_CDN}/${ddragonVersion}/data/en_US/runesReforged.json`
     );
+    // The mirror is a secondary source: a CDragon outage must not block the
+    // DDragon rune sync, so it degrades to "no descriptions this cycle".
+    let cdragon: Map<number, CdragonPerk> | null = null;
+    try {
+      const perks = await this.fetchJson<CdragonPerk[]>(CDRAGON_PERKS);
+      cdragon = new Map(perks.map((p) => [p.id, p]));
+    } catch (err) {
+      this.logger.warn(
+        "CDragon perks.json unavailable; keeping stored descriptions and shards",
+        err instanceof Error ? err.message : err
+      );
+    }
     const now = new Date();
     const seenIds = new Set<number>();
     let written = 0;
@@ -593,6 +632,11 @@ export class LolStaticSyncService {
         const slotLabel = slotIdx === 0 ? "Keystone" : `Slot${slotIdx}`;
         for (const rune of slot.runes ?? []) {
           seenIds.add(rune.id);
+          const shortDesc = cdragon?.get(rune.id)?.shortDesc;
+          const description =
+            shortDesc !== undefined
+              ? { descriptionHtml: perkDescriptionHtml(shortDesc) }
+              : {};
           try {
             await this.prisma.lolPerk.upsert({
               where: { id: rune.id },
@@ -604,6 +648,7 @@ export class LolStaticSyncService {
                 iconWikiName: rune.name,
                 ddragonSyncedAt: now,
                 missingSyncCycles: 0,
+                ...description,
               },
               update: {
                 name: rune.name,
@@ -613,6 +658,7 @@ export class LolStaticSyncService {
                 ddragonSyncedAt: now,
                 missingSyncCycles: 0,
                 retiredAt: null,
+                ...description,
               },
             });
             written++;
@@ -625,7 +671,60 @@ export class LolStaticSyncService {
         }
       }
     }
+    if (cdragon !== null) {
+      written += await this.upsertStatShards(cdragon, seenIds, now);
+    } else {
+      // Shards only ever arrive from CDragon, so an outage would otherwise
+      // read as every shard having gone missing this cycle.
+      const stored = await this.prisma.lolPerk.findMany({
+        where: { slot: STAT_SHARD_SLOT },
+        select: { id: true },
+      });
+      for (const row of stored) seenIds.add(row.id);
+    }
     await this.bumpMissingCycles("lolPerk", seenIds, now);
+    return written;
+  }
+
+  // The stat shards are the perks whose icon lives under StatMods; there is
+  // no numeric range or flag in the file that names them. No wiki icon: the
+  // wiki files shards under stat pages, so the image proxy goes to CDragon.
+  private async upsertStatShards(
+    cdragon: ReadonlyMap<number, CdragonPerk>,
+    seenIds: Set<number>,
+    now: Date
+  ): Promise<number> {
+    let written = 0;
+    for (const perk of cdragon.values()) {
+      // The payload is an unchecked cast, so a malformed element must skip
+      // rather than abort the sync.
+      if (typeof perk.iconPath !== "string" || !perk.iconPath.includes("/StatMods/")) {
+        continue;
+      }
+      seenIds.add(perk.id);
+      try {
+        const fields = {
+          name: perk.name,
+          path: STAT_SHARD_PATH,
+          slot: STAT_SHARD_SLOT,
+          iconWikiName: null,
+          descriptionHtml: perkDescriptionHtml(perk.shortDesc),
+          ddragonSyncedAt: now,
+          missingSyncCycles: 0,
+        };
+        await this.prisma.lolPerk.upsert({
+          where: { id: perk.id },
+          create: { id: perk.id, ...fields },
+          update: { ...fields, retiredAt: null },
+        });
+        written++;
+      } catch (err) {
+        this.logger.warn(
+          `Stat shard upsert failed for ${perk.name} (${perk.id})`,
+          err instanceof Error ? err.message : err
+        );
+      }
+    }
     return written;
   }
 
@@ -796,15 +895,15 @@ export class LolStaticSyncService {
   }
 
   private async fetchLatestDdragonVersion(): Promise<string> {
-    const versions = await this.fetchDdragon<string[]>(DDRAGON_VERSIONS);
+    const versions = await this.fetchJson<string[]>(DDRAGON_VERSIONS);
     const first = versions[0];
     if (!first) throw new Error("ddragon versions response was empty");
     return first;
   }
 
-  private async fetchDdragon<T>(url: string): Promise<T> {
+  private async fetchJson<T>(url: string): Promise<T> {
     const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
-    if (!res.ok) throw new Error(`ddragon ${url} HTTP ${res.status}`);
+    if (!res.ok) throw new Error(`${url} HTTP ${res.status}`);
     return (await res.json()) as T;
   }
 

@@ -560,20 +560,22 @@ return {
     const prisma = makePrisma();
     // DDragon now reports only one perk (id 8005). The DB still has perkId
     // 8200 from before its retirement — three cycles already missed.
-    fetchSpy.mockResolvedValueOnce(
-      jsonResponse([
-        {
-          id: 8000,
-          key: "Precision",
-          name: "Precision",
-          slots: [
-            {
-              runes: [{ id: 8005, key: "PressTheAttack", name: "Press the Attack" }],
-            },
-          ],
-        },
-      ])
-    );
+    fetchSpy
+      .mockResolvedValueOnce(
+        jsonResponse([
+          {
+            id: 8000,
+            key: "Precision",
+            name: "Precision",
+            slots: [
+              {
+                runes: [{ id: 8005, key: "PressTheAttack", name: "Press the Attack" }],
+              },
+            ],
+          },
+        ])
+      )
+      .mockResolvedValueOnce(jsonResponse([]));
     prisma.lolPerk.findMany.mockResolvedValueOnce([{ id: 8200, missingSyncCycles: 3 }]);
 
     await makeService(prisma).syncPerks("16.10.1");
@@ -592,7 +594,9 @@ return {
 
   it("bumps but does not retire a perk that has only missed one cycle", async () => {
     const prisma = makePrisma();
-    fetchSpy.mockResolvedValueOnce(jsonResponse([]));
+    fetchSpy
+      .mockResolvedValueOnce(jsonResponse([]))
+      .mockResolvedValueOnce(jsonResponse([]));
     prisma.lolPerk.findMany.mockResolvedValueOnce([{ id: 8210, missingSyncCycles: 0 }]);
 
     await makeService(prisma).syncPerks("16.10.1");
@@ -604,19 +608,21 @@ return {
 
   it("derives keystone vs minor-slot labels from runesReforged shape", async () => {
     const prisma = makePrisma();
-    fetchSpy.mockResolvedValueOnce(
-      jsonResponse([
-        {
-          id: 8000,
-          key: "Precision",
-          name: "Precision",
-          slots: [
-            { runes: [{ id: 8005, key: "Pta", name: "Press the Attack" }] },
-            { runes: [{ id: 9101, key: "Overheal", name: "Overheal" }] },
-          ],
-        },
-      ])
-    );
+    fetchSpy
+      .mockResolvedValueOnce(
+        jsonResponse([
+          {
+            id: 8000,
+            key: "Precision",
+            name: "Precision",
+            slots: [
+              { runes: [{ id: 8005, key: "Pta", name: "Press the Attack" }] },
+              { runes: [{ id: 9101, key: "Overheal", name: "Overheal" }] },
+            ],
+          },
+        ])
+      )
+      .mockResolvedValueOnce(jsonResponse([]));
 
     await makeService(prisma).syncPerks("16.10.1");
 
@@ -628,6 +634,95 @@ return {
     expect(calls).toEqual([
       { id: 8005, slot: "Keystone", path: "Precision" },
       { id: 9101, slot: "Slot1", path: "Precision" },
+    ]);
+  });
+
+  it("upserts the stat shards from CDragon and counts them as seen", async () => {
+    const prisma = makePrisma();
+    fetchSpy
+      .mockResolvedValueOnce(
+        jsonResponse([
+          {
+            id: 8000,
+            key: "Precision",
+            name: "Precision",
+            slots: [{ runes: [{ id: 8005, key: "Pta", name: "Press the Attack" }] }],
+          },
+        ])
+      )
+      .mockResolvedValueOnce(
+        jsonResponse([
+          {
+            id: 8005,
+            name: "Press the Attack",
+            shortDesc: "Hit 3 times to deal <b>bonus</b> damage.",
+            iconPath:
+              "/lol-game-data/assets/v1/perk-images/Styles/Precision/PressTheAttack/PressTheAttack.png",
+          },
+          {
+            id: 5008,
+            name: "Adaptive Force",
+            shortDesc:
+              "+9 <lol-uikit-tooltipped-keyword key='x'><font color='#48C4B7'>Adaptive Force</font></lol-uikit-tooltipped-keyword>",
+            iconPath:
+              "/lol-game-data/assets/v1/perk-images/StatMods/StatModsAdaptiveForceIcon.png",
+          },
+          {
+            id: 7000,
+            name: "Template",
+            shortDesc: "",
+            iconPath: "/lol-game-data/assets/v1/perk-images/Styles/RunesIcon.png",
+          },
+        ])
+      );
+
+    await makeService(prisma).syncPerks("16.10.1");
+
+    const byId = new Map(
+      prisma.lolPerk.upsert.mock.calls.map(([c]) => [c.where.id, c.create])
+    );
+    expect([...byId.keys()]).toEqual([8005, 5008]);
+    expect(byId.get(5008)).toMatchObject({
+      name: "Adaptive Force",
+      path: "Stat Shard",
+      slot: "Shard",
+      iconWikiName: null,
+      descriptionHtml: "+9 Adaptive Force",
+    });
+    expect(byId.get(8005)?.descriptionHtml).toBe(
+      "Hit 3 times to deal <b>bonus</b> damage."
+    );
+
+    const findManyArgs = prisma.lolPerk.findMany.mock.calls[0]?.[0];
+    expect(findManyArgs.where.id.notIn).toEqual([8005, 5008]);
+  });
+
+  it("keeps stored shards out of the missing-cycle bump when CDragon is down", async () => {
+    const prisma = makePrisma();
+    fetchSpy
+      .mockResolvedValueOnce(
+        jsonResponse([
+          {
+            id: 8000,
+            key: "Precision",
+            name: "Precision",
+            slots: [{ runes: [{ id: 8005, key: "Pta", name: "Press the Attack" }] }],
+          },
+        ])
+      )
+      .mockRejectedValueOnce(new Error("cdragon 503"));
+    prisma.lolPerk.findMany.mockResolvedValueOnce([{ id: 5008 }]);
+
+    await makeService(prisma).syncPerks("16.10.1");
+
+    const upsert = prisma.lolPerk.upsert.mock.calls[0]?.[0];
+    expect(upsert.where.id).toBe(8005);
+    expect(upsert.update).not.toHaveProperty("descriptionHtml");
+
+    expect(prisma.lolPerk.findMany).toHaveBeenCalledTimes(2);
+    expect(prisma.lolPerk.findMany.mock.calls[0]?.[0].where).toEqual({ slot: "Shard" });
+    expect(prisma.lolPerk.findMany.mock.calls[1]?.[0].where.id.notIn).toEqual([
+      8005, 5008,
     ]);
   });
 

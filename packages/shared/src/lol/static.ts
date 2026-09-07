@@ -92,12 +92,16 @@ export interface LolSummonerSpellDto {
 export interface LolPerkDto {
   id: number;
   name: string;
-  // "Precision" | "Domination" | "Sorcery" | "Resolve" | "Inspiration"
+  // "Precision" | "Domination" | "Sorcery" | "Resolve" | "Inspiration",
+  // or "Stat Shard" for the ten stat shards (ids within 5001–5013).
   path: string | null;
-  // "Keystone" | "Slot1" | "Slot2" | "Slot3"
+  // "Keystone" | "Slot1" | "Slot2" | "Slot3" | "Shard"
   slot: string | null;
+  // Null for shards: the wiki has no rune icon for them, so the image proxy
+  // serves CDragon's directly.
   iconWikiName: string | null;
   descriptionWikitext: string | null;
+  // Sanitized CDragon `shortDesc`; wiki never populates perk descriptions.
   descriptionHtml: string | null;
   // See `LolSummonerSpellDto.retiredAt` — same semantics. Phase Rush →
   // Stormraider's Surge is the canonical churn case.
