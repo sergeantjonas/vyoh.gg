@@ -8,6 +8,9 @@ export interface PerkInfo {
   iconUrl: string;
   name: string;
   description: string;
+  // Tree name ("Precision", …) or "Stat Shard"; the bundle has no tree
+  // table, so a tree is named through any of its perks.
+  path: string | null;
 }
 
 const perksCache = new WeakMap<LolStaticBundle, Map<string, Map<number, PerkInfo>>>();
@@ -32,6 +35,7 @@ function buildPerksMap(bundle: LolStaticBundle, patch: string): Map<number, Perk
             iconUrl: runeIconUrl(p.id, patch),
             name: p.name,
             description: stripWikitext(raw),
+            path: p.path,
           },
         ];
       })

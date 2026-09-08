@@ -27,6 +27,7 @@ describe("KeystoneIcon", () => {
             iconUrl: "/img/lol/rune/8005/26.9.webp",
             name: "Press the Attack",
             description: "Hitting an enemy with 3 basic attacks marks them.",
+            path: "Precision",
           },
         ],
       ])

@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { MatchBuildOrder } from "@/lol/matches/match-build-order";
 import { MatchDamageProfile } from "@/lol/matches/match-damage-profile";
 import { MatchOwnerStats } from "@/lol/matches/match-owner-stats";
+import { MatchRunePage } from "@/lol/matches/match-rune-page";
 import { MatchSkillOrder } from "@/lol/matches/match-skill-order";
 import { MatchSpellCasts } from "@/lol/matches/match-spell-casts";
 import { useScrollspy } from "@/lol/matches/use-scrollspy";
@@ -25,6 +26,7 @@ const MatchLanePhase = lazy(() =>
 
 const YOUR_GAME_SECTIONS = [
   { id: "build-order", label: "Build" },
+  { id: "runes", label: "Runes" },
   { id: "spell-casts", label: "Casts" },
   { id: "damage-profile", label: "Damage" },
   { id: "owner-stats", label: "Stats" },
@@ -67,6 +69,11 @@ export function MatchYourGameTab({
         <CvSection minHeight={150}>
           <div ref={refFor("build-order")}>
             <MatchBuildOrder detail={detail} myPuuid={myPuuid} />
+          </div>
+        </CvSection>
+        <CvSection minHeight={160}>
+          <div ref={refFor("runes")}>
+            <MatchRunePage detail={detail} myPuuid={myPuuid} />
           </div>
         </CvSection>
         <CvSection minHeight={250}>

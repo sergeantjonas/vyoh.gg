@@ -1,6 +1,6 @@
 # LoL owner-data feature ideas
 
-**Status:** Tier 1 shipped 2026-05-21. MD1 + Match review MR1–MR4 shipped 2026-05-22. Profile narrative tier PN1–PN4 shipped 2026-05-22. Remaining open arcs: none on this catalog. Champion-detail tier parked with explicit trigger.
+**Status:** Tier 1 shipped 2026-05-21. MD1 + Match review MR1–MR4 shipped 2026-05-22. Profile narrative tier PN1–PN4 shipped 2026-05-22. MD2 (full rune page, owner-only) shipped 2026-09-08 via match-depth Phase E. Remaining open arcs: none on this catalog. Champion-detail tier parked with explicit trigger.
 
 **Headline next move:** No open arcs on this catalog. Next candidate work surfaces from the parked Champion-detail owner-data tier (trigger: dedicated Champion-detail arc) or [vnext-ideas.md](../cross-cutting/vnext-ideas.md).
 
@@ -65,7 +65,7 @@ Small extension to the match-detail panel area below the hero card. Two tiles bu
 
 **MD1 — Damage dealt stacked bar (all 10 players).** Physical / magic / true as stacked segments per participant. All three fields (`physicalDamageDealtToChampions`, `magicDamageDealtToChampions`, `trueDamageDealtToChampions`) are already in `MatchDetail.participants` — pure frontend change. For the owner row, extend with the received / mitigated view from owner-data (1.A retained).
 
-**MD2 — Full rune page panel.** Already planned in match-depth Phase E. Owner full `perks` retained from 1.A, but retention is not projection: `MatchDetail` carried only the keystone until `ParticipantOwnerExtras.runes` landed 2026-09-07, and stat-shard names need a static source DDragon does not provide. Listed here so this catalog stays the catalog; the implementation arc lives in [match-depth-roadmap.md](match-depth-roadmap.md).
+**MD2 — Full rune page panel.** Shipped 2026-09-08 as a Your Game tab section (`match-rune-page.tsx`), owner-only because the other nine participants are stored keystone-only. Owner full `perks` retained from 1.A, but retention is not projection: `MatchDetail` carried only the keystone until `ParticipantOwnerExtras.runes` landed 2026-09-07, and stat-shard names need a static source DDragon does not provide. Listed here so this catalog stays the catalog; the implementation arc lives in [match-depth-roadmap.md](match-depth-roadmap.md).
 
 **Sequencing:** MD1 can ship anytime; MD2 ships as part of match-depth Phase E. Either may ship before Arc 2 if scoped smaller and the owner wants a quick win.
 
@@ -115,7 +115,7 @@ Two ideas from the original catalog that didn't make it into Arc 2 because they'
 | Match review surface (MR1–MR4) | Sub-route under match detail | — | **Shipped 2026-05-22** |
 | Profile narrative tier (PN1–PN4) | Profile / Trends | — | **Shipped 2026-05-22** |
 | **Damage stacked bar (MD1)** | Match detail panel | — | **Shipped 2026-05-22** |
-| Full rune page panel (MD2) | Match detail panel | Low — Phase E | Tracked in [match-depth-roadmap.md](match-depth-roadmap.md) |
+| Full rune page panel (MD2) | Match detail panel | Low — Phase E | **Shipped 2026-09-08** (owner-only) |
 | Champion-detail owner-data tier | Champion detail | Medium × 5 | **Parked** — trigger: Champion-detail arc |
 | Objective presence | Profile | Low | **Parked** — trigger: role-mix shift to jungle |
 | Support effectiveness | Profile | Low | **Parked** — trigger: role-mix shift to support |

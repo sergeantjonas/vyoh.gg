@@ -28,9 +28,23 @@ const account: LolAccount = {
 };
 
 const perks = new Map<number, PerkInfo>([
-  [8005, { iconUrl: "/8005.png", name: "Press the Attack", description: "" }],
-  [8112, { iconUrl: "/8112.png", name: "Electrocute", description: "" }],
-  [9923, { iconUrl: "/9923.png", name: "Hail of Blades", description: "" }],
+  [
+    8005,
+    {
+      iconUrl: "/8005.png",
+      name: "Press the Attack",
+      description: "",
+      path: "Precision",
+    },
+  ],
+  [
+    8112,
+    { iconUrl: "/8112.png", name: "Electrocute", description: "", path: "Domination" },
+  ],
+  [
+    9923,
+    { iconUrl: "/9923.png", name: "Hail of Blades", description: "", path: "Domination" },
+  ],
 ]);
 
 function setDiversity(opts: {
