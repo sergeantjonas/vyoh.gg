@@ -18,6 +18,15 @@ export { excludeRemakes } from "./lol/exclude-remakes.ts";
 export { isPersonalRecord } from "./lol/personal-records.ts";
 export type { PersonalRecordDirection } from "./lol/personal-records.ts";
 export { REMAKE_DURATION_S, isRemakeMatch } from "./lol/remake.ts";
+export {
+  SCORE_METRICS,
+  type ScoreGrade,
+  type ScoreMetric,
+  type ScoreOfGame,
+  type ScoreParticipant,
+  gradeOf,
+  scoreOfGame,
+} from "./lol/score-of-game.ts";
 export { renderSeasonRidge } from "./lol/season-artwork.ts";
 export type {
   SeasonArtworkMatch,

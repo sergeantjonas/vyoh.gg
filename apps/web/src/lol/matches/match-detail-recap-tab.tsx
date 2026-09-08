@@ -1,4 +1,9 @@
-import type { MatchDetail } from "@vyoh/shared";
+import {
+  type MatchDetail,
+  REMAKE_DURATION_S,
+  type ScoreOfGame,
+  scoreOfGame,
+} from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useEffect } from "react";
 import { MatchHeaderStrip } from "./recap/match-header-strip";
@@ -29,6 +34,12 @@ export function MatchRecapTab({
   const maxDamage = Math.max(...detail.participants.map((p) => p.totalDamage), 1);
   const maxGold = Math.max(...detail.participants.map((p) => p.goldEarned), 1);
   const badges = computeBadges(detail.participants);
+  // A remake has no game to grade; MatchDetail carries no surrender flag, so
+  // the duration bound alone stands in for isRemakeMatch here.
+  const grades =
+    detail.durationSec < REMAKE_DURATION_S
+      ? new Map<string, ScoreOfGame>()
+      : scoreOfGame(detail.participants);
   const blueGold = detail.teams.find((t) => t.teamId === 100)?.totalGold ?? 0;
   const redGold = detail.teams.find((t) => t.teamId === 200)?.totalGold ?? 0;
 
@@ -50,6 +61,7 @@ export function MatchRecapTab({
             maxDamage={maxDamage}
             maxGold={maxGold}
             badges={badges}
+            grades={grades}
             goldLead={blueGold - redGold}
             accountSlug={accountSlug}
             skipAnimation={skip}
@@ -65,6 +77,7 @@ export function MatchRecapTab({
             maxDamage={maxDamage}
             maxGold={maxGold}
             badges={badges}
+            grades={grades}
             goldLead={redGold - blueGold}
             accountSlug={accountSlug}
             skipAnimation={skip}

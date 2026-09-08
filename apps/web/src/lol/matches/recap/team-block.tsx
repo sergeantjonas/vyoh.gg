@@ -1,6 +1,6 @@
 import { SectionTitle } from "@/components/ui/section-title";
 import { cn } from "@/lib/utils";
-import type { ParticipantDetail } from "@vyoh/shared";
+import type { ParticipantDetail, ScoreOfGame } from "@vyoh/shared";
 import { m } from "motion/react";
 import { ParticipantRow } from "./participant-row";
 import { teamContainer } from "./recap-motion";
@@ -12,6 +12,7 @@ export function TeamBlock({
   maxDamage,
   maxGold,
   badges,
+  grades,
   goldLead,
   accountSlug,
   skipAnimation,
@@ -24,6 +25,7 @@ export function TeamBlock({
   maxDamage: number;
   maxGold: number;
   badges: Map<string, { label: string; tip: string }>;
+  grades: Map<string, ScoreOfGame>;
   goldLead: number;
   accountSlug: string;
   skipAnimation?: boolean | undefined;
@@ -69,6 +71,7 @@ export function TeamBlock({
             maxDamage={maxDamage}
             maxGold={maxGold}
             badge={badges.get(p.puuid)}
+            grade={grades.get(p.puuid)}
             accountSlug={accountSlug}
             skipAnimation={skipAnimation}
             matchQueueId={matchQueueId}

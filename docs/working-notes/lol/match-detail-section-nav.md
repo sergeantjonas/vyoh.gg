@@ -50,8 +50,8 @@ This explicitly does **not** introduce a fourth sticky chrome layer. The prior s
 | CC time / time spent dead / longest survival | owner | new |
 | Multikill badge strip | owner | new |
 | All-10 damage dealt stacked bar | all | new |
-| Full rune page panel | owner | Phase E |
-| Composite S+/S/A score-of-game grade | owner | Phase E (design-gated) |
+| Full rune page panel | owner | Shipped 2026-09-08 (Your Game tab) |
+| Composite S+/S/A score-of-game grade | all | Shipped 2026-09-08 (Recap rows, beside the badges) |
 
 Future additions (spell-cast aggregations on Champion detail, etc.) don't land here — this list is match-detail page only.
 

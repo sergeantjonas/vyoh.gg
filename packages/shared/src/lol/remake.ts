@@ -6,6 +6,9 @@
 // remake. Repo-conventions § "Centralise domain invariants" requires every
 // LoL aggregation to filter remakes the same way, so any new remake gate
 // MUST call `isRemakeMatch()` rather than re-deriving the predicate inline.
+// The one carve-out is a `MatchDetail` consumer: the detail projection carries
+// no surrender flag, so a single-match display gate there compares
+// `durationSec` against `REMAKE_DURATION_S` alone.
 export const REMAKE_DURATION_S = 210;
 
 export function isRemakeMatch(

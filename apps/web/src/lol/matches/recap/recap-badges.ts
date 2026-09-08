@@ -1,6 +1,8 @@
-import type { ParticipantDetail } from "@vyoh/shared";
+import { type ParticipantDetail, SCORE_METRICS, type ScoreMetric } from "@vyoh/shared";
 
-type BadgeKey = "damage" | "kda" | "vision" | "kp" | "cs" | "deaths";
+// Badges crown the leader of each metric the score-of-game grade averages,
+// read from the same definitions so the two can never disagree.
+type BadgeKey = ScoreMetric;
 
 const BADGE_DEFS: Record<BadgeKey, { label: string; tip: string }> = {
   damage: { label: "Top DMG", tip: "Most damage dealt to champions" },
@@ -40,12 +42,10 @@ export function computeBadges(
     candidates.push({ puuid: best.puuid, key, margin: (sv - bv) / maxVal });
   }
 
-  maxWinner("damage", (p) => p.totalDamage);
-  maxWinner("kda", (p) => (p.kills + p.assists) / Math.max(p.deaths, 1));
-  maxWinner("vision", (p) => p.visionScore);
-  maxWinner("kp", (p) => p.kp);
-  maxWinner("cs", (p) => p.csTotal);
-  minWinner("deaths", (p) => p.deaths);
+  for (const key of Object.keys(BADGE_DEFS) as BadgeKey[]) {
+    const metric = SCORE_METRICS[key];
+    (metric.higherIsBetter ? maxWinner : minWinner)(key, metric.value);
+  }
 
   // Most distinctive first — greedily assign one badge per participant
   candidates.sort((a, b) => b.margin - a.margin);

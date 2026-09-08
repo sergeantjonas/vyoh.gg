@@ -1,6 +1,7 @@
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { render, screen } from "@testing-library/react";
 import type { MatchDetail } from "@vyoh/shared";
+import { configureAxe } from "jest-axe";
 import { MotionConfig } from "motion/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -252,6 +253,46 @@ describe("MatchRecapTab badges", () => {
     expect(screen.getByText("Top KP")).toBeTruthy();
     expect(screen.getByText("Top CS")).toBeTruthy();
     expect(screen.getByText("Low Deaths")).toBeTruthy();
+  });
+
+  it("grades every participant and names the standing in the chip label", async () => {
+    const detail = buildDetail();
+    // One row leads every metric it can, the other three stay identical, so
+    // a mis-keyed lookup would put the wrong letter on the wrong champion.
+    detail.participants[0] = participant({
+      puuid: "PA",
+      teamId: 100,
+      kills: 15,
+      deaths: 0,
+      totalDamage: 60000,
+      visionScore: 80,
+      kp: 0.95,
+      csTotal: 300,
+    }) as MatchDetail["participants"][number];
+    const { container } = renderShell(<MatchRecapTab detail={detail} accountSlug="me" />);
+    const chips = screen.getAllByLabelText(/^Score of game /);
+    expect(chips).toHaveLength(4);
+    const leader = chips.find((c) => c.closest("li")?.textContent?.includes("Ahri"));
+    expect(leader?.getAttribute("aria-label")).toBe("Score of game S+, 1 of 4");
+    const rest = chips.filter((c) => c !== leader);
+    for (const chip of rest) {
+      expect(chip.getAttribute("aria-label")).toMatch(/, 2 of 4$/);
+    }
+
+    const axe = configureAxe({
+      rules: {
+        "color-contrast": { enabled: false },
+        "aria-hidden-focus": { enabled: false },
+      },
+    });
+    const results = await axe(container);
+    expect(results.violations).toEqual([]);
+  });
+
+  it("grades nothing in a remake-length game", () => {
+    const detail = { ...buildDetail(), durationSec: 120 } as MatchDetail;
+    renderShell(<MatchRecapTab detail={detail} accountSlug="me" />);
+    expect(screen.queryAllByLabelText(/^Score of game /)).toHaveLength(0);
   });
 
   it("renders First Blood + First Tower chips for whichever team claimed them", () => {

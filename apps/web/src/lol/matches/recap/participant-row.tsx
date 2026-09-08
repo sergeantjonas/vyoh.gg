@@ -8,12 +8,59 @@ import { SummonerSpellIcon } from "@/lol/_shared/assets/summoner-spell-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Link } from "@tanstack/react-router";
-import { type ParticipantDetail, RANKED_QUEUE_IDS } from "@vyoh/shared";
+import {
+  type ParticipantDetail,
+  RANKED_QUEUE_IDS,
+  type ScoreGrade,
+  type ScoreOfGame,
+} from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { ItemSlots } from "./item-slots";
 import { teamRow } from "./recap-motion";
 import { SegmentedDamageBar } from "./segmented-damage-bar";
 import { StatBar } from "./stat-bar";
+
+// Restraint on purpose: only the top three tiers get a hue, the rest fade
+// with the grade so a scoreboard never reads as ten coloured medals.
+const GRADE_CLASS: Record<ScoreGrade, string> = {
+  "S+": "text-amber-300",
+  S: "text-amber-200/90",
+  A: "text-emerald-300/90",
+  B: "text-foreground/70",
+  C: "text-foreground/50",
+  D: "text-muted-foreground/60",
+};
+
+function GradeChip({ grade }: { grade: ScoreOfGame }) {
+  const standing = `${grade.rank} of ${grade.outOf}`;
+  return (
+    <TooltipPrimitive.Root delayDuration={300}>
+      <TooltipPrimitive.Trigger asChild>
+        <span
+          aria-label={`Score of game ${grade.grade}, ${standing}`}
+          className={cn(
+            "shrink-0 cursor-default font-mono text-[11px] font-semibold tabular-nums",
+            GRADE_CLASS[grade.grade]
+          )}
+        >
+          {grade.grade}
+        </span>
+      </TooltipPrimitive.Trigger>
+      <TooltipPrimitive.Portal>
+        <TooltipPrimitive.Content
+          side="top"
+          sideOffset={5}
+          className={cn(TOOLTIP_CONTENT_COMPACT, "px-2.5 py-1.5 shadow-md")}
+        >
+          <div>Score of game · {standing}</div>
+          <div className="text-muted-foreground">
+            Percentile average of damage, KDA, vision, kill participation, CS and deaths
+          </div>
+        </TooltipPrimitive.Content>
+      </TooltipPrimitive.Portal>
+    </TooltipPrimitive.Root>
+  );
+}
 
 export function ParticipantRow({
   p,
@@ -21,6 +68,7 @@ export function ParticipantRow({
   maxDamage,
   maxGold,
   badge,
+  grade,
   accountSlug,
   skipAnimation,
   matchQueueId,
@@ -31,6 +79,7 @@ export function ParticipantRow({
   maxDamage: number;
   maxGold: number;
   badge?: { label: string; tip: string } | undefined;
+  grade?: ScoreOfGame | undefined;
   accountSlug: string;
   skipAnimation?: boolean | undefined;
   matchQueueId: number;
@@ -100,6 +149,7 @@ export function ParticipantRow({
       <div className="flex-1 min-w-0">
         <div className="flex min-w-0 items-center gap-1.5">
           <div className="truncate text-sm font-medium">{displayName}</div>
+          {grade && <GradeChip grade={grade} />}
           {badge && (
             <TooltipPrimitive.Root delayDuration={300}>
               <TooltipPrimitive.Trigger asChild>
