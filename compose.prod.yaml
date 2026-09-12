@@ -9,6 +9,25 @@
 # containers.
 name: vyoh-prod
 
+# Docker's `json-file` default has no size ceiling, so without this every
+# container log grows until the disk is full. That failure is slow enough to
+# arrive months after the deploy that caused it, on a box nobody is tailing,
+# and it presents as the api crash-looping rather than as a log problem — so
+# the cap belongs at the point of writing rather than in a trimming cron.
+# 10m x 5 per service is ~150 MB across the stack, against a 160 GB disk that
+# also holds the 2 GB nginx cache and the Postgres volume.
+# `api` and `web` carry no `healthcheck:` key here, and that is not a gap: both
+# declare `HEALTHCHECK` in their Dockerfiles. `web`'s `depends_on` reads the
+# `api` one; `web`'s own surfaces in `docker ps` and gates nothing. The image is
+# the better home either way — the check there resolves its port from `PORT`
+# rather than restating it. `postgres` does have one below: the stock image
+# ships none.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -30,6 +49,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
+    logging: *logging
 
   api:
     build:
@@ -71,6 +91,7 @@ services:
       postgres:
         condition: service_healthy
     restart: unless-stopped
+    logging: *logging
 
   web:
     build:
@@ -102,6 +123,7 @@ services:
       api:
         condition: service_healthy
     restart: unless-stopped
+    logging: *logging
 
 volumes:
   pgdata:
