@@ -28,7 +28,7 @@ signal than Option A. Cost: ~$5–10/mo (1 shared CPU machine + DB).
 
 ### Option C — Hetzner VPS + Docker Compose (full control, cheapest)
 
-Single €4–6/mo VPS. Docker Compose for NestJS + Postgres + Nginx + Certbot.
+Single VPS — sizing and the current price table live in [§ Sizing implications](#sizing-implications); after the June 2026 price rise the 16 GB tier is €16–21/mo. Docker Compose for NestJS + Postgres + Nginx + Certbot.
 Strongest "I can ship to production" ops signal. Most maintenance burden:
 SSL renewal, OS updates, no auto-deploys without extra setup (e.g. Watchtower
 or a simple deploy script triggered by CI).
@@ -87,7 +87,7 @@ The numbered sections below this one are reference detail, not a sequence —
 1 through 3 are already shipped code, and 4 through 8 are topics rather than
 steps.
 
-**0. Buy the box.** Hetzner CAX31 per [option C](#option-c--hetzner-vps--docker-compose-full-control-cheapest). Docker, docker-compose-plugin, nginx, certbot. Nothing below works without it, and nothing above it in the repo is still blocking.
+**0. Buy the box.** Hetzner CX43, falling back to CAX31 if CX43 is out of stock in every EU location, per [§ Sizing implications](#sizing-implications). Docker, docker-compose-plugin, nginx, certbot. Nothing below works without it, and nothing above it in the repo is still blocking.
 
 **1. DNS first, before any image is built.** Point `vyoh.gg`, `www.vyoh.gg` and `api.vyoh.gg` at the box ([§ 4](#4-custom-domain)). This has to precede the first build rather than follow it: `VITE_API_URL` is a **build argument** baked into the bundle and into the markup `head()` emits, so changing the api hostname later means rebuilding the web image, not editing a file. The prod OAuth app in step 3 also needs the final api hostname before it can be registered.
 
@@ -603,7 +603,7 @@ on the same box should follow.
   three endpoints over ssh and exits non-zero if they do not answer**.
   Images build on the VPS rather than locally: there is no registry, and
   `docker save | ssh docker load` moves ~2 GB per deploy over a link
-  slower than the CAX31 is at building.
+  slower than an 8-vCPU box is at building.
 - **Migrations run from the api container's entrypoint**, not from
   `deploy.sh`. `prisma migrate deploy` is a no-op once the journal is
   current, so a restart costs one query — and the alternative loses: a
@@ -616,17 +616,58 @@ on the same box should follow.
 
 ### Sizing implications
 
-The multi-site shape ratchets up the case for **CAX31 (8 vCPU / 16 GB
-ARM / 160 GB NVMe, ~€12.49/mo)** over CAX21:
+**Buy CX43; take CAX31 only if CX43 is out of stock.** Both are 8 vCPU /
+16 GB / 160 GB NVMe shared-vCPU plans; CX43 is x86, CAX31 is Ampere ARM.
+Decided 2026-09-10 against the price table below, which replaced the
+pre-June figures this section was first written against.
 
-- vyoh.gg API alone is in the 200–400 MB RSS range; with the Phase 4
-  image proxy Sharp transcodes add bursty allocation on top.
-- Postgres baseline ~500 MB–1 GB depending on `shared_buffers` and the
-  size of the LP history table.
-- Nginx + the `proxy_cache` working set live in page cache; healthy on
-  a 16 GB box, tight on 8 GB once a second project lands.
-- 160 GB disk easily absorbs the 2 GB Nginx cache ceiling plus a
-  multi-project Postgres data dir for the foreseeable future.
+Hetzner raised prices on 15 June 2026 (new orders and rescales; existing
+instances keep their old price). The rise was uneven: CX and CAX went up
+~30 %, CPX and CCX 2.2–2.75×. Monthly, EUR ex-VAT, plus ~€0.50 for the
+IPv4 address:
+
+| Plan  | Arch          | vCPU / RAM / Disk    | Now   | Was   |
+|-------|---------------|----------------------|-------|-------|
+| CX33  | x86 shared    | 4 / 8 GB / 80 GB     | 8.49  | 6.49  |
+| CAX21 | ARM shared    | 4 / 8 GB / 80 GB     | 10.49 | 7.99  |
+| CX43  | x86 shared    | 8 / 16 GB / 160 GB   | 15.99 | 11.99 |
+| CAX31 | ARM shared    | 8 / 16 GB / 160 GB   | 20.99 | 15.99 |
+| CPX32 | x86 AMD shared| 4 / 8 GB / 160 GB    | 35.49 | 13.99 |
+| CCX23 | x86 dedicated | 4 / 16 GB / 160 GB   | 85.99 | 31.49 |
+
+CX and CAX are EU-only (Falkenstein, Nuremberg, Helsinki), which is
+where the box belongs anyway.
+
+Why 16 GB and not the 8 GB tier:
+
+- vyoh.gg alone is three containers: the api sits in the 200–400 MB RSS
+  range with bursty Sharp allocation on top once the Phase 4 image proxy
+  lands, the web SSR process is a few hundred MB more, and Postgres
+  wants ~500 MB–1 GB depending on `shared_buffers` and the LP history
+  table. Call it 1–1.5 GB steady state.
+- **Deploys build on the box** (see `deploy.sh` above). A `pnpm install`
+  plus the Vite SSR build peaks at several GB while the running stack
+  keeps serving. On 8 GB that is swap or an OOM kill on every deploy once
+  a second Node-plus-Postgres tenant is resident; on 16 GB it is a
+  non-event.
+- Static portfolio sites cost nothing beyond Nginx, so the number that
+  drives sizing is *long-lived Node processes*, not sites. 16 GB covers
+  vyoh plus two or three of those with the Nginx `proxy_cache` working
+  set still in page cache.
+- 160 GB disk absorbs the 2 GB Nginx cache ceiling plus a multi-project
+  Postgres data dir for the foreseeable future.
+
+Why CX43 over CAX31: identical specs, €5/mo cheaper, and x86 removes the
+residual risk on native dependencies (sharp, Prisma engines,
+onnxruntime-node). Either arch builds cleanly — the dev box is arm64 and
+the api Dockerfile keys its prebuilt-runtime pruning off `TARGETARCH` —
+so the fallback costs nothing but the €5. The catch is stock: CX plans
+have recurring shortages and hetzner.com intermittently lists
+Cost-Optimized as unavailable. Check all three EU locations before
+falling back; don't wait on stock.
+
+Why not CPX or CCX: they took the 2.5× rise and buy dedicated or newer
+shared cores that a few SSR sites never saturate.
 
 ### Cross-references
 
