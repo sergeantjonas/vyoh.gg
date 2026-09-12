@@ -167,7 +167,7 @@ The things that don't land in screenshots but matter long-term. Cherry-pick when
 
 **Postgres BRIN indexes.** For time-range queries (rank snapshots, matches by date), BRIN beats B-tree on disk size and is appropriate for the access pattern. Cheap optimization once tables grow.
 
-**Backups.** `pg_dump` to off-box on a schedule. Trivial; not yet wired.
+**Backups.** ✅ Shipped (repo side) — `scripts/backup.sh` and `scripts/restore.sh` landed 2026-08-15 and the restore drill is rehearsed locally. Installing the systemd timer, running the drill on the real box, and the off-box copy all wait on the VPS; tracked as a gate in [pre-launch-sweep.md](../ops/pre-launch-sweep.md).
 
 ### Quality
 

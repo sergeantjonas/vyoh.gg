@@ -84,7 +84,7 @@ One-line pointers to work that was scoped, evaluated, and intentionally set asid
 
 These aren't parked — they're a separate sequence gated on the pre-launch sweep. Listed here for completeness so the reader doesn't conflate "waiting for hosting" with "indefinitely paused":
 
-- **Owner auth (GitHub OAuth + `OwnerGuard`)** → [owner-auth.md](ops/owner-auth.md)
+- ~~Owner auth (GitHub OAuth + `OwnerGuard`)~~ — chunks 1–2 shipped 2026-08-13; only chunk 3 (prod OAuth app, cookie `domain`, env values) remains and lands with the box → [owner-auth.md](ops/owner-auth.md)
 - **CORS hardening, prod env vars, backups** → [hosting.md](ops/hosting.md)
 - ~~TanStack Start + SSR migration~~ — shipped 2026-07-27 → [tanstack-start-migration.md](cross-cutting/tanstack-start-migration.md)
 
