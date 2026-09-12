@@ -159,7 +159,7 @@ The things that don't land in screenshots but matter long-term. Cherry-pick when
 
 **Riot rate-limit headroom dashboard.** Live view of Bottleneck reservoir state. Internal — but a write-up artifact ("what does our rate budget actually look like?") is portfolio gold given the existing rate-limiter case study.
 
-**Sentry / error tracking.** Not wired today. Required for any public deployment.
+**Sentry / error tracking.** Not wired today. Required for any public deployment. **Promoted to a launch gate 2026-09-12** — it was filed under a heading that says to cherry-pick it when the appetite for visible work runs out, which is the wrong shelf for the only thing that will tell you the box broke. Scope, the argument against self-hosting Sentry on this VPS, and the GlitchTip alternative are in [observability-floor.md § Chunk 2](../ops/observability-floor.md).
 
 ### Data / backend
 

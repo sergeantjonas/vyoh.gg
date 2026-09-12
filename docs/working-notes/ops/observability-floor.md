@@ -1,0 +1,29 @@
+# Observability floor — seeing into the box before it serves traffic
+
+**Status:** Active — **found 2026-09-12 during the pre-deploy index review, and it is a launch gate the sweep did not have.** Every other gate in [pre-launch-sweep.md](pre-launch-sweep.md) asks whether the app is *correct* on first contact with the public. This one asks whether anyone will *know* when it stops being correct. The app has never run anywhere but a dev box, so its production failure modes are entirely unobserved; shipping without a way to see them means the first incident is discovered by looking at the site, not by being told. Chunk 1 is four lines of compose and lands immediately. Chunk 2 is the real gate. Chunk 3 unparks an item whose own trigger has fired.
+
+Why this was invisible to the existing indices: the error-tracking item sits in [vnext-ideas.md § Foundational](../cross-cutting/vnext-ideas.md) under a heading that opens "Cherry-pick when the appetite for visible work is exhausted", which is exactly the wrong shelf for something the same line then calls "Required for any public deployment". The logging item is in [parked.md](../parked.md) with a trigger rather than a date. Neither index was wrong; the item just had no home that sorts by launch risk.
+
+## Chunk 1 — compose hygiene · lands now, no box needed
+
+Both found by reading [compose.prod.yaml](../../../compose.prod.yaml) directly rather than from any note.
+
+- **No log rotation.** All three services declare `restart: unless-stopped` and none declares a `logging:` block, so every one uses Docker's default `json-file` driver with no `max-size` or `max-file`. Container logs grow without bound until the disk fills. On 160 GB that is slow, which is the problem: it surfaces months later as a full disk on a box whose logs nobody was watching, and the api's own crash loop is then indistinguishable from the cause. Cap it at the point of writing, not with a cron that trims later.
+- **Healthchecks cover only Postgres.** One `healthcheck` block exists in the whole file, on the database. The api already serves a health endpoint (`apps/api/src/health/health.controller.ts`) and nothing consults it, so Compose reports the api container "running" from the moment the process starts — before Nest has bootstrapped, before `prisma migrate deploy` has finished, and equally if the process is alive but wedged. `deploy.sh` smoke-checks three endpoints over ssh after the fact, which catches a bad deploy but cannot restart a container that goes unhealthy later.
+
+## Chunk 2 — error tracking · the actual gate
+
+Nothing is wired: no Sentry, no GlitchTip, no equivalent, anywhere in `apps/` or `packages/`. Unhandled exceptions reach Nest's default handler, which returns a fixed 500 body and writes a line to a container log nobody is tailing. Web-side, [web-vitals.ts](../../../apps/web/src/lib/web-vitals.ts) has a `consoleReporter` and no persistent sink, and there is no client error boundary reporting at all. The failure mode is not that errors are unhandled — they are — it is that they are **unobserved**, and the first weeks of a system's real life are when its unknown failure modes all arrive at once.
+
+**Do not self-host Sentry on this box.** Its self-hosted stack wants roughly as much memory as the whole VPS has, and the 16 GB sizing decided in [hosting.md § Sizing implications](hosting.md#sizing-implications) is budgeted for vyoh plus a few more tenants, not for an observability platform. The two shapes that fit: Sentry's hosted free tier (no box cost, the error data leaves the box), or **GlitchTip** self-hosted (Sentry-SDK-compatible, a few hundred MB, keeps the data local and costs a container). Either is a one-line SDK init at both ends. Pick when wiring, not now; what this note gates is that *something* is wired.
+
+Note the interaction with the parked runtime-validation item ([parked.md § Runtime validation](../parked.md)): that item's trigger is "a real payload-shape incident", and without error tracking a payload-shape incident is exactly the kind of thing that happens without ever being noticed. Error tracking is therefore the cheaper half of that pair and should land first — it converts the silent crash into a reported one, which is the evidence the validation decision was always waiting on. **Runtime validation stays parked; this does not unpark it.**
+
+## Chunk 3 — structured logging and request correlation (A3) · week one
+
+[parked.md](../parked.md) parks API audit A3 (Pino plus request ids) with the trigger **"the app is hosted"**, on the reasoning that structured logs only pay off once they are aggregated. That trigger fires the day the box exists. It is listed third rather than first because it is a genuine piece of work across the api rather than a config line, and because chunk 2 delivers the larger share of the visibility for far less effort. Landing it in the first week post-deploy honours the trigger without holding up launch. Detail: [audit-api-structure.md § A3](../cross-cutting/audit-api-structure.md).
+
+## Adjacent, deliberately not in scope here
+
+- **No HSTS header.** [deploy/nginx/](../../../deploy/nginx/) sets `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options` and `server_tokens off`, and the absent CSP is a recorded decision in `vyoh.gg.conf`. `Strict-Transport-Security` is simply not there. It belongs with the nginx config at deploy time, not with observability, and wants a short `max-age` first because a long one is hard to walk back. Tracked in [security.md](security.md).
+- **Web Vitals dashboard and the RUM backend** are post-launch by an explicit 2026-09-06 decision in [vnext-ideas.md](../cross-cutting/vnext-ideas.md): before launch the only visitor is the owner's dev box, so there is nothing to plot. This note does not disturb that sequencing — error tracking answers "did it break", RUM answers "how fast is it for real people", and only the first is a launch gate.
