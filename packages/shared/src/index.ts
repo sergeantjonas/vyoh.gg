@@ -508,6 +508,7 @@ export type {
   RecapSelectionOptions,
 } from "./home/recap-scoring.ts";
 export type { HealthResponse } from "./health.ts";
+export { isSecretKey, redactSecrets, redactSecretsDeep } from "./redaction.ts";
 export { syncJobHealth } from "./status.ts";
 export type {
   AppWindowSnapshot,

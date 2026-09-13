@@ -1,19 +1,16 @@
 import { Injectable, Logger } from "@nestjs/common";
-import type { SyncJobRun, SyncJobStatus, SyncJobTriggerResult } from "@vyoh/shared";
+import {
+  type SyncJobRun,
+  type SyncJobStatus,
+  type SyncJobTriggerResult,
+  redactSecrets,
+} from "@vyoh/shared";
 import { SYNC_JOBS, type SyncJobName } from "./sync-jobs.catalog";
 
 // `GET /status` is public, and these messages come from upstream clients that
 // build URLs by hand — Steam's among them, which carries its Web API key as a
 // query parameter. An error quoting the failing URL would publish that key to
-// every visitor the moment the call started failing. Redacting on the way in
-// means a leak needs a new secret-carrying parameter name, not just a new
-// upstream client.
-const SECRET_QUERY_PARAM = /([?&][^=&\s"']*(?:key|token|secret)=)[^&\s"']+/gi;
-
-function redactSecrets(message: string): string {
-  return message.replace(SECRET_QUERY_PARAM, "$1***");
-}
-
+// every visitor the moment the call started failing.
 function messageFor(err: unknown): string {
   return redactSecrets(err instanceof Error ? err.message : String(err));
 }
