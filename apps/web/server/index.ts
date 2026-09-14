@@ -1,3 +1,5 @@
+// First import: error reporting must be live before anything can fail.
+import "./instrument.ts";
 import { access } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";

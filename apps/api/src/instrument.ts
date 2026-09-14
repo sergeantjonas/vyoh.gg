@@ -2,7 +2,7 @@
 // libraries it instruments as they are loaded, so anything required ahead of
 // this runs uninstrumented.
 import * as Sentry from "@sentry/nestjs";
-import { scrub } from "./sentry-scrub";
+import { scrubPayload } from "@vyoh/shared";
 
 Sentry.init({
   // An absent DSN disables the SDK rather than failing, which is what lets this
@@ -29,7 +29,7 @@ Sentry.init({
   // every error while still looking enabled. That is the worst failure this
   // file can have, so empty falls back rather than being honoured.
   sampleRate: Number(process.env.SENTRY_SAMPLE_RATE || 1),
-  beforeSend: scrub,
-  beforeSendTransaction: scrub,
-  beforeBreadcrumb: scrub,
+  beforeSend: scrubPayload,
+  beforeSendTransaction: scrubPayload,
+  beforeBreadcrumb: scrubPayload,
 });

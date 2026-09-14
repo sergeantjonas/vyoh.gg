@@ -125,6 +125,16 @@ services:
       # Runtime, and server-side only: SSR loaders reach the api directly rather
       # than back out through Nginx and the public hostname.
       API_INTERNAL_URL: http://api:2010
+      # Error reporting for the SSR tier, and deliberately its *own* DSN: one
+      # value shared with the api would file SSR events under the api's project
+      # and collide with E3's web release tagging. Empty disables the SDK. The
+      # browser DSN is a third value and a build argument, because it bakes into
+      # the bundle.
+      SENTRY_DSN: ${SENTRY_WEB_DSN:-}
+      SENTRY_SAMPLE_RATE: ${SENTRY_SAMPLE_RATE:-1}
+      # Also a build arg above, for the bundle. Read again at runtime so the SSR
+      # process tags its own events with the build that produced it.
+      BUILD_COMMIT: ${BUILD_COMMIT:-}
     ports:
       - "127.0.0.1:${WEB_PORT:-2009}:2009"
     depends_on:

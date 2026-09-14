@@ -205,3 +205,16 @@ function isPlainObject(value: object): boolean {
   const proto = Object.getPrototypeOf(value) as unknown;
   return proto === Object.prototype || proto === null;
 }
+
+/**
+ * Scrub a payload bound for an error tracker, or refuse it.
+ *
+ * `redactSecretsDeep` answers with the bare marker when a value defeats it
+ * outright, and a string is not an event. Returning `null` is the honest
+ * response: we cannot say what it still holds, and a report we cannot vouch for
+ * is worth less than no report. Both SDK hooks treat `null` as "drop this".
+ */
+export function scrubPayload<T extends object>(payload: T): T | null {
+  const scrubbed: unknown = redactSecretsDeep(payload);
+  return typeof scrubbed === "object" && scrubbed !== null ? (scrubbed as T) : null;
+}

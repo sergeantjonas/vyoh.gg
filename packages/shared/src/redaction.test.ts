@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { isSecretKey, redactSecrets, redactSecretsDeep } from "./redaction.ts";
+import {
+  isSecretKey,
+  redactSecrets,
+  redactSecretsDeep,
+  scrubPayload,
+} from "./redaction.ts";
 
 describe("redactSecrets", () => {
   it("redacts a credential query parameter but keeps its name", () => {
@@ -231,5 +236,33 @@ describe("redactSecretsDeep", () => {
   it("passes values that are neither strings, arrays nor plain objects through", () => {
     const date = new Date("2026-09-13T00:00:00.000Z");
     expect(redactSecretsDeep({ at: date }).at).toBe(date);
+  });
+});
+
+describe("scrubPayload", () => {
+  it("redacts secrets anywhere in an event", () => {
+    expect(
+      scrubPayload({
+        message: "GET https://api.steampowered.com/x?key=LIVE failed",
+        extra: { headers: { authorization: "Bearer LIVE" } },
+      })
+    ).toEqual({
+      message: "GET https://api.steampowered.com/x?key=*** failed",
+      extra: { headers: { authorization: "***" } },
+    });
+  });
+
+  it("drops the payload when the scrubber collapses it to the marker", () => {
+    // A value that defeats the walk entirely comes back as the bare marker. A
+    // string is not an event, and one we cannot vouch for is worse than none.
+    const hostile = new Proxy(
+      { ok: 1 },
+      {
+        ownKeys() {
+          throw new Error("nope");
+        },
+      }
+    );
+    expect(scrubPayload(hostile)).toBeNull();
   });
 });

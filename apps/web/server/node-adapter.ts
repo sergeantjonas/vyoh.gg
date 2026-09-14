@@ -9,6 +9,7 @@ import {
 import { resolve } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
+import * as Sentry from "@sentry/node";
 import { cacheControlFor, contentTypeFor, resolveClientAsset } from "./static-assets.ts";
 
 /**
@@ -145,6 +146,18 @@ export function createNodeServer({
   return createServer((req, res) => {
     handle(req, res).catch((error: unknown) => {
       console.error(`[web] ${req.method} ${req.url} failed:`, error);
+      // The only place an SSR render failure surfaces — there is no mounted
+      // React tree left to catch it, so no boundary ever sees one. Client
+      // disconnects are filtered in `beforeSend` rather than here, because
+      // they can also arrive by paths that never reach this catch.
+      // Pathname rather than raw `req.url`: a tag value is capped at 200 chars
+      // and a query string makes cardinality unbounded, so events would stop
+      // grouping by the thing that actually broke.
+      Sentry.captureException(error, {
+        tags: {
+          route: `${req.method ?? "?"} ${new URL(req.url ?? "/", "http://x").pathname}`,
+        },
+      });
       if (res.headersSent) {
         // Half a response is already on the wire; the only honest signal left
         // is an incomplete body.

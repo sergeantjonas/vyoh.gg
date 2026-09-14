@@ -69,6 +69,17 @@ WORKDIR /app
 
 COPY --from=build --chown=node:node /out/node_modules ./node_modules
 COPY --from=build --chown=node:node /out/package.json ./package.json
+# Raw source beside a symlink, mirroring the api image. `pnpm deploy`
+# materialises workspace packages *inside* `node_modules`, and Node refuses to
+# strip types from any file whose realpath sits under `node_modules`
+# (ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING). Since `server/*.ts` runs as raw
+# TypeScript and imports `@vyoh/shared`, the deployed copy would kill the
+# container at its first import — a boot loop, not a degraded path.
+COPY --from=build --chown=node:node /repo/packages/shared ./packages/shared
+RUN rm -rf node_modules/@vyoh/shared \
+    && ln -s ../../packages/shared node_modules/@vyoh/shared \
+    && chown -h node:node node_modules/@vyoh/shared
+
 COPY --from=build --chown=node:node /repo/apps/web/dist ./dist
 # Run as TypeScript by Node's type stripping — see server/index.ts.
 COPY --from=build --chown=node:node /repo/apps/web/server ./server

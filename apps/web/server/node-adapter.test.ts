@@ -8,8 +8,11 @@ import { type IncomingHttpHeaders, request as httpRequest } from "node:http";
 import type { AddressInfo, Server } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import * as Sentry from "@sentry/node";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { type FetchHandler, createNodeServer } from "./node-adapter.ts";
+
+vi.mock("@sentry/node", () => ({ captureException: vi.fn() }));
 
 const ASSET_BODY = "export const marker = 1;\n";
 
@@ -170,5 +173,16 @@ describe("SSR fallthrough", () => {
     const res = await send("/boom");
     expect(res.status).toBe(500);
     expect(res.body).toBe("Internal Server Error");
+  });
+
+  it("reports the failure, tagged with the pathname rather than the raw url", async () => {
+    // This catch is the only place an SSR render failure surfaces — there is no
+    // mounted React tree left for a boundary to see one.
+    vi.mocked(Sentry.captureException).mockClear();
+    await send("/boom?token=LIVE");
+    expect(Sentry.captureException).toHaveBeenCalledOnce();
+    expect(vi.mocked(Sentry.captureException).mock.calls[0]?.[1]).toMatchObject({
+      tags: { route: "GET /boom" },
+    });
   });
 });
