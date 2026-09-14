@@ -128,6 +128,8 @@ While a game is open, the hero should be the *current* session: "Now playing · 
 
 Verified live: at 00:52 Brussels on 2026-09-15 the dev api reported Onimusha open since 22:20 with the last poll a minute old, and the hero read `2h 31m`.
 
+**Owner review, 2026-09-15: "could be a little more interesting" — accepted, parked behind chunk 4.** With no launch-time beat the live hero is a clock and a start time. Candidates, cheapest first: a *running rank* beat ("already longer than 6 of your 10 Onimusha sessions" — the closed rows are in the payload, so the web can compute it against the ticking minutes with no api change, and it moves during the session, which the clock alone does not); the game's median session as a quiet tick under the masthead so the reader sees where this one sits; the *usual finish* for this weekday slot ("you usually stop around 01:00"); a mid-session unlock refresh so unlocks appear while playing rather than at close (api: run `refreshUnlocksForGame` on a timer while a session is open, not only on close). Pick after the timeline exists, since the timeline gives the live session a visual home too.
+
 **Chunk 0 amendment, 2026-09-15.** The 29-hour row was split along its unlock clusters rather than deleted, on the owner's call: `cmsz31xfw0004d5nds7lrrxa1` now ends 2026-08-19 00:35Z (4 h 39 m, five unlocks), and two new rows cover 08-19 14:45 → 18:20Z (3 h 35 m, two unlocks) and 08-19 21:30 → 08-20 01:16Z (3 h 46 m, three unlocks). Twelve hours against the snapshots' ten-and-a-bit; the boundaries are estimates and the note is their only record. The `4h+` bucket reads 3 again, all of them real.
 
 ## Open decisions
