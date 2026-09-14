@@ -1,6 +1,6 @@
 # Steam — Sessions (`/steam/sessions`)
 
-**Status:** Active — scoped 2026-09-14 against the local database; nothing built yet. Chunk 0 (data probe) is done and recorded below; chunk 1 (shared beat model) is next.
+**Status:** Active — chunks 0 and 1 shipped 2026-09-14: the data probe is recorded below and the pure beat model, unlock join and hour matrix live in `packages/shared/src/steam/sessions/` with 31 tests. Chunk 2 (the viewer-scoped api endpoint) is next.
 
 ## Naming
 
@@ -41,7 +41,7 @@ The last twelve rows already read like the page: nine Onimusha sittings in one w
 
 ## The beat model
 
-A sitting's headline is chosen, not templated. Each signal produces zero or one **beat** with a strength; the strongest becomes the hero prose, the next one or two become supporting chips. This is a pure pass in `packages/shared/src/steam/sittings/`, sibling in spirit to `recap-scoring.ts`, and it is the reason the page has no boring branch.
+A sitting's headline is chosen, not templated. Each signal produces zero or one **beat** with a strength; the strongest becomes the hero prose, the next one or two become supporting chips. This is a pure pass in `packages/shared/src/steam/sessions/` (`selectSessionBeats` in `beats.ts`), sibling in spirit to `recap-scoring.ts`, and it is the reason the page has no boring branch.
 
 Signals, all from existing tables:
 
@@ -79,7 +79,7 @@ Editorial hero band, then dense bands below, the shape the portrait's layout pas
 One endpoint, one type, one query:
 
 ```ts
-// packages/shared/src/steam/sittings/index.ts
+// packages/shared/src/steam/sessions/sessions.ts
 export type SteamSittings = {
   window: { from: string; to: string; observedSince: string; sittingCount: number };
   sittings: SteamSitting[];          // newest first; each carries its beats + unlocks
@@ -93,13 +93,13 @@ export type SteamSittings = {
 
 `GET /api/steam/sessions?weeks=N` behind `@WithViewer()` + `@ViewerIsOwner()`, service takes the curation sets as an argument, web key ends in `viewerScope(isOwner)`, fetch sends `credentials: "include"`. The loader primes the *public* key; the page reads only our Postgres so it qualifies for SSR priming the same way the portrait did. Measure the payload at 12 weeks before deciding whether `sittings[]` needs a cap.
 
-The unlock join: `unlockedAt BETWEEN startedAt - 4 min AND endedAt + 4 min`, same appid. Pin the slack as a named constant beside `REMAKE_DURATION_S`'s spiritual cousin and test the boundary.
+The unlock join: `unlockedAt BETWEEN startedAt - 4 min AND endedAt + 4 min`, same appid. The slack is `SESSION_UNLOCK_SLACK_MS` in `unlocks-within.ts`, with the boundary pinned in its test.
 
 ## Chunk plan
 
 **Chunk 0 — Data probe.** ✅ Done 2026-09-14, findings above. No code.
 
-**Chunk 1 — Shared beat model + types.** `packages/shared/src/steam/sittings/`: the `SteamSittings` family, `SITTING_UNLOCK_SLACK_MS`, `unlocksWithin()`, `selectBeats()` with one fixture per beat kind and a fixture proving a zero-unlock sitting still produces a headline. Pure, no I/O.
+**Chunk 1 — Shared beat model + types.** ✅ Done 2026-09-14. `packages/shared/src/steam/sessions/`: the `SteamSessions` response family (`sessions.ts`), `SESSION_UNLOCK_SLACK_MS` + `unlocksWithin()` + `unlocksOffCamera()` (`unlocks-within.ts`), `buildHourMatrix()` + `localSlot()` (`hour-matrix.ts`, with fall-back and spring-forward fixtures), and `selectSessionBeats()` (`beats.ts`) with a fixture per beat kind and one proving a zero-unlock session still ends with a `shape` headline. Review changed four things before it landed: `unusual-slot` compared the whole session against its start cell and fired on a weekly habit, so it now subtracts only the session's own share of that hour; `longest-in-window` let tied durations both claim the title, so the newer one wins; `late-finish` fired on twelve minutes straddling midnight, so it needs an hour; and `completed-and-back` at hero strength would have headlined every later session of a finished game, so it sits at chip strength. Pure, no I/O.
 
 **Chunk 2 — API.** `apps/api/src/steam/sittings/`: service + controller, viewer-scoped per the four-piece contract, joining sessions, unlocks, rarity, snapshots and completion. Spec the join boundary and the hidden-game drop. Measure payload size and latency at 12 weeks and record both here.
 

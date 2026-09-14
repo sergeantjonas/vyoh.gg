@@ -442,6 +442,60 @@ export type {
   TastedSummary,
   UnlockInput,
 } from "./steam/portrait/abandonment.ts";
+export {
+  SESSION_UNLOCK_SLACK_MS,
+  isUnlockWithin,
+  unlocksOffCamera,
+  unlocksWithin,
+} from "./steam/sessions/unlocks-within.ts";
+export type { SessionInterval, UnlockInstant } from "./steam/sessions/unlocks-within.ts";
+export {
+  HOUR_MATRIX_DAYS,
+  HOUR_MATRIX_HOURS,
+  buildHourMatrix,
+  emptyHourMatrix,
+  hourMatrixCellRank,
+  hourMatrixTotalMinutes,
+  localSlot,
+} from "./steam/sessions/hour-matrix.ts";
+export type { LocalSlot, MatrixInterval } from "./steam/sessions/hour-matrix.ts";
+export {
+  BEAT_BOUNCE_MAX_MINUTES,
+  BEAT_EARLY_START_BEFORE_HOUR,
+  BEAT_FIRST_SESSION_MIN_SHARE,
+  BEAT_LATE_FINISH_BEFORE_HOUR,
+  BEAT_LATE_FINISH_MIN_MINUTES,
+  BEAT_MILESTONE_HOURS,
+  BEAT_RANK_MIN_SESSIONS,
+  BEAT_RARE_UNLOCK_PERCENT,
+  BEAT_RETURN_MIN_DAYS,
+  BEAT_SLOT_MIN_TOTAL_MINUTES,
+  BEAT_STREAK_MIN_DAYS,
+  BEAT_USUAL_SLOT_MAX_RANK,
+  BEAT_WINDOW_MIN_SESSIONS,
+  selectSessionBeats,
+  sessionDurationMinutes,
+} from "./steam/sessions/beats.ts";
+export type {
+  BeatNeighbour,
+  BeatSession,
+  BeatUnlock,
+  SessionBeatContext,
+  SteamSessionBeat,
+  SteamSessionBeatKind,
+} from "./steam/sessions/beats.ts";
+export type {
+  SteamOffCameraUnlockGroup,
+  SteamPlaySessionDigest,
+  SteamPlaytimeMilestone,
+  SteamSessionGameRef,
+  SteamSessionGameStrip,
+  SteamSessionRecord,
+  SteamSessionRecords,
+  SteamSessionUnlock,
+  SteamSessions,
+  SteamSessionsWindow,
+} from "./steam/sessions/sessions.ts";
 export { PORTRAIT_RECENT_WINDOW_DAYS } from "./steam/portrait/portrait.ts";
 export type {
   SteamPortrait,
@@ -508,7 +562,12 @@ export type {
   RecapSelectionOptions,
 } from "./home/recap-scoring.ts";
 export type { HealthResponse } from "./health.ts";
-export { isSecretKey, redactSecrets, redactSecretsDeep } from "./redaction.ts";
+export {
+  isSecretKey,
+  redactSecrets,
+  redactSecretsDeep,
+  scrubPayload,
+} from "./redaction.ts";
 export { syncJobHealth } from "./status.ts";
 export type {
   AppWindowSnapshot,
