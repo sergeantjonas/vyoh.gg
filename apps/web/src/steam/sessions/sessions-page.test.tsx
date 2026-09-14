@@ -132,8 +132,6 @@ describe("SessionsPage", () => {
             {
               apiName: "BLADEMASTER",
               displayName: "Blademaster",
-              description: "",
-              iconUrl: null,
               hidden: false,
               unlockedAt: "2026-09-12T12:00:00.000Z",
               globalPercent: 2.5,

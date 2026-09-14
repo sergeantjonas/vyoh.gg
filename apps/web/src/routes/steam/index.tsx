@@ -1,4 +1,5 @@
 import { routeMeta } from "@/lib/route-meta";
+import { LastSessionChip } from "@/steam/last-session-chip";
 import { OwnedGamesChip } from "@/steam/owned-games-chip";
 import { SteamIdentityHero } from "@/steam/profile/steam-identity-hero";
 import { TrophyCaseStrip } from "@/steam/profile/trophy-case-strip";
@@ -29,13 +30,18 @@ function SteamPage() {
     <div className="flex flex-col gap-12">
       <SteamIdentityHero />
       <TrophyCaseStrip />
-      {/* Paired by tense on the wide tier: the two-column row reads recent
-          unlocks beside what lands next, then the backlog beside the library. */}
+      {/* Paired by tense on the wide tier: the last session beside the
+          recent unlocks (what just happened), what lands next beside the
+          backlog (what is waiting), and the library alone on the last row,
+          since it is the one card about the whole shelf rather than a moment. */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <LastSessionChip />
         <RecentUnlocksChip />
         <UpcomingChip />
         <WishlistChip />
-        <OwnedGamesChip />
+        <div className="md:col-span-2">
+          <OwnedGamesChip />
+        </div>
       </div>
     </div>
   );

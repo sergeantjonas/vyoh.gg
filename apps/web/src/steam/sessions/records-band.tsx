@@ -19,11 +19,12 @@ function when(r: SteamSessionRecord): string {
   return `${r.game.name}, ${DATE.format(new Date(r.startedAt))}`;
 }
 
-// Five records off the same query, each a chip: which session in the window
-// was the longest, the latest to finish, the busiest for unlocks, the longest
-// with nothing unlocked, and the quickest bounce. All unlock-free except one
-// by construction, which is what lets the band say something on a week
-// without a single achievement.
+// Five records and the milestones off the same query, each a chip: which
+// session in the window was the longest, the latest to finish, the busiest
+// for unlocks, the longest with nothing unlocked, the quickest bounce, and
+// which sessions carried a game past a round number of lifetime hours. All
+// unlock-free except one by construction, which is what lets the band say
+// something on a week without a single achievement.
 export function RecordsBand() {
   const query = useSteamSessions();
   const errorLabel = "Session records are unavailable right now.";
@@ -114,6 +115,43 @@ export function RecordsBand() {
             />
           )
         }
+      </FactCardData>
+      <FactCardData
+        query={query}
+        title="Milestones"
+        pendingLabel={pendingLabel}
+        errorLabel={errorLabel}
+        emptyLabel="No game crossed a round number of lifetime hours in the window."
+        emptyPrescription="10, 25, 50, 100, 250, 500 and 1,000 hours count."
+        isEmpty={(d) => d.milestones.length === 0}
+      >
+        {({ milestones }) => {
+          const [latest] = milestones;
+          return (
+            latest && (
+              <FactCard
+                title="Milestones"
+                metric={milestones.length}
+                metricLabel={{ singular: "crossing", plural: "crossings" }}
+                verdict={`${latest.game.name} passed ${latest.hours} hours.`}
+                prescription={DATE.format(new Date(latest.crossedAt))}
+                evidence={
+                  milestones.length > 1 ? (
+                    <ul className="flex flex-col gap-0.5 text-muted-foreground/80 text-xs tabular-nums">
+                      {milestones.slice(1, 4).map((m) => (
+                        <li key={m.sessionId}>
+                          {m.game.name} · {m.hours}h ·{" "}
+                          {DATE.format(new Date(m.crossedAt))}
+                        </li>
+                      ))}
+                      {milestones.length > 4 && <li>and {milestones.length - 4} more</li>}
+                    </ul>
+                  ) : undefined
+                }
+              />
+            )
+          );
+        }}
       </FactCardData>
       <FactCardData
         query={query}

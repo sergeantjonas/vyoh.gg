@@ -14,8 +14,6 @@ function digest(beats: SteamSessionBeat[], unlocks = 0): SteamPlaySessionDigest 
     unlocks: Array.from({ length: unlocks }, (_, i) => ({
       apiName: `A${i}`,
       displayName: `Ach ${i}`,
-      description: "",
-      iconUrl: null,
       hidden: false,
       unlockedAt: "2026-09-08T19:00:00.000Z",
       globalPercent: 10,

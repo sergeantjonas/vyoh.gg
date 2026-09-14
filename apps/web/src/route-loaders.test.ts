@@ -18,6 +18,7 @@ import { Route as PatchesIndexRoute } from "./routes/lol/patches/index";
 import { Route as AchievementsRoute } from "./routes/steam/achievements";
 import { Route as GamePanelRoute } from "./routes/steam/library/$appid";
 import { Route as PortraitRoute } from "./routes/steam/portrait";
+import { Route as SessionsRoute } from "./routes/steam/sessions";
 import { Route as UpcomingRoute } from "./routes/steam/upcoming";
 import { Route as WishlistRoute } from "./routes/steam/wishlist";
 
@@ -191,6 +192,12 @@ describe("fatal primes", () => {
     fails = (url) => url.includes("/changes");
 
     await expect(runLoader(PatchVersionRoute, { version: "26.3" })).rejects.toThrow();
+  });
+
+  it("/steam/sessions fails when the log fails, since the one query is the page", async () => {
+    fails = (url) => url.includes("/steam/sessions");
+
+    await expect(runLoader(SessionsRoute)).rejects.toThrow();
   });
 
   it("/lol/patches fails when the list it picks a version from fails", async () => {

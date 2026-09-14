@@ -10,11 +10,12 @@
 
 import type { SteamSessionBeat } from "./beats.ts";
 
+// Name, instant and rarity only. The icon is addressed by appid + apiName
+// through the image proxy, and the description never renders on this page;
+// both were a third of the payload when they rode along.
 export interface SteamSessionUnlock {
   apiName: string;
   displayName: string;
-  description: string;
-  iconUrl: string | null;
   // Spoiler flag from the schema. The web masks name and icon while the
   // achievement is locked; unlocked rows reveal fully, as Steam's client does.
   hidden: boolean;
@@ -73,12 +74,18 @@ export interface SteamSessionRecords {
   quickestBounce: SteamSessionRecord | null;
 }
 
+// Unlocks no observed session can claim, grouped by game and owner-local day.
+// The count is the fact; the sample is the first few names so the row can say
+// something, capped because a busy off-camera day once carried 19 rows.
 export interface SteamOffCameraUnlockGroup {
   game: SteamSessionGameRef;
   // Owner-local calendar day, `YYYY-MM-DD`.
   day: string;
-  unlocks: SteamSessionUnlock[];
+  count: number;
+  sample: SteamSessionUnlock[];
 }
+
+export const OFF_CAMERA_SAMPLE_LIMIT = 3;
 
 // The session that is open right now, when there is one. Its duration is the
 // reader's clock minus `startedAt`, so the page can count up between polls;

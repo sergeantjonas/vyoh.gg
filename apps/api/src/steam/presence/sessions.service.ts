@@ -13,6 +13,7 @@ import type {
   SteamSessions,
 } from "@vyoh/shared";
 import {
+  OFF_CAMERA_SAMPLE_LIMIT,
   OWNER_TIME_ZONE,
   SESSION_UNLOCK_SLACK_MS,
   buildHourMatrix,
@@ -51,8 +52,6 @@ interface UnlockRow {
   unlockedAt: Date;
   achievement: {
     displayName: string;
-    description: string;
-    iconUrl: string;
     hidden: boolean;
     rarity: { percent: number } | null;
     game: { name: string };
@@ -151,8 +150,6 @@ export class SteamSessionsService {
           achievement: {
             select: {
               displayName: true,
-              description: true,
-              iconUrl: true,
               hidden: true,
               rarity: { select: { percent: true } },
               game: { select: { name: true } },
@@ -356,8 +353,6 @@ function toUnlock(u: UnlockRow): SteamSessionUnlock {
   return {
     apiName: u.apiName,
     displayName: u.achievement.displayName,
-    description: u.achievement.description,
-    iconUrl: u.achievement.iconUrl || null,
     hidden: u.achievement.hidden,
     unlockedAt: u.unlockedAt.toISOString(),
     globalPercent: u.achievement.rarity?.percent ?? null,
@@ -480,7 +475,8 @@ function offCameraGroups(
         name: nameByApp.get(head.appid) ?? head.achievement.game.name,
       },
       day: key.slice(key.indexOf(":") + 1),
-      unlocks: rows.map(toUnlock),
+      count: rows.length,
+      sample: rows.slice(0, OFF_CAMERA_SAMPLE_LIMIT).map(toUnlock),
     });
   }
   groups.sort((a, b) => (a.day < b.day ? 1 : a.day > b.day ? -1 : 0));

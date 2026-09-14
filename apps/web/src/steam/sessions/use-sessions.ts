@@ -24,12 +24,11 @@ async function fetchSessions(weeks: number): Promise<SteamSessions> {
   return res.json() as Promise<SteamSessions>;
 }
 
-// Not primed in the route loader, unlike the portrait: measured 2026-09-14 the
-// twelve-week payload is 89 kB, half of it the off-camera ledger, and that is
-// too much to inline into the document for a page whose hero needs 2 kB of
-// it. The page renders its skeleton on the server and the hero cascades in
-// on the client. Once the ledger is compact enough, priming is one line here
-// and one in the route.
+// Primed in the /steam/sessions loader. The twelve-week payload measured
+// 89 kB on 2026-09-14 with full unlock rows in every ledger group and a
+// description and icon URL on every unlock; trimming those brought it to
+// 45 kB on 2026-09-15, which is what made carrying it in the document the
+// right trade for a page that is one argument from top to bottom.
 //
 // Five minutes stale: the presence poller closes a session every two, so a
 // tab left open sees a finished evening on the next focus rather than the one

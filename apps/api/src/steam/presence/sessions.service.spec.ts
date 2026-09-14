@@ -76,8 +76,6 @@ function mockPrisma(options: {
         unlockedAt: u.unlockedAt,
         achievement: {
           displayName: `${u.apiName} label`,
-          description: "",
-          iconUrl: `https://cdn/${u.apiName}.jpg`,
           hidden: u.hidden ?? false,
           rarity:
             u.percent === undefined
@@ -252,7 +250,6 @@ describe("SteamSessionsService.getSessions", () => {
     expect(marathon?.unlocks.map((u) => u.apiName)).toEqual(["A", "B"]);
     expect(marathon?.unlocks[0]).toMatchObject({
       displayName: "A label",
-      iconUrl: "https://cdn/A.jpg",
       globalPercent: 2.5,
     });
     expect(marathon?.beats.find((b) => b.kind === "unlocks")).toMatchObject({
@@ -263,7 +260,8 @@ describe("SteamSessionsService.getSessions", () => {
       {
         game: { appid: MORTAL_SHELL, name: `Game ${MORTAL_SHELL}` },
         day: "2026-09-12",
-        unlocks: [
+        count: 2,
+        sample: [
           expect.objectContaining({ apiName: "C" }),
           expect.objectContaining({ apiName: "D" }),
         ],

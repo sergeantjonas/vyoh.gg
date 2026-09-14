@@ -2,6 +2,7 @@ import { SectionTitle } from "@/components/ui/section-title";
 import { OWNER_TIME_ZONE } from "@vyoh/shared";
 import { HourHeatmapCard } from "./hour-heatmap";
 import { LastSessionHero } from "./last-session-hero";
+import { OffCameraLedger } from "./off-camera-ledger";
 import { RecordsBand } from "./records-band";
 import { SessionTimelineCard } from "./session-timeline";
 import { SESSIONS_WEEKS, useSteamSessions } from "./use-sessions";
@@ -35,7 +36,10 @@ export function SessionsPage() {
       <LastSessionHero />
       <SessionTimelineCard />
       <RecordsBand />
-      <HourHeatmapCard />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <HourHeatmapCard />
+        <OffCameraLedger />
+      </div>
     </section>
   );
 }

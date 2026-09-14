@@ -60,8 +60,6 @@ const DATA: SteamSessions = {
         {
           apiName: "A",
           displayName: "A",
-          description: "",
-          iconUrl: null,
           hidden: false,
           unlockedAt: "2026-09-06T13:00:00.000Z",
           globalPercent: 2.5,

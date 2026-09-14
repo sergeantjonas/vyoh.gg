@@ -38,7 +38,7 @@ export function LastSessionHero() {
   const reducedMotion = useReducedMotion();
   const live = data?.live ?? null;
   const latest = data?.sessions[0];
-  const elapsed = useElapsedMinutes(live?.startedAt ?? null);
+  const elapsed = useElapsedMinutes(live?.startedAt ?? null, data?.window.to ?? null);
   const subject = live ?? latest ?? null;
   const headline = live
     ? liveHeadlineFor(live, elapsed)
