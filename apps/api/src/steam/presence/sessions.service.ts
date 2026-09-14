@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import type {
   BeatNeighbour,
   SteamCurationSets,
+  SteamLiveSession,
   SteamOffCameraUnlockGroup,
   SteamPlaySessionDigest,
   SteamPlaytimeMilestone,
@@ -18,6 +19,7 @@ import {
   excludeHiddenGames,
   isHiddenGame,
   localSlot,
+  selectLiveSessionBeats,
   selectSessionBeats,
   sessionDurationMinutes,
   unlocksOffCamera,
@@ -25,6 +27,7 @@ import {
   visibleAppidFilter,
 } from "@vyoh/shared";
 import { PrismaService } from "../../prisma/prisma.service";
+import { SESSION_POLL_GAP_MAX_MS } from "./play-sessions.service";
 
 export const SESSIONS_DEFAULT_WEEKS = 12;
 export const SESSIONS_MAX_WEEKS = 52;
@@ -102,9 +105,40 @@ export class SteamSessionsService {
       })
     ).flatMap((r) => (r.endedAt ? [{ ...r, endedAt: r.endedAt }] : []));
 
+    // An open row only means "playing now" while the poller is actually
+    // polling: the row closes on the tick that sees the game gone, and no
+    // tick comes while the api is down. So the row is live only if the last
+    // tick is recent and still saw this game — the same bound the state
+    // machine uses to end a session across a gap.
+    const [openRow, playerState] = await Promise.all([
+      this.prisma.steamPlaySession.findFirst({
+        where: { endedAt: null },
+        orderBy: { startedAt: "desc" },
+        select: { id: true, appid: true, gameNameSnapshot: true, startedAt: true },
+      }),
+      this.prisma.steamPlayerState.findFirst({
+        select: { currentAppid: true, lastPolledAt: true },
+      }),
+    ]);
+    const pollIsFresh =
+      playerState !== null &&
+      to.getTime() - playerState.lastPolledAt.getTime() <= SESSION_POLL_GAP_MAX_MS;
+    const liveRow =
+      openRow &&
+      pollIsFresh &&
+      playerState.currentAppid === openRow.appid &&
+      !isHiddenGame(openRow.appid, curation)
+        ? openRow
+        : null;
+
     const windowRows = allRows.filter((r) => r.startedAt >= from);
     const visibleWindowRows = excludeHiddenGames(windowRows, curation);
-    const windowAppids = [...new Set(visibleWindowRows.map((r) => r.appid))];
+    const windowAppids = [
+      ...new Set([
+        ...visibleWindowRows.map((r) => r.appid),
+        ...(liveRow ? [liveRow.appid] : []),
+      ]),
+    ];
 
     const [unlockRows, snapshotRows, totals, unlockedCounts] = await Promise.all([
       this.prisma.steamPlayerUnlock.findMany({
@@ -203,6 +237,35 @@ export class SteamSessionsService {
     digests.reverse();
     milestones.reverse();
 
+    let live: SteamLiveSession | null = null;
+    if (liveRow) {
+      const running: SessionRow = { ...liveRow, endedAt: to };
+      const total = totalByApp.get(liveRow.appid) ?? 0;
+      const last = allRows[allRows.length - 1];
+      live = {
+        id: liveRow.id,
+        game: { appid: liveRow.appid, name: liveRow.gameNameSnapshot },
+        startedAt: liveRow.startedAt.toISOString(),
+        beats: selectLiveSessionBeats({
+          session: running,
+          gameSessions: [...(byGame.get(liveRow.appid) ?? []), running],
+          windowSessions: [...windowRows, running],
+          before:
+            last && last.endedAt <= liveRow.startedAt ? neighbour(last, curation) : null,
+          after: null,
+          playtimeForeverMinutes: null,
+          completion:
+            total > 0 ? { total, unlocked: unlockedByApp.get(liveRow.appid) ?? 0 } : null,
+          unlocks: [],
+          // The slot beats subtract the session's own minutes from its start
+          // cell, so the matrix they read has to contain it; the published
+          // matrix stays closed-sessions-only.
+          hourMatrix: buildHourMatrix([...windowRows, running], OWNER_TIME_ZONE),
+          timeZone: OWNER_TIME_ZONE,
+        }),
+      };
+    }
+
     const first = allRows[0];
     return {
       window: {
@@ -211,6 +274,7 @@ export class SteamSessionsService {
         observedSince: first ? first.startedAt.toISOString() : null,
         sessionCount: windowRows.length,
       },
+      live,
       sessions: digests,
       hourMatrix,
       timeZone: OWNER_TIME_ZONE,

@@ -799,6 +799,7 @@ describe("SteamController", () => {
         observedSince: null,
         sessionCount: 0,
       },
+      live: null,
       sessions: [],
       hourMatrix: [],
       timeZone: "Europe/Brussels",

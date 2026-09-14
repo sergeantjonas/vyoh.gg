@@ -6,6 +6,7 @@ import {
   type BeatSession,
   type SessionBeatContext,
   type SteamSessionBeat,
+  selectLiveSessionBeats,
   selectSessionBeats,
 } from "./beats.ts";
 import { buildHourMatrix } from "./hour-matrix.ts";
@@ -325,6 +326,40 @@ describe("selectSessionBeats", () => {
       context(longInHabitSlot, { gameSessions: [...habit, longInHabitSlot] })
     );
     expect(find(weekly, "unusual-slot")).toBeUndefined();
+  });
+
+  it("keeps only launch-time beats for a session still running, and no shape floor", () => {
+    const june = session(ONIMUSHA, new Date(TUE_2000.getTime() - 80 * DAY), 2);
+    const running = session(ONIMUSHA, TUE_2000, 6);
+    const before = {
+      appid: WALLPAPER,
+      name: "Wallpaper Engine",
+      startedAt: new Date(TUE_2000.getTime() - 10 * 60 * 1000),
+      endedAt: new Date(TUE_2000.getTime() - 2 * 60 * 1000),
+    };
+    const beats = selectLiveSessionBeats(
+      context(running, {
+        gameSessions: [june, running],
+        windowSessions: [june, running],
+        before,
+        playtimeForeverMinutes: 51 * 60,
+      })
+    );
+    expect(kinds(beats)).toEqual(["return", "bounced-from"]);
+    expect(kinds(beats)).not.toContain("shape");
+    // The same context, closed, would also claim the rank and the milestone.
+    const closed = kinds(
+      selectSessionBeats(
+        context(running, {
+          gameSessions: [june, running],
+          windowSessions: [june, running],
+          before,
+          playtimeForeverMinutes: 51 * 60,
+        })
+      )
+    );
+    expect(closed).toContain("milestone");
+    expect(closed.at(-1)).toBe("shape");
   });
 
   it("orders beats strongest first with the shape last", () => {

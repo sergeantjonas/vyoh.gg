@@ -1,6 +1,7 @@
 import { formatRarityPercent } from "@/steam/_shared/rarity-percent";
 import {
   OWNER_TIME_ZONE,
+  type SteamLiveSession,
   type SteamPlaySessionDigest,
   type SteamSessionBeat,
   formatHoursMinutes,
@@ -167,6 +168,44 @@ export interface SessionHeadline {
   masthead: string;
   sentence: string;
   chips: string[];
+}
+
+/**
+ * The live hero: the running duration as masthead, and whatever the session
+ * already earned at launch as prose and chips. With nothing earned yet, the
+ * prose names the start, which is the one fact a session in progress has.
+ */
+export function liveHeadlineFor(
+  live: SteamLiveSession,
+  elapsedMinutes: number,
+  maxChips = 2
+): SessionHeadline {
+  const asDigest: SteamPlaySessionDigest = {
+    id: live.id,
+    game: live.game,
+    startedAt: live.startedAt,
+    endedAt: new Date(
+      new Date(live.startedAt).getTime() + elapsedMinutes * 60_000
+    ).toISOString(),
+    durationMinutes: elapsedMinutes,
+    beats: live.beats,
+    unlocks: [],
+  };
+  const [lead, ...rest] = live.beats;
+  const sentence = lead
+    ? copyFor(lead, asDigest).sentence
+    : `${live.game.name}, open since ${clockOf(live.startedAt)}.`;
+  const chips: string[] = [];
+  for (const beat of rest) {
+    const chip = copyFor(beat, asDigest).chip;
+    if (chip) chips.push(chip);
+    if (chips.length >= maxChips) break;
+  }
+  return {
+    masthead: elapsedMinutes < 1 ? "Just opened" : formatHoursMinutes(elapsedMinutes),
+    sentence,
+    chips,
+  };
 }
 
 /** The hero's three registers: duration as masthead, lead beat as prose, the next two as chips. */

@@ -4,7 +4,7 @@ import type { SteamSessions } from "@vyoh/shared";
 import { configureAxe } from "jest-axe";
 import { MotionConfig } from "motion/react";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { SessionsPage } from "./sessions-page";
 import { useSteamSessions } from "./use-sessions";
 
@@ -40,6 +40,7 @@ const QUIET: SteamSessions = {
     observedSince: "2026-05-16T01:16:00.000Z",
     sessionCount: 41,
   },
+  live: null,
   sessions: [
     {
       id: "s1",
@@ -97,6 +98,10 @@ function mockQuery(
 }
 
 describe("SessionsPage", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("opens a zero-unlock session with a claim, not a placeholder", async () => {
     mockQuery(QUIET, "success");
     const { container } = render(wrap(<SessionsPage />));
@@ -146,6 +151,30 @@ describe("SessionsPage", () => {
     expect(screen.getByText("Blademaster").closest("a")?.getAttribute("to")).toBe(
       "/steam/library/$appid"
     );
+  });
+
+  it("counts the open session up as the hero while a game is running", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-15T19:52:00.000Z"));
+    mockQuery(
+      {
+        ...QUIET,
+        live: {
+          id: "open",
+          game: { appid: 3_000_001, name: "Onimusha" },
+          startedAt: "2026-09-15T18:40:00.000Z",
+          beats: [{ kind: "streak", strength: 0.58, days: 4 }],
+        },
+      },
+      "success"
+    );
+    render(wrap(<SessionsPage />));
+    expect(screen.getByText("Now playing · Onimusha")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "1h 12m" })).toBeTruthy();
+    expect(screen.getByText("4 days in a row of Onimusha.")).toBeTruthy();
+    expect(screen.getByText(/since 20:40/)).toBeTruthy();
+    // The closed session's marathon claim yields to the running one.
+    expect(screen.queryByText(/longest Onimusha session on record/)).toBeNull();
   });
 
   it("keeps a heading and a sentence while the log is loading", () => {

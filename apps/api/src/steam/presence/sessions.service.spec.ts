@@ -46,6 +46,10 @@ function session(
 
 function mockPrisma(options: {
   sessions: SessionSpec[];
+  /** A session still open as the response is built. */
+  open?: { id: string; appid: number; name: string; startedAt: Date };
+  /** The poller's last tick; defaults to a minute ago, still seeing `open`. */
+  poll?: { currentAppid: number | null; lastPolledAt: Date };
   unlocks?: UnlockSpec[];
   /** appid → [snapshotDate, playtimeForeverMinutes][] */
   snapshots?: Record<number, Array<[Date, number]>>;
@@ -95,7 +99,28 @@ function mockPrisma(options: {
       _count: { apiName: n },
     }));
   const prisma = {
-    steamPlaySession: { findMany: sessionFindMany },
+    steamPlayerState: {
+      findFirst: vi.fn(
+        async () =>
+          options.poll ?? {
+            currentAppid: options.open?.appid ?? null,
+            lastPolledAt: new Date(NOW.getTime() - 60_000),
+          }
+      ),
+    },
+    steamPlaySession: {
+      findMany: sessionFindMany,
+      findFirst: vi.fn(async () =>
+        options.open
+          ? {
+              id: options.open.id,
+              appid: options.open.appid,
+              gameNameSnapshot: options.open.name,
+              startedAt: options.open.startedAt,
+            }
+          : null
+      ),
+    },
     steamPlayerUnlock: {
       findMany: unlockFindMany,
       groupBy: vi.fn(async () => counts(options.unlocked)),
@@ -343,6 +368,76 @@ describe("SteamSessionsService.getSessions", () => {
     expect(page.records.quickestBounce).toMatchObject({ sessionId: "short", value: 30 });
     expect(page.records.mostUnlocks).toBeNull();
     expect(page.records.longestDrySpell).toBeNull();
+  });
+
+  it("carries the open session as live, with only its launch-time beats", async () => {
+    const sessions = onimushaWeek();
+    const { prisma } = mockPrisma({
+      sessions,
+      open: { id: "open", appid: ONIMUSHA, name: "Onimusha", startedAt: daysAgo(0, 9) },
+    });
+    const page = await new SteamSessionsService(prisma).getSessions(12, NO_CURATION);
+    expect(page.live).toMatchObject({
+      id: "open",
+      game: { appid: ONIMUSHA, name: "Onimusha" },
+      startedAt: daysAgo(0, 9).toISOString(),
+    });
+    // s7 and s8 were yesterday, so today's launch is the second day running —
+    // short of a streak — and nothing duration-based may appear yet.
+    expect(page.live?.beats.map((b) => b.kind)).not.toContain("longest-in-game");
+    expect(page.live?.beats.map((b) => b.kind)).not.toContain("shape");
+    // The open row is not a closed session.
+    expect(page.sessions.map((s) => s.id)).not.toContain("open");
+    expect(page.window.sessionCount).toBe(8);
+  });
+
+  it("hides a live session in a hidden game from a visitor", async () => {
+    const { prisma } = mockPrisma({
+      sessions: onimushaWeek(),
+      open: {
+        id: "open",
+        appid: HIDDEN,
+        name: "Something Private",
+        startedAt: daysAgo(0, 9),
+      },
+    });
+    const svc = new SteamSessionsService(prisma);
+    expect((await svc.getSessions(12, curation([HIDDEN]))).live).toBeNull();
+    expect((await svc.getSessions(12, NO_CURATION)).live?.game.appid).toBe(HIDDEN);
+  });
+
+  it("does not call an open row live once the poller has gone quiet", async () => {
+    const open = {
+      id: "open",
+      appid: ONIMUSHA,
+      name: "Onimusha",
+      startedAt: daysAgo(0, 9),
+    };
+    const stale = mockPrisma({
+      sessions: onimushaWeek(),
+      open,
+      poll: {
+        currentAppid: ONIMUSHA,
+        lastPolledAt: new Date(NOW.getTime() - 16 * 60_000),
+      },
+    });
+    expect(
+      (await new SteamSessionsService(stale.prisma).getSessions(12, NO_CURATION)).live
+    ).toBeNull();
+    const moved = mockPrisma({
+      sessions: onimushaWeek(),
+      open,
+      poll: { currentAppid: null, lastPolledAt: new Date(NOW.getTime() - 60_000) },
+    });
+    expect(
+      (await new SteamSessionsService(moved.prisma).getSessions(12, NO_CURATION)).live
+    ).toBeNull();
+  });
+
+  it("answers no live session when nothing is open", async () => {
+    const { prisma } = mockPrisma({ sessions: onimushaWeek() });
+    const page = await new SteamSessionsService(prisma).getSessions(12, NO_CURATION);
+    expect(page.live).toBeNull();
   });
 
   it("clamps the window to the allowed span", async () => {

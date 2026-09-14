@@ -397,6 +397,31 @@ function slotBeats(ctx: SessionBeatContext): SteamSessionBeat[] {
 }
 
 /**
+ * The beats a session can carry while it is still running. Anything that
+ * reads the session's own length — rank, marathon, milestone, first-session
+ * share — waits for the row to close; these are known the moment it opens.
+ */
+export const LIVE_SESSION_BEAT_KINDS: ReadonlySet<SteamSessionBeatKind> = new Set([
+  "return",
+  "streak",
+  "bounced-from",
+  "completed-and-back",
+  "nearly-complete",
+  "usual-slot",
+  "unusual-slot",
+]);
+
+/**
+ * Beats for a session in progress: the same pass over a session whose end
+ * is "now", filtered to the kinds that do not depend on how long it runs,
+ * and without the shape floor — the live hero has its own headline, the
+ * counter.
+ */
+export function selectLiveSessionBeats(ctx: SessionBeatContext): SteamSessionBeat[] {
+  return selectSessionBeats(ctx).filter((b) => LIVE_SESSION_BEAT_KINDS.has(b.kind));
+}
+
+/**
  * Every beat the session earns, strongest first, ending with its shape.
  * Ties keep emitter order, which puts the more specific claim ahead of the
  * more generic one at equal strength.

@@ -475,6 +475,8 @@ export {
   BEAT_UNUSUAL_SLOT_MIN_CELLS,
   BEAT_USUAL_SLOT_MAX_RANK,
   BEAT_WINDOW_MIN_SESSIONS,
+  LIVE_SESSION_BEAT_KINDS,
+  selectLiveSessionBeats,
   selectSessionBeats,
   sessionDurationMinutes,
 } from "./steam/sessions/beats.ts";
@@ -487,6 +489,7 @@ export type {
   SteamSessionBeatKind,
 } from "./steam/sessions/beats.ts";
 export type {
+  SteamLiveSession,
   SteamOffCameraUnlockGroup,
   SteamPlaySessionDigest,
   SteamPlaytimeMilestone,

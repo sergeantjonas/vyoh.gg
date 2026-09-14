@@ -80,6 +80,17 @@ export interface SteamOffCameraUnlockGroup {
   unlocks: SteamSessionUnlock[];
 }
 
+// The session that is open right now, when there is one. Its duration is the
+// reader's clock minus `startedAt`, so the page can count up between polls;
+// its beats are the subset that is already known at launch — a return, a
+// streak, what it was opened after — never anything that needs the length.
+export interface SteamLiveSession {
+  id: string;
+  game: SteamSessionGameRef;
+  startedAt: string;
+  beats: SteamSessionBeat[];
+}
+
 export interface SteamSessionsWindow {
   from: string;
   to: string;
@@ -91,7 +102,11 @@ export interface SteamSessionsWindow {
 
 export interface SteamSessions {
   window: SteamSessionsWindow;
-  // Newest first. The first entry is the hero.
+  // Null unless a game is open as the response is built. Hidden for a
+  // visitor like any other named game.
+  live: SteamLiveSession | null;
+  // Newest first, closed sessions only. The first entry is the hero unless
+  // `live` is set.
   sessions: SteamPlaySessionDigest[];
   // Minutes played per owner-local weekday × hour; see `buildHourMatrix`.
   hourMatrix: number[][];

@@ -33,12 +33,17 @@ async function fetchSessions(weeks: number): Promise<SteamSessions> {
 //
 // Five minutes stale: the presence poller closes a session every two, so a
 // tab left open sees a finished evening on the next focus rather than the one
-// after.
+// after. While a session is live the page polls at the poller's own cadence,
+// so the hero swaps from the counter to the closed session within a tick of
+// the game closing; the counter itself needs no fetch, it reads the clock.
+export const LIVE_REFETCH_MS = 2 * 60 * 1_000;
+
 export function sessionsQueryOptions(isOwner = false, weeks = SESSIONS_WEEKS) {
   return queryOptions({
     queryKey: ["steam", "sessions", weeks, viewerScope(isOwner)],
     queryFn: () => fetchSessions(weeks),
     staleTime: 5 * 60 * 1_000,
+    refetchInterval: (query) => (query.state.data?.live ? LIVE_REFETCH_MS : false),
     ...viewerScopedQuery,
   });
 }

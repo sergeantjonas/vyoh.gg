@@ -1,6 +1,6 @@
 import type { SteamPlaySessionDigest, SteamSessionBeat } from "@vyoh/shared";
 import { describe, expect, it } from "vitest";
-import { copyFor, headlineFor } from "./session-copy";
+import { copyFor, headlineFor, liveHeadlineFor } from "./session-copy";
 
 // A Tuesday evening in Brussels: 20:40 → 22:50 local.
 function digest(beats: SteamSessionBeat[], unlocks = 0): SteamPlaySessionDigest {
@@ -58,6 +58,45 @@ describe("headlineFor", () => {
     );
     expect(h.sentence).toBe("The first Onimusha in 3 months.");
     expect(h.chips).toEqual([]);
+  });
+});
+
+describe("liveHeadlineFor", () => {
+  const live = {
+    id: "open",
+    game: { appid: 1, name: "Onimusha" },
+    startedAt: "2026-09-08T18:40:00.000Z",
+    beats: [],
+  };
+
+  it("names the start when nothing has been earned yet, and calls the first minute just opened", () => {
+    expect(liveHeadlineFor(live, 0)).toEqual({
+      masthead: "Just opened",
+      sentence: "Onimusha, open since 20:40.",
+      chips: [],
+    });
+    expect(liveHeadlineFor(live, 72).masthead).toBe("1h 12m");
+  });
+
+  it("leads with a launch-time beat and chips the rest", () => {
+    const h = liveHeadlineFor(
+      {
+        ...live,
+        beats: [
+          { kind: "return", strength: 0.6, daysSince: 80 },
+          {
+            kind: "bounced-from",
+            strength: 0.35,
+            appid: 2,
+            name: "Wallpaper Engine",
+            minutes: 8,
+          },
+        ],
+      },
+      5
+    );
+    expect(h.sentence).toBe("The first Onimusha in 3 months.");
+    expect(h.chips).toEqual(["After 8m of Wallpaper Engine"]);
   });
 });
 
