@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import * as Sentry from "@sentry/nestjs";
 import {
   type SyncJobRun,
   type SyncJobStatus,
@@ -67,6 +68,12 @@ export class SyncJobRegistry {
       }
     } catch (err) {
       this.logger.error(`${name} failed`, err instanceof Error ? err.stack : err);
+      // Only here, not in `execute()`: that one rethrows, so a manual trigger's
+      // failure reaches the controller and is reported by the exception filter.
+      // This catch is the background path, where nothing else is watching — a
+      // cron that has been failing for a week is the case this exists for,
+      // since `/status` shows only the latest run.
+      Sentry.captureException(err, { tags: { syncJob: name } });
     }
     return true;
   }

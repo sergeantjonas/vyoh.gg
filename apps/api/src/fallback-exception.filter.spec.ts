@@ -6,10 +6,13 @@ import {
   ServiceUnavailableException,
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
+import * as Sentry from "@sentry/nestjs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FallbackExceptionFilter } from "./fallback-exception.filter";
 import { SteamRateLimiterTimeoutError } from "./steam/client/rate-limiter.service";
 import { SteamClientError } from "./steam/client/steam-client.service";
+
+vi.mock("@sentry/nestjs", () => ({ captureException: vi.fn() }));
 
 function makeHost(headersSent = false) {
   const json = vi.fn();
@@ -204,5 +207,51 @@ describe("FallbackExceptionFilter", () => {
       message: "Internal server error",
     });
     expect(error).toHaveBeenCalledWith(expect.stringContaining("a string"));
+  });
+});
+
+describe("FallbackExceptionFilter error reporting", () => {
+  const filter = new FallbackExceptionFilter();
+  const captureException = vi.mocked(Sentry.captureException);
+
+  beforeEach(() => {
+    vi.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+    vi.spyOn(Logger.prototype, "error").mockImplementation(() => undefined);
+    captureException.mockClear();
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it("reports a 5xx that only logs at warn", () => {
+    // The whole point of keying on status rather than log level: every upstream
+    // 5xx and every Steam failure logs at `warn`, so a level-based predicate
+    // would report none of them.
+    filter.catch(new ServiceUnavailableException("upstream down"), makeHost().host);
+    expect(captureException).toHaveBeenCalledOnce();
+  });
+
+  it("reports an unexpected database failure", () => {
+    // Any code the filter does not name is a 500 and ours to fix.
+    filter.catch(prismaError("P2010"), makeHost().host);
+    expect(captureException).toHaveBeenCalledOnce();
+  });
+
+  it("does not report a constraint hit, which the filter answers as 409", () => {
+    // P2002 and P2025 are the handler's own answer, not a fault, so they must
+    // stay out of the tracker even though they are database errors.
+    filter.catch(prismaError("P2002"), makeHost().host);
+    filter.catch(prismaError("P2025"), makeHost().host);
+    expect(captureException).not.toHaveBeenCalled();
+  });
+
+  it("does not report a deliberate 4xx", () => {
+    filter.catch(new NotFoundException("no such game"), makeHost().host);
+    expect(captureException).not.toHaveBeenCalled();
+  });
+
+  it("tags the report with the route so events group by shape", () => {
+    filter.catch(new ServiceUnavailableException("upstream down"), makeHost().host);
+    expect(captureException.mock.calls[0]?.[1]).toMatchObject({
+      tags: { route: "GET /steam/game/42" },
+    });
   });
 });

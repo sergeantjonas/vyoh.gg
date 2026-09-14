@@ -1,4 +1,5 @@
 import { type ArgumentsHost, Catch, type ExceptionFilter, Logger } from "@nestjs/common";
+import * as Sentry from "@sentry/nestjs";
 import { RateLimiterTimeoutError, RiotError } from "./riot.error";
 
 @Catch(RiotError)
@@ -17,6 +18,16 @@ export class RiotExceptionFilter implements ExceptionFilter {
 
     const status = mapStatus(exception);
     const message = mapMessage(exception);
+
+    // This filter is registered after the catch-all, so a RiotError never
+    // reaches it and would otherwise report nowhere — leaving the whole LoL
+    // half of the app silent while Steam's failures were tracked. Same
+    // predicate as there: 5xx only, so a 404 summoner miss and a 429 stay out.
+    if (status >= 500) {
+      Sentry.captureException(exception, {
+        tags: { route: `${exception.status} ${exception.path}` },
+      });
+    }
 
     response.status(status).json({ statusCode: status, message });
   }

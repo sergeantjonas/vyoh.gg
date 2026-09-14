@@ -6,6 +6,7 @@ import {
   Logger,
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
+import * as Sentry from "@sentry/nestjs";
 import { SteamRateLimiterTimeoutError } from "./steam/client/rate-limiter.service";
 import { SteamClientError } from "./steam/client/steam-client.service";
 
@@ -40,8 +41,18 @@ export class FallbackExceptionFilter implements ExceptionFilter {
       status: (code: number) => { json: (body: unknown) => void };
     }>();
 
-    const verdict = classify(exception, `${request.method ?? "?"} ${request.url ?? "?"}`);
+    const route = `${request.method ?? "?"} ${request.url ?? "?"}`;
+    const verdict = classify(exception, route);
     if (verdict.log) this.logger[verdict.log.level](verdict.log.line);
+    // Report what is ours to fix, and nothing else. `verdict.log` is absent for
+    // a deliberate 4xx — the handler's own answer. The *level* is not the
+    // signal: upstream 5xx, rate-limiter timeouts and every Steam failure log
+    // at `warn`, so filtering on level would drop exactly what is worth paging
+    // on. The route is a tag rather than a message so events group by shape;
+    // it can carry a query string, which `beforeSend` scrubs.
+    if (verdict.log && verdict.status >= 500) {
+      Sentry.captureException(exception, { tags: { route } });
+    }
     // A throw after the headers are out (a streaming route mid-stream) has no
     // response left to shape; writing would only raise a second error.
     if (response.headersSent) return;

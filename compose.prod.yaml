@@ -85,6 +85,14 @@ services:
       CUTOFF_DAYS: ${CUTOFF_DAYS:-90}
       LOL_PREWARM: ${LOL_PREWARM:-0}
       STEAM_PREWARM: ${STEAM_PREWARM:-0}
+      # Error tracking. Empty is a working value: the SDK disables itself
+      # without a DSN, so the api runs unreported rather than failing.
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_SAMPLE_RATE: ${SENTRY_SAMPLE_RATE:-1}
+      # Tags events with the build that produced them. The web image takes this
+      # as a *build* arg because its bundle bakes it in; the api reads it at
+      # runtime, so the same `deploy.sh` value reaches both by different routes.
+      BUILD_COMMIT: ${BUILD_COMMIT:-}
     ports:
       - "127.0.0.1:${API_PORT:-2010}:2010"
     depends_on:

@@ -1,7 +1,10 @@
 import type { ArgumentsHost } from "@nestjs/common";
-import { describe, expect, it, vi } from "vitest";
+import * as Sentry from "@sentry/nestjs";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RateLimiterTimeoutError, RiotError } from "./riot.error";
 import { RiotExceptionFilter } from "./riot.exception-filter";
+
+vi.mock("@sentry/nestjs", () => ({ captureException: vi.fn() }));
 
 function makeHost() {
   const json = vi.fn();
@@ -75,5 +78,35 @@ describe("RiotExceptionFilter", () => {
       statusCode: 503,
       message: "Upstream rate limit saturated — please retry in a moment",
     });
+  });
+});
+
+describe("RiotExceptionFilter error reporting", () => {
+  const filter = new RiotExceptionFilter();
+  const captureException = vi.mocked(Sentry.captureException);
+
+  beforeEach(() => captureException.mockClear());
+
+  it("reports an upstream fault the catch-all filter never sees", () => {
+    // This filter is registered after the catch-all, so a RiotError reaches
+    // only here. Before this, every LoL request failure reported nowhere.
+    filter.catch(new RiotError("Riot 500", 500, "/match"), makeHost().host);
+    expect(captureException).toHaveBeenCalledOnce();
+  });
+
+  it("reports a saturated rate limiter, which it answers as 503", () => {
+    filter.catch(
+      new RateLimiterTimeoutError("europe", "match-by-id", 30_000),
+      makeHost().host
+    );
+    expect(captureException).toHaveBeenCalledOnce();
+  });
+
+  it("does not report a summoner miss or a Riot rate limit", () => {
+    // 404 and 429 pass through with their own status and are the upstream's
+    // answer, not a fault of ours.
+    filter.catch(new RiotError("Riot 404", 404, "/account"), makeHost().host);
+    filter.catch(new RiotError("Riot 429", 429, "/match"), makeHost().host);
+    expect(captureException).not.toHaveBeenCalled();
   });
 });

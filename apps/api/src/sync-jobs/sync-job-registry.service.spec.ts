@@ -1,5 +1,8 @@
+import * as Sentry from "@sentry/nestjs";
 import { describe, expect, it, vi } from "vitest";
 import { SyncJobRegistry } from "./sync-job-registry.service";
+
+vi.mock("@sentry/nestjs", () => ({ captureException: vi.fn() }));
 import { SYNC_JOBS } from "./sync-jobs.catalog";
 
 const JOB = "steam-owned-games";
@@ -218,3 +221,31 @@ function statusFor(registry: SyncJobRegistry, name: string) {
   if (!job) throw new Error(`no status row for ${name}`);
   return job;
 }
+
+describe("SyncJobRegistry error reporting", () => {
+  const captureException = vi.mocked(Sentry.captureException);
+
+  it("reports a background failure, which nothing else is watching", () => {
+    captureException.mockClear();
+    const registry = new SyncJobRegistry();
+    return registry
+      .run(JOB, () => Promise.reject(new Error("steam said no")))
+      .then(() => {
+        expect(captureException).toHaveBeenCalledOnce();
+        expect(captureException.mock.calls[0]?.[1]).toMatchObject({
+          tags: { syncJob: JOB },
+        });
+      });
+  });
+
+  it("does not report from execute(), whose caller is told instead", async () => {
+    captureException.mockClear();
+    const registry = new SyncJobRegistry();
+    await expect(
+      registry.execute(JOB, () => Promise.reject(new Error("nope")))
+    ).rejects.toThrow();
+    // `execute` rethrows to a controller, where the exception filter reports it.
+    // Capturing here as well would double-count every manual trigger.
+    expect(captureException).not.toHaveBeenCalled();
+  });
+});

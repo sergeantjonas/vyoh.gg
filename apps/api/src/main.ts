@@ -1,4 +1,6 @@
 import "dotenv/config";
+// Must precede every other import: the SDK instruments libraries as they load.
+import "./instrument";
 import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import type { NestExpressApplication } from "@nestjs/platform-express";

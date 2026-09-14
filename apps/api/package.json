@@ -24,6 +24,7 @@
     "@prisma/adapter-pg": "^7.9.0",
     "@prisma/client": "^7.9.0",
     "@resvg/resvg-js": "^2.6.2",
+    "@sentry/nestjs": "10.73.0",
     "@vyoh/shared": "workspace:*",
     "bottleneck": "^2.19.5",
     "class-transformer": "^0.5.1",
