@@ -20,9 +20,9 @@ Recorded rather than deleted, so it is not re-derived. The claim: `web` declares
 
 ## Chunk 2 — error tracking · the actual gate
 
-Nothing is wired: no Sentry, no GlitchTip, no equivalent, anywhere in `apps/` or `packages/`. The failure mode is not that errors are unhandled — they are, at six catch sites that already exist — it is that they are **unobserved**, and the first weeks of a system's real life are when its unknown failure modes all arrive at once.
+The failure mode was never that errors go unhandled — they are caught, at seven sites that already existed — it is that they were **unobserved**, and the first weeks of a system's real life are when its unknown failure modes all arrive at once. **The api half shipped 2026-09-14** and reports through a shared scrubber, inert until `SENTRY_DSN` is set. The web half and the sourcemap pipeline are what remain.
 
-**Analysis, decision and plan: [error-tracking.md](error-tracking.md)**, scoped 2026-09-13. Hosted Sentry over self-hosting and why that is a cheap decision to revisit, the six hook points, the redaction problem that makes this the one chunk capable of *re-opening* F-5 if done carelessly, the missing sourcemap pipeline that would otherwise make the web half worthless, and three chunks. This section remains the gate; that note is the work.
+**Analysis, decision and plan: [error-tracking.md](error-tracking.md)**, scoped 2026-09-13. Hosted Sentry over self-hosting and why that is a cheap decision to revisit, seven hook points, the redaction problem that makes this the one chunk capable of *re-opening* F-5 if done carelessly, the missing sourcemap pipeline that would otherwise make the web half worthless, and four chunks. This section remains the gate; that note is the work.
 
 Note the interaction with the parked runtime-validation item ([parked.md § Runtime validation](../parked.md)): that item's trigger is "a real payload-shape incident", and without error tracking a payload-shape incident is exactly the kind of thing that happens without ever being noticed. Error tracking is therefore the cheaper half of that pair and should land first — it converts the silent crash into a reported one, which is the evidence the validation decision was always waiting on. **Runtime validation stays parked; this does not unpark it.**
 
