@@ -3,6 +3,7 @@ import { OWNER_TIME_ZONE } from "@vyoh/shared";
 import { HourHeatmapCard } from "./hour-heatmap";
 import { LastSessionHero } from "./last-session-hero";
 import { RecordsBand } from "./records-band";
+import { SessionTimelineCard } from "./session-timeline";
 import { SESSIONS_WEEKS, useSteamSessions } from "./use-sessions";
 
 const SINCE = new Intl.DateTimeFormat("en-GB", {
@@ -32,6 +33,7 @@ export function SessionsPage() {
         )}
       </div>
       <LastSessionHero />
+      <SessionTimelineCard />
       <RecordsBand />
       <HourHeatmapCard />
     </section>

@@ -32,14 +32,27 @@ export interface LocalSlot {
   hour: number;
 }
 
+// One formatter per zone: constructing `Intl.DateTimeFormat` costs ~30 µs and
+// callers walk this per hour over weeks of data, on every brush frame.
+const SLOT_FORMATTERS = new Map<string, Intl.DateTimeFormat>();
+
+function slotFormatter(timeZone: string): Intl.DateTimeFormat {
+  let fmt = SLOT_FORMATTERS.get(timeZone);
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat("en-GB", {
+      timeZone,
+      weekday: "short",
+      hour: "2-digit",
+      hourCycle: "h23",
+    });
+    SLOT_FORMATTERS.set(timeZone, fmt);
+  }
+  return fmt;
+}
+
 /** The owner-local weekday and hour an instant falls in. */
 export function localSlot(at: Date, timeZone: string): LocalSlot {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone,
-    weekday: "short",
-    hour: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(at);
+  const parts = slotFormatter(timeZone).formatToParts(at);
   let weekday = 0;
   let hour = 0;
   for (const p of parts) {
