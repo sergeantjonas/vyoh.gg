@@ -1,5 +1,6 @@
 import { SectionTitle } from "@/components/ui/section-title";
 import { OWNER_TIME_ZONE } from "@vyoh/shared";
+import { HourHeatmapCard } from "./hour-heatmap";
 import { LastSessionHero } from "./last-session-hero";
 import { RecordsBand } from "./records-band";
 import { SESSIONS_WEEKS, useSteamSessions } from "./use-sessions";
@@ -32,6 +33,7 @@ export function SessionsPage() {
       </div>
       <LastSessionHero />
       <RecordsBand />
+      <HourHeatmapCard />
     </section>
   );
 }
