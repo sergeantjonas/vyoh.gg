@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../../prisma/prisma.service";
 import type { SteamPlayerUnlocksService } from "../achievements/player-unlocks.service";
 import {
+  SESSION_POLL_GAP_MAX_MS,
   SteamPlaySessionsService,
   type TransitionInput,
   computeTransition,
@@ -30,6 +31,39 @@ describe("computeTransition", () => {
       input({
         openSession: { id: "s1", appid: 1030300 },
         previous: { appid: 1030300, lastPolledAt: LAST_POLL },
+        next: { appid: 1030300, gameName: "Silksong" },
+      })
+    );
+    expect(action).toEqual({ type: "noop" });
+  });
+
+  it("ends the open session at the last tick that saw it after a long gap, and opens anew", () => {
+    const lastSeen = new Date(NOW.getTime() - SESSION_POLL_GAP_MAX_MS - 1);
+    const action = computeTransition(
+      input({
+        openSession: { id: "s1", appid: 1030300 },
+        previous: { appid: 1030300, lastPolledAt: lastSeen },
+        next: { appid: 1030300, gameName: "Silksong" },
+      })
+    );
+    expect(action).toEqual({
+      type: "closeAndOpen",
+      openId: "s1",
+      closedAppid: 1030300,
+      endedAt: lastSeen,
+      openAppid: 1030300,
+      name: "Silksong",
+    });
+  });
+
+  it("tolerates a gap up to the threshold as a missed tick, not a boundary", () => {
+    const action = computeTransition(
+      input({
+        openSession: { id: "s1", appid: 1030300 },
+        previous: {
+          appid: 1030300,
+          lastPolledAt: new Date(NOW.getTime() - SESSION_POLL_GAP_MAX_MS),
+        },
         next: { appid: 1030300, gameName: "Silksong" },
       })
     );
@@ -168,7 +202,9 @@ describe("SteamPlaySessionsService.recordTransition", () => {
       openSession: { id: "s1", appid: 1030300 },
     });
     await service.recordTransition({
-      previous: { appid: 1030300, lastPolledAt: LAST_POLL },
+      // The service reads the real clock, so the previous tick has to be a
+      // real two minutes ago or the gap boundary turns this into a switch.
+      previous: { appid: 1030300, lastPolledAt: new Date(Date.now() - 2 * 60_000) },
       next: { appid: 1030300, gameName: "Silksong" },
     });
     expect(create).not.toHaveBeenCalled();

@@ -13,6 +13,18 @@ export interface TransitionInput {
   now: Date;
 }
 
+/**
+ * A gap between two ticks longer than this ends the open session at the
+ * last tick that saw it, even when the same game is showing again now. The
+ * poller runs every two minutes, so this is seven missed ticks — well past a
+ * restart, well short of an evening. Without it the api sleeping overnight
+ * with the game open on both sides stitched two evenings into one 29-hour
+ * row (Mortal Shell II, 2026-08-18 → 20; the playtime snapshots for those
+ * days sum to under eleven hours). Splitting a real sitting across a long
+ * outage is the honest failure: the middle was not observed either way.
+ */
+export const SESSION_POLL_GAP_MAX_MS = 15 * 60 * 1000;
+
 export type TransitionAction =
   | { type: "noop" }
   | { type: "open"; appid: number; name: string }
@@ -58,7 +70,24 @@ export function computeTransition(input: TransitionInput): TransitionAction {
     };
   }
 
-  if (openSession.appid === targetAppid) return { type: "noop" };
+  if (openSession.appid === targetAppid) {
+    const unobservedFor =
+      previous !== null && openSession.appid === previous.appid
+        ? now.getTime() - previous.lastPolledAt.getTime()
+        : 0;
+    if (unobservedFor <= SESSION_POLL_GAP_MAX_MS) return { type: "noop" };
+    // Same game after a long silence: whatever ran in between is unknown,
+    // so the row that was open ends where observation did, and this tick
+    // opens a fresh one.
+    return {
+      type: "closeAndOpen",
+      openId: openSession.id,
+      closedAppid: openSession.appid,
+      endedAt: closeEndedAt,
+      openAppid: targetAppid,
+      name: next.gameName ?? `App ${targetAppid}`,
+    };
+  }
 
   if (targetAppid === null) {
     return {

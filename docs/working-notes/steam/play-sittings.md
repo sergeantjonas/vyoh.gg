@@ -1,6 +1,6 @@
 # Steam — Sessions (`/steam/sessions`)
 
-**Status:** Active — chunks 0–3 shipped 2026-09-14/15: the data probe is recorded below, the pure beat model, unlock join and hour matrix live in `packages/shared/src/steam/sessions/`, `GET /api/steam/sessions?weeks=N` serves the whole page (89 kB / ~35 ms for 41 sessions), and `/steam/sessions` is live as the seventh Steam tab with the last-session hero and the five records chips, baselined at 33 layers / ~61 ms. The tab strip fits seven tabs at 880 px with 50 px to spare, measured, so no per-section breakpoint was needed. Chunk 4 (timeline + heatmap) is next.
+**Status:** Active — chunks 0–3 shipped 2026-09-14/15: the data probe is recorded below, the pure beat model, unlock join and hour matrix live in `packages/shared/src/steam/sessions/`, `GET /api/steam/sessions?weeks=N` serves the whole page (89 kB / ~35 ms for 41 sessions), and `/steam/sessions` is live as the seventh Steam tab with the last-session hero and the five records chips, baselined at 33 layers / ~61 ms. The tab strip fits seven tabs at 880 px with 50 px to spare, measured, so no per-section breakpoint was needed. A stitched 29-hour row the owner spotted on the records band led to a poll-gap boundary in the session state machine on 2026-09-15. **Chunk 3b (the live-session hero) is next**, ahead of chunk 4 (timeline + heatmap).
 
 ## Naming
 
@@ -27,15 +27,17 @@ The prod database was not probed (the session's permission classifier blocked th
 | | |
 |---|---|
 | Closed sessions | 68 across 12 games, 2026-05-16 → 2026-09-13 |
-| Duration buckets | `<30m` 28 · `30m–1h` 9 · `1h–2h` 18 · `2h–4h` 10 · `4h+` **3** |
+| Duration buckets | `<30m` 28 · `30m–1h` 9 · `1h–2h` 18 · `2h–4h` 10 · `4h+` **3** — one of the three is a stitched row, see below |
 | August + September | 40 sessions, 80.4 hours |
 | Unlocks since 2026-07-27 inside an observed session (±4 min) | 56 of 237 |
 
 Three things follow:
 
-- **The `4h+` gate from [player-portrait.md](player-portrait.md) has opened.** It read 0 on 2026-08-06 and reads 3 now. Cards 4 and 8 there are unblocked by the same fact, and this page is where the marathon count belongs anyway.
+- **The `4h+` gate from [player-portrait.md](player-portrait.md) has opened.** It read 0 on 2026-08-06 and reads 2 real rows now (a third is the stitched row described below). Cards 4 and 8 there are unblocked by the same fact, and this page is where the marathon count belongs anyway.
 - **The unlock↔session join is sound.** Shifting `unlockedAt` by −2, −1, +1 or +2 hours matched 28, 47, 32 and 24 unlocks against 56 at zero shift, so there is no timezone defect between the two naive-timestamp columns. The slack exists because `endedAt` is the *previous* 2-minute tick, not the moment the game closed.
 - **The orphans are coverage, not error.** 181 unlocks since 07-27 sit outside any session: 43 in Mortal Shell II, 33 in Mortal Shell, 23 in Beast of Reincarnation and a 53-unlock day in a game with no session row at all. The nearest-session gap clusters at 4–10 hours, which is the local api being down while the owner played. These render as the **off-camera ledger** (below) rather than being force-fit into a neighbour.
+
+**One `4h+` row is not a sitting.** The owner spotted it on the live records band on 2026-09-15: `Mortal Shell II`, 2026-08-18 19:56 → 08-20 01:16, 29 h 20 m. The unlocks inside it cluster 22:00–01:00 on both nights, and the daily playtime snapshots for those days add 381 + 260 minutes — under eleven hours of actual play. The api had stopped polling for most of a day (the dev laptop asleep) with the game showing on both sides of the gap, and `computeTransition` treated same-appid ticks as a no-op regardless of how long since the last one, so two evenings became one row. Fixed forward in [play-sessions.service.ts](../../../apps/api/src/steam/presence/play-sessions.service.ts): a gap over `SESSION_POLL_GAP_MAX_MS` (15 min, seven missed ticks) closes the open session at the last tick that saw it and opens a fresh one. **The historical row cannot be split faithfully** — there is no poll log, only the unlock timestamps hint at where the evenings were — so it stays until the owner decides between deleting it and leaving it. The gate (a non-empty `4h+` bucket) is still met at 2 real rows.
 
 The last twelve rows already read like the page: nine Onimusha sittings in one week, unlock counts of 0 to 5, a 260-minute Saturday marathon beside a 46-minute Tuesday. Two of the nine had no unlocks and both have a duration-rank or cadence headline available.
 
@@ -118,11 +120,15 @@ Baselined at 33 layers / 55–101 ms raster median ~61 / 0–1 long tasks / drop
 
 **Chunk 6 — Recap candidate (optional).** A `steam-sitting` moment kind in `recap-scoring.ts` scored by hours + unlocks × 0.5, so a notable sitting can reach `/` through the ranking. Only if the recap's Steam cap (5 subjects) leaves room; check before building.
 
+## Live session (owner idea, 2026-09-15)
+
+While a game is open, the hero should be the *current* session: "Now playing · Onimusha" as the eyebrow, a duration counting up from the open row's `startedAt` as the masthead, and the beats the session has already earned as chips (a streak or a return is known at launch; unlocks arrive with the event-driven refresh on close, so mid-session the unlock row stays empty and honest). This answers open decision 3 below and replaces the plan to defer to the now-playing strip. Needs: the api to carry `live: { game, startedAt } | null` from the open `SteamPlaySession` row (today the service drops open rows), the web hook's `staleTime` to shorten while `live` is set, and a minute-resolution ticker — the number moves, it does not spin; per the calm-aesthetic rule the masthead re-renders once a minute with a soft pulse on the eyebrow dot rather than counting seconds. Scoped as **chunk 3b**, ahead of the timeline, because it is the page's most visible moment and the cheapest remaining one.
+
 ## Open decisions
 
 1. ~~**Window default.**~~ **12 weeks, decided 2026-09-14** off the chunk 2 measurement: 41 sessions and 89 kB. Widening is a query param away; the open question is now payload size, tracked under *Data shape*.
 2. **Demo and benchmark apps.** `Onimusha: Way of the Sword DEMO` and `…Benchmark` are separate appids with their own sittings. Fold into the parent by name heuristic, hide via curation, or show as-is? Leaning show-as-is with the curation overlay as the owner's lever, since a heuristic on names is the kind of thing hidden-games retired.
-3. **Open sessions.** A sitting in progress (`endedAt IS NULL`) is the now-playing strip's job; this page shows closed rows only, and the hero says "now playing, N minutes in" if the newest row is open. Confirm against the strip so the two don't disagree.
+3. ~~**Open sessions.**~~ **Decided 2026-09-15: the hero becomes the live session while one is open** — see *Live session* above. The now-playing strip on `/` keeps its job; the two read the same open row so they cannot disagree.
 
 ## Related
 
