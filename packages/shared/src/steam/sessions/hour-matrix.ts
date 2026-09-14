@@ -86,6 +86,13 @@ export function hourMatrixTotalMinutes(matrix: readonly (readonly number[])[]): 
   return total;
 }
 
+/** How many of the 168 cells hold any minutes at all. */
+export function hourMatrixFilledCells(matrix: readonly (readonly number[])[]): number {
+  let filled = 0;
+  for (const row of matrix) for (const v of row) if (v > 0) filled += 1;
+  return filled;
+}
+
 /**
  * Rank of a cell by minutes, 1 = the fullest cell. Ties share the better
  * rank, so "top three" stays a claim about minutes rather than about which

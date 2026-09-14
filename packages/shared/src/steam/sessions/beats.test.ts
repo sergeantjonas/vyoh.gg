@@ -294,8 +294,26 @@ describe("selectSessionBeats", () => {
     expect(find(beats, "usual-slot")).toMatchObject({ slot: { weekday: 1, hour: 20 } });
   });
 
-  it("calls a slot the owner has never used before unusual", () => {
-    const habit = evenings(ONIMUSHA, [-14, -12, -10, -8, -6, -4, -2], 3);
+  it("calls a slot the owner has never used before unusual, once the matrix has texture", () => {
+    const sparse = evenings(ONIMUSHA, [-14, -12, -10, -8, -6, -4, -2], 3);
+    const sparseMorning = session(ONIMUSHA, new Date("2026-09-08T07:30:00Z"), 1);
+    expect(
+      find(
+        selectSessionBeats(
+          context(sparseMorning, { gameSessions: [...sparse, sparseMorning] })
+        ),
+        "unusual-slot"
+      )
+    ).toBeUndefined();
+    // Two weeks of three-hour sessions, evenings one week and afternoons the
+    // next: each weekday fills six cells, 42 with the morning's own, which
+    // clears the 40-cell gate.
+    const habit = [
+      ...evenings(ONIMUSHA, [-20, -19, -18, -17, -16, -15, -14], 3),
+      ...[-13, -12, -11, -10, -9, -8, -7].map((d) =>
+        session(ONIMUSHA, new Date(TUE_2000.getTime() + d * DAY - 6 * HOUR), 3)
+      ),
+    ];
     const morning = session(ONIMUSHA, new Date("2026-09-08T07:30:00Z"), 1);
     const all = [...habit, morning];
     const beats = selectSessionBeats(context(morning, { gameSessions: all }));

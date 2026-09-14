@@ -51,6 +51,7 @@ import {
 } from "@vyoh/shared";
 import {
   CalendarClock,
+  Clock,
   Crosshair,
   Crown,
   Fingerprint,
@@ -587,6 +588,14 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
             icon: <Fingerprint />,
             label: "Portrait",
             path: "/steam/portrait",
+          },
+          {
+            // "playtime" and "last played" because a session is looked for by
+            // what happened in it, not by the page's name.
+            value: "steam sessions playtime last played sittings",
+            icon: <Clock />,
+            label: "Sessions",
+            path: "/steam/sessions",
           },
           {
             value: "steam library games",

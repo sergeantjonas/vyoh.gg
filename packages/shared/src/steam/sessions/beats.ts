@@ -18,6 +18,7 @@
 import {
   type LocalSlot,
   hourMatrixCellRank,
+  hourMatrixFilledCells,
   hourMatrixTotalMinutes,
   localSlot,
 } from "./hour-matrix.ts";
@@ -48,6 +49,14 @@ export const BEAT_EARLY_START_BEFORE_HOUR = 8;
 export const BEAT_USUAL_SLOT_MAX_RANK = 3;
 /** …once the heatmap holds this many minutes; before that there is no usual. */
 export const BEAT_SLOT_MIN_TOTAL_MINUTES = 20 * 60;
+/**
+ * An empty cell only reads as unusual once the matrix has texture — this many
+ * cells already filled. Under that, most hours are empty and "unusual" would
+ * headline every other session. Measured 2026-09-14 on the live table: eight
+ * games and twenty hours filled ~25 cells and put `unusual-slot` on three of
+ * the eight newest sessions.
+ */
+export const BEAT_UNUSUAL_SLOT_MIN_CELLS = 40;
 /** A first session covering this share of lifetime playtime is "all of it". */
 export const BEAT_FIRST_SESSION_MIN_SHARE = 0.9;
 /** Rarity below this percent turns an unlock beat into a rarity beat. */
@@ -373,6 +382,7 @@ function slotBeats(ctx: SessionBeatContext): SteamSessionBeat[] {
   if (rank <= BEAT_USUAL_SLOT_MAX_RANK) {
     return [{ kind: "usual-slot", strength: 0.25, slot, rank }];
   }
+  if (hourMatrixFilledCells(ctx.hourMatrix) < BEAT_UNUSUAL_SLOT_MIN_CELLS) return [];
   // The matrix includes this session, so the start cell was empty before it
   // exactly when it holds nothing beyond this session's own share of that
   // hour — the minutes from the start up to the next hour boundary, or the

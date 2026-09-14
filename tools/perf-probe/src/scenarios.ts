@@ -71,6 +71,17 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    // One editorial hero over five frosted chips, fetched on the client rather
+    // than primed: the load phase therefore includes the fetch and the hero's
+    // entrance cascade, not a warm render.
+    name: "steam-sessions",
+    path: "/steam/sessions",
+    screenshotMoments: [
+      { name: "01-load", phase: "load", settleMs: 750 },
+      { name: "02-scroll-bottom", phase: "scroll-bottom", settleMs: 500 },
+    ],
+  },
+  {
     // The Steam *profile* page, not `/steam/library`. The handle predates that
     // route existing and is kept so the historical baselines in
     // progressive-paint-audit.md still line up; the virtualised library route

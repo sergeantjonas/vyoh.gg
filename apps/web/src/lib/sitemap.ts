@@ -39,6 +39,7 @@ export const SITEMAP_STATIC_PATHS = [
   "/steam/wishlist",
   "/steam/upcoming",
   "/steam/library",
+  "/steam/sessions",
   "/status",
 ] as const;
 

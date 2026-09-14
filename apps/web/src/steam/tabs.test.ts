@@ -66,6 +66,7 @@ describe("steamTabIndex", () => {
     expect(STEAM_TAB_SEGMENTS).toEqual([
       "",
       "portrait",
+      "sessions",
       "library",
       "wishlist",
       "upcoming",
@@ -73,10 +74,11 @@ describe("steamTabIndex", () => {
     ]);
     expect(steamTabIndex("/steam")).toBe(0);
     expect(steamTabIndex("/steam/portrait")).toBe(1);
-    expect(steamTabIndex("/steam/library")).toBe(2);
-    expect(steamTabIndex("/steam/wishlist")).toBe(3);
-    expect(steamTabIndex("/steam/upcoming")).toBe(4);
-    expect(steamTabIndex("/steam/achievements")).toBe(5);
+    expect(steamTabIndex("/steam/sessions")).toBe(2);
+    expect(steamTabIndex("/steam/library")).toBe(3);
+    expect(steamTabIndex("/steam/wishlist")).toBe(4);
+    expect(steamTabIndex("/steam/upcoming")).toBe(5);
+    expect(steamTabIndex("/steam/achievements")).toBe(6);
   });
 
   it("treats the trailing-slash index as the index", () => {
@@ -84,8 +86,8 @@ describe("steamTabIndex", () => {
   });
 
   it("resolves a drill-in to the tab that owns it", () => {
-    expect(steamTabIndex("/steam/library/1245620")).toBe(2);
-    expect(steamTabIndex("/steam/achievements/signature")).toBe(5);
+    expect(steamTabIndex("/steam/library/1245620")).toBe(3);
+    expect(steamTabIndex("/steam/achievements/signature")).toBe(6);
   });
 
   it("returns -1 outside the section, so a cross-section nav gets no slide", () => {

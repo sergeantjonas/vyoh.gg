@@ -655,13 +655,24 @@ describe("CommandPaletteDialog", () => {
   });
 
   describe("Current section tabs (S1)", () => {
-    it("shows Library / Wishlist / Upcoming / Achievements on /steam at empty input", () => {
+    it("shows Sessions / Library / Wishlist / Upcoming / Achievements on /steam at empty input", () => {
       pathnameRef.current = "/steam";
       wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+      expect(screen.getByRole("option", { name: /^Sessions$/ })).toBeTruthy();
       expect(screen.getByRole("option", { name: /^Library$/ })).toBeTruthy();
       expect(screen.getByRole("option", { name: /^Wishlist$/ })).toBeTruthy();
       expect(screen.getByRole("option", { name: /^Upcoming$/ })).toBeTruthy();
       expect(screen.getByRole("option", { name: /^Achievements$/ })).toBeTruthy();
+    });
+
+    it("finds Sessions by what a session is looked for by", () => {
+      pathnameRef.current = "/steam";
+      wrap(<CommandPaletteDialog open onOpenChange={vi.fn()} />);
+      fireEvent.change(screen.getByPlaceholderText("Type a command or search…"), {
+        target: { value: "playtime" },
+      });
+      expect(screen.getByRole("option", { name: /^Sessions$/ })).toBeTruthy();
+      expect(screen.queryByRole("option", { name: /^Library$/ })).toBeNull();
     });
 
     it("shows 'Game: Elden Ring' on /steam/library/1245620 when the owned-games cache is warm", () => {

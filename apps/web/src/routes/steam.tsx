@@ -25,6 +25,7 @@ import {
 } from "@tanstack/react-router";
 import {
   CalendarClock,
+  Clock,
   Fingerprint,
   LayoutDashboard,
   Library,
@@ -51,6 +52,7 @@ export const Route = createFileRoute("/steam")({
 const TAB_CHROME = {
   "": { to: "/steam", label: "Profile", Icon: LayoutDashboard, exact: true },
   portrait: { to: "/steam/portrait", label: "Portrait", Icon: Fingerprint, exact: false },
+  sessions: { to: "/steam/sessions", label: "Sessions", Icon: Clock, exact: false },
   library: { to: "/steam/library", label: "Library", Icon: Library, exact: false },
   wishlist: { to: "/steam/wishlist", label: "Wishlist", Icon: ListChecks, exact: false },
   upcoming: {

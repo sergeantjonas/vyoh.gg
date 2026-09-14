@@ -455,6 +455,7 @@ export {
   buildHourMatrix,
   emptyHourMatrix,
   hourMatrixCellRank,
+  hourMatrixFilledCells,
   hourMatrixTotalMinutes,
   localSlot,
 } from "./steam/sessions/hour-matrix.ts";
@@ -471,6 +472,7 @@ export {
   BEAT_RETURN_MIN_DAYS,
   BEAT_SLOT_MIN_TOTAL_MINUTES,
   BEAT_STREAK_MIN_DAYS,
+  BEAT_UNUSUAL_SLOT_MIN_CELLS,
   BEAT_USUAL_SLOT_MAX_RANK,
   BEAT_WINDOW_MIN_SESSIONS,
   selectSessionBeats,
