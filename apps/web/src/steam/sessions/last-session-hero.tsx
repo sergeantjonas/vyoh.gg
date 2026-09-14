@@ -40,10 +40,11 @@ export function LastSessionHero() {
   const latest = data?.sessions[0];
   const elapsed = useElapsedMinutes(live?.startedAt ?? null, data?.window.to ?? null);
   const subject = live ?? latest ?? null;
+  // Implicit subject: the eyebrow names the game, so the sentence need not.
   const headline = live
-    ? liveHeadlineFor(live, elapsed)
+    ? liveHeadlineFor(live, elapsed, "implicit")
     : latest
-      ? headlineFor(latest)
+      ? headlineFor(latest, "implicit")
       : null;
 
   return (

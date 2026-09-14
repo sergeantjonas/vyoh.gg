@@ -107,7 +107,7 @@ describe("SessionTimelineCard", () => {
     const labels = screen.getAllByRole("listitem").map((li) => li.textContent);
     expect(labels).toEqual(["Mortal Shell II", "Onimusha: Way of the Sword"]);
     expect(
-      screen.getByText("2 sessions across 2 games, laid on one strip of time.")
+      screen.getByText(/Sessions across 2 games, laid on one strip of time\./)
     ).toBeTruthy();
     expect(screen.getByRole("row", { name: /Mortal Shell II/ })).toBeTruthy();
     expect(screen.getByRole("row", { name: /Onimusha/ })).toBeTruthy();

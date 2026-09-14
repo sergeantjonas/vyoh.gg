@@ -106,14 +106,12 @@ describe("SessionsPage", () => {
     mockQuery(QUIET, "success");
     const { container } = render(wrap(<SessionsPage />));
     expect(screen.getByRole("heading", { name: "4h 20m" })).toBeTruthy();
-    expect(
-      screen.getByText("Your longest Onimusha session on record, out of 14.")
-    ).toBeTruthy();
+    expect(screen.getByText("Your longest session on record, out of 14.")).toBeTruthy();
     expect(screen.getByText("4 days running")).toBeTruthy();
     expect(screen.queryByLabelText("Unlocked in this session")).toBeNull();
     expect(screen.queryByText(/no unlocks/i)).toBeNull();
     expect(screen.getByText(/41 observed sessions in 12 weeks/)).toBeTruthy();
-    expect(screen.getByText("4h 20m in one sitting.")).toBeTruthy();
+    expect(screen.getByText("4h 20m in one session.")).toBeTruthy();
     expect(screen.getByText("4h 20m without a single unlock.")).toBeTruthy();
     expect((await axe(container)).violations).toHaveLength(0);
   });
@@ -169,10 +167,10 @@ describe("SessionsPage", () => {
     render(wrap(<SessionsPage />));
     expect(screen.getByText("Now playing · Onimusha")).toBeTruthy();
     expect(screen.getByRole("heading", { name: "1h 12m" })).toBeTruthy();
-    expect(screen.getByText("4 days in a row of Onimusha.")).toBeTruthy();
+    expect(screen.getByText("4 days in a row.")).toBeTruthy();
     expect(screen.getByText(/since 20:40/)).toBeTruthy();
     // The closed session's marathon claim yields to the running one.
-    expect(screen.queryByText(/longest Onimusha session on record/)).toBeNull();
+    expect(screen.queryByText(/longest session on record/)).toBeNull();
   });
 
   it("keeps a heading and a sentence while the log is loading", () => {

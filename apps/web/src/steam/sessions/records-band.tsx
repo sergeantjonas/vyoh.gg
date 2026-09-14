@@ -44,7 +44,7 @@ export function RecordsBand() {
           records.longest && (
             <FactCard
               title="Longest"
-              verdict={`${formatHoursMinutes(records.longest.value)} in one sitting.`}
+              verdict={`${formatHoursMinutes(records.longest.value)} in one session.`}
               prescription={when(records.longest)}
             />
           )

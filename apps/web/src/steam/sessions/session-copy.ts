@@ -14,6 +14,11 @@ import {
 // Two registers per beat: `sentence` carries the hero when the beat leads, and
 // `chip` is the short form for when it supports another headline. A beat with
 // no chip form is hero-only.
+//
+// The sentence comes in two subjects. `named` says the game, for a tooltip or
+// a chip on another page where nothing else does; `implicit` leaves it out,
+// for the hero, whose eyebrow has already said it — three lines naming the
+// same game read as a form, not prose.
 
 const WEEKDAYS = [
   "Monday",
@@ -70,17 +75,28 @@ export interface BeatCopy {
   chip: string | null;
 }
 
-export function copyFor(beat: SteamSessionBeat, d: SteamPlaySessionDigest): BeatCopy {
+export type CopySubject = "named" | "implicit";
+
+export function copyFor(
+  beat: SteamSessionBeat,
+  d: SteamPlaySessionDigest,
+  subject: CopySubject = "named"
+): BeatCopy {
+  const named = subject === "named";
   const game = d.game.name;
+  // `ofGame` reads " of Onimusha" or nothing; `gameSpace` reads "Onimusha "
+  // or nothing; `${game}` stays where the sentence cannot do without it.
+  const ofGame = named ? ` of ${game}` : "";
+  const gameSpace = named ? `${game} ` : "";
   switch (beat.kind) {
     case "longest-in-game":
       return beat.rank === 1
         ? {
-            sentence: `Your longest ${game} session on record, out of ${beat.of}.`,
+            sentence: `Your longest ${gameSpace}session on record, out of ${beat.of}.`,
             chip: `Longest of ${beat.of}`,
           }
         : {
-            sentence: `Your ${ordinal(beat.rank)} ${game} session of ${beat.of}.`,
+            sentence: `Your ${ordinal(beat.rank)} ${gameSpace}session of ${beat.of}.`,
             chip: `${ordinal(beat.rank).replace(/^./, (c) => c.toUpperCase())} of ${beat.of}`,
           };
     case "longest-in-window":
@@ -90,32 +106,38 @@ export function copyFor(beat: SteamSessionBeat, d: SteamPlaySessionDigest): Beat
       };
     case "late-finish":
       return {
-        sentence: `A run past midnight — ${game} until ${clockOf(d.endedAt)}.`,
+        sentence: named
+          ? `A run past midnight — ${game} until ${clockOf(d.endedAt)}.`
+          : `A run past midnight, until ${clockOf(d.endedAt)}.`,
         chip: `Until ${clockOf(d.endedAt)}`,
       };
     case "early-start":
       return {
-        sentence: `An early start: ${game} at ${clockOf(d.startedAt)}.`,
+        sentence: named
+          ? `An early start: ${game} at ${clockOf(d.startedAt)}.`
+          : `An early start, at ${clockOf(d.startedAt)}.`,
         chip: `From ${clockOf(d.startedAt)}`,
       };
     case "return":
       return {
-        sentence: `The first ${game} in ${daysAsSpan(beat.daysSince)}.`,
+        sentence: `The first ${named ? game : "one"} in ${daysAsSpan(beat.daysSince)}.`,
         chip: `First in ${daysAsSpan(beat.daysSince)}`,
       };
     case "streak":
       return {
-        sentence: `${plural(beat.days, "day")} in a row of ${game}.`,
+        sentence: `${plural(beat.days, "day")} in a row${ofGame}.`,
         chip: `${plural(beat.days, "day")} running`,
       };
     case "milestone":
       return {
-        sentence: `${game} passed ${beat.hours} hours in this one.`,
+        sentence: named
+          ? `${game} passed ${beat.hours} hours in this one.`
+          : `Past ${beat.hours} hours of it, in this one.`,
         chip: `Past ${beat.hours}h`,
       };
     case "first-session":
       return {
-        sentence: `A first session of ${game} — ${formatHoursMinutes(d.durationMinutes)}, all of it.`,
+        sentence: `A first session${ofGame} — ${formatHoursMinutes(d.durationMinutes)}, all of it.`,
         chip: "First session",
       };
     case "bounced-from":
@@ -127,19 +149,21 @@ export function copyFor(beat: SteamSessionBeat, d: SteamPlaySessionDigest): Beat
       return { sentence: `Then on to ${beat.name}.`, chip: `Then ${beat.name}` };
     case "completed-and-back":
       return {
-        sentence: `Every one of ${game}'s ${beat.total} achievements already earned, and still back for more.`,
+        sentence: named
+          ? `Every one of ${game}'s ${beat.total} achievements already earned, and still back for more.`
+          : `Every one of its ${beat.total} achievements already earned, and still back for more.`,
         chip: "Finished, still playing",
       };
     case "nearly-complete":
       return {
-        sentence: `${plural(beat.remaining, "achievement")} from finishing ${game}.`,
+        sentence: `${plural(beat.remaining, "achievement")} from finishing${named ? ` ${game}` : ""}.`,
         chip: `${beat.remaining} to finish`,
       };
     case "unlocks":
       return {
         sentence:
           beat.rarestPercent === null
-            ? `${plural(beat.count, "unlock")} in ${game}.`
+            ? `${plural(beat.count, "unlock")}${named ? ` in ${game}` : ""}.`
             : `${plural(beat.count, "unlock")}, the rarest held by ${formatRarityPercent(beat.rarestPercent)} of players.`,
         chip:
           beat.rarestPercent === null
@@ -148,17 +172,17 @@ export function copyFor(beat: SteamSessionBeat, d: SteamPlaySessionDigest): Beat
       };
     case "usual-slot":
       return {
-        sentence: `${game} on a ${weekdayOf(beat.slot)} ${daypartOf(beat.slot.hour)}, in the usual slot.`,
+        sentence: `${named ? `${game} on a` : "A"} ${weekdayOf(beat.slot)} ${daypartOf(beat.slot.hour)}, in the usual slot.`,
         chip: "Usual slot",
       };
     case "unusual-slot":
       return {
-        sentence: `${game} at ${clockOf(d.startedAt)} on a ${weekdayOf(beat.slot)} — not your usual hour.`,
+        sentence: `${named ? `${game} at` : "Opened at"} ${clockOf(d.startedAt)} on a ${weekdayOf(beat.slot)} — not your usual hour.`,
         chip: "Unusual hour",
       };
     case "shape":
       return {
-        sentence: `${formatHoursMinutes(d.durationMinutes)} of ${game}, a ${weekdayOf(beat.slot)} ${daypartOf(beat.slot.hour)}.`,
+        sentence: `${formatHoursMinutes(d.durationMinutes)}${ofGame}, a ${weekdayOf(beat.slot)} ${daypartOf(beat.slot.hour)}.`,
         chip: null,
       };
   }
@@ -178,6 +202,7 @@ export interface SessionHeadline {
 export function liveHeadlineFor(
   live: SteamLiveSession,
   elapsedMinutes: number,
+  subject: CopySubject = "named",
   maxChips = 2
 ): SessionHeadline {
   const asDigest: SteamPlaySessionDigest = {
@@ -193,8 +218,10 @@ export function liveHeadlineFor(
   };
   const [lead, ...rest] = live.beats;
   const sentence = lead
-    ? copyFor(lead, asDigest).sentence
-    : `${live.game.name}, open since ${clockOf(live.startedAt)}.`;
+    ? copyFor(lead, asDigest, subject).sentence
+    : subject === "named"
+      ? `${live.game.name}, open since ${clockOf(live.startedAt)}.`
+      : `Open since ${clockOf(live.startedAt)}.`;
   const chips: string[] = [];
   for (const beat of rest) {
     const chip = copyFor(beat, asDigest).chip;
@@ -209,11 +236,17 @@ export function liveHeadlineFor(
 }
 
 /** The hero's three registers: duration as masthead, lead beat as prose, the next two as chips. */
-export function headlineFor(d: SteamPlaySessionDigest, maxChips = 2): SessionHeadline {
+export function headlineFor(
+  d: SteamPlaySessionDigest,
+  subject: CopySubject = "named",
+  maxChips = 2
+): SessionHeadline {
   const [lead, ...rest] = d.beats;
   const sentence = lead
-    ? copyFor(lead, d).sentence
-    : `${formatHoursMinutes(d.durationMinutes)} of ${d.game.name}.`;
+    ? copyFor(lead, d, subject).sentence
+    : subject === "named"
+      ? `${formatHoursMinutes(d.durationMinutes)} of ${d.game.name}.`
+      : `${formatHoursMinutes(d.durationMinutes)}.`;
   const chips: string[] = [];
   for (const beat of rest) {
     const chip = copyFor(beat, d).chip;

@@ -47,7 +47,7 @@ export function OffCameraLedger() {
             metric={total}
             metricLabel={{ singular: "unlock", plural: "unlocks" }}
             verdict={`${total} ${total === 1 ? "unlock" : "unlocks"} across ${days} ${days === 1 ? "day" : "days"} and ${games} ${games === 1 ? "game" : "games"} landed while the api was not watching.`}
-            prescription="Sessions are recorded only while the api runs, so these are evenings the log has no row for."
+            prescription="Sessions are recorded only while the api runs, so this is play the log has no row for."
             evidence={
               <ul className="flex flex-col gap-1.5">
                 {offCamera.slice(0, ROWS_SHOWN).map((g) => (

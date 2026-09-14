@@ -74,6 +74,7 @@ describe("liveHeadlineFor", () => {
       chips: [],
     });
     expect(liveHeadlineFor(live, 72).masthead).toBe("1h 12m");
+    expect(liveHeadlineFor(live, 5, "implicit").sentence).toBe("Open since 20:40.");
   });
 
   it("leads with a launch-time beat and chips the rest", () => {
@@ -100,6 +101,55 @@ describe("liveHeadlineFor", () => {
 
 describe("copyFor", () => {
   const d = digest([SHAPE]);
+
+  it("drops the game's name when the subject is implicit", () => {
+    const implicit = (beat: SteamSessionBeat) => copyFor(beat, d, "implicit").sentence;
+    expect(implicit({ kind: "longest-in-game", strength: 0.9, rank: 1, of: 14 })).toBe(
+      "Your longest session on record, out of 14."
+    );
+    expect(implicit({ kind: "late-finish", strength: 0.6, endHour: 0 })).toBe(
+      "A run past midnight, until 22:50."
+    );
+    expect(implicit({ kind: "return", strength: 0.6, daysSince: 80 })).toBe(
+      "The first one in 3 months."
+    );
+    expect(implicit({ kind: "early-start", strength: 0.4, startHour: 6 })).toBe(
+      "An early start, at 20:40."
+    );
+    expect(implicit({ kind: "milestone", strength: 0.6, hours: 50 })).toBe(
+      "Past 50 hours of it, in this one."
+    );
+    expect(implicit({ kind: "first-session", strength: 0.8, shareOfLifetime: 1 })).toBe(
+      "A first session — 2h 10m, all of it."
+    );
+    expect(implicit({ kind: "completed-and-back", strength: 0.45, total: 40 })).toBe(
+      "Every one of its 40 achievements already earned, and still back for more."
+    );
+    expect(
+      implicit({ kind: "nearly-complete", strength: 0.45, remaining: 2, total: 40 })
+    ).toBe("2 achievements from finishing.");
+    expect(
+      implicit({
+        kind: "usual-slot",
+        strength: 0.25,
+        slot: { weekday: 1, hour: 20 },
+        rank: 1,
+      })
+    ).toBe("A Tuesday evening, in the usual slot.");
+    expect(
+      implicit({ kind: "unusual-slot", strength: 0.35, slot: { weekday: 1, hour: 20 } })
+    ).toBe("Opened at 20:40 on a Tuesday — not your usual hour.");
+    expect(headlineFor(digest([]), "implicit").sentence).toBe("2h 10m.");
+    expect(implicit({ kind: "streak", strength: 0.5, days: 4 })).toBe("4 days in a row.");
+    expect(implicit(SHAPE)).toBe("2h 10m, a Tuesday evening.");
+    expect(
+      implicit({ kind: "unlocks", strength: 0.5, count: 2, rarestPercent: null })
+    ).toBe("2 unlocks.");
+    // Chips never name the game, so the subject leaves them alone.
+    expect(copyFor({ kind: "streak", strength: 0.5, days: 4 }, d, "implicit").chip).toBe(
+      "4 days running"
+    );
+  });
 
   it("formats clocks in Brussels time", () => {
     // Ends 00:52 local the next day.

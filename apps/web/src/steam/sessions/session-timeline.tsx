@@ -420,7 +420,9 @@ function BarTooltip({ bar }: { bar: Bar }) {
         {bar.live ? "now" : clockOf(end)}
       </p>
       {bar.session && (
-        <p className="text-muted-foreground">{headlineFor(bar.session).sentence}</p>
+        <p className="text-muted-foreground">
+          {headlineFor(bar.session, "implicit").sentence}
+        </p>
       )}
       {bar.unlockTimes.length > 0 && (
         <p className="text-muted-foreground">
@@ -478,9 +480,12 @@ export function SessionTimelineCard() {
         return (
           <FactCard
             title={TITLE}
-            metric={data.sessions.length}
-            metricLabel={{ singular: "session", plural: "sessions" }}
-            verdict={`${data.sessions.length} ${data.sessions.length === 1 ? "session" : "sessions"} across ${data.perGame.length} ${data.perGame.length === 1 ? "game" : "games"}, laid on one strip of time.`}
+            // The header above counts every observed session, hidden games
+            // included; this card can only draw the ones it may name, so it
+            // speaks of games rather than restating a number that would differ.
+            metric={data.perGame.length}
+            metricLabel={{ singular: "game", plural: "games" }}
+            verdict={`Sessions across ${data.perGame.length} ${data.perGame.length === 1 ? "game" : "games"}, laid on one strip of time. Hover a bar for the session; drag below to move the span.`}
             evidence={
               <>
                 <div className="flex gap-2">
