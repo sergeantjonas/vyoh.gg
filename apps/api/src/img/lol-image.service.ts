@@ -160,8 +160,8 @@ const MODERN_CLASS_TO_LEGACY_CDRAGON: Record<ChampionClassSlug, string | null> =
 
 export interface Resolved {
   // Upstream URLs to try in order; first 2xx wins. Single-element for sources
-  // with no fallback (LoL, achievement icons), multi-element for Steam's
-  // hashed → legacy fallback chain.
+  // with no fallback (LoL), multi-element for Steam's hashed → legacy and
+  // multi-root CDN fallback chains.
   urls: string[];
   params: TranscodeParams;
 }

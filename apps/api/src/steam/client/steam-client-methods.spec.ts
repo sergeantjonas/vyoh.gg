@@ -175,10 +175,10 @@ describe("SteamClientService.getGameAchievementSchema", () => {
     const result = await service.getGameAchievementSchema(42);
     expect(result).toHaveLength(1);
     expect(result[0]?.iconUrl).toBe(
-      "https://steamcdn-a.akamaihd.net/steamcommunity/public/images/apps/42/first.jpg"
+      "https://shared.akamai.steamstatic.com/community_assets/images/apps/42/first.jpg"
     );
     expect(result[0]?.iconGrayUrl).toBe(
-      "https://steamcdn-a.akamaihd.net/steamcommunity/public/images/apps/42/first_gray.jpg"
+      "https://shared.akamai.steamstatic.com/community_assets/images/apps/42/first_gray.jpg"
     );
   });
 

@@ -411,7 +411,7 @@ describe("SteamImageService.backdrop", () => {
 });
 
 describe("SteamImageService.achievement / achievementGray", () => {
-  it("returns the iconUrl from the enriched row", async () => {
+  it("walks every known CDN root for the stored filename, then the stored URL itself", async () => {
     const prisma = makePrisma();
     prisma.steamGameAchievement.findUnique.mockResolvedValue({
       iconUrl: "https://example.com/ach.png",
@@ -419,8 +419,31 @@ describe("SteamImageService.achievement / achievementGray", () => {
     const service = makeService(prisma);
 
     const resolved = await service.achievement(440, "ACH_FIRST_WIN");
-    expect(resolved.urls).toEqual(["https://example.com/ach.png"]);
+    expect(resolved.urls).toEqual([
+      "https://shared.akamai.steamstatic.com/community_assets/images/apps/440/ach.png",
+      "https://steamcdn-a.akamaihd.net/steamcommunity/public/images/apps/440/ach.png",
+      "https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/apps/440/ach.png",
+      "https://example.com/ach.png",
+    ]);
     expect(resolved.params).toEqual({ width: 64, quality: 85 });
+  });
+
+  it("self-heals a row stored on the legacy akamaihd root by trying the modern root first", async () => {
+    const prisma = makePrisma();
+    prisma.steamGameAchievement.findUnique.mockResolvedValue({
+      iconUrl:
+        "https://steamcdn-a.akamaihd.net/steamcommunity/public/images/apps/2638890/4a6e.jpg",
+    });
+    const service = makeService(prisma);
+
+    const resolved = await service.achievement(2638890, "ACHIEVEMENT_042");
+    expect(resolved.urls[0]).toBe(
+      "https://shared.akamai.steamstatic.com/community_assets/images/apps/2638890/4a6e.jpg"
+    );
+    expect(resolved.urls).toContain(
+      "https://steamcdn-a.akamaihd.net/steamcommunity/public/images/apps/2638890/4a6e.jpg"
+    );
+    expect(new Set(resolved.urls).size).toBe(resolved.urls.length);
   });
 
   it("throws NotFoundException when no achievement row exists for (appid, apiName)", async () => {
@@ -441,7 +464,10 @@ describe("SteamImageService.achievement / achievementGray", () => {
     const service = makeService(prisma);
 
     const resolved = await service.achievementGray(440, "ACH_FIRST_WIN");
-    expect(resolved.urls).toEqual(["https://example.com/ach_gray.png"]);
+    expect(resolved.urls[0]).toBe(
+      "https://shared.akamai.steamstatic.com/community_assets/images/apps/440/ach_gray.png"
+    );
+    expect(resolved.urls).toContain("https://example.com/ach_gray.png");
   });
 
   it("achievementGray also throws NotFoundException when the row is missing", async () => {

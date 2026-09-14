@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { requireEnv } from "../../env";
+import { composeAchievementIconUrl } from "./achievement-icon-url";
 import { SteamRateLimiterService } from "./rate-limiter.service";
 import type {
   SteamAppDetailsResponse,
@@ -243,8 +244,8 @@ export class SteamClientService {
         apiName: r.internal_name,
         displayName: r.localized_name,
         description: r.localized_desc ?? "",
-        iconUrl: `https://steamcdn-a.akamaihd.net/steamcommunity/public/images/apps/${appid}/${r.icon}`,
-        iconGrayUrl: `https://steamcdn-a.akamaihd.net/steamcommunity/public/images/apps/${appid}/${r.icon_gray}`,
+        iconUrl: composeAchievementIconUrl(appid, r.icon),
+        iconGrayUrl: composeAchievementIconUrl(appid, r.icon_gray),
         hidden: r.hidden,
       }));
     });

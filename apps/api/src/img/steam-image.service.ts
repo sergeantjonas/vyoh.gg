@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { achievementIconCandidates } from "../steam/client/achievement-icon-url";
 import type { Resolved } from "./lol-image.service";
 
 const STEAM_CDN_HOST = "https://shared.akamai.steamstatic.com";
@@ -264,7 +265,7 @@ export class SteamImageService {
       throw new NotFoundException(`SteamGameAchievement(${appid}, ${apiName}) not found`);
     }
     return {
-      urls: [row.iconUrl],
+      urls: achievementIconCandidates(appid, row.iconUrl),
       params: { width: 64, quality: 85 },
     };
   }
@@ -278,7 +279,7 @@ export class SteamImageService {
       throw new NotFoundException(`SteamGameAchievement(${appid}, ${apiName}) not found`);
     }
     return {
-      urls: [row.iconGrayUrl],
+      urls: achievementIconCandidates(appid, row.iconGrayUrl),
       params: { width: 64, quality: 85 },
     };
   }
