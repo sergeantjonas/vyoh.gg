@@ -5,6 +5,7 @@ import type {
   SteamPlatformMix,
   SteamPlayerState,
   SteamPortrait,
+  SteamSessions,
   SteamSummary,
   SteamTagCatalog,
   SteamUpcoming,
@@ -20,6 +21,7 @@ import { SteamGameRecapService } from "./library/game-recap.service";
 import { SteamOwnedGamesService } from "./library/owned-games.service";
 import { SteamPortraitService } from "./portrait/portrait.service";
 import { SteamPlayerStateService } from "./presence/player-state.service";
+import { SteamSessionsService } from "./presence/sessions.service";
 import { SteamChronotypeService } from "./presence/steam-chronotype.service";
 import { SteamController } from "./steam.controller";
 import { SteamService } from "./steam.service";
@@ -61,6 +63,7 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamSessionsService, useValue: {} },
         { provide: SteamGameCurationService, useValue: CURATION_STUB },
         // `ViewerGuard` on the viewer-aware routes injects this. The handlers
         // are called directly so the guard never runs; it only has to resolve.
@@ -104,6 +107,7 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamSessionsService, useValue: {} },
         { provide: SteamGameCurationService, useValue: CURATION_STUB },
         // `ViewerGuard` on the viewer-aware routes injects this. The handlers
         // are called directly so the guard never runs; it only has to resolve.
@@ -147,6 +151,7 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: { getUpcoming: stub } },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamSessionsService, useValue: {} },
         { provide: SteamGameCurationService, useValue: CURATION_STUB },
         // `ViewerGuard` on the viewer-aware routes injects this. The handlers
         // are called directly so the guard never runs; it only has to resolve.
@@ -186,6 +191,7 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: { getHeroMeta: stub } },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamSessionsService, useValue: {} },
         { provide: SteamGameCurationService, useValue: CURATION_STUB },
         // `ViewerGuard` on the viewer-aware routes injects this. The handlers
         // are called directly so the guard never runs; it only has to resolve.
@@ -220,6 +226,7 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamSessionsService, useValue: {} },
         { provide: SteamGameCurationService, useValue: CURATION_STUB },
         // `ViewerGuard` on the viewer-aware routes injects this. The handlers
         // are called directly so the guard never runs; it only has to resolve.
@@ -310,6 +317,7 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: { getPortrait: stub } },
+        { provide: SteamSessionsService, useValue: {} },
         { provide: SteamGameCurationService, useValue: CURATION_STUB },
         { provide: AuthService, useValue: {} },
       ],
@@ -345,6 +353,7 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamSessionsService, useValue: {} },
         { provide: SteamGameCurationService, useValue: CURATION_STUB },
         // `ViewerGuard` on the viewer-aware routes injects this. The handlers
         // are called directly so the guard never runs; it only has to resolve.
@@ -380,6 +389,7 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamSessionsService, useValue: {} },
         { provide: SteamGameCurationService, useValue: CURATION_STUB },
         // `ViewerGuard` on the viewer-aware routes injects this. The handlers
         // are called directly so the guard never runs; it only has to resolve.
@@ -416,6 +426,7 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamSessionsService, useValue: {} },
         { provide: SteamGameCurationService, useValue: CURATION_STUB },
         // `ViewerGuard` on the viewer-aware routes injects this. The handlers
         // are called directly so the guard never runs; it only has to resolve.
@@ -445,6 +456,7 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamSessionsService, useValue: {} },
         { provide: SteamGameCurationService, useValue: CURATION_STUB },
         // `ViewerGuard` on the viewer-aware routes injects this. The handlers
         // are called directly so the guard never runs; it only has to resolve.
@@ -483,6 +495,7 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamSessionsService, useValue: {} },
         { provide: SteamGameCurationService, useValue: CURATION_STUB },
         // `ViewerGuard` on the viewer-aware routes injects this. The handlers
         // are called directly so the guard never runs; it only has to resolve.
@@ -511,6 +524,7 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamSessionsService, useValue: {} },
         { provide: SteamGameCurationService, useValue: CURATION_STUB },
         // `ViewerGuard` on the viewer-aware routes injects this. The handlers
         // are called directly so the guard never runs; it only has to resolve.
@@ -538,6 +552,7 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamSessionsService, useValue: {} },
         { provide: SteamGameCurationService, useValue: CURATION_STUB },
         // `ViewerGuard` on the viewer-aware routes injects this. The handlers
         // are called directly so the guard never runs; it only has to resolve.
@@ -565,6 +580,7 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamSessionsService, useValue: {} },
         { provide: SteamGameCurationService, useValue: CURATION_STUB },
         // `ViewerGuard` on the viewer-aware routes injects this. The handlers
         // are called directly so the guard never runs; it only has to resolve.
@@ -595,6 +611,7 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamSessionsService, useValue: {} },
         { provide: SteamGameCurationService, useValue: CURATION_STUB },
         // `ViewerGuard` on the viewer-aware routes injects this. The handlers
         // are called directly so the guard never runs; it only has to resolve.
@@ -622,6 +639,7 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamSessionsService, useValue: {} },
         { provide: SteamGameCurationService, useValue: CURATION_STUB },
         // `ViewerGuard` on the viewer-aware routes injects this. The handlers
         // are called directly so the guard never runs; it only has to resolve.
@@ -649,6 +667,7 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamSessionsService, useValue: {} },
         { provide: SteamGameCurationService, useValue: CURATION_STUB },
         // `ViewerGuard` on the viewer-aware routes injects this. The handlers
         // are called directly so the guard never runs; it only has to resolve.
@@ -677,6 +696,7 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamSessionsService, useValue: {} },
         { provide: SteamGameCurationService, useValue: CURATION_STUB },
         // `ViewerGuard` on the viewer-aware routes injects this. The handlers
         // are called directly so the guard never runs; it only has to resolve.
@@ -705,6 +725,7 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamSessionsService, useValue: {} },
         { provide: SteamGameCurationService, useValue: CURATION_STUB },
         // `ViewerGuard` on the viewer-aware routes injects this. The handlers
         // are called directly so the guard never runs; it only has to resolve.
@@ -734,6 +755,7 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamSessionsService, useValue: {} },
         { provide: SteamGameCurationService, useValue: CURATION_STUB },
         { provide: AuthService, useValue: {} },
       ],
@@ -758,6 +780,7 @@ describe("SteamController", () => {
         { provide: SteamWishlistHeroService, useValue: {} },
         { provide: SteamUpcomingService, useValue: {} },
         { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamSessionsService, useValue: {} },
         { provide: SteamGameCurationService, useValue: CURATION_STUB },
         { provide: AuthService, useValue: {} },
       ],
@@ -766,5 +789,53 @@ describe("SteamController", () => {
     await expect(controller.getOwnedGame(440, false)).rejects.toBeInstanceOf(
       NotFoundException
     );
+  });
+
+  it("delegates to SteamSessionsService.getSessions with the viewer's curation", async () => {
+    const sessions: SteamSessions = {
+      window: {
+        from: "2026-06-22T00:00:00.000Z",
+        to: "2026-09-14T00:00:00.000Z",
+        observedSince: null,
+        sessionCount: 0,
+      },
+      sessions: [],
+      hourMatrix: [],
+      timeZone: "Europe/Brussels",
+      perGame: [],
+      milestones: [],
+      records: {
+        longest: null,
+        latestFinish: null,
+        mostUnlocks: null,
+        longestDrySpell: null,
+        quickestBounce: null,
+      },
+      offCamera: [],
+    };
+    const stub = vi.fn().mockResolvedValue(sessions);
+
+    const moduleRef = await Test.createTestingModule({
+      controllers: [SteamController],
+      providers: [
+        { provide: SteamService, useValue: {} },
+        { provide: SteamOwnedGamesService, useValue: {} },
+        { provide: SteamTagService, useValue: {} },
+        { provide: SteamAchievementsService, useValue: {} },
+        { provide: SteamGameRecapService, useValue: {} },
+        { provide: SteamPlayerStateService, useValue: {} },
+        { provide: SteamChronotypeService, useValue: {} },
+        { provide: SteamWishlistHeroService, useValue: {} },
+        { provide: SteamUpcomingService, useValue: {} },
+        { provide: SteamPortraitService, useValue: {} },
+        { provide: SteamSessionsService, useValue: { getSessions: stub } },
+        { provide: SteamGameCurationService, useValue: CURATION_STUB },
+        { provide: AuthService, useValue: {} },
+      ],
+    }).compile();
+
+    const controller = moduleRef.get(SteamController);
+    await expect(controller.getSessions(12, false)).resolves.toBe(sessions);
+    expect(stub).toHaveBeenCalledWith(12, NO_CURATION);
   });
 });

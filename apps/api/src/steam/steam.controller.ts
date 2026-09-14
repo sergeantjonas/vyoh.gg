@@ -23,6 +23,7 @@ import type {
   SteamPlayerState,
   SteamPortrait,
   SteamRecentUnlocks,
+  SteamSessions,
   SteamSummary,
   SteamTagCatalog,
   SteamUpcoming,
@@ -31,7 +32,7 @@ import type {
 } from "@vyoh/shared";
 import { isHiddenGame } from "@vyoh/shared";
 import { ViewerIsOwner, WithViewer } from "../auth/viewer";
-import { COUNT_PIPE, LIMIT_PIPE } from "../bounded-int.pipe";
+import { BoundedIntPipe, COUNT_PIPE, LIMIT_PIPE } from "../bounded-int.pipe";
 import {
   RAREST_UNLOCKS_DEFAULT_LIMIT,
   RECENT_UNLOCKS_DEFAULT_LIMIT,
@@ -43,10 +44,17 @@ import { SteamGameRecapService } from "./library/game-recap.service";
 import { SteamOwnedGamesService } from "./library/owned-games.service";
 import { SteamPortraitService } from "./portrait/portrait.service";
 import { SteamPlayerStateService } from "./presence/player-state.service";
+import {
+  SESSIONS_DEFAULT_WEEKS,
+  SESSIONS_MAX_WEEKS,
+  SteamSessionsService,
+} from "./presence/sessions.service";
 import { SteamChronotypeService } from "./presence/steam-chronotype.service";
 import { SteamService } from "./steam.service";
 import { SteamUpcomingService } from "./store/upcoming.service";
 import { SteamWishlistHeroService } from "./store/wishlist-hero.service";
+
+const WEEKS_PIPE = new BoundedIntPipe("weeks", 1, SESSIONS_MAX_WEEKS);
 
 @Controller("steam")
 export class SteamController {
@@ -61,6 +69,7 @@ export class SteamController {
     private readonly wishlistHero: SteamWishlistHeroService,
     private readonly upcoming: SteamUpcomingService,
     private readonly portrait: SteamPortraitService,
+    private readonly sessions: SteamSessionsService,
     private readonly curation: SteamGameCurationService
   ) {}
 
@@ -152,6 +161,16 @@ export class SteamController {
   @WithViewer()
   async getPortrait(@ViewerIsOwner() isOwner: boolean): Promise<SteamPortrait> {
     return this.portrait.getPortrait(await this.curation.getCurationFor(isOwner));
+  }
+
+  @Get("sessions")
+  @WithViewer()
+  async getSessions(
+    @Query("weeks", new DefaultValuePipe(SESSIONS_DEFAULT_WEEKS), WEEKS_PIPE)
+    weeks: number,
+    @ViewerIsOwner() isOwner: boolean
+  ): Promise<SteamSessions> {
+    return this.sessions.getSessions(weeks, await this.curation.getCurationFor(isOwner));
   }
 
   @Get("owned-games")

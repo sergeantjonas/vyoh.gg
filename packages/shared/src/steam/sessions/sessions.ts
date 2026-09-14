@@ -42,6 +42,7 @@ export interface SteamPlaySessionDigest {
 export interface SteamSessionGameStrip {
   game: SteamSessionGameRef;
   totalMinutes: number;
+  // Oldest first — the strip is drawn left to right.
   sessions: Array<{ id: string; startedAt: string; durationMinutes: number }>;
   // Unlock instants inside any of this game's sessions, for the tick marks.
   unlockTicks: string[];

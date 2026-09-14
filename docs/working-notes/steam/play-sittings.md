@@ -1,6 +1,6 @@
 # Steam — Sessions (`/steam/sessions`)
 
-**Status:** Active — chunks 0 and 1 shipped 2026-09-14: the data probe is recorded below and the pure beat model, unlock join and hour matrix live in `packages/shared/src/steam/sessions/` with 31 tests. Chunk 2 (the viewer-scoped api endpoint) is next.
+**Status:** Active — chunks 0, 1 and 2 shipped 2026-09-14: the data probe is recorded below, the pure beat model, unlock join and hour matrix live in `packages/shared/src/steam/sessions/`, and `GET /api/steam/sessions?weeks=N` serves the whole page from `SteamSessionsService`, measured at 89 kB / ~35 ms for 41 sessions. Chunk 3 (route, hero, records, and the tab-strip width decision) is next.
 
 ## Naming
 
@@ -18,7 +18,7 @@ A seventh Steam tab, `/steam/sessions`, sibling to `/steam/portrait`. The existi
 
 The `/steam` landing carries a single **last sitting** card linking in, per the one-curated-highlight rule in [repo-conventions.md](../../repo-conventions.md) § "Per-stream routes". Nothing about sittings goes on `/` except through the recap's cross-stream ranking (chunk 6, optional).
 
-Every read on this page names a game, so the whole endpoint is viewer-scoped on both sides per [hidden-games.md](hidden-games.md): a hidden game's sittings drop out for a visitor, and aggregates (the heatmap, the records' denominators) still count them anonymously.
+Every read on this page names a game, so the whole endpoint is viewer-scoped on both sides per [hidden-games.md](hidden-games.md): a hidden game's sessions drop out for a visitor, and aggregates (the heatmap, the window count, rank denominators, the first-observed date) still count them anonymously. Chunk 2 implements that split by running the session query unfiltered and projecting in the service, while the unlock query is filtered at the database because every unlock row names its game. A hidden *neighbour* is nulled before the beat pass, since `bounced-from` / `moved-on-to` would otherwise carry its name.
 
 ## Chunk 0 findings — measured 2026-09-14, local database
 
@@ -91,7 +91,7 @@ export type SteamSittings = {
 };
 ```
 
-`GET /api/steam/sessions?weeks=N` behind `@WithViewer()` + `@ViewerIsOwner()`, service takes the curation sets as an argument, web key ends in `viewerScope(isOwner)`, fetch sends `credentials: "include"`. The loader primes the *public* key; the page reads only our Postgres so it qualifies for SSR priming the same way the portrait did. Measure the payload at 12 weeks before deciding whether `sittings[]` needs a cap.
+`GET /api/steam/sessions?weeks=N` behind `@WithViewer()` + `@ViewerIsOwner()`, service takes the curation sets as an argument, web key ends in `viewerScope(isOwner)`, fetch sends `credentials: "include"`. The loader primes the *public* key; the page reads only our Postgres so it qualifies for SSR priming the same way the portrait did. **Measured 2026-09-14 against the dev api at 12 weeks: 89 kB in 33–42 ms over three runs, 41 sessions, 8 game strips, 2 milestones, 21 off-camera groups.** The bulk is the unlock rows (description and icon per unlock, once in the digest and once more in the ledger). That is 25× the portrait's payload and clears the SSR latency question but not the size one; chunk 3 decides whether the hero primes alone (a `weeks=1` read) with the rest fetched on the client, or whether unlock descriptions leave the payload.
 
 The unlock join: `unlockedAt BETWEEN startedAt - 4 min AND endedAt + 4 min`, same appid. The slack is `SESSION_UNLOCK_SLACK_MS` in `unlocks-within.ts`, with the boundary pinned in its test.
 
@@ -101,9 +101,9 @@ The unlock join: `unlockedAt BETWEEN startedAt - 4 min AND endedAt + 4 min`, sam
 
 **Chunk 1 — Shared beat model + types.** ✅ Done 2026-09-14. `packages/shared/src/steam/sessions/`: the `SteamSessions` response family (`sessions.ts`), `SESSION_UNLOCK_SLACK_MS` + `unlocksWithin()` + `unlocksOffCamera()` (`unlocks-within.ts`), `buildHourMatrix()` + `localSlot()` (`hour-matrix.ts`, with fall-back and spring-forward fixtures), and `selectSessionBeats()` (`beats.ts`) with a fixture per beat kind and one proving a zero-unlock session still ends with a `shape` headline. Review changed four things before it landed: `unusual-slot` compared the whole session against its start cell and fired on a weekly habit, so it now subtracts only the session's own share of that hour; `longest-in-window` let tied durations both claim the title, so the newer one wins; `late-finish` fired on twelve minutes straddling midnight, so it needs an hour; and `completed-and-back` at hero strength would have headlined every later session of a finished game, so it sits at chip strength. Pure, no I/O.
 
-**Chunk 2 — API.** `apps/api/src/steam/sittings/`: service + controller, viewer-scoped per the four-piece contract, joining sessions, unlocks, rarity, snapshots and completion. Spec the join boundary and the hidden-game drop. Measure payload size and latency at 12 weeks and record both here.
+**Chunk 2 — API.** ✅ Done 2026-09-14. [sessions.service.ts](../../../apps/api/src/steam/presence/sessions.service.ts) behind `GET /api/steam/sessions?weeks=N` (default 12, clamped 1–52), viewer-scoped per the four-piece contract, joining sessions, unlocks with schema and rarity, daily snapshots and completion counts. The snapshot join had to learn what a snapshot row is: keyed by owner-local day and rewritten every quarter hour, so the row dated D holds play through the end of D — the lookup reads the row for the day a session ended on and subtracts every later same-game session up to that day's end, otherwise an early session in a busy week carries the week's milestones. Review also floored `quickestBounce` at two minutes (a single-tick session closes at its own `startedAt`), clamped `latestFinish` to one day so a day-long run cannot outscore a real 02:52, and moved the hidden-game projection out of the session query so the aggregates count anonymously as decided above. Measurement recorded under *Data shape*.
 
-**Chunk 3 — Route + hero.** `/steam/sessions` as the seventh tab (icon TBD; `Clock` is the obvious pick), loader-primed, carrying the hero band and the records chips. **The strip has to make room first**: the full-row tier breaks at 880 px, a number set for LoL's four tabs and a long Riot ID, and six Steam tabs already sit near it. Measure at 880, 980 and 1100 with the seventh tab in place, then give the shell a per-section full-row breakpoint (Steam ≈ 980) rather than a shared constant. Fallback if that feels late on laptops: icon-only labels between the break and ~1100 via the existing `data-tab-label` hook. Re-folding Upcoming into Wishlist was considered and rejected — it reverses the 2026-08-11 split. Test: hero renders a headline for a fixture sitting with no unlocks. Axe scan. Budget row in [repo-conventions-web.md](../../repo-conventions-web.md).
+**Chunk 3 — Route + hero.** Live data already says what the hero copy has to handle: `unusual-slot` at 0.35 wins the headline for three of the eight newest sessions, because a 20-hour matrix over eight games leaves most cells empty. Either the threshold rises with the matrix or the copy for it is written to carry a hero. Decide in this chunk, not the copy pass. `/steam/sessions` as the seventh tab (icon TBD; `Clock` is the obvious pick), loader-primed, carrying the hero band and the records chips. **The strip has to make room first**: the full-row tier breaks at 880 px, a number set for LoL's four tabs and a long Riot ID, and six Steam tabs already sit near it. Measure at 880, 980 and 1100 with the seventh tab in place, then give the shell a per-section full-row breakpoint (Steam ≈ 980) rather than a shared constant. Fallback if that feels late on laptops: icon-only labels between the break and ~1100 via the existing `data-tab-label` hook. Re-folding Upcoming into Wishlist was considered and rejected — it reverses the 2026-08-11 split. Test: hero renders a headline for a fixture sitting with no unlocks. Axe scan. Budget row in [repo-conventions-web.md](../../repo-conventions-web.md).
 
 **Chunk 4 — Timeline + heatmap.** The visx timeline with brush, the hour heatmap. Engine-gate anything the brush does that Firefox or WebKit disagree with; probe in a real browser, happy-dom does not lay out.
 
@@ -113,7 +113,7 @@ The unlock join: `unlockedAt BETWEEN startedAt - 4 min AND endedAt + 4 min`, sam
 
 ## Open decisions
 
-1. **Window default.** 12 weeks reads well against 40 sittings; prod may support more. Decide off the chunk 2 measurement.
+1. ~~**Window default.**~~ **12 weeks, decided 2026-09-14** off the chunk 2 measurement: 41 sessions and 89 kB. Widening is a query param away; the open question is now payload size, tracked under *Data shape*.
 2. **Demo and benchmark apps.** `Onimusha: Way of the Sword DEMO` and `…Benchmark` are separate appids with their own sittings. Fold into the parent by name heuristic, hide via curation, or show as-is? Leaning show-as-is with the curation overlay as the owner's lever, since a heuristic on names is the kind of thing hidden-games retired.
 3. **Open sessions.** A sitting in progress (`endedAt IS NULL`) is the now-playing strip's job; this page shows closed rows only, and the hero says "now playing, N minutes in" if the newest row is open. Confirm against the strip so the two don't disagree.
 
