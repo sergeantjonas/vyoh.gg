@@ -1,3 +1,4 @@
+import { IdentityLink } from "@/_shared/section-layout/identity-link";
 import type { SectionTab } from "@/_shared/section-layout/section-nav";
 import { SectionLiveChip } from "@/_shared/section-layout/section-nav";
 import { SectionShell } from "@/_shared/section-layout/section-shell";
@@ -16,7 +17,11 @@ import {
   STEAM_IDENTITY_NAME_MORPH_ID,
 } from "@/steam/profile/identity-layout";
 import { runSteamIdentityMorphNav } from "@/steam/profile/identity-morph-nav";
-import { STEAM_TAB_SEGMENTS, type SteamTabSegment, isSteamTabActive } from "@/steam/tabs";
+import {
+  STEAM_STRIP_SEGMENTS,
+  type SteamTabSegment,
+  isSteamTabActive,
+} from "@/steam/tabs";
 import { useSteamPlayerState } from "@/steam/use-player-state";
 import { useSafariSlideDirection } from "@/steam/use-safari-slide-direction";
 import { useSteamSummary } from "@/steam/use-steam-summary";
@@ -37,6 +42,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { m, useReducedMotion } from "motion/react";
+import type { MouseEvent } from "react";
 import { useCallback, useEffect } from "react";
 
 export const Route = createFileRoute("/steam")({
@@ -75,7 +81,7 @@ const TAB_CHROME = {
   { to: string; label: string; Icon: LucideIcon; exact: boolean }
 >;
 
-const TABS = STEAM_TAB_SEGMENTS.map((segment) => TAB_CHROME[segment]);
+const TABS = STEAM_STRIP_SEGMENTS.map((segment) => TAB_CHROME[segment]);
 
 function SteamLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -113,36 +119,49 @@ function SteamLayout() {
     document.documentElement.style.setProperty("--account-header-h", `${rect.bottom}px`);
   }, []);
 
-  const steamTabs: SectionTab[] = TABS.map((tab) => ({
-    to: tab.to,
-    label: tab.label,
-    Icon: tab.Icon,
-    active: isSteamTabActive(tab, pathname),
-    // Profile↔tab navigations morph the avatar + persona name between the
-    // hero and the strip (M2b). The driver hand-rolls its own view transition
-    // and reports whether it took over; if so we suppress the Link's plain
-    // navigation. Modified clicks and reduced-motion fall through to the
-    // router slide (and Safari falls through inside the driver via isWebKit).
-    onSelect: (e) => {
+  // Profile↔tab navigations morph the avatar + persona name between the
+  // hero and the strip (M2b). The driver hand-rolls its own view transition
+  // and reports whether it took over; if so we suppress the Link's plain
+  // navigation. Modified clicks and reduced-motion fall through to the
+  // router slide (and Safari falls through inside the driver via isWebKit).
+  // Shared by the tabs and the identity link, since the identity is the way
+  // to the profile and that is the morph's other end.
+  const morphSelect =
+    (to: string, toIsProfileIndex: boolean) => (e: MouseEvent<HTMLAnchorElement>) => {
       if (e.defaultPrevented || e.button !== 0) return;
       if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       if (prefersReducedMotion) return;
       const tookOver = runSteamIdentityMorphNav({
         fromPathname: pathname,
-        toPathname: tab.to,
-        toIsProfileIndex: tab.to === "/steam",
-        navigate: () => navigate({ to: tab.to, viewTransition: false } as never),
+        toPathname: to,
+        toIsProfileIndex,
+        navigate: () => navigate({ to, viewTransition: false } as never),
       });
       if (tookOver) e.preventDefault();
-    },
+    };
+
+  const steamTabs: SectionTab[] = TABS.map((tab) => ({
+    to: tab.to,
+    label: tab.label,
+    Icon: tab.Icon,
+    active: isSteamTabActive(tab, pathname),
+    onSelect: morphSelect(tab.to, false),
   }));
+  const profile = TAB_CHROME[""];
+  const steamIndexTab: SectionTab = {
+    to: profile.to,
+    label: profile.label,
+    Icon: profile.Icon,
+    active: isSteamTabActive(profile, pathname),
+    onSelect: morphSelect(profile.to, true),
+  };
 
   return (
     <ActiveGameProvider>
       <GameListReturnReset inSubtree={inLibrarySubtree} />
       <SteamProfileBackdrop>
         <SectionShell
-          identity={<SteamIdentity />}
+          identity={<SteamIdentity onProfileClick={morphSelect("/steam", true)} />}
           // Reset the scroll-driven compact state on every nav (see the
           // SectionShell prop comment for the full why).
           pathname={pathname}
@@ -152,6 +171,7 @@ function SteamLayout() {
           // `isProfileIndex` flag.
           heroOwnsIdentity={pathname === "/steam" || pathname === "/steam/"}
           tabs={steamTabs}
+          indexTab={steamIndexTab}
           tabIndicatorId="steam-tab-indicator"
           leading={
             steamLive ? (
@@ -209,7 +229,11 @@ function GameListReturnReset({ inSubtree }: { inSubtree: boolean }) {
   return null;
 }
 
-function SteamIdentity() {
+function SteamIdentity({
+  onProfileClick,
+}: {
+  onProfileClick: (e: MouseEvent<HTMLAnchorElement>) => void;
+}) {
   const { compact } = useSectionShellState();
   const prefersReducedMotion = useReducedMotion();
   const { data: summary } = useSteamSummary();
@@ -233,7 +257,11 @@ function SteamIdentity() {
   const nameLayoutId = morph ? STEAM_IDENTITY_NAME_MORPH_ID : undefined;
 
   return (
-    <section className="flex items-center gap-3">
+    <IdentityLink
+      to="/steam"
+      label={summary ? `${summary.personaName} — Steam profile` : "Steam profile"}
+      onClick={onProfileClick}
+    >
       {summary ? (
         <m.img
           {...(avatarLayoutId ? { layoutId: avatarLayoutId } : {})}
@@ -268,6 +296,6 @@ function SteamIdentity() {
       ) : (
         <div className="h-5 w-32 animate-pulse rounded bg-muted" />
       )}
-    </section>
+    </IdentityLink>
   );
 }

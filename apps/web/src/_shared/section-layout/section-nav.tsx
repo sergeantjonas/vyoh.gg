@@ -78,7 +78,7 @@ function SectionTabLink({
       replace={tab.replace ?? false}
       onClick={tab.onSelect}
       className={cn(
-        "group relative flex shrink-0 items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
+        "group relative flex shrink-0 items-center gap-2 px-2.5 py-2 text-sm font-medium transition-colors",
         tab.active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
       )}
     >

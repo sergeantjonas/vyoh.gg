@@ -3,12 +3,12 @@ import { topLevelScope } from "@/lib/top-level-scope";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
 import { steamTabIndex } from "@/steam/tabs";
 
-// LoL's tab order mirrors the TABS array in
-// apps/web/src/routes/lol/$accountSlug.tsx, and is still local: two copies,
-// and nothing has needed to add a tab to both. Steam's used to be local too
-// until a fifth tab had to land in three separate literals — it now lives in
-// @/steam/tabs beside the strip that renders it. Fold this one the same way
-// when LoL next grows a tab.
+// LoL's slide order. It keeps the index ("") so a navigation to or from the
+// profile still has a direction, while the rendered strip (`LOL_STRIP_TABS`
+// in lol/account/strip-tabs.ts) has no Profile tab — the identity is that
+// link. Steam keeps the same split between `STEAM_TAB_SEGMENTS` and
+// `STEAM_STRIP_SEGMENTS`. If the two orders are ever folded, fold them as a
+// pair the way Steam's are, not by dropping the index from this one.
 const LOL_TAB_ORDER = ["", "matches", "trends", "champions", "live"] as const;
 
 type ParsedLocationLike = { pathname: string };

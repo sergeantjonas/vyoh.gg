@@ -189,6 +189,21 @@ describe("SectionShell", () => {
     expect(chip.textContent).toContain("Playing");
   });
 
+  it("names the landing route on the dropdown trigger through indexTab, without a row tab for it", () => {
+    renderShell({
+      tabs: TABS.map((t) => ({ ...t, active: false })),
+      indexTab: { to: "/steam", label: "Profile", Icon: IconStub, active: true },
+    });
+    expect(screen.getByRole("button", { name: "Sections" }).textContent).toContain(
+      "Profile"
+    );
+    // The row never renders the index tab; the fixture's own "/profile" tab is
+    // a different route and stays.
+    expect(
+      screen.queryAllByRole("link").some((a) => a.getAttribute("href") === "/steam")
+    ).toBe(false);
+  });
+
   it("renders the live chip only when a live route is provided", () => {
     const { rerender } = renderShell();
     expect(screen.queryByRole("link", { name: "Live game" })).toBeNull();

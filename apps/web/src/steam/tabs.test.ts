@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  STEAM_STRIP_SEGMENTS,
   STEAM_TAB_SEGMENTS,
   type SteamTabDescriptor,
   isSteamTabActive,
@@ -61,6 +62,19 @@ describe("isSteamTabActive", () => {
 // router's slide classifier and the WebKit substitute animation. A wrong index
 // here does not throw, it slides the wrong way, so the ordering itself is what
 // the test pins.
+describe("STEAM_STRIP_SEGMENTS", () => {
+  it("renders every segment but the index, which the identity link covers", () => {
+    expect(STEAM_STRIP_SEGMENTS).toEqual([
+      "portrait",
+      "sessions",
+      "library",
+      "wishlist",
+      "upcoming",
+      "achievements",
+    ]);
+  });
+});
+
 describe("steamTabIndex", () => {
   it("orders the tabs the way the strip renders them", () => {
     expect(STEAM_TAB_SEGMENTS).toEqual([

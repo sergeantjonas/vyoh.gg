@@ -1,3 +1,4 @@
+import { IdentityLink } from "@/_shared/section-layout/identity-link";
 import type { SectionLiveTab, SectionTab } from "@/_shared/section-layout/section-nav";
 import { SectionShell } from "@/_shared/section-layout/section-shell";
 import { useSectionShellState } from "@/_shared/section-layout/section-shell-context";
@@ -20,6 +21,7 @@ import {
   isInMatchesSubtree as isInMatchesSubtreeFn,
   isTabActive,
 } from "@/lol/account/account-tab-helpers";
+import { LOL_PROFILE_TAB, LOL_STRIP_TABS } from "@/lol/account/strip-tabs";
 import {
   ActiveChampionProvider,
   useActiveChampion,
@@ -45,18 +47,11 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import { CHAMPION_ASSETS } from "@vyoh/shared";
-import { Crown, History, LayoutDashboard, TrendingUp } from "lucide-react";
 import { m, useReducedMotion } from "motion/react";
+import type { MouseEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const CHAMPION_KEYS = Object.keys(CHAMPION_ASSETS.champions);
-
-const TABS = [
-  { to: "/lol/$accountSlug", label: "Profile", Icon: LayoutDashboard, exact: true },
-  { to: "/lol/$accountSlug/matches", label: "Matches", Icon: History, exact: false },
-  { to: "/lol/$accountSlug/trends", label: "Trends", Icon: TrendingUp, exact: false },
-  { to: "/lol/$accountSlug/champions", label: "Champions", Icon: Crown, exact: false },
-] as const;
 
 const DEFAULT_COUNT = 20;
 
@@ -238,25 +233,21 @@ function AccountLayout() {
     document.documentElement.style.setProperty("--account-header-h", `${rect.bottom}px`);
   }, []);
 
-  const lolSectionTabs: SectionTab[] = TABS.map(({ to, label, Icon, exact }) => ({
-    to,
-    params: { accountSlug },
-    preserveSearch: true,
-    label,
-    Icon,
-    active: isTabActive({ to, exact }, pathname, accountSlug),
-    // Profile↔tab navigations morph the identity between the hero and the
-    // strip (M2b). The driver hand-rolls its own view transition and reports
-    // whether it took over; if so we suppress the Link's plain navigation.
-    // Modified clicks and reduced-motion fall through to the router slide.
-    onSelect: (e) => {
+  // Profile↔tab navigations morph the identity between the hero and the
+  // strip (M2b). The driver hand-rolls its own view transition and reports
+  // whether it took over; if so we suppress the Link's plain navigation.
+  // Modified clicks and reduced-motion fall through to the router slide.
+  // Shared by the tabs and the identity link, since the identity is the way
+  // to the profile and that is the morph's other end.
+  const morphSelect =
+    (to: string, toIsProfileIndex: boolean) => (e: MouseEvent<HTMLAnchorElement>) => {
       if (e.defaultPrevented || e.button !== 0) return;
       if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       if (reduced) return;
       const tookOver = runIdentityMorphNav({
         fromPathname: pathname,
         toPathname: to.replace("$accountSlug", accountSlug),
-        toIsProfileIndex: to === "/lol/$accountSlug",
+        toIsProfileIndex,
         navigate: () =>
           navigate({
             to,
@@ -266,8 +257,24 @@ function AccountLayout() {
           } as never),
       });
       if (tookOver) e.preventDefault();
-    },
-  }));
+    };
+
+  const toSectionTab = (
+    { to, label, Icon, exact }: (typeof LOL_STRIP_TABS)[number] | typeof LOL_PROFILE_TAB,
+    toIsProfileIndex: boolean
+  ): SectionTab => ({
+    to,
+    params: { accountSlug },
+    preserveSearch: true,
+    label,
+    Icon,
+    active: isTabActive({ to, exact }, pathname, accountSlug),
+    onSelect: morphSelect(to, toIsProfileIndex),
+  });
+  const lolSectionTabs: SectionTab[] = LOL_STRIP_TABS.map((tab) =>
+    toSectionTab(tab, false)
+  );
+  const lolIndexTab = toSectionTab(LOL_PROFILE_TAB, true);
   const lolLive: SectionLiveTab | undefined = liveData
     ? {
         to: "/lol/$accountSlug/live",
@@ -280,7 +287,7 @@ function AccountLayout() {
   // Detail-panel arc: when a match-detail panel is open, the sub-tabs
   // (Recap/Your game/Review/Timeline) + the `‹ Matches` breadcrumb live INSIDE
   // the panel header, not in the section strip. The strip stays at top-level
-  // (Profile/Matches/Champions/Trends/Live) at all times. The earlier Model 3
+  // (Matches/Champions/Trends/Live) at all times. The earlier Model 3
   // swap-on-detail behavior is retired; the strip is no longer master→detail
   // because the panel doesn't replace the section — it overlays it.
 
@@ -311,6 +318,8 @@ function AccountLayout() {
               identity={
                 <LolIdentity
                   account={account}
+                  accountSlug={accountSlug}
+                  onProfileClick={morphSelect("/lol/$accountSlug", true)}
                   iconId={iconId}
                   level={level}
                   ddVersion={ddVersion}
@@ -327,6 +336,7 @@ function AccountLayout() {
                 </div>
               }
               tabs={lolSectionTabs}
+              indexTab={lolIndexTab}
               tabIndicatorId="lol-tab-indicator"
               live={lolLive}
             >
@@ -341,12 +351,16 @@ function AccountLayout() {
 
 function LolIdentity({
   account,
+  accountSlug,
+  onProfileClick,
   iconId,
   level,
   ddVersion,
   isProfileIndex,
 }: {
   account: ReturnType<typeof useAccountFromSlug>;
+  accountSlug: string;
+  onProfileClick: (e: MouseEvent<HTMLAnchorElement>) => void;
   iconId: number | null | undefined;
   level: number | null | undefined;
   ddVersion: ReturnType<typeof useDDragonVersion>;
@@ -370,7 +384,17 @@ function LolIdentity({
   const avatarLayoutId = morph ? IDENTITY_AVATAR_MORPH_ID : undefined;
   const nameLayoutId = morph ? IDENTITY_NAME_MORPH_ID : undefined;
   return (
-    <section className="flex items-center gap-3">
+    <IdentityLink
+      to="/lol/$accountSlug"
+      params={{ accountSlug }}
+      preserveSearch
+      label={
+        account
+          ? `${account.gameName}#${account.tagLine} — account profile`
+          : "Account profile"
+      }
+      onClick={onProfileClick}
+    >
       {iconId != null ? (
         <div className="relative shrink-0">
           <m.img
@@ -413,6 +437,6 @@ function LolIdentity({
       ) : (
         <div className="h-5 w-40 animate-pulse rounded bg-muted" />
       )}
-    </section>
+    </IdentityLink>
   );
 }

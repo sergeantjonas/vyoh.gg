@@ -20,6 +20,11 @@ type SectionShellProps = {
   // tabs), so the breadcrumb represents section scope where a tab used to.
   // Omitted by the LoL listing; the Steam layout uses it for its `Playing` chip, whose tab row is too full for the `live` slot — left-untouched.
   leading?: ReactNode;
+  // The section's landing route as a tab, for the collapsed dropdown only.
+  // The full row has no Profile tab (the identity is that link), but the
+  // dropdown names the current section on its trigger, and without this it
+  // would read "Sections" on the one route the identity link points at.
+  indexTab?: SectionTab | undefined;
   actions?: ReactNode;
   // Structured tabs the shell renders three ways across viewport tiers (full
   // row ≥880px / filling section dropdown 640–879px / own-row dropdown <640px).
@@ -79,6 +84,7 @@ export function SectionShell({
   headerRef: externalHeaderRef,
   onHeaderRect,
   headerDockPx,
+  indexTab,
 }: SectionShellProps) {
   const prefersReducedMotion = useReducedMotion();
 
@@ -253,7 +259,7 @@ export function SectionShell({
                 />
               </div>
               <SectionTabsDropdown
-                tabs={tabs}
+                tabs={indexTab ? [indexTab, ...tabs] : tabs}
                 onLive={live?.active ?? false}
                 className={cn(
                   // 640px+ is unchanged: dropdown inline on row 1.

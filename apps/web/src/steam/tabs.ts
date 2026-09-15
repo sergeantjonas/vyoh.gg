@@ -20,6 +20,14 @@ export const STEAM_TAB_SEGMENTS = [
 
 export type SteamTabSegment = (typeof STEAM_TAB_SEGMENTS)[number];
 
+/**
+ * The segments the strip actually renders. The index stays in the order above
+ * so the slide classifier still knows where `/steam` sits, but it has no tab:
+ * the avatar and name in the strip are the link to the profile, and a
+ * seventh tab beside them pushed the identity onto its own row.
+ */
+export const STEAM_STRIP_SEGMENTS = STEAM_TAB_SEGMENTS.filter((s) => s !== "");
+
 /** Position in the tab strip, or -1 for anything outside it. */
 export function steamTabIndex(pathname: string): number {
   if (pathname === "/steam" || pathname === "/steam/") return 0;

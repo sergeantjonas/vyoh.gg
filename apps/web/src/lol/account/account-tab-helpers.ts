@@ -88,7 +88,6 @@ export function isChampionDetail(pathname: string, accountSlug: string): boolean
 // that each label gets a distinct pop so swapping tabs reads as intentional
 // rather than a generic shimmer.
 export function iconPop(label: string): { scale: number; rotate?: number; y?: number } {
-  if (label === "Profile") return { scale: 0.75, y: -4 };
   if (label === "Matches") return { scale: 0.75, rotate: -12 };
   if (label === "Trends") return { scale: 0.75, y: 5 };
   if (label === "Live") return { scale: 0.75, y: -4 };

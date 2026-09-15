@@ -149,7 +149,6 @@ describe("isMatchDetail", () => {
 
 describe("iconPop", () => {
   it("returns a distinct variant per known label", () => {
-    expect(iconPop("Profile")).toEqual({ scale: 0.75, y: -4 });
     expect(iconPop("Matches")).toEqual({ scale: 0.75, rotate: -12 });
     expect(iconPop("Trends")).toEqual({ scale: 0.75, y: 5 });
     expect(iconPop("Live")).toEqual({ scale: 0.75, y: -4 });
