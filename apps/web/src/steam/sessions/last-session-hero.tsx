@@ -13,7 +13,7 @@ import { OWNER_TIME_ZONE, type SteamSessionUnlock } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { clockOf, headlineFor, liveHeadlineFor } from "./session-copy";
 import { useElapsedMinutes } from "./use-elapsed-minutes";
-import { useSteamSessions } from "./use-sessions";
+import { SESSIONS_WEEKS, useSteamSessions } from "./use-sessions";
 
 const DAY = new Intl.DateTimeFormat("en-GB", {
   timeZone: OWNER_TIME_ZONE,
@@ -42,7 +42,7 @@ export function LastSessionHero() {
   const subject = live ?? latest ?? null;
   // Implicit subject: the eyebrow names the game, so the sentence need not.
   const headline = live
-    ? liveHeadlineFor(live, elapsed, "implicit")
+    ? liveHeadlineFor(live, elapsed, "implicit", data?.sessions ?? [], SESSIONS_WEEKS)
     : latest
       ? headlineFor(latest, "implicit")
       : null;

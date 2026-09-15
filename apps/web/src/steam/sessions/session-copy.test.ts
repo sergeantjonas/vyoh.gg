@@ -77,6 +77,45 @@ describe("liveHeadlineFor", () => {
     expect(liveHeadlineFor(live, 5, "implicit").sentence).toBe("Open since 20:40.");
   });
 
+  it("says where the running time sits against the game's closed sessions, and moves with it", () => {
+    const closed = [40, 60, 90, 130, 200].map((durationMinutes, i) => ({
+      ...digest([SHAPE]),
+      id: `c${i}`,
+      durationMinutes,
+    }));
+    // No launch-time beat: the progress claim is the sentence.
+    expect(liveHeadlineFor(live, 5, "implicit", closed).sentence).toBe(
+      "Not yet as long as any of your 5 sessions in the last 12 weeks — the median is 1h 30m."
+    );
+    expect(liveHeadlineFor(live, 100, "implicit", closed).sentence).toBe(
+      "Already past 3 of your 5 sessions in the last 12 weeks."
+    );
+    expect(liveHeadlineFor(live, 100, "named", closed, 4).sentence).toBe(
+      "Already past 3 of your 5 Onimusha sessions in the last 4 weeks."
+    );
+    expect(liveHeadlineFor(live, 240, "implicit", closed).sentence).toBe(
+      "Already longer than every one of your 5 sessions in the last 12 weeks."
+    );
+    // With a launch-time beat leading, progress becomes the first chip.
+    const streaky = {
+      ...live,
+      beats: [{ kind: "streak", strength: 0.5, days: 4 } as const],
+    };
+    expect(liveHeadlineFor(streaky, 100, "implicit", closed)).toEqual({
+      masthead: "1h 40m",
+      sentence: "4 days in a row.",
+      chips: ["Past 3 of 5 · median 1h 30m"],
+    });
+    // Another game's sessions do not count, and under three there is no claim.
+    const other = closed.map((c) => ({ ...c, game: { appid: 9, name: "Other" } }));
+    expect(liveHeadlineFor(live, 100, "implicit", other).sentence).toBe(
+      "Open since 20:40."
+    );
+    expect(liveHeadlineFor(live, 100, "implicit", closed.slice(0, 2)).sentence).toBe(
+      "Open since 20:40."
+    );
+  });
+
   it("leads with a launch-time beat and chips the rest", () => {
     const h = liveHeadlineFor(
       {

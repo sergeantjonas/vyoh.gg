@@ -35,7 +35,7 @@ export function LastSessionChip() {
       {(data) => {
         const latest = data.sessions[0];
         const headline = data.live
-          ? liveHeadlineFor(data.live, elapsed)
+          ? liveHeadlineFor(data.live, elapsed, "named", data.sessions, CHIP_WEEKS)
           : latest
             ? headlineFor(latest)
             : null;

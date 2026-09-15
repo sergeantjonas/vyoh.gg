@@ -194,15 +194,85 @@ export interface SessionHeadline {
   chips: string[];
 }
 
+/** Fewer closed sessions of the game than this and "past N of M" is noise. */
+const LIVE_PROGRESS_MIN_SESSIONS = 3;
+
+export interface LiveProgress {
+  /** Closed sessions of this game the running one has already outlasted. */
+  passed: number;
+  of: number;
+  medianMinutes: number;
+}
+
+/**
+ * Where the running session sits against the game's closed sessions in the
+ * window. This is the one live claim that moves while the reader watches:
+ * every minute the counter climbs, another session may fall behind it.
+ */
+function liveProgress(
+  live: SteamLiveSession,
+  closed: readonly SteamPlaySessionDigest[],
+  elapsedMinutes: number
+): LiveProgress | null {
+  const durations = closed
+    .filter((s) => s.game.appid === live.game.appid)
+    .map((s) => s.durationMinutes)
+    .sort((a, b) => a - b);
+  if (durations.length < LIVE_PROGRESS_MIN_SESSIONS) return null;
+  const mid = Math.floor(durations.length / 2);
+  const medianMinutes =
+    durations.length % 2 === 0
+      ? Math.round(((durations[mid - 1] ?? 0) + (durations[mid] ?? 0)) / 2)
+      : (durations[mid] ?? 0);
+  return {
+    passed: durations.filter((d) => d < elapsedMinutes).length,
+    of: durations.length,
+    medianMinutes,
+  };
+}
+
+// The window is named in weeks because the landing chip and the page read
+// different windows; "this window" would be the same words for two numbers.
+function progressCopy(
+  p: LiveProgress,
+  game: string,
+  subject: CopySubject,
+  weeks: number
+): BeatCopy {
+  const whose = subject === "named" ? `${game} sessions` : "sessions";
+  const span = `in the last ${weeks} weeks`;
+  const median = formatHoursMinutes(p.medianMinutes);
+  if (p.passed === p.of) {
+    return {
+      sentence: `Already longer than every one of your ${p.of} ${whose} ${span}.`,
+      chip: `Past all ${p.of} · median ${median}`,
+    };
+  }
+  if (p.passed === 0) {
+    return {
+      sentence: `Not yet as long as any of your ${p.of} ${whose} ${span} — the median is ${median}.`,
+      chip: `Median ${median}`,
+    };
+  }
+  return {
+    sentence: `Already past ${p.passed} of your ${p.of} ${whose} ${span}.`,
+    chip: `Past ${p.passed} of ${p.of} · median ${median}`,
+  };
+}
+
 /**
  * The live hero: the running duration as masthead, and whatever the session
  * already earned at launch as prose and chips. With nothing earned yet, the
- * prose names the start, which is the one fact a session in progress has.
+ * prose says where the running time sits against the game's other sessions,
+ * and failing that names the start — the one fact every session in progress
+ * has. The progress chip leads the chips because it is the one that moves.
  */
 export function liveHeadlineFor(
   live: SteamLiveSession,
   elapsedMinutes: number,
   subject: CopySubject = "named",
+  closed: readonly SteamPlaySessionDigest[] = [],
+  weeks = 12,
   maxChips = 2
 ): SessionHeadline {
   const asDigest: SteamPlaySessionDigest = {
@@ -217,16 +287,23 @@ export function liveHeadlineFor(
     unlocks: [],
   };
   const [lead, ...rest] = live.beats;
+  const progress = liveProgress(live, closed, elapsedMinutes);
+  const progressText = progress
+    ? progressCopy(progress, live.game.name, subject, weeks)
+    : null;
   const sentence = lead
     ? copyFor(lead, asDigest, subject).sentence
-    : subject === "named"
-      ? `${live.game.name}, open since ${clockOf(live.startedAt)}.`
-      : `Open since ${clockOf(live.startedAt)}.`;
+    : progressText
+      ? progressText.sentence
+      : subject === "named"
+        ? `${live.game.name}, open since ${clockOf(live.startedAt)}.`
+        : `Open since ${clockOf(live.startedAt)}.`;
   const chips: string[] = [];
+  if (lead && progressText?.chip && maxChips > 0) chips.push(progressText.chip);
   for (const beat of rest) {
+    if (chips.length >= maxChips) break;
     const chip = copyFor(beat, asDigest).chip;
     if (chip) chips.push(chip);
-    if (chips.length >= maxChips) break;
   }
   return {
     masthead: elapsedMinutes < 1 ? "Just opened" : formatHoursMinutes(elapsedMinutes),
