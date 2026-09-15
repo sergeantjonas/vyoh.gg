@@ -4,10 +4,13 @@ import type { MouseEvent, ReactNode } from "react";
 // The avatar and name in a section strip, as the link to that section's
 // profile. Neither strip carries a Profile tab — a seventh Steam tab pushed
 // the identity onto a row of its own, and LoL followed for parity — so this
-// is the way back from any other tab. The hover affordance lives on the name
-// rather than the whole link: the avatar and name carry view-transition
-// names for the identity morph, and a faded ancestor at click time would be
-// captured as the morph's starting frame.
+// is the way back from any other tab. Hover reads the way a tab's does — a
+// colour lift from slightly muted to full, on the name and on the avatar's
+// ring — and never touches the link's own opacity: the avatar and name carry
+// view-transition names for the identity morph, and a faded ancestor at click
+// time would be captured as the morph's starting frame. The styles reach the
+// children through their `data-identity-*` markers so the two callers keep
+// their own markup.
 export function IdentityLink({
   to,
   params,
@@ -33,7 +36,7 @@ export function IdentityLink({
       }
       aria-label={label}
       onClick={onClick}
-      className="flex items-center gap-3 rounded-md decoration-border/80 underline-offset-4 hover:[&_[data-identity-name]]:underline"
+      className="flex items-center gap-3 rounded-md [&_[data-identity-avatar]]:transition-[box-shadow,width,height] [&_[data-identity-name]]:text-foreground/85 [&_[data-identity-name]]:transition-colors hover:[&_[data-identity-avatar]]:ring-foreground/45 hover:[&_[data-identity-name]]:text-foreground"
     >
       {children}
     </Link>
