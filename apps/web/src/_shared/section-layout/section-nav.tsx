@@ -48,6 +48,10 @@ export type SectionLiveTab = {
   params?: Record<string, string>;
   preserveSearch?: boolean;
   active: boolean;
+  /** Chip text; "Live" unless the section has a better word for it. */
+  label?: string;
+  /** Accessible name; "Live game" unless given. */
+  ariaLabel?: string;
 };
 
 // `(prev) => prev` re-emits the existing search; typed loosely and cast at the
@@ -158,7 +162,7 @@ export function SectionLiveChip({
       to={live.to as never}
       params={live.params as never}
       search={searchProp(live.preserveSearch) as never}
-      aria-label="Live game"
+      aria-label={live.ariaLabel ?? "Live game"}
       className={cn(
         "flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors",
         live.active
@@ -172,7 +176,7 @@ export function SectionLiveChip({
         )}
         <span className="relative inline-flex size-2 rounded-full bg-red-400" />
       </span>
-      Live
+      {live.label ?? "Live"}
     </Link>
   );
 }

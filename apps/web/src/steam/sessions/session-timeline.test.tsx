@@ -173,5 +173,6 @@ describe("SessionTimelineCard", () => {
     expect(container.querySelectorAll("svg rect[stroke-dasharray='3 2']")).toHaveLength(
       1
     );
+    expect(screen.getByText("now")).toBeTruthy();
   });
 });

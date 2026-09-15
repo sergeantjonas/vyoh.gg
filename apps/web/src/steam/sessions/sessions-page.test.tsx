@@ -165,7 +165,8 @@ describe("SessionsPage", () => {
       "success"
     );
     render(wrap(<SessionsPage />));
-    expect(screen.getByText("Now playing · Onimusha")).toBeTruthy();
+    const pill = screen.getByText("Playing now");
+    expect(pill.parentElement?.textContent).toContain("Onimusha");
     expect(screen.getByRole("heading", { name: "1h 12m" })).toBeTruthy();
     expect(screen.getByText("4 days in a row.")).toBeTruthy();
     expect(screen.getByText(/since 20:40/)).toBeTruthy();

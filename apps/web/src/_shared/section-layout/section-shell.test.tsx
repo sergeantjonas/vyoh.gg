@@ -176,6 +176,19 @@ describe("SectionShell", () => {
     expect(screen.getByText("identity")).toBeTruthy();
   });
 
+  it("lets a section reword the live chip", () => {
+    renderShell({
+      live: {
+        to: "/steam/sessions",
+        active: false,
+        label: "Playing",
+        ariaLabel: "Now playing",
+      },
+    });
+    const chip = screen.getByRole("link", { name: "Now playing" });
+    expect(chip.textContent).toContain("Playing");
+  });
+
   it("renders the live chip only when a live route is provided", () => {
     const { rerender } = renderShell();
     expect(screen.queryByRole("link", { name: "Live game" })).toBeNull();

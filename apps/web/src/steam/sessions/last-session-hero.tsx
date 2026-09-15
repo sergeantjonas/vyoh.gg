@@ -5,6 +5,7 @@ import {
   sectionContainerVariants,
   sectionReducedContainerVariants,
 } from "@/components/ui/section-variants";
+import { cn } from "@/lib/utils";
 import { formatRarityPercent } from "@/steam/_shared/rarity-percent";
 import { steamAchievementIconUrl } from "@/steam/_shared/steam-image";
 import { useSteamGameBackdrop } from "@/steam/profile-backdrop";
@@ -64,8 +65,8 @@ export function LastSessionHero() {
       >
         {live ? (
           <>
-            <LiveDot />
-            <span>Now playing · {live.game.name}</span>
+            <LivePill />
+            <span>{live.game.name}</span>
           </>
         ) : latest ? (
           `Last session · ${latest.game.name}`
@@ -77,7 +78,13 @@ export function LastSessionHero() {
         delegated
         as="h3"
         magnitude="medium"
-        className="font-[680] text-[clamp(2rem,5vw,3.5rem)] leading-[1.05] -tracking-[0.02em] tabular-nums"
+        className={cn(
+          "font-[680] text-[clamp(2rem,5vw,3.5rem)] leading-[1.05] -tracking-[0.02em] tabular-nums",
+          // The accent, while live: the same paint the strip's bars and the
+          // section's live chip carry, so "this number is moving" reads
+          // before the eyebrow does.
+          live && "text-theme-strong drop-shadow-[0_2px_14px_rgba(0,0,0,0.55)]"
+        )}
       >
         {headline ? headline.masthead : mastheadFor({ isPending, isError })}
       </EditorialHeading>
@@ -132,15 +139,23 @@ function BackdropClaim({ appid }: { appid: number }) {
   return null;
 }
 
-// A slow breath, not a blink: the dot says "this is happening" once per few
-// seconds, the way the now-playing strip's does, and holds still under
-// reduced motion.
-function LiveDot() {
+// The live marker is a pill rather than a line of muted text: uppercase,
+// tracked like the section titles, on the accent's own tint, with a dot that
+// breathes once every few seconds — a slow breath, not a blink, and still
+// under reduced motion. Same family as the red chip in the tab strip; this
+// one takes the section accent because it sits on the game's own art.
+function LivePill() {
   return (
-    <span
-      aria-hidden="true"
-      className="size-2 shrink-0 rounded-full bg-theme-strong motion-safe:animate-[pulse_3s_ease-in-out_infinite]"
-    />
+    <span className="inline-flex items-center gap-2 rounded-full border border-theme-strong/40 bg-theme-strong/15 px-3 py-1 font-semibold text-foreground text-xs uppercase tracking-[0.18em]">
+      <span className="relative flex size-2">
+        <span
+          aria-hidden="true"
+          className="absolute inline-flex size-full rounded-full bg-theme-strong/70 motion-safe:animate-[ping_2.4s_cubic-bezier(0,0,0.2,1)_infinite]"
+        />
+        <span className="relative inline-flex size-2 rounded-full bg-theme-strong" />
+      </span>
+      Playing now
+    </span>
   );
 }
 

@@ -1,4 +1,5 @@
 import type { SectionTab } from "@/_shared/section-layout/section-nav";
+import { SectionLiveChip } from "@/_shared/section-layout/section-nav";
 import { SectionShell } from "@/_shared/section-layout/section-shell";
 import { useSectionShellState } from "@/_shared/section-layout/section-shell-context";
 import { NotFound } from "@/components/not-found";
@@ -8,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { SteamPreferences } from "@/steam/_shared/steam-preferences";
 import { NewPurchasePrompt } from "@/steam/curation/new-purchase-prompt";
 import { ActiveGameProvider, useActiveGame } from "@/steam/library/active-game-context";
+import { steamLiveTab } from "@/steam/live-tab";
 import { SteamProfileBackdrop } from "@/steam/profile-backdrop";
 import {
   STEAM_IDENTITY_AVATAR_MORPH_ID,
@@ -15,6 +17,7 @@ import {
 } from "@/steam/profile/identity-layout";
 import { runSteamIdentityMorphNav } from "@/steam/profile/identity-morph-nav";
 import { STEAM_TAB_SEGMENTS, type SteamTabSegment, isSteamTabActive } from "@/steam/tabs";
+import { useSteamPlayerState } from "@/steam/use-player-state";
 import { useSafariSlideDirection } from "@/steam/use-safari-slide-direction";
 import { useSteamSummary } from "@/steam/use-steam-summary";
 import {
@@ -87,6 +90,12 @@ function SteamLayout() {
   const navigate = useNavigate();
   const prefersReducedMotion = useReducedMotion();
 
+  // Rides the `leading` slot beside the identity rather than the `live`
+  // slot beside the tabs: seven tabs already fill the tab row, and the chip
+  // there wrapped onto a third row of the strip.
+  const { data: playerState } = useSteamPlayerState();
+  const steamLive = steamLiveTab(playerState, pathname);
+
   useScrollResetOnNav(pathname, [
     // Panel-aware: both directions (list↔panel + panel↔panel sub-nav) skip
     // the top-reset because the list stays mounted under the panel. Mirrors
@@ -144,6 +153,14 @@ function SteamLayout() {
           heroOwnsIdentity={pathname === "/steam" || pathname === "/steam/"}
           tabs={steamTabs}
           tabIndicatorId="steam-tab-indicator"
+          leading={
+            steamLive ? (
+              <SectionLiveChip
+                live={steamLive}
+                prefersReducedMotion={prefersReducedMotion}
+              />
+            ) : undefined
+          }
           actions={<SteamPreferences />}
           onHeaderRect={onHeaderRect}
           headerDockPx={104}

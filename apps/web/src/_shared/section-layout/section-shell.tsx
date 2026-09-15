@@ -18,7 +18,7 @@ type SectionShellProps = {
   // Model 3 uses it for the match-detail `‹ Matches` breadcrumb: on a detail
   // page the strip carries identity · breadcrumb · detail tabs (not section
   // tabs), so the breadcrumb represents section scope where a tab used to.
-  // Omitted by every non-detail consumer (LoL listing, Steam) — left-untouched.
+  // Omitted by the LoL listing; the Steam layout uses it for its `Playing` chip, whose tab row is too full for the `live` slot — left-untouched.
   leading?: ReactNode;
   actions?: ReactNode;
   // Structured tabs the shell renders three ways across viewport tiers (full

@@ -271,7 +271,11 @@ function Strip({
                   width={w}
                   height={h}
                   rx={2}
-                  className={bar.live ? "fill-theme-strong/60" : "fill-theme-strong"}
+                  className={
+                    bar.live
+                      ? "fill-theme-strong/70 motion-safe:animate-[pulse_2.4s_cubic-bezier(0.4,0,0.6,1)_infinite]"
+                      : "fill-theme-strong"
+                  }
                   strokeDasharray={bar.live ? "3 2" : undefined}
                   stroke={bar.live ? "var(--color-theme-strong)" : undefined}
                   onPointerMove={(e) => {
@@ -298,15 +302,28 @@ function Strip({
           })
         )}
         {live && x1 === to && (
-          <line
-            x1={xs(to)}
-            x2={xs(to)}
-            y1={0}
-            y2={chartH}
-            className="stroke-theme-strong/70"
-            strokeWidth={1}
-            strokeDasharray="2 2"
-          />
+          <Group>
+            <line
+              x1={xs(to)}
+              x2={xs(to)}
+              y1={0}
+              y2={chartH}
+              className="stroke-theme-strong/80"
+              strokeWidth={1.5}
+              strokeDasharray="3 3"
+            />
+            {/* Top of the line, not the axis row: the axis already has a
+                day label under the right edge, and two words in one slot
+                read as one. */}
+            <text
+              x={xs(to) - 4}
+              y={9}
+              textAnchor="end"
+              className="fill-theme-strong font-semibold text-[9px] uppercase tracking-[0.12em]"
+            >
+              now
+            </text>
+          </Group>
         )}
       </svg>
 
