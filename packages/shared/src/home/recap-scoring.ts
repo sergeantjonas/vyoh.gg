@@ -30,6 +30,7 @@ import type {
   SteamFirstTimeStats,
   SteamLaunchDriftStats,
   SteamMomentChapterDescriptor,
+  SteamSessionMomentStats,
 } from "./recap-chapter.ts";
 
 /** Recency half-life for the exp-decay weight. Calibrated to the arc note —
@@ -136,6 +137,7 @@ export type RecapCandidate =
       firstTime?: SteamFirstTimeStats | null;
       cluster?: SteamAchievementClusterStats | null;
       launchDrift?: SteamLaunchDriftStats | null;
+      session?: SteamSessionMomentStats | null;
       offMeta?: boolean;
       framing?: RecapChapterFraming | null;
     };
@@ -199,6 +201,7 @@ function toDescriptor({ candidate, score }: ScoredCandidate): RecapChapterDescri
     firstTime: candidate.firstTime ?? null,
     cluster: candidate.cluster ?? null,
     launchDrift: candidate.launchDrift ?? null,
+    session: candidate.session ?? null,
     framing,
   };
 }

@@ -4,9 +4,10 @@ import type {
   SteamFirstTimeStats,
   SteamLaunchDriftStats,
   SteamMomentChapterDescriptor,
+  SteamSessionMomentStats,
 } from "@vyoh/shared";
 import { OWNER_TIME_ZONE, formatPlaytime, formatReleaseDateChip } from "@vyoh/shared";
-import { Award, Sparkles, TrendingUp } from "lucide-react";
+import { Award, Clock, Sparkles, TrendingUp } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo } from "react";
 
@@ -14,6 +15,7 @@ import { Sparkline } from "@/components/ui/sparkline";
 import { firstSentence } from "@/home/_shared/first-sentence";
 import { formatRarityPercentEditorial } from "@/steam/_shared/rarity-percent";
 import { steamLibraryLogoUrl } from "@/steam/_shared/steam-image";
+import { clockOf, headlineFor } from "@/steam/sessions/session-copy";
 import { useSteamGameRecap } from "@/steam/use-steam-game-recap";
 
 import { ChapterDetail, ChapterOpener } from "./chapter-bands";
@@ -84,9 +86,29 @@ function momentCopy(args: {
   firstTime: SteamFirstTimeStats | null;
   cluster: SteamAchievementClusterStats | null;
   launchDrift: SteamLaunchDriftStats | null;
+  session: SteamSessionMomentStats | null;
   accentClass: string;
 }): MomentCopy {
-  const { momentType, name, firstTime, cluster, launchDrift, accentClass } = args;
+  const { momentType, name, firstTime, cluster, launchDrift, session, accentClass } =
+    args;
+  if (momentType === "STEAM_SESSION") {
+    return {
+      eyebrow: "One evening on",
+      mastheadText: name,
+      // A clock, because this moment is about how long and when rather than
+      // what was earned; the other three Steam glyphs are all about unlocks.
+      leadingVisual: (
+        <Clock
+          aria-hidden="true"
+          className={`size-16 shrink-0 ${accentClass} drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] sm:size-20`}
+          strokeWidth={1.5}
+        />
+      ),
+      chapterLabel: "Session",
+      ariaLabel: `A notable session on ${name}`,
+      body: sessionBody({ session, name, accentClass }),
+    };
+  }
   if (momentType === "FIRST_TIME_GAME") {
     const playLine = firstTime ? formatPlaytime(firstTime.windowPlayMinutes) : null;
     return {
@@ -151,6 +173,55 @@ function momentCopy(args: {
     ariaLabel: `Recent achievement run on ${name}`,
     body: clusterBody({ cluster, accentClass }),
   };
+}
+
+const SESSION_DAY = new Intl.DateTimeFormat("en-GB", {
+  timeZone: OWNER_TIME_ZONE,
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+});
+
+/**
+ * Compose the STEAM_SESSION prose body: the duration and the clock as the
+ * receipt, then the same sentence the `/steam/sessions` hero gives this
+ * session, in its implicit form because the masthead has named the game.
+ */
+function sessionBody({
+  session,
+  name,
+  accentClass,
+}: {
+  session: SteamSessionMomentStats | null;
+  name: string;
+  accentClass: string;
+}): ReactNode {
+  if (!session) {
+    return <>One session that stood out.</>;
+  }
+  const A = ({ children }: { children: ReactNode }) => (
+    <Accent className={accentClass}>{children}</Accent>
+  );
+  const headline = headlineFor(
+    {
+      id: session.sessionId,
+      game: { appid: 0, name },
+      startedAt: session.startedAt,
+      endedAt: session.endedAt,
+      durationMinutes: session.durationMinutes,
+      beats: session.beats,
+      // The copy reads unlock counts off the `unlocks` beat, never off this
+      // array, so the descriptor carries a count and no rows.
+      unlocks: [],
+    },
+    "implicit"
+  );
+  return (
+    <>
+      <A>{headline.masthead}</A> on {SESSION_DAY.format(new Date(session.startedAt))},{" "}
+      {clockOf(session.startedAt)} to {clockOf(session.endedAt)}. {headline.sentence}
+    </>
+  );
 }
 
 /**
@@ -370,6 +441,7 @@ export interface SteamMomentBeatProps {
   firstTime: SteamFirstTimeStats | null;
   cluster: SteamAchievementClusterStats | null;
   launchDrift: SteamLaunchDriftStats | null;
+  session: SteamSessionMomentStats | null;
   /** Per-beat active signal from the surrounding `<MultiBeat>`. Gates the
    *  ChapterReveal cascade so the moment's reveal fires when this beat
    *  becomes focal, not at chapter entrance. */
@@ -452,6 +524,7 @@ export function SteamMomentBeat({
   firstTime,
   cluster,
   launchDrift,
+  session,
   nudged,
 }: SteamMomentBeatProps) {
   // Per-game recap — taglines + release date for the masthead. The aggregator
@@ -471,6 +544,7 @@ export function SteamMomentBeat({
     firstTime,
     cluster,
     launchDrift,
+    session,
     accentClass,
   });
   const whenLine = formatDaysSince(daysSince);

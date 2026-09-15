@@ -8,10 +8,12 @@ import {
   excludeUnfeaturedGames,
   launchDriftBaseSignal,
   launchDriftDaysSince,
+  recapScore,
 } from "@vyoh/shared";
 
 import { PrismaService } from "../prisma/prisma.service";
 import { LAUNCH_WINDOW_MS } from "../steam/achievements/global-rarity.poller";
+import { SteamSessionsService } from "../steam/presence/sessions.service";
 
 /** Recency window for the FIRST_TIME_GAME detector. A new addition to the
  *  library that the owner has actually started playing within the last 30d
@@ -19,6 +21,29 @@ import { LAUNCH_WINDOW_MS } from "../steam/achievements/global-rarity.poller";
  *  selector's recency decay sits on top, so older first-times inside the
  *  window naturally score lower. */
 const FIRST_TIME_WINDOW_DAYS = 30;
+
+/** Recency window for the STEAM_SESSION detector, in the weeks the sessions
+ *  endpoint takes. Five weeks rather than 30 days so the page and the recap
+ *  read the same rows near the edge. */
+const SESSION_WINDOW_WEEKS = 5;
+/** A session's lead beat has to be a real claim — the longest of its game,
+ *  a return after months, a rare unlock — before it is a chapter. Below
+ *  this the beat is a chip, and a chip is not a story. */
+const SESSION_MIN_LEAD_STRENGTH = 0.7;
+/** And it has to have been an evening, not a launch-and-quit. */
+const SESSION_MIN_MINUTES = 60;
+/** Achievements weigh half an hour each against the session's hours, the
+ *  same balance the Steam subject chapters use for playtime against unlocks,
+ *  so a four-hour dry session and a two-hour four-unlock one score alike. */
+const SESSION_UNLOCK_WEIGHT_HOURS = 0.5;
+/** Puts session-hours on the moment scale. Raw hours sit at 1–8 against a
+ *  floor of 5 and a 14-day half-life, so without this a four-hour, two-unlock
+ *  evening (5) is dropped the day after it happened; times four it scores
+ *  20 that day and still 10 a fortnight on, and a ten-hour day caps at the
+ *  same 40 a full cluster does, which is what lets the per-appid moment
+ *  dedup compare the two by score. */
+const SESSION_SIGNAL_FACTOR = 4;
+const SESSION_SIGNAL_CAP = 40;
 
 /** Minimum accumulated play minutes since the game was added before a
  *  candidate qualifies. Below this, a `firstSeenAt`-within-window row reads
@@ -101,15 +126,86 @@ const LAUNCH_DRIFT_ENRICHMENT_TAIL_MS = 120 * 24 * 60 * 60 * 1000;
  */
 @Injectable()
 export class SteamMomentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly sessions: SteamSessionsService
+  ) {}
 
   async detectAll(now: Date, curation: SteamCurationSets): Promise<RecapCandidate[]> {
-    const [firstTime, clusters, launchDrift] = await Promise.all([
+    const [firstTime, clusters, launchDrift, sessions] = await Promise.all([
       this.detectFirstTimeGames(now, curation),
       this.detectAchievementClusters(now, curation),
       this.detectLaunchRarityDrift(now, curation),
+      this.detectNotableSessions(now, curation),
     ]);
-    return [...firstTime, ...clusters, ...launchDrift];
+    return [...firstTime, ...clusters, ...launchDrift, ...sessions];
+  }
+
+  /**
+   * One chapter per game for a session the beat model already calls
+   * remarkable: the sessions endpoint ranks every closed session's beats,
+   * and a session whose lead beat clears the strength floor is the same
+   * evening the `/steam/sessions` hero would headline. The recap borrows
+   * that verdict rather than re-deriving it, so the two surfaces cannot
+   * disagree about which evening mattered.
+   *
+   * It costs the whole sessions payload — hour matrix, records, ledger — to
+   * read the digests. Measured at 45 kB and ~35 ms for twelve weeks, and the
+   * chapter list is cached upstream, so the shared verdict is worth the
+   * spare bands; a digests-only read is the lever if that ever changes.
+   */
+  async detectNotableSessions(
+    now: Date,
+    curation: SteamCurationSets
+  ): Promise<RecapCandidate[]> {
+    const page = await this.sessions.getSessions(SESSION_WINDOW_WEEKS, curation, now);
+    const rows = excludeUnfeaturedGames(
+      page.sessions.map((s) => ({ appid: s.game.appid, s })),
+      curation
+    );
+    const bestByAppid = new Map<number, RecapCandidate>();
+    for (const { s } of rows) {
+      const lead = s.beats[0];
+      if (!lead || lead.kind === "shape" || lead.strength < SESSION_MIN_LEAD_STRENGTH)
+        continue;
+      if (s.durationMinutes < SESSION_MIN_MINUTES) continue;
+      const endedAt = new Date(s.endedAt);
+      const daysSince = Math.max(
+        0,
+        Math.floor((now.getTime() - endedAt.getTime()) / (24 * 60 * 60 * 1000))
+      );
+      const baseSignal = Math.min(
+        SESSION_SIGNAL_CAP,
+        (s.durationMinutes / 60 + s.unlocks.length * SESSION_UNLOCK_WEIGHT_HOURS) *
+          SESSION_SIGNAL_FACTOR
+      );
+      const candidate: RecapCandidate = {
+        kind: "steam-moment",
+        slug: `steam-moment-session-${s.id}`,
+        momentType: "STEAM_SESSION",
+        appid: s.game.appid,
+        name: s.game.name,
+        baseSignal,
+        daysSince,
+        session: {
+          sessionId: s.id,
+          startedAt: s.startedAt,
+          endedAt: s.endedAt,
+          durationMinutes: s.durationMinutes,
+          unlockCount: s.unlocks.length,
+          beats: s.beats,
+        },
+      };
+      const held = bestByAppid.get(s.game.appid);
+      if (
+        !held ||
+        recapScore(candidate.baseSignal, candidate.daysSince) >
+          recapScore(held.baseSignal, held.daysSince)
+      ) {
+        bestByAppid.set(s.game.appid, candidate);
+      }
+    }
+    return [...bestByAppid.values()];
   }
 
   /**

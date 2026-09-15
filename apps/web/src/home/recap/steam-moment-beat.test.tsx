@@ -71,6 +71,7 @@ const baseProps = {
   },
   cluster: null,
   launchDrift: null,
+  session: null,
   nudged: true,
 };
 
@@ -351,6 +352,41 @@ describe("SteamMomentBeat masthead logo", () => {
     mockRecap();
     render(<SteamMomentBeat {...baseProps} />);
     expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Resident Evil 4");
+  });
+});
+
+describe("SteamMomentBeat (STEAM_SESSION)", () => {
+  const sessionProps = {
+    ...baseProps,
+    slug: "steam-moment-session-s1",
+    momentType: "STEAM_SESSION" as const,
+    firstTime: null,
+    session: {
+      sessionId: "s1",
+      startedAt: "2026-09-12T09:50:00.000Z",
+      endedAt: "2026-09-12T14:10:00.000Z",
+      durationMinutes: 260,
+      unlockCount: 4,
+      beats: [{ kind: "longest-in-game" as const, strength: 0.86, rank: 1, of: 14 }],
+    },
+  };
+
+  it("renders the session eyebrow, masthead and the hero's own sentence", () => {
+    const { container } = render(<SteamMomentBeat {...sessionProps} />);
+    expect(screen.getByText("One evening on")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Resident Evil 4");
+    expect(screen.getByText("4h 20m")).toBeTruthy();
+    expect(
+      screen.getByText(
+        /Saturday 12 September, 11:50 to 16:10\. Your longest session on record, out of 14\./
+      )
+    ).toBeTruthy();
+    expect(container.querySelector(".lucide-clock")).toBeTruthy();
+  });
+
+  it("still says something when the stats are missing", () => {
+    render(<SteamMomentBeat {...sessionProps} session={null} />);
+    expect(screen.getByText("One session that stood out.")).toBeTruthy();
   });
 });
 

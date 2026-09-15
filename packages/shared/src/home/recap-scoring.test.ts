@@ -240,6 +240,47 @@ describe("selectChapters", () => {
     });
   });
 
+  it("passes a session through to the steam-moment descriptor and nulls it when absent", () => {
+    const session = {
+      sessionId: "s1",
+      startedAt: "2026-09-06T11:50:00.000Z",
+      endedAt: "2026-09-06T16:10:00.000Z",
+      durationMinutes: 260,
+      unlockCount: 4,
+      beats: [{ kind: "longest-in-game" as const, strength: 0.86, rank: 1, of: 14 }],
+    };
+    const result = selectChapters(
+      [
+        {
+          kind: "steam-moment",
+          slug: "session",
+          momentType: "STEAM_SESSION",
+          appid: 2638890,
+          name: "Onimusha",
+          baseSignal: 6.3,
+          daysSince: 1,
+          session,
+        },
+        {
+          kind: "steam-moment",
+          slug: "cluster",
+          momentType: "ACHIEVEMENT_CLUSTER",
+          appid: 99,
+          name: "Game 99",
+          baseSignal: 14,
+          daysSince: 0,
+        },
+      ],
+      { floor: 0 }
+    );
+    expect(result.find((c) => c.slug === "session")).toMatchObject({
+      kind: "steam-moment",
+      momentType: "STEAM_SESSION",
+      session,
+    });
+    expect(result.find((c) => c.slug === "cluster")).toMatchObject({ session: null });
+  });
+
   it("exposes RECAP_SCORE_FLOOR as the default floor", () => {
     const justAbove = RECAP_SCORE_FLOOR + 0.01;
     const justBelow = RECAP_SCORE_FLOOR - 0.01;

@@ -68,5 +68,9 @@ export function momentAccentClass(momentType: MomentAccentType): string {
     // aggregator stacks all three Steam moments.
     case "LAUNCH_RARITY_DRIFT":
       return "text-indigo-300";
+    // The fourth Steam moment is about time rather than achievements, so it
+    // sits nearer the page's own blue than the fuchsia/teal/indigo trio.
+    case "STEAM_SESSION":
+      return "text-blue-300";
   }
 }

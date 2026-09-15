@@ -552,6 +552,7 @@ export type {
   SteamAchievementClusterStats,
   SteamFirstTimeStats,
   SteamLaunchDriftStats,
+  SteamSessionMomentStats,
   SteamLaunchDriftUnlock,
   SteamMomentChapterDescriptor,
   SteamSubjectChapterDescriptor,

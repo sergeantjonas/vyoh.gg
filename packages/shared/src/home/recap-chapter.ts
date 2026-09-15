@@ -8,6 +8,7 @@
 // instead of a contract bump.
 
 import type { SteamAgeBucket } from "../steam/game-recap.ts";
+import type { SteamSessionBeat } from "../steam/sessions/beats.ts";
 
 /** Bucket label reused across recap chapter kinds. */
 export type RecapAgeBucket = SteamAgeBucket;
@@ -313,17 +314,40 @@ export interface SteamLaunchDriftStats {
 }
 
 /**
+ * One observed play session worth a chapter, carried on a `STEAM_SESSION`
+ * Steam moment. The beats are the same ranked list the `/steam/sessions`
+ * hero reads, so the chapter and the page say the same thing about the
+ * same evening; the web owns the words.
+ *
+ * Null on other momentTypes.
+ */
+export interface SteamSessionMomentStats {
+  sessionId: string;
+  startedAt: string;
+  endedAt: string;
+  durationMinutes: number;
+  unlockCount: number;
+  beats: SteamSessionBeat[];
+}
+
+/**
  * Steam moment chapter — single-event narrative (achievement cluster, first
- * play of a tracked game, rarity drift on a launch-window title).
+ * play of a tracked game, rarity drift on a launch-window title, one
+ * session that stood out).
  * `FIRST_TIME_GAME` ships in R-7f; `ACHIEVEMENT_CLUSTER` ships in R-7g;
- * `LAUNCH_RARITY_DRIFT` ships in R3 of the achievement-rarity-drift arc.
+ * `LAUNCH_RARITY_DRIFT` ships in R3 of the achievement-rarity-drift arc;
+ * `STEAM_SESSION` ships with the sessions page.
  * `name` is the Steam display name carried inline so the chapter can render
  * the masthead without a second roundtrip through `useSteamGameRecap`.
  */
 export interface SteamMomentChapterDescriptor {
   kind: "steam-moment";
   slug: string;
-  momentType: "ACHIEVEMENT_CLUSTER" | "FIRST_TIME_GAME" | "LAUNCH_RARITY_DRIFT";
+  momentType:
+    | "ACHIEVEMENT_CLUSTER"
+    | "FIRST_TIME_GAME"
+    | "LAUNCH_RARITY_DRIFT"
+    | "STEAM_SESSION";
   score: number;
   daysSince: number;
   ageBucket: RecapAgeBucket;
@@ -332,6 +356,7 @@ export interface SteamMomentChapterDescriptor {
   firstTime: SteamFirstTimeStats | null;
   cluster: SteamAchievementClusterStats | null;
   launchDrift: SteamLaunchDriftStats | null;
+  session: SteamSessionMomentStats | null;
   framing: RecapChapterFraming | null;
 }
 

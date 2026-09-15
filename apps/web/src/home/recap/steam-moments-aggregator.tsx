@@ -111,8 +111,8 @@ function SteamMomentsAggregatorMasthead({
 
 /**
  * Steam moments multi-beat aggregator (R-12.6). Groups every detected
- * Steam moment (FIRST_TIME_GAME, ACHIEVEMENT_CLUSTER, LAUNCH_RARITY_DRIFT)
- * into a single
+ * Steam moment (FIRST_TIME_GAME, ACHIEVEMENT_CLUSTER, LAUNCH_RARITY_DRIFT,
+ * STEAM_SESSION) into a single
  * `ChapterMultiBeat` chapter — one beat per moment — instead of
  * rendering each moment as its own pinned chapter on the landing stream.
  *
@@ -193,6 +193,7 @@ export function SteamMomentsAggregator({
         firstTime={m.firstTime}
         cluster={m.cluster}
         launchDrift={m.launchDrift}
+        session={m.session}
         nudged={nudged}
       />
     );

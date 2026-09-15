@@ -1,7 +1,13 @@
-import { NO_CURATION } from "@vyoh/shared";
+import {
+  NO_CURATION,
+  RECAP_SCORE_FLOOR,
+  type SteamPlaySessionDigest,
+  recapScore,
+} from "@vyoh/shared";
 import { describe, expect, it, vi } from "vitest";
 
 import type { PrismaService } from "../prisma/prisma.service";
+import type { SteamSessionsService } from "../steam/presence/sessions.service";
 import { SteamMomentsService } from "./steam-moments.service";
 
 const NOW = new Date("2026-06-02T12:00:00Z");
@@ -74,6 +80,8 @@ function makeService(opts: {
   /** Rows returned by the launch-drift detector's appid-keyed
    *  `steamPlayerUnlock.findMany`. */
   rarityUnlocks?: LaunchUnlockRow[];
+  /** Closed session digests the sessions endpoint would answer with. */
+  sessionDigests?: SteamPlaySessionDigest[];
 }) {
   const ownedFindMany = vi
     .fn()
@@ -118,7 +126,10 @@ function makeService(opts: {
       findMany: vi.fn().mockResolvedValue(opts.history ?? []),
     },
   } as unknown as PrismaService;
-  return { service: new SteamMomentsService(prisma), prisma };
+  const sessions = {
+    getSessions: vi.fn().mockResolvedValue({ sessions: opts.sessionDigests ?? [] }),
+  } as unknown as SteamSessionsService;
+  return { service: new SteamMomentsService(prisma, sessions), prisma, sessions };
 }
 
 /** Build a synthetic unlock row anchored to the test NOW. `hoursBefore` is
@@ -803,5 +814,125 @@ describe("SteamMomentsService.detectAll", () => {
     expect(momentTypes).toEqual(
       new Set(["FIRST_TIME_GAME", "ACHIEVEMENT_CLUSTER", "LAUNCH_RARITY_DRIFT"])
     );
+  });
+});
+
+describe("SteamMomentsService.detectNotableSessions", () => {
+  const NOW = new Date("2026-09-15T10:00:00.000Z");
+  function digest(
+    id: string,
+    appid: number,
+    minutes: number,
+    lead: SteamPlaySessionDigest["beats"][number],
+    unlocks = 0,
+    endedAt = "2026-09-13T15:00:00.000Z"
+  ): SteamPlaySessionDigest {
+    return {
+      id,
+      game: { appid, name: `Game ${appid}` },
+      startedAt: new Date(new Date(endedAt).getTime() - minutes * 60_000).toISOString(),
+      endedAt,
+      durationMinutes: minutes,
+      beats: [
+        lead,
+        {
+          kind: "shape",
+          strength: 0.1,
+          slot: { weekday: 5, hour: 11 },
+          durationMinutes: minutes,
+        },
+      ],
+      unlocks: Array.from({ length: unlocks }, (_, i) => ({
+        apiName: `A${i}`,
+        displayName: `A${i}`,
+        hidden: false,
+        unlockedAt: endedAt,
+        globalPercent: 20,
+      })),
+    };
+  }
+  const marathon = { kind: "longest-in-game" as const, strength: 0.86, rank: 1, of: 14 };
+  const weak = {
+    kind: "usual-slot" as const,
+    strength: 0.25,
+    slot: { weekday: 5, hour: 11 },
+    rank: 2,
+  };
+
+  it("asks the sessions endpoint for the window and carries the beats through", async () => {
+    const { service, sessions } = makeService({
+      sessionDigests: [digest("s1", 1, 260, marathon, 4)],
+    });
+    const out = await service.detectNotableSessions(NOW, NO_CURATION);
+    expect(vi.mocked(sessions.getSessions)).toHaveBeenCalledWith(5, NO_CURATION, NOW);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({
+      kind: "steam-moment",
+      momentType: "STEAM_SESSION",
+      slug: "steam-moment-session-s1",
+      appid: 1,
+      // 260 min → 4.33 h, plus four unlocks at half an hour each, times the
+      // moment-scale factor.
+      baseSignal: (260 / 60 + 2) * 4,
+      daysSince: 1,
+      session: {
+        sessionId: "s1",
+        durationMinutes: 260,
+        unlockCount: 4,
+        beats: [marathon, expect.anything()],
+      },
+    });
+  });
+
+  it("scores a plain four-hour evening past the selector floor the day after, and caps a marathon", async () => {
+    const { service } = makeService({
+      sessionDigests: [
+        digest("evening", 1, 240, marathon, 0),
+        digest("day", 2, 12 * 60, marathon, 6),
+      ],
+    });
+    const out = await service.detectNotableSessions(NOW, NO_CURATION);
+    const evening = out.find((c) => c.slug === "steam-moment-session-evening");
+    const day = out.find((c) => c.slug === "steam-moment-session-day");
+    expect(evening && recapScore(evening.baseSignal, evening.daysSince)).toBeGreaterThan(
+      RECAP_SCORE_FLOOR
+    );
+    expect(day?.baseSignal).toBe(40);
+  });
+
+  it("leaves out sessions whose lead beat is a chip, not a claim, and short ones", async () => {
+    const { service } = makeService({
+      sessionDigests: [
+        digest("quiet", 1, 200, weak),
+        digest("short", 2, 45, marathon),
+        digest("shape", 3, 200, {
+          kind: "shape",
+          strength: 0.1,
+          slot: { weekday: 5, hour: 11 },
+          durationMinutes: 200,
+        }),
+      ],
+    });
+    expect(await service.detectNotableSessions(NOW, NO_CURATION)).toEqual([]);
+  });
+
+  it("keeps one session per game, the one that scores highest after decay", async () => {
+    const { service } = makeService({
+      sessionDigests: [
+        digest("older-longer", 1, 300, marathon, 0, "2026-08-20T15:00:00.000Z"),
+        digest("recent", 1, 150, { kind: "return", strength: 0.8, daysSince: 90 }, 1),
+      ],
+    });
+    const out = await service.detectNotableSessions(NOW, NO_CURATION);
+    expect(out.map((c) => c.slug)).toEqual(["steam-moment-session-recent"]);
+  });
+
+  it("drops a game the owner unfeatured from the recap", async () => {
+    const { service } = makeService({ sessionDigests: [digest("s1", 7, 260, marathon)] });
+    const out = await service.detectNotableSessions(NOW, {
+      hidden: new Set(),
+      unfeatured: new Set([7]),
+    });
+    expect(out).toEqual([]);
   });
 });

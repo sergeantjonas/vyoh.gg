@@ -81,9 +81,14 @@ interface SnapshotRow {
 export class SteamSessionsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getSessions(weeks: number, curation: SteamCurationSets): Promise<SteamSessions> {
+  // `to` is injectable so the recap can pass the `now` it selects with; the
+  // controller leaves it to the clock.
+  async getSessions(
+    weeks: number,
+    curation: SteamCurationSets,
+    to: Date = new Date()
+  ): Promise<SteamSessions> {
     const span = Math.min(Math.max(1, Math.floor(weeks)), SESSIONS_MAX_WEEKS);
-    const to = new Date();
     const from = new Date(to.getTime() - span * WEEK_MS);
     const appidFilter = visibleAppidFilter(curation);
 

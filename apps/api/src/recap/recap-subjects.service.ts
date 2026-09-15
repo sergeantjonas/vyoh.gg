@@ -123,13 +123,13 @@ export class RecapSubjectsService {
         this.steamMoments.detectAll(now, curation),
       ]);
 
-    // Two moment types can fire on one appid: a launch title the owner binged
-    // produces an ACHIEVEMENT_CLUSTER and a LAUNCH_RARITY_DRIFT off the same
-    // week of play, and two beats about one game read as a bug whichever order
-    // they land in. Both scales top out at 40 against the same decay and the
-    // same floor, so the score is a fair comparison here in a way it would not
-    // be if either ceiling moved — see the factor's own comment in
-    // `launch-drift.ts`. Ties go to the earlier detector in `detectAll`, which
+    // Several moment types can fire on one appid: a launch title the owner
+    // binged produces an ACHIEVEMENT_CLUSTER, a LAUNCH_RARITY_DRIFT and a
+    // STEAM_SESSION off the same week of play, and two beats about one game
+    // read as a bug whichever order they land in. All three scales top out at
+    // 40 against the same decay and the same floor, so the score is a fair
+    // comparison here in a way it would not be if any ceiling moved — see the
+    // factor comments in `launch-drift.ts` and `steam-moments.service.ts`. Ties go to the earlier detector in `detectAll`, which
     // keeps the result deterministic. Runs before the moment ↔ subject dedup
     // below so that only ever sees one moment per appid, and pre-selection so
     // the cap isn't burned on a row that's about to be dropped.

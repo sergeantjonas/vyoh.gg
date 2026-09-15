@@ -93,6 +93,7 @@ import { SteamWishlistHeroService } from "./store/wishlist-hero.service";
     SteamGridDbService,
     SteamTagService,
     SteamGameRecapService,
+    SteamSessionsService,
   ],
 })
 export class SteamModule {}
