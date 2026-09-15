@@ -1,5 +1,8 @@
+import { useIsOwner } from "@/auth/use-viewer";
+import { viewerScope } from "@/auth/viewer-scope";
 import { useMe } from "@/identity/use-me";
 import { useLiveGame } from "@/lol/matches/use-live-match";
+import { useSessionsPresenceSync } from "@/steam/sessions/use-sessions-presence-sync";
 import { useSteamPlayerState } from "@/steam/use-player-state";
 import type { LolAccount } from "@vyoh/shared";
 
@@ -23,7 +26,8 @@ function LolAccountPresence({ account }: { account: LolAccount }) {
 }
 
 function SteamPresence() {
-  useSteamPlayerState();
+  const { data } = useSteamPlayerState();
+  useSessionsPresenceSync(data, viewerScope(useIsOwner()));
   return null;
 }
 

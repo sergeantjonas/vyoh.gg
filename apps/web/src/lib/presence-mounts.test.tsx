@@ -1,10 +1,11 @@
 import { render } from "@testing-library/react";
 import type { LolAccountWithSummary, Me } from "@vyoh/shared";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const useMeMock = vi.fn();
 const useLiveGameMock = vi.fn();
 const useSteamPlayerStateMock = vi.fn();
+const useSessionsPresenceSyncMock = vi.fn();
 
 vi.mock("@/identity/use-me", () => ({
   useMe: () => useMeMock(),
@@ -14,6 +15,13 @@ vi.mock("@/lol/matches/use-live-match", () => ({
 }));
 vi.mock("@/steam/use-player-state", () => ({
   useSteamPlayerState: () => useSteamPlayerStateMock(),
+}));
+vi.mock("@/steam/sessions/use-sessions-presence-sync", () => ({
+  useSessionsPresenceSync: (state: unknown, scope: unknown) =>
+    useSessionsPresenceSyncMock(state, scope),
+}));
+vi.mock("@/auth/use-viewer", () => ({
+  useIsOwner: () => false,
 }));
 
 import { PresenceMounts } from "./presence-mounts";
@@ -29,10 +37,17 @@ function makeAccount(slug: string): LolAccountWithSummary {
   };
 }
 
+const PLAYER_STATE = { currentGame: null };
+
+beforeEach(() => {
+  useSteamPlayerStateMock.mockReturnValue({ data: PLAYER_STATE });
+});
+
 afterEach(() => {
   useMeMock.mockReset();
   useLiveGameMock.mockReset();
   useSteamPlayerStateMock.mockReset();
+  useSessionsPresenceSyncMock.mockReset();
 });
 
 describe("PresenceMounts", () => {
@@ -40,6 +55,7 @@ describe("PresenceMounts", () => {
     useMeMock.mockReturnValue({ data: undefined });
     render(<PresenceMounts />);
     expect(useSteamPlayerStateMock).toHaveBeenCalled();
+    expect(useSessionsPresenceSyncMock).toHaveBeenCalledWith(PLAYER_STATE, "public");
     expect(useLiveGameMock).not.toHaveBeenCalled();
   });
 
