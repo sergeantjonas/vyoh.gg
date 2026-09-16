@@ -1,6 +1,6 @@
 # Image pipeline — build in CI, pull on the box
 
-**Status:** Active — **scoped 2026-09-16; chunk 1 shipped the same day and stays unverified until the first push to `main`.** Replaces the on-box build in `scripts/deploy.sh` with images built by GitHub Actions and pushed to GHCR; the box only pulls. This is what makes the 8 GB box in [hosting.md](hosting.md) valid — the sizing argument for 16 GB rested entirely on `pnpm install` plus the Vite SSR build peaking at several GB next to a live stack, and that spike moves to a GitHub runner. Four chunks; the first two are the pipeline, the third is the documentation debt they create, the fourth is optional. Chunk 3 needs no box and can land now; chunk 2 is testable locally but only proven on the box.
+**Status:** Active — **scoped 2026-09-16; chunks 1 and 3 shipped the same day. Chunk 1 stays unverified until the first push to `main`.** Replaces the on-box build in `scripts/deploy.sh` with images built by GitHub Actions and pushed to GHCR; the box only pulls. This is what makes the 8 GB box in [hosting.md](hosting.md) valid — the sizing argument for 16 GB rested entirely on `pnpm install` plus the Vite SSR build peaking at several GB next to a live stack, and that spike moves to a GitHub runner. Four chunks; the first two are the pipeline, the third is the documentation debt they create, the fourth is optional. **Chunk 2 is what is left before launch** — it is testable locally but only proven on the box, and runbook step 5 now depends on it.
 
 ## Why now, and why this shape
 
@@ -50,7 +50,7 @@ Files: `compose.prod.yaml`, `scripts/deploy.sh`, `deploy/nginx/README.md` only i
 
 Verify locally: `docker compose -f compose.prod.yaml config` resolves the images with and without `VYOH_IMAGE_TAG`; a deploy dry-run against a throwaway host (or `VYOH_DEPLOY_HOST=localhost` into a scratch directory) exercises the manifest check, the narrowed rsync and the `pull` path. The real proof is runbook step 5 on the box.
 
-## Chunk 3 — the docs this invalidates · not started
+## Chunk 3 — the docs this invalidates · shipped 2026-09-16
 
 Docs-only commit. Files: `hosting.md`, `pre-launch-sweep.md`, `open-work.md`, `error-tracking.md`, `repo-conventions-web.md`.
 
@@ -59,6 +59,8 @@ Docs-only commit. Files: `hosting.md`, `pre-launch-sweep.md`, `open-work.md`, `e
 - [error-tracking.md](error-tracking.md): E2b's browser DSN is a build arg, and E3's sourcemap upload runs at image build — both land in the chunk 1 job (a `VITE_SENTRY_DSN` variable, a `SENTRY_AUTH_TOKEN` secret), not in `deploy.sh`. This note is the one that says where the hook is, so the error-tracking note only needs the cross-reference.
 - [repo-conventions-web.md](../../repo-conventions-web.md) § container divergence: the probe is now "pull the CI image and run it", which is a stronger probe than a local `docker build` because it is the exact artefact. One sentence in "How to apply".
 - [open-work.md](../open-work.md) and [README.md](../README.md) index lines.
+
+Two things the pass turned up beyond the list above, both fixed in the same commit. `hosting.md` named Hetzner in three headings and its Status line, not only in step 0 — the two section headings are vendor-neutral now, and no inbound anchor pointed at either. And `error-tracking.md` argued for hosted Sentry partly from "the 16 GB is budgeted for tenants", which the same sizing change invalidates; the argument survives at 8 GB and reads stronger, but the number had to move.
 
 ## Chunk 4 — optional, after launch · not started
 

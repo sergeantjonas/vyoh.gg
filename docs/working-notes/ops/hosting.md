@@ -1,6 +1,6 @@
 # Hosting plan and pre-deploy checklist
 
-**Status:** Active — **Option C (Hetzner VPS + Docker Compose) chosen 2026-07-26**, and **the machinery is written and verified as of 2026-07-27** ([Start migration](../cross-cutting/tanstack-start-migration.md) chunk 6). Nginx routes `vyoh.gg` and `api.vyoh.gg` as separate vhosts on the one VM; "same-origin" in the earlier drafts meant one machine, not one origin. Checklist items 1–3 are done in code; **4–7 remain — 4, 5 and 7 need a VPS that does not exist yet, and 6 (backups, added 2026-08-01) is written and locally verified but not yet installed anywhere** — nothing *here* is blocked on the repo any more, it is blocked on buying the box. That is a claim about this checklist, not about launch: two repo-side launch gates were added 2026-09-12 in [observability-floor.md](observability-floor.md) and land before the box does. Item 7 (seeding prod from the dev database, added 2026-08-16) is a launch step rather than a gate, but it is the reason launch is not the same thing as an empty database. The full launch-gate list (owner auth, ValidationPipe V3, timeZone sweep, branch protection, and this file's items 4–6) lives in [pre-launch-sweep.md](pre-launch-sweep.md).
+**Status:** Active — **Option C (VPS + Docker Compose) chosen 2026-07-26, on a netcup VPS 1000 G12 ordered 2026-09-16**, and **the machinery is written and verified as of 2026-07-27** ([Start migration](../cross-cutting/tanstack-start-migration.md) chunk 6). Nginx routes `vyoh.gg` and `api.vyoh.gg` as separate vhosts on the one VM; "same-origin" in the earlier drafts meant one machine, not one origin. Checklist items 1–3 are done in code; **4–7 remain — 4, 5 and 7 need the box, ordered 2026-09-16 and not yet provisioned, and 6 (backups, added 2026-08-01) is written and locally verified but not yet installed anywhere** — nothing *here* is blocked on the repo any more, it is blocked on the box coming up. That is a claim about this checklist, not about launch: two repo-side launch gates were added 2026-09-12 in [observability-floor.md](observability-floor.md) and land before the box does. Item 7 (seeding prod from the dev database, added 2026-08-16) is a launch step rather than a gate, but it is the reason launch is not the same thing as an empty database. The full launch-gate list (owner auth, ValidationPipe V3, timeZone sweep, branch protection, and this file's items 4–6) lives in [pre-launch-sweep.md](pre-launch-sweep.md).
 
 **Read the [launch runbook](#launch-runbook--added-2026-08-20) first on the night.** The numbered items below it are reference detail on individual topics, not an order of operations, and three of them carry ordering constraints that only make sense once seen together — DNS before the first build because `VITE_API_URL` is baked in, `.env` on the box before the first deploy because compose refuses to start without it, and the backup drill after seeding rather than before so it tests a dump of real data. A 2026-08-20 audit of exactly this question found that every piece of the deploy was documented and the sequence was not, plus one hole that would have failed the first deploy outright (`compose.prod.yaml` never passed the owner-auth env vars).
 
@@ -26,9 +26,9 @@ Everything on Fly: NestJS as a Docker container, Fly Postgres, Upstash for Redis
 Write a `fly.toml`, manage machines, choose regions. Stronger ops portfolio
 signal than Option A. Cost: ~$5–10/mo (1 shared CPU machine + DB).
 
-### Option C — Hetzner VPS + Docker Compose (full control, cheapest)
+### Option C — VPS + Docker Compose (full control, cheapest)
 
-Single VPS — sizing and the current price table live in [§ Sizing implications](#sizing-implications); after the June 2026 price rise the 16 GB tier is €16–21/mo. Docker Compose for NestJS + Postgres + Nginx + Certbot.
+Single VPS — sizing, what was bought, and the price tables live in [§ Sizing implications](#sizing-implications). Docker Compose for NestJS + Postgres + Nginx + Certbot.
 Strongest "I can ship to production" ops signal. Most maintenance burden:
 SSL renewal, OS updates, no auto-deploys without extra setup (e.g. Watchtower
 or a simple deploy script triggered by CI).
@@ -87,9 +87,11 @@ The numbered sections below this one are reference detail, not a sequence —
 1 through 3 are already shipped code, and 4 through 8 are topics rather than
 steps.
 
-**0. Buy the box.** Hetzner CX43, falling back to CAX31 if CX43 is out of stock in every EU location, per [§ Sizing implications](#sizing-implications). Docker, docker-compose-plugin, nginx, certbot. Nothing below works without it, and nothing above it in the repo is still blocking.
+**0. The box — bought 2026-09-16.** A **netcup VPS 1000 G12**: 4 vCPU / 8 GB / 256 GB NVMe, Nuremberg, x86, hourly billing. Not the Hetzner CX43 this step named until then — Hetzner has had every CX and CAX plan unavailable since early September with no restock date, and the 16 GB argument stopped applying once builds moved off the box ([§ Sizing implications](#sizing-implications)). Docker, docker-compose-plugin, nginx, certbot. Nothing below works without it, and nothing above it in the repo is still blocking.
 
 **1. DNS first, before any image is built.** Point `vyoh.gg`, `www.vyoh.gg` and `api.vyoh.gg` at the box ([§ 4](#4-custom-domain)). This has to precede the first build rather than follow it: `VITE_API_URL` is a **build argument** baked into the bundle and into the markup `head()` emits, so changing the api hostname later means rebuilding the web image, not editing a file. The prod OAuth app in step 3 also needs the final api hostname before it can be registered.
+
+Same ordering, same reason, one layer out: **set the `VITE_API_URL` and `VITE_SITE_URL` repository variables in GitHub before the first push to `main` that should produce a deployable image** ([image-pipeline.md](image-pipeline.md)). A push to `main` is now what builds the web image, so the hostname has to be settled before that push rather than before a deploy. The job refuses to build without both, which makes forgetting loud rather than silent. These do **not** replace the `.env` line in step 2: `compose.prod.yaml` keeps its `build:` block, and compose interpolates `build.args` at config load even under `up --no-build`, so `VITE_API_URL` is required on the box too.
 
 **2. Write `/srv/vyoh/.env` on the box, by hand.** `scripts/deploy.sh` excludes `.env` from its rsync — production secrets have no local counterpart — so it has to exist there before the first deploy, not after. `mkdir -p /srv/vyoh` and `scp` a filled-in copy of [`.env.example`](../../../.env.example).
 
@@ -103,7 +105,9 @@ step 3.
 
 **4. Install nginx config, then TLS.** [`deploy/nginx/README.md`](../../../deploy/nginx/README.md). One ordering trap inside it: `vyoh-cache.conf` goes into `conf.d/` **before** enabling the vhosts, because they reference the `limit_req_zone` it declares and nginx will refuse to load a vhost naming a zone that does not exist yet. Then `certbot --nginx -d vyoh.gg -d www.vyoh.gg -d api.vyoh.gg`.
 
-**5. First deploy — against an empty database.** `VYOH_DEPLOY_HOST=vyoh scripts/deploy.sh`. It rsyncs, builds both images on the box, restarts the stack and smoke-checks the loopback endpoints, exiting non-zero if they do not answer. The api's entrypoint applies all migrations on start, so this is also what creates the schema.
+**5. First deploy — against an empty database.** `VYOH_DEPLOY_HOST=vyoh scripts/deploy.sh`. **Today it still rsyncs and builds both images on the box**, which is exactly what 8 GB cannot afford next to a live stack — [image-pipeline.md](image-pipeline.md) chunk 2 is what makes it pull from GHCR instead, and it is a prerequisite of this step rather than a follow-up to it. Either way it then restarts the stack and smoke-checks the loopback endpoints, exiting non-zero if they do not answer. The api's entrypoint applies all migrations on start, so this is also what creates the schema.
+
+Once it pulls, the registry adds two preconditions here: a green `images` job for the sha being deployed, and both GHCR packages flipped to public so the box can pull anonymously. It also adds a rollback that is not a rebuild — `VYOH_IMAGE_TAG=sha-<old> scripts/deploy.sh`.
 
 Confirm the empty stack serves before putting data in it. [§ 7](#7-seed-production-from-the-dev-database--added-2026-08-16)
 is explicit about why: seeding first gives you two variables at once when
@@ -428,9 +432,11 @@ unaffected.
 **Chunk B shipped 2026-08-20: 1.43 GB → 1.14 GB, and 13 executables → 1.**
 
 **The justification is the executable surface, not the disk, and that only
-became clear after reading `deploy.sh`.** Images are built on the VPS — no
-registry, `rsync` sends source — so trimming saves neither bandwidth nor
-download, and 160 GB makes the disk argument thin. What it does fix is that
+became clear after reading `deploy.sh`.** Images were built on the VPS at the
+time — no registry, `rsync` sent source — so trimming saved neither bandwidth
+nor download, and the disk argument was thin either way. (Both halves have since
+moved: images are built in CI and pulled, and the box has 256 GB. Neither touches
+the conclusion below, which was never about bytes.) What it does fix is that
 `node_modules/.bin` held `biome conc concurrently nest playwright prisma spack
 swc swcx tsc tsserver tsx vitest`, all invokable in a container serving public
 traffic. A language server and a browser launcher in a production runtime is a
@@ -524,7 +530,7 @@ once vendor URLs no longer appear in the browser.
 
 ---
 
-## Multi-site target shape (single Hetzner VPS, N projects)
+## Multi-site target shape (single VPS, N projects)
 
 Option C above only describes vyoh.gg on its own box. The lean is to use
 the same VPS for additional sites and one-off projects, with vyoh.gg as
@@ -601,9 +607,9 @@ on the same box should follow.
   (excluding `.env`, so production secrets stay on the box and have no
   local counterpart), builds on the VPS, and then **smoke-checks the
   three endpoints over ssh and exits non-zero if they do not answer**.
-  Images build on the VPS rather than locally: there is no registry, and
-  `docker save | ssh docker load` moves ~2 GB per deploy over a link
-  slower than an 8-vCPU box is at building.
+  Images no longer build on the VPS: they are built by GitHub Actions and
+  pushed to GHCR, and the box pulls. That is what the box's 8 GB rests on.
+  → [image-pipeline.md](image-pipeline.md)
 - **Migrations run from the api container's entrypoint**, not from
   `deploy.sh`. `prisma migrate deploy` is a no-op once the journal is
   current, so a restart costs one query — and the alternative loses: a
@@ -616,10 +622,37 @@ on the same box should follow.
 
 ### Sizing implications
 
-**Buy CX43; take CAX31 only if CX43 is out of stock.** Both are 8 vCPU /
-16 GB / 160 GB NVMe shared-vCPU plans; CX43 is x86, CAX31 is Ampere ARM.
-Decided 2026-09-10 against the price table below, which replaced the
-pre-June figures this section was first written against.
+**Bought 2026-09-16: a netcup VPS 1000 G12** — 4 vCPU / 8 GB / 256 GB
+NVMe, Nuremberg, x86, hourly billing. It replaces the CX43 this section
+decided on 2026-09-10, for two independent reasons: Hetzner has had every
+CX and CAX plan unavailable since early September with no restock date,
+and the 16 GB argument below stopped applying the moment image builds
+moved off the box.
+
+**8 GB is valid *because* builds are off-box, and only because of that.**
+[image-pipeline.md](image-pipeline.md) moves both image builds to a
+GitHub runner and leaves the box pulling. Every bullet under "Why 16 GB"
+below still holds except the deploy one — and that one was carrying the
+decision by itself. Steady state is 1–1.5 GB; the multi-GB spike the
+tier was bought for no longer happens here. **Do not reintroduce an
+on-box build under this sizing.** `compose.prod.yaml` keeps its `build:`
+blocks as the manual escape hatch for a GHCR outage, and reaching for
+one means accepting that spike on 8 GB deliberately and once, not as the
+deploy path.
+
+What was actually traded away is multi-tenant headroom, not vyoh's own:
+16 GB covered vyoh plus two or three long-lived Node tenants, 8 GB covers
+vyoh plus roughly one. netcup bills hourly, which makes a bigger box cheap
+to try before committing to it; whether the G-series resizes in place,
+rather than needing a migration, is unchecked. Disk went the other way — 256 GB
+against CX43's 160 — which absorbs the 2 GB Nginx cache ceiling and a
+multi-project Postgres data dir with more room than the plan it replaced.
+The 4 vCPU is the real reduction, and it lands on the half of the
+workload that just left the box: a pull-and-restart needs almost none of
+it.
+
+The Hetzner tier and price table below stays as the record of why the
+switch happened, not as a live recommendation.
 
 Hetzner raised prices on 15 June 2026 (new orders and rescales; existing
 instances keep their old price). The rise was uneven: CX and CAX went up
@@ -638,7 +671,7 @@ IPv4 address:
 CX and CAX are EU-only (Falkenstein, Nuremberg, Helsinki), which is
 where the box belongs anyway.
 
-Why 16 GB and not the 8 GB tier:
+Why the Hetzner spec asked for 16 GB (superseded, kept for the reasoning):
 
 - vyoh.gg alone is three containers: the api sits in the 200–400 MB RSS
   range with bursty Sharp allocation on top once the Phase 4 image proxy
@@ -649,7 +682,10 @@ Why 16 GB and not the 8 GB tier:
   plus the Vite SSR build peaks at several GB while the running stack
   keeps serving. On 8 GB that is swap or an OOM kill on every deploy once
   a second Node-plus-Postgres tenant is resident; on 16 GB it is a
-  non-event.
+  non-event. **This is the bullet that no longer applies, and it was the
+  load-bearing one** — builds moved to a GitHub runner, and the whole 8 GB
+  decision rests on their staying there.
+  → [image-pipeline.md](image-pipeline.md)
 - Static portfolio sites cost nothing beyond Nginx, so the number that
   drives sizing is *long-lived Node processes*, not sites. 16 GB covers
   vyoh plus two or three of those with the Nginx `proxy_cache` working
@@ -657,7 +693,8 @@ Why 16 GB and not the 8 GB tier:
 - 160 GB disk absorbs the 2 GB Nginx cache ceiling plus a multi-project
   Postgres data dir for the foreseeable future.
 
-Why CX43 over CAX31: identical specs, €5/mo cheaper, and x86 removes the
+Why CX43 over CAX31, while both were still available: identical specs,
+€5/mo cheaper, and x86 removes the
 residual risk on native dependencies (sharp, Prisma engines,
 onnxruntime-node). Either arch builds cleanly — the dev box is arm64 and
 the api Dockerfile keys its prebuilt-runtime pruning off `TARGETARCH` —
