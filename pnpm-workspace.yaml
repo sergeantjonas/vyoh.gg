@@ -26,7 +26,11 @@ overrides:
   "@hono/node-server@<2.0.5": ^2.0.5
   # adm-zip is the only one of these on a runtime path (steam-user, and
   # onnxruntime-node's prebuilt unpack). Crafted-ZIP OOM, so worth forcing.
-  adm-zip@<0.6.0: ^0.6.0
+  # Widened from `<0.6.0`/`^0.6.0` on 2026-09-16: GHSA-vwc7-r8mq-g2x9 is a
+  # different class — extraction following a symlink at the destination — and
+  # its range swallowed the floor this entry had set. The advisory records no
+  # patched version yet; 0.6.1 is where the guard actually landed.
+  adm-zip@<=0.6.0: ^0.6.1
   # Both reached only through @prisma/dev, i.e. the local Prisma dev server.
   find-my-way@<=9.6.0: ^9.6.1
   valibot@<=1.4.1: ^1.4.2
@@ -40,6 +44,12 @@ overrides:
   # Two moderates (array-limit bypass, isBuffer DoS) patched together in 6.16.0;
   # below CI's `--audit-level=high` gate, but Dependabot fails on them anyway.
   qs@<6.16.0: ^6.16.0
+  # @nestjs/platform-express pins multer at an exact 2.2.0, so nothing in the
+  # tree can lift it on its own. Three DoS advisories (crafted field names, a
+  # descriptor leak on aborted uploads, an oversized array index) are all
+  # patched in 2.3.0. The api mounts no multipart route, so nothing reaches the
+  # parser today; the override keeps that true for whatever adds one.
+  multer@<2.3.0: ^2.3.0
   # The only runtime path of the five: steam-user reaches it through
   # socks-proxy-agent > socks. SSRF via leading-zero octets decoded as decimal,
   # and steam-user is the one place we hand a remote-controlled host to a proxy.
@@ -49,8 +59,9 @@ overrides:
   # Scoped to the 4.x line on purpose. The advisory covers 3.x as well, but
   # js-yaml 4 dropped `safeLoad`, so a blanket range would break any 3.x
   # consumer instead of patching it. Reached via xmlbuilder2 under
-  # @tanstack/start-plugin-core.
-  js-yaml@>=4.0.0 <4.3.1: ^4.3.1
+  # @tanstack/start-plugin-core. Widened from `<4.3.1`/`^4.3.1` on 2026-09-16:
+  # GHSA re-broke `maxTotalMergeKeys` past that floor, patched in 4.3.2.
+  js-yaml@>=4.0.0 <4.3.2: ^4.3.2
   # Under postcss, which declares `^3.3.11`. Selective range so the unrelated
   # nanoid 5.x copy in the tree is left where it is.
   # Widened from `<3.3.17` on 2026-09-01: GHSA-2v37-7h3g-55p8 (zero-size custom
