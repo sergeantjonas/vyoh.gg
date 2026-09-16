@@ -19,10 +19,12 @@ set -euo pipefail
 #   POSTGRES_USER      role to dump as          (default: asks the container)
 #   POSTGRES_DB        database to dump         (default: asks the container)
 #
-# The default backup directory sits outside the checkout deliberately.
-# `deploy.sh` rsyncs the tree with `--delete`, so anything kept under /srv/vyoh
-# that has no local counterpart is removed on the next deploy — which would
-# quietly mean the backups.
+# The default backup directory sits outside the checkout deliberately. It dates
+# from when `deploy.sh` rsync'd the whole tree with `--delete`, which would have
+# removed anything under /srv/vyoh with no local counterpart — quietly meaning
+# the backups. The deploy now ships only a handful of ops files and no longer
+# deletes at that level, so the hazard is gone; keeping archives off the
+# deployed path is still right, and still one less thing to reason about.
 
 cd "$(dirname "$0")/.."
 

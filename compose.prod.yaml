@@ -1,7 +1,18 @@
 # Production stack for a single VPS. Nginx runs on the host and is the only
 # ingress, so every published port binds to loopback.
 #
-#   docker compose -f compose.prod.yaml up -d --build
+#   docker compose -f compose.prod.yaml pull
+#   docker compose -f compose.prod.yaml up -d --no-build --wait
+#
+# `image:` and `build:` both appear on api and web, which compose allows. The
+# box only ever pulls — scripts/deploy.sh passes --no-build so a missing image
+# fails loudly instead of quietly becoming an on-box build the 8 GB box cannot
+# afford. The `build:` blocks stay for two reasons: `docker compose build` is
+# still how the container-divergence probes in docs/repo-conventions-web.md run
+# locally, and it is the escape hatch if GHCR is unreachable — from a full
+# checkout, which deploy.sh no longer ships to the box, so using it there means
+# putting the tree back first.
+# See docs/working-notes/ops/image-pipeline.md.
 #
 # `compose.yaml` (unprefixed) stays the dev file and only runs Postgres; this
 # one is never loaded implicitly, hence the explicit `-f` above and the separate
@@ -14,7 +25,7 @@ name: vyoh-prod
 # arrive months after the deploy that caused it, on a box nobody is tailing,
 # and it presents as the api crash-looping rather than as a log problem — so
 # the cap belongs at the point of writing rather than in a trimming cron.
-# 10m x 5 per service is ~150 MB across the stack, against a 160 GB disk that
+# 10m x 5 per service is ~150 MB across the stack, against a 256 GB disk that
 # also holds the 2 GB nginx cache and the Postgres volume.
 # `api` and `web` carry no `healthcheck:` key here, and that is not a gap: both
 # declare `HEALTHCHECK` in their Dockerfiles. `web`'s `depends_on` reads the
@@ -52,6 +63,10 @@ services:
     logging: *logging
 
   api:
+    # Built and pushed by the `images` job in .github/workflows/ci.yml, tagged
+    # with the commit it was built from. `main` is the floor so a bare
+    # `docker compose pull` on the box gets the newest published pair.
+    image: ghcr.io/sergeantjonas/vyoh-api:${VYOH_IMAGE_TAG:-main}
     build:
       context: .
       dockerfile: apps/api/Dockerfile
@@ -65,7 +80,11 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-vyoh}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-vyoh}
       PORT: 2010
       RIOT_API_KEY: ${RIOT_API_KEY:?set RIOT_API_KEY in .env}
-      STEAM_API_KEY: ${STEAM_API_KEY:-}
+      # `:?` and not `:-`: steam-client.service.ts calls requireEnv() on this at
+      # construction, so an empty value is not a disabled Steam half, it is a
+      # Nest bootstrap failure and a crash loop. Found 2026-09-16 by running the
+      # pulled stack; both files read correctly on their own.
+      STEAM_API_KEY: ${STEAM_API_KEY:?set STEAM_API_KEY in .env}
       STEAM_GRIDDB_API_KEY: ${STEAM_GRIDDB_API_KEY:-}
       # Required under NODE_ENV=production — see apps/api/src/env.ts.
       WEB_ORIGIN: ${WEB_ORIGIN:?set WEB_ORIGIN in .env}
@@ -102,9 +121,13 @@ services:
     logging: *logging
 
   web:
+    image: ghcr.io/sergeantjonas/vyoh-web:${VYOH_IMAGE_TAG:-main}
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      # Unused in production, where the image is pulled already built. They are
+      # read by a local `docker compose build`, and compose still interpolates
+      # them at config load, so VITE_API_URL stays a required box `.env` line.
       args:
         # Build-time, and baked into the bundle and the markup: this is the
         # origin a browser resolves, so it is the public api hostname even

@@ -105,9 +105,11 @@ step 3.
 
 **4. Install nginx config, then TLS.** [`deploy/nginx/README.md`](../../../deploy/nginx/README.md). One ordering trap inside it: `vyoh-cache.conf` goes into `conf.d/` **before** enabling the vhosts, because they reference the `limit_req_zone` it declares and nginx will refuse to load a vhost naming a zone that does not exist yet. Then `certbot --nginx -d vyoh.gg -d www.vyoh.gg -d api.vyoh.gg`.
 
-**5. First deploy — against an empty database.** `VYOH_DEPLOY_HOST=vyoh scripts/deploy.sh`. **Today it still rsyncs and builds both images on the box**, which is exactly what 8 GB cannot afford next to a live stack — [image-pipeline.md](image-pipeline.md) chunk 2 is what makes it pull from GHCR instead, and it is a prerequisite of this step rather than a follow-up to it. Either way it then restarts the stack and smoke-checks the loopback endpoints, exiting non-zero if they do not answer. The api's entrypoint applies all migrations on start, so this is also what creates the schema.
+**5. First deploy — against an empty database.** `VYOH_DEPLOY_HOST=vyoh scripts/deploy.sh`. It refuses if the tag is not published, ships the ops files, **pulls both images from GHCR** and brings the stack up with `--no-build`, then smoke-checks the loopback endpoints and exits non-zero if they do not answer. The box never builds ([image-pipeline.md](image-pipeline.md)). The api's entrypoint applies all migrations on start, so this is also what creates the schema.
 
-Once it pulls, the registry adds one precondition here: a green `images` job for the sha being deployed. The box needs no registry credential — both packages are anonymously pullable, verified 2026-09-16. It also adds a rollback that is not a rebuild — `VYOH_IMAGE_TAG=sha-<old> scripts/deploy.sh`.
+**Precondition: a green `images` job for the commit being deployed.** `deploy.sh` checks it with `docker manifest inspect` before touching the box, so a commit that was never pushed, or whose check job is red, fails locally rather than half-way through. No registry credential is needed — both packages are anonymously pullable, verified 2026-09-16. Rollback is a tag, not a rebuild: `VYOH_IMAGE_TAG=sha-<old> scripts/deploy.sh`. `/srv/vyoh/.image-tag` records what is running.
+
+On a box that ever ran the pre-2026-09-16 deploy, delete the stale source tree under `/srv/vyoh` once: the narrowed rsync no longer removes it, and a leftover `apps/` reads as the deployed code while the containers are running something else.
 
 Confirm the empty stack serves before putting data in it. [§ 7](#7-seed-production-from-the-dev-database--added-2026-08-16)
 is explicit about why: seeding first gives you two variables at once when
@@ -306,10 +308,11 @@ without checking anything:
   everywhere — a comparison built on it would pass by agreeing that both sides
   are empty. The drill counts exactly, via `query_to_xml`.
 
-`deploy.sh` stays backup-agnostic apart from one `--exclude 'backups/'`. The
-default backup directory is outside the synced tree precisely so `rsync
---delete` cannot reach it; the exclude only covers overriding `VYOH_BACKUP_DIR`
-to a path inside the checkout.
+`deploy.sh` is backup-agnostic. It used to carry an `--exclude 'backups/'`
+against its whole-tree `rsync --delete`; since 2026-09-16 it syncs only a
+handful of named ops files and deletes nothing at that level, so neither the
+default `/var/backups/vyoh` nor an overridden `VYOH_BACKUP_DIR` inside the
+checkout is reachable by a deploy.
 
 Nothing surfaces backup health. A timer that has quietly stopped firing looks
 identical to one that is working, so the two checks in
@@ -367,10 +370,16 @@ Three things this depends on:
   sides. Dev and prod therefore read these columns identically and the restore
   needs no conversion. **If that TZ ever diverges, this stops being safe** and
   every historical timestamp shifts.
-- **Migration parity.** The dump carries `_prisma_migrations` and replaces
-  prod's. Deploy the same commit the dump was taken against, and check dev is
-  at head first, or prod's schema history describes something the code does not
-  expect.
+- **Migration parity, and the pipeline sharpened this.** The dump carries
+  `_prisma_migrations` and replaces prod's, so prod's schema history becomes
+  dev's. That used to be soft: `deploy.sh` rsync'd the working tree and built
+  it, so the box ran whatever you had and could not be *behind* the dump. Now
+  it runs a pinned `sha-<7>`, and a dump taken from a dev database holding a
+  migration that tag does not have leaves prod's history describing work the
+  running code has never seen. So the order gains a step at the front: push the
+  migrations, wait for the `images` job, deploy that tag, and only then dump
+  dev. `/srv/vyoh/.image-tag` is what the box is running, which is the answer
+  to check against. → [image-pipeline.md](image-pipeline.md)
 - **The dev `Session` row.** Harmless — the cookie is scoped to `localhost` and
   is never sent to `vyoh.gg` — but it is stale state with no reason to exist on
   a fresh box.

@@ -1,18 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Deploy to the VPS. Runs from a local checkout: rsync the tree up, rebuild the
-# images there, restart the stack, then prove it answers.
+# Deploy to the VPS: ship the ops files, pull the images CI already built,
+# restart the stack, then prove it answers.
 #
 #   VYOH_DEPLOY_HOST=vyoh scripts/deploy.sh
+#   VYOH_DEPLOY_HOST=vyoh VYOH_IMAGE_TAG=sha-1a2b3c4 scripts/deploy.sh
 #
-# Images are built on the VPS rather than locally and pushed, because there is
-# no registry in this setup and `docker save | ssh docker load` moves ~2 GB per
-# deploy over a link that is slower than the CAX31 is at building.
+# The box never builds. Both images come from the `images` job in
+# .github/workflows/ci.yml on every green push to `main`, and a deploy is a pull
+# of one commit's pair — which is what keeps a `pnpm install` plus a Vite SSR
+# build off a box that is also serving, and makes a rollback a tag rather than a
+# rebuild under incident pressure. See docs/working-notes/ops/image-pipeline.md.
 #
 # Configuration, all overridable:
 #   VYOH_DEPLOY_HOST  ssh target (required) — a Host entry in ~/.ssh/config
 #   VYOH_DEPLOY_PATH  remote checkout       (default /srv/vyoh)
+#   VYOH_IMAGE_TAG    image tag to deploy   (default sha-<short HEAD>)
 #   VYOH_WEB_URL      loopback smoke target (default http://127.0.0.1:2009)
 #   VYOH_API_URL      loopback smoke target (default http://127.0.0.1:2010)
 
@@ -27,6 +31,8 @@ host="${VYOH_DEPLOY_HOST:-}"
 remote="${VYOH_DEPLOY_PATH:-/srv/vyoh}"
 web_url="${VYOH_WEB_URL:-http://127.0.0.1:2009}"
 api_url="${VYOH_API_URL:-http://127.0.0.1:2010}"
+api_image="ghcr.io/sergeantjonas/vyoh-api"
+web_image="ghcr.io/sergeantjonas/vyoh-web"
 
 if [[ -z $host ]]; then
   red "VYOH_DEPLOY_HOST is not set."
@@ -34,43 +40,100 @@ if [[ -z $host ]]; then
   exit 1
 fi
 
-commit="$(git rev-parse --short HEAD)"
-if [[ -n "$(git status --porcelain)" ]]; then
-  yellow "Working tree is dirty — deploying it anyway, but ${commit} will not describe what ships."
+# --short=7 rather than --short: `core.abbrev` lengthens the prefix as a repo
+# grows, and the tag CI writes is exactly seven characters of the sha.
+commit="$(git rev-parse --short=7 HEAD)"
+tag="${VYOH_IMAGE_TAG:-sha-${commit}}"
+
+# The tag lands inside a remote command string, so refuse anything that is not
+# a docker tag rather than letting a stray space mangle the command silently.
+if [[ ! $tag =~ ^[A-Za-z0-9_][A-Za-z0-9._-]*$ ]]; then
+  red "VYOH_IMAGE_TAG='${tag}' is not a valid docker tag."
+  exit 1
 fi
 
-cyan "→ sync ${PWD} → ${host}:${remote} (${commit})"
-# --delete so a file removed locally is removed there; without it a route or a
-# migration deleted in a refactor keeps living on the server.
+# BUILD_COMMIT has to describe the image, not the checkout. Deploying an older
+# tag while stamping its Sentry events and its status page with today's HEAD is
+# how a build identifier starts lying at exactly the moment it is being read.
 #
-# .env is excluded rather than synced: production secrets live on the VPS and
-# have no local counterpart. Everything else here is either rebuilt in the
-# image or has no business leaving the dev box.
-#
-# backups/ is excluded for a sharper reason than the rest: it has no local
-# counterpart either, so --delete would remove it from the server. Backups
-# default to /var/backups/vyoh, outside the synced tree, and this line is only
-# here so that pointing VYOH_BACKUP_DIR inside the checkout is a bad idea
-# rather than a silent one.
-rsync -az --delete \
-  --exclude '.git/' \
-  --exclude 'node_modules/' \
-  --exclude 'dist/' \
-  --exclude 'coverage/' \
-  --exclude '.pnpm-store/' \
-  --exclude '.postgres-data/' \
-  --exclude '.cache/' \
-  --exclude 'backups/' \
-  --exclude '.env' \
-  --exclude '**/.env' \
-  ./ "${host}:${remote}/"
+# Only a `sha-` tag carries a commit. Under a moving tag the web bundle's baked
+# `__BUILD_COMMIT__` is some real sha while nothing here can say which, so the
+# runtime value is left unset rather than set to "main" — an empty build tag
+# reads as unknown, where a wrong one reads as an answer.
+if [[ $tag == sha-* ]]; then
+  build_commit="${tag#sha-}"
+else
+  build_commit=""
+  yellow "${tag} is a moving tag — BUILD_COMMIT left unset; the status page and Sentry releases will not name a commit."
+fi
 
-cyan "→ build + restart on ${host}"
-# BUILD_COMMIT is passed through to the web image so the status page reports the
-# SHA that shipped; inside the image there is no .git for vite.config.ts to ask.
-ssh "$host" "cd ${remote} && BUILD_COMMIT=${commit} docker compose -f compose.prod.yaml up -d --build"
+if [[ -n "$(git status --porcelain)" ]]; then
+  yellow "Working tree is dirty — uncommitted changes are not in ${tag} and will not ship."
+fi
+
+cyan "→ verify ${tag} is published"
+# Before anything on the box is touched. A tag that was never built has to fail
+# here, as a refusal, rather than half-way through as a `pull` error against a
+# stack that has already been stopped.
+missing=0
+for image in "$api_image" "$web_image"; do
+  if docker manifest inspect "${image}:${tag}" >/dev/null 2>&1; then
+    green "  found    ${image}:${tag}"
+  else
+    red "  missing  ${image}:${tag}"
+    missing=1
+  fi
+done
+
+if [[ $missing -ne 0 ]]; then
+  red ""
+  red "Nothing on ${host} was touched. A tag is missing when the commit was never"
+  red "pushed, its check job is red, or the images job is still running:"
+  red "  gh run list --branch main --limit 3"
+  exit 1
+fi
+
+cyan "→ sync ops files → ${host}:${remote}"
+# Only the ops surface ships: no source, no Dockerfiles, no lockfile. The images
+# carry the application now, so anything else left on the box is drift that will
+# read as the deployed code to whoever looks next.
+#
+# -R keeps each loose file's relative path. They are copied without --delete
+# because at this level --delete means "remove everything else in /srv/vyoh",
+# which is where `.env` and any operator scratch live. `deploy/` is a directory
+# we do own end to end, so it gets its own pass with --delete and a retired
+# nginx conf cannot linger there.
+ssh "$host" "mkdir -p ${remote}"
+rsync -azR compose.prod.yaml scripts/backup.sh scripts/restore.sh "${host}:${remote}/"
+rsync -az --delete deploy/ "${host}:${remote}/deploy/"
+
+cyan "→ pull ${tag} and restart on ${host}"
+remote_env="VYOH_IMAGE_TAG=${tag} BUILD_COMMIT=${build_commit}"
+ssh "$host" "cd ${remote} && ${remote_env} docker compose -f compose.prod.yaml pull"
+# --no-build so a tag that vanished between the check above and here fails
+# loudly rather than silently falling back to building on the box.
+#
+# --wait blocks on the healthchecks the images declare. A timeout is not a
+# failed deploy by itself, so it warns and falls through: the smoke below names
+# which endpoint is unhappy, which is the more useful diagnostic.
+if ! ssh "$host" "cd ${remote} && ${remote_env} docker compose -f compose.prod.yaml up -d --no-build --wait --wait-timeout 300"; then
+  # Deliberately vague, because this catches a health timeout, a missing `:?`
+  # var, an ssh failure and a crash-looping container alike. The smoke below
+  # distinguishes them by naming the endpoint that does not answer.
+  yellow "  up did not complete cleanly — continuing to the smoke for a better diagnostic"
+fi
+
+# Written here rather than after the smoke, and the distinction matters: the
+# containers are already up by this line, so a failed smoke below must not
+# leave this file naming the *previous* tag while the new one is what is
+# actually serving. It answers "what is running", which is the question asked
+# during an incident, not "what was last known good".
+ssh "$host" "printf '%s\n' '${tag}' > ${remote}/.image-tag"
 
 cyan "→ drop dangling images"
+# A no-op for `sha-` deploys: the previous tag still names its images, so
+# nothing is dangling. That is the trade — disk grows per deploy, and a
+# rollback to a recent tag needs no network. See the note's § Risks carried.
 ssh "$host" "docker image prune -f" >/dev/null
 
 cyan "→ smoke"
@@ -101,4 +164,4 @@ if [[ $smoke_failed -ne 0 ]]; then
 fi
 
 green ""
-green "Deployed ${commit} to ${host}."
+green "Deployed ${tag} to ${host}."
