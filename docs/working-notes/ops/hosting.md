@@ -270,7 +270,7 @@ sudo bash -c 'cd /srv/vyoh && scripts/restore.sh --into vyoh /var/backups/vyoh/<
 docker compose -f compose.prod.yaml start api
 ```
 
-Four things that only matter on this path:
+Five things that only matter on this path:
 
 - **Step 4 is not a formality.** The dump carries `_prisma_migrations` and
   replaces prod's. If it predates migrations the running image has, `migrate
@@ -278,7 +278,22 @@ Four things that only matter on this path:
   does not leave you stranded on an old schema. The failure case is the reverse:
   a dump *newer* than the deployed code names migrations with no files in the
   image, and Prisma refuses to proceed. If the code has been rolled back, roll
-  the dump back with it.
+  the dump back with it. **`/srv/vyoh/.image-tag` is what answers "which code
+  is running"** — written by every deploy since 2026-09-16, and the thing to
+  read before picking a dump. Note also what a rollback does *not* do: a tag
+  rolls the code back, never the schema. `migrate deploy` has already run by
+  then and there are no down-migrations here, so undoing a destructive
+  migration is this procedure, not `VYOH_IMAGE_TAG`.
+  → [image-pipeline.md](image-pipeline.md)
+- **Do not reach for `docker compose up` on this path.** Steps 2 and 4 are
+  `stop api` and `start api` deliberately: those reuse the container as it
+  stands, so the stack keeps the exact tag it was pinned to and needs no
+  registry — an incident restore works with GHCR unreachable. A bare
+  `docker compose up -d`, with no `VYOH_IMAGE_TAG` in the environment,
+  **recreates both containers onto `:main`** instead, because that is the
+  default in `compose.prod.yaml`. Verified 2026-09-16. Recovering from a bad
+  deploy by restoring the database and then typing `up` would quietly put the
+  bad code back on top of the good data.
 - **`Session` rows travel with the dump.** An old one can reinstate an expired
   session (harmless — reaped on use) or remove the one you are currently
   holding, which logs you out mid-incident. Nothing breaks; it is just worth
