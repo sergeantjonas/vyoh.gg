@@ -177,7 +177,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 function RootError(props: ErrorComponentProps) {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-background p-6 text-foreground">
-      <RouteErrorFallback {...props} />
+      {/* `app-root`, not the default `route`: reaching here means the root
+          loader failed, so there is no shell left. Filing that under the same
+          tag as one leaf endpoint being down loses the distinction the tag
+          exists to make. */}
+      <RouteErrorFallback {...props} tier="app-root" />
     </div>
   );
 }
@@ -300,7 +304,7 @@ function RootLayout() {
             <CommandPalette />
           </WidgetBoundary>
           <ScrollToTop />
-          <ErrorBoundary>
+          <ErrorBoundary tier="widget">
             {perfEnabled && (
               <Suspense fallback={null}>
                 <PerfOverlay />
@@ -354,6 +358,7 @@ function RootLayout() {
             >
               <div className="mx-auto max-w-4xl p-6">
                 <ErrorBoundary
+                  tier="page"
                   onError={() => play("error.toast")}
                   fallback={(error) => (
                     <AppErrorFallback

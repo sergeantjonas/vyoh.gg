@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/react";
 import { scrubPayload } from "@vyoh/shared";
 import { type EarlyError, earlyErrorValue } from "./lib/early-errors";
+import type { ErrorTier } from "./lib/report-error";
 
 /**
  * Error reporting for the browser. Imported first in `client.tsx` for its side
@@ -70,4 +71,26 @@ export function reportEarlyErrors(events: readonly EarlyError[]): void {
       },
     });
   }
+}
+
+/**
+ * Report an error the app itself caught — a boundary, a rejected loader, a
+ * failed mutation. Reached only through `lib/report-error.ts`, which is what
+ * keeps this module out of the initial bundle.
+ *
+ * `handled: true` because something *did* catch it and showed the visitor a
+ * fallback. That is the honest signal and it matters for triage: these sit
+ * apart from the crashes nothing caught, which arrive through the global
+ * handlers as `handled: false`.
+ */
+export function captureAppError(error: unknown, tier: ErrorTier): void {
+  // A scope rather than one options object: Sentry's second argument is an
+  // *exclusive* union, so `tags` (scope context) and `mechanism` (event hint)
+  // cannot travel together in a single call.
+  Sentry.withScope((scope) => {
+    scope.setTag("tier", tier);
+    Sentry.captureException(error, {
+      mechanism: { type: "generic", handled: true },
+    });
+  });
 }

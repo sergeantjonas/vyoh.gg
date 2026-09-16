@@ -1,11 +1,19 @@
 import { OrbGlyph } from "@/components/orb-glyph";
 import { Button } from "@/components/ui/button";
+import { type ErrorTier, reportError } from "@/lib/report-error";
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
 interface Props {
   children: ReactNode;
   fallback?: ReactNode | ((error: Error) => ReactNode);
   onError?: ((error: Error, info: ErrorInfo) => void) | undefined;
+  /**
+   * Which tier this boundary guards. Required rather than defaulted: every
+   * boundary in the app routes through this component, so a default would
+   * quietly file a root-level outage under whatever the common case happened
+   * to be.
+   */
+  tier: ErrorTier;
 }
 
 interface State {
@@ -21,6 +29,10 @@ export class ErrorBoundary extends Component<Props, State> {
 
   override componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error("[ErrorBoundary]", error, info);
+    // Before `onError`, not after: that callback belongs to the caller and does
+    // visible work (the root boundary plays a sound), so anything it throws
+    // must not be able to swallow the report.
+    reportError(error, this.props.tier);
     this.props.onError?.(error, info);
   }
 
@@ -106,6 +118,7 @@ export function WidgetBoundary({
 }) {
   return (
     <ErrorBoundary
+      tier="widget"
       onError={onError}
       fallback={
         fallback !== undefined ? fallback : <WidgetErrorFallback message={message} />

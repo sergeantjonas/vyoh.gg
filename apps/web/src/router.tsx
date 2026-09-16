@@ -2,6 +2,7 @@ import { AppErrorFallback, ErrorBoundary } from "@/components/error-boundary";
 import { Loader } from "@/components/loader";
 import { RouteErrorFallback } from "@/components/route-error";
 import { HttpError } from "@/lib/http-error";
+import { reportError } from "@/lib/report-error";
 import { toastError } from "@/lib/toast";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -67,13 +68,32 @@ export function getRouter() {
       },
     },
     queryCache: new QueryCache({
+      // Deliberately not reported, and the guard is narrower than it looks:
+      // it drops every failure with no cached data, not just background
+      // refreshes. A refresh of data already on screen fails mostly on a
+      // briefly-flaky upstream, already toasts, and when the cause is a real
+      // 5xx the api reports it with far better context — so reporting here
+      // would duplicate that signal, and this is the largest quota risk in the
+      // app.
+      //
+      // What it also drops is a first load that never had data: a prime routed
+      // through `primeQuietly` (its `allSettled` means the loader does not
+      // reject, so no errorComponent runs) or a `useQuery` no loader primes.
+      // Those reach nobody — no toast, no report. That is a known gap rather
+      // than a consequence of the decision above; see open-work.md. Closing it
+      // means reporting *this* branch selectively, not lifting the guard.
       onError: (error, query) => {
         if (query.state.data === undefined) return;
         void toastError(errorMessage(error, "Background refresh failed"));
       },
     }),
     mutationCache: new MutationCache({
+      // Reported, and this is not the same decision as the query handler above.
+      // A mutation is an owner-initiated write that did not happen: low volume
+      // by construction, and silence here means the owner believes they changed
+      // something they did not.
       onError: (error) => {
+        reportError(error, "mutation");
         void toastError(errorMessage(error, "Something went wrong"));
       },
     }),
@@ -102,7 +122,7 @@ export function getRouter() {
                 card tilt, count-up) still apply on top for finer-grained
                 replacements. */}
             <MotionConfig reducedMotion="user">
-              <ErrorBoundary fallback={<AppErrorFallback fullScreen />}>
+              <ErrorBoundary tier="app-root" fallback={<AppErrorFallback fullScreen />}>
                 {children}
               </ErrorBoundary>
             </MotionConfig>

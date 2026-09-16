@@ -8,6 +8,12 @@ vi.mock("@tanstack/react-router", () => ({
   useRouter: () => ({ invalidate }),
 }));
 
+// Without this the component's reporting effect loads the real instrument
+// chunk, which calls `Sentry.init` and installs global handlers this suite
+// would then inherit.
+const reportError = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/report-error", () => ({ reportError }));
+
 import { RouteErrorFallback } from "./route-error";
 
 const axe = configureAxe({
@@ -31,6 +37,27 @@ afterEach(() => {
 });
 
 describe("RouteErrorFallback", () => {
+  it("reports the failure once, under the route tier by default", () => {
+    reportError.mockClear();
+    render(<RouteErrorFallback error={new Error("loader died")} reset={vi.fn()} />);
+    expect(reportError).toHaveBeenCalledTimes(1);
+    expect(reportError).toHaveBeenCalledWith(expect.any(Error), "route");
+  });
+
+  // A root-loader failure has no shell left, so it must not share a bucket with
+  // one leaf endpoint being down.
+  it("reports under the tier it is given", () => {
+    reportError.mockClear();
+    render(
+      <RouteErrorFallback
+        error={new Error("root died")}
+        reset={vi.fn()}
+        tier="app-root"
+      />
+    );
+    expect(reportError).toHaveBeenCalledWith(expect.any(Error), "app-root");
+  });
+
   it("shows the failure and the underlying message", () => {
     render(<RouteErrorFallback {...props()} />);
 

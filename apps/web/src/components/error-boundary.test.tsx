@@ -9,6 +9,9 @@ import {
   WidgetErrorFallback,
 } from "./error-boundary";
 
+const reportError = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/report-error", () => ({ reportError }));
+
 function Bomb({ message }: { message: string }): never {
   throw new Error(message);
 }
@@ -21,6 +24,7 @@ const axe = configureAxe({
 });
 
 beforeEach(() => {
+  reportError.mockClear();
   // ErrorBoundary intentionally logs to console.error; silence it for clean test output.
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -32,7 +36,7 @@ afterEach(() => {
 describe("ErrorBoundary", () => {
   it("renders children when no error is thrown", () => {
     render(
-      <ErrorBoundary>
+      <ErrorBoundary tier="widget">
         <span>OK</span>
       </ErrorBoundary>
     );
@@ -41,7 +45,7 @@ describe("ErrorBoundary", () => {
 
   it("renders a static ReactNode fallback when a child throws", () => {
     render(
-      <ErrorBoundary fallback={<span>fallback</span>}>
+      <ErrorBoundary tier="widget" fallback={<span>fallback</span>}>
         <Bomb message="boom" />
       </ErrorBoundary>
     );
@@ -51,7 +55,7 @@ describe("ErrorBoundary", () => {
   it("calls the fallback render function with the caught error", () => {
     const fallback = vi.fn((e: Error) => <span>err: {e.message}</span>);
     render(
-      <ErrorBoundary fallback={fallback}>
+      <ErrorBoundary tier="widget" fallback={fallback}>
         <Bomb message="kaboom" />
       </ErrorBoundary>
     );
@@ -59,10 +63,45 @@ describe("ErrorBoundary", () => {
     expect(fallback).toHaveBeenCalled();
   });
 
+  it("reports the error under its tier", () => {
+    render(
+      <ErrorBoundary tier="app-root" fallback={<span>x</span>}>
+        <Bomb message="tiered" />
+      </ErrorBoundary>
+    );
+    expect(reportError).toHaveBeenCalledWith(expect.any(Error), "app-root");
+  });
+
+  // The root boundary's onError plays a sound. Reporting has to survive it
+  // rather than be replaced by it.
+  it("reports and still calls a caller's onError", () => {
+    const onError = vi.fn();
+    render(
+      <ErrorBoundary tier="page" fallback={<span>x</span>} onError={onError}>
+        <Bomb message="both" />
+      </ErrorBoundary>
+    );
+    expect(reportError).toHaveBeenCalledWith(expect.any(Error), "page");
+    expect(onError).toHaveBeenCalled();
+    // Order is the point: a throwing onError must not be able to swallow it.
+    expect(reportError.mock.invocationCallOrder[0]).toBeLessThan(
+      onError.mock.invocationCallOrder[0] as number
+    );
+  });
+
+  it("reports widget-tier for a WidgetBoundary", () => {
+    render(
+      <WidgetBoundary>
+        <Bomb message="leaf" />
+      </WidgetBoundary>
+    );
+    expect(reportError).toHaveBeenCalledWith(expect.any(Error), "widget");
+  });
+
   it("invokes onError when a child throws", () => {
     const onError = vi.fn();
     render(
-      <ErrorBoundary fallback={<span>x</span>} onError={onError}>
+      <ErrorBoundary tier="widget" fallback={<span>x</span>} onError={onError}>
         <Bomb message="z" />
       </ErrorBoundary>
     );
@@ -71,7 +110,7 @@ describe("ErrorBoundary", () => {
 
   it("renders null when no fallback is provided", () => {
     const { container } = render(
-      <ErrorBoundary>
+      <ErrorBoundary tier="widget">
         <Bomb message="silent" />
       </ErrorBoundary>
     );

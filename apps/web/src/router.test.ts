@@ -27,6 +27,13 @@ vi.mock("./lib/route-transition-bus", () => ({
   emitRouteTransitionStart: () => emitRouteTransitionStart(),
 }));
 
+// Mocked rather than exercised: the real one lazily imports the Sentry chunk,
+// which would call `Sentry.init` inside this suite.
+const reportError = vi.fn();
+vi.mock("./lib/report-error", () => ({
+  reportError: (...args: unknown[]) => reportError(...args),
+}));
+
 import { HttpError } from "@/lib/http-error";
 import { mainScrollRef } from "./lib/scroll-container";
 import { getRouter } from "./router";
@@ -108,6 +115,7 @@ describe("getRouter", () => {
     // ever regresses, background-refresh failures go silent: no error, no
     // toast, and stale data on screen with nothing to explain it.
     toastError.mockClear();
+    reportError.mockClear();
     const client = clientOf(getRouter());
 
     client.getQueryCache().config.onError?.(
@@ -160,6 +168,7 @@ describe("getRouter", () => {
     // A query with no data yet renders its own error surface; toasting it too
     // would announce the same failure twice.
     toastError.mockClear();
+    reportError.mockClear();
     const client = clientOf(getRouter());
 
     client
@@ -173,6 +182,7 @@ describe("getRouter", () => {
     // HttpError bodies carry the api's own wording ("Riot rate limit hit");
     // an errorless throw (a string, an empty Error) must still say something.
     toastError.mockClear();
+    reportError.mockClear();
     const client = clientOf(getRouter());
     const cached = { state: { data: "cached" } } as never;
 
@@ -183,10 +193,14 @@ describe("getRouter", () => {
 
     client.getQueryCache().config.onError?.("exploded" as never, cached);
     expect(toastError).toHaveBeenCalledWith("Background refresh failed");
+    // The other half of the decision: a refresh failure toasts but is never
+    // reported, because the api reports the 5xx behind it with better context.
+    expect(reportError).not.toHaveBeenCalled();
   });
 
   it("toasts mutation failures with their message or a generic fallback", () => {
     toastError.mockClear();
+    reportError.mockClear();
     const onError = clientOf(getRouter()).getMutationCache().config.onError;
 
     onError?.(new Error("save failed"), undefined, undefined, {} as never, {} as never);
@@ -194,6 +208,9 @@ describe("getRouter", () => {
 
     onError?.("exploded" as never, undefined, undefined, {} as never, {} as never);
     expect(toastError).toHaveBeenCalledWith("Something went wrong");
+    // Reported, unlike a query refresh: an owner-initiated write that silently
+    // did not happen is the case worth a Sentry issue.
+    expect(reportError).toHaveBeenCalledWith(expect.anything(), "mutation");
   });
 
   it("renders a loader row as the generic pending fallback", () => {
