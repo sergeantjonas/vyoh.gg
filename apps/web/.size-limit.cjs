@@ -52,7 +52,7 @@ function initialJsPaths() {
   // Guard against a partial walk, not just an empty one. size-limit silently
   // ignores a path that matches nothing, so a manifest shape change upstream
   // would otherwise quietly shrink the measured payload and turn the budget
-  // green. Start emits exactly one client entry (its default client entry);
+  // green. Start emits exactly one client entry (ours, `src/client.tsx`);
   // more than one means the build shape changed and this needs rethinking.
   if (entries.length !== 1) {
     throw new Error(

@@ -80,6 +80,11 @@ export default defineConfig({
   define: {
     __BUILD_TIME__: JSON.stringify(buildTime),
     __BUILD_COMMIT__: JSON.stringify(buildCommit),
+    // Tree-shake flags the Sentry SDK reads at build time. Tracing is not
+    // configured (see src/instrument.ts), so its whole span/propagation stack
+    // is dead weight in the bundle unless it is compiled out here.
+    __SENTRY_DEBUG__: "false",
+    __SENTRY_TRACING__: "false",
   },
   plugins: [
     // Must precede @vitejs/plugin-react: tanstackStart injects the route/server

@@ -135,6 +135,9 @@ services:
         VITE_API_URL: ${VITE_API_URL:?set VITE_API_URL in .env}
         VITE_SITE_URL: ${VITE_SITE_URL:-}
         BUILD_COMMIT: ${BUILD_COMMIT:-}
+        # Browser DSN, distinct from the SSR tier's runtime SENTRY_DSN below.
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+        VITE_SENTRY_SAMPLE_RATE: ${VITE_SENTRY_SAMPLE_RATE:-1}
     environment:
       NODE_ENV: production
       # Load-bearing, not hygiene. Every `Intl.DateTimeFormat` in the app that

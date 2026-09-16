@@ -36,9 +36,16 @@ ARG VITE_SITE_URL
 # which has no repository to ask inside the image and reports "dev" on the
 # status page.
 ARG BUILD_COMMIT
+# Browser error reporting. A DSN is an ingest endpoint rather than a
+# credential, so baking it into a public image is fine — unlike the auth token
+# E3's sourcemap upload will need, which must never be an ARG here.
+ARG VITE_SENTRY_DSN
+ARG VITE_SENTRY_SAMPLE_RATE
 ENV VITE_API_URL=${VITE_API_URL} \
     VITE_SITE_URL=${VITE_SITE_URL} \
-    BUILD_COMMIT=${BUILD_COMMIT}
+    BUILD_COMMIT=${BUILD_COMMIT} \
+    VITE_SENTRY_DSN=${VITE_SENTRY_DSN} \
+    VITE_SENTRY_SAMPLE_RATE=${VITE_SENTRY_SAMPLE_RATE}
 
 RUN pnpm --filter @vyoh/web build
 

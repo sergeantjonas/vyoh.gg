@@ -161,9 +161,20 @@ jobs:
         env:
           VITE_API_URL: ${{ vars.VITE_API_URL }}
           VITE_SITE_URL: ${{ vars.VITE_SITE_URL }}
+          VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
         run: |
           : "${VITE_API_URL:?set the VITE_API_URL repository variable}"
           : "${VITE_SITE_URL:?set the VITE_SITE_URL repository variable}"
+          # A warning rather than a failure: an absent DSN disables the browser
+          # SDK by design, so this must not block a build made before the Sentry
+          # account exists. It is surfaced because the failure is otherwise
+          # invisible — a typo, or a value set as an *environment* variable
+          # rather than a repository one, both arrive here as empty and ship an
+          # image that silently reports nothing. `vars` only reads environment
+          # variables when the job declares `environment:`, and this one does not.
+          if [ -z "${VITE_SENTRY_DSN}" ]; then
+            echo "::warning::VITE_SENTRY_DSN is unset — this image reports no browser errors"
+          fi
 
       - name: Resolve the short commit sha
         id: commit
@@ -235,6 +246,8 @@ jobs:
             VITE_API_URL=${{ vars.VITE_API_URL }}
             VITE_SITE_URL=${{ vars.VITE_SITE_URL }}
             BUILD_COMMIT=${{ steps.commit.outputs.short }}
+            VITE_SENTRY_DSN=${{ vars.VITE_SENTRY_DSN }}
+            VITE_SENTRY_SAMPLE_RATE=${{ vars.VITE_SENTRY_SAMPLE_RATE }}
           cache-from: type=gha,scope=web
           cache-to: type=gha,scope=web,mode=max
 
@@ -301,5 +314,7 @@ jobs:
             VITE_API_URL=${{ vars.VITE_API_URL }}
             VITE_SITE_URL=${{ vars.VITE_SITE_URL }}
             BUILD_COMMIT=${{ steps.commit.outputs.short }}
+            VITE_SENTRY_DSN=${{ vars.VITE_SENTRY_DSN }}
+            VITE_SENTRY_SAMPLE_RATE=${{ vars.VITE_SENTRY_SAMPLE_RATE }}
           cache-from: type=gha,scope=web
           provenance: false
