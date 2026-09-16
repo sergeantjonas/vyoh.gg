@@ -182,6 +182,45 @@ Wired through [`compose.prod.yaml`](../../../compose.prod.yaml) and documented i
   zone, so a UTC server renders a date one day off from the browser and React
   throws away the server tree. Caught on `/steam/achievements` in chunk 6.
 
+#### Why `/srv/vyoh/.env` is hand-written — decided 2026-09-17
+
+The runbook has said "write it by hand" since 2026-08-20 without ever arguing
+it, so this records the choice rather than leaving the next reader to
+re-litigate it. **Manual stays, for launch.**
+
+What it buys: no third party in the boot path, nothing else to secure, and
+runtime secrets that never touch CI — which matters more now that CI builds the
+images ([image-pipeline.md](image-pipeline.md)). The usual objection to
+hand-written env files is silent drift, and that one does not apply here:
+compose's `:?` guards refuse to start and name the missing variable, so an
+incomplete file is loud.
+
+**The real weakness is recovery, not security.** `.env` is the only artefact in
+the stack with no rebuild path. Images come from a tag, code from git, the
+database from a dump — `.env` exists on the box and nowhere else, and § 6
+already notes the archives share that disk. Losing the box therefore means
+re-deriving prod's secrets by hand at the same moment you are restoring from a
+dev dump. **So the password manager is the system of record and the box holds a
+copy**, not the other way round. That is the whole mitigation, and it costs
+nothing.
+
+The proportionate upgrade, if this is ever worth more effort, is **SOPS + age**:
+an encrypted `.env` committed to the repo, decrypted on the box with a key held
+only there. It buys versioning, a diff that shows which secret rotated and when,
+and recovery that is `git clone` plus one key. It costs a tool to remember and,
+on a public repo, ciphertext that is world-readable forever if the key ever
+leaks. Parked rather than rejected — see [parked.md](../parked.md).
+
+Two alternatives rejected outright. **A secrets manager** (Vault, Infisical,
+Doppler) is either a third party in the boot path or another service on an 8 GB
+box, which is the same argument § Sizing implications and
+[error-tracking.md](error-tracking.md) already used against self-hosting the
+error tracker. **CI-injected secrets** — GitHub secrets written into `.env` by
+the deploy — would be a straight downgrade: the deploy runs from the owner's
+laptop rather than from CI, and it would put every production credential into an
+Actions context that today holds only public build args, contradicting the
+pipeline's "the pipeline never sees runtime secrets" decision.
+
 ### 4. Custom domain
 
 Point `vyoh.gg` DNS to wherever the frontend is hosted. Point `api.vyoh.gg`
