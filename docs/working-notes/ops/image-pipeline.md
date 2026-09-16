@@ -1,6 +1,6 @@
 # Image pipeline — build in CI, pull on the box
 
-**Status:** Active — **scoped 2026-09-16, not started.** Replaces the on-box build in `scripts/deploy.sh` with images built by GitHub Actions and pushed to GHCR; the box only pulls. This is what makes the 8 GB box in [hosting.md](hosting.md) valid — the sizing argument for 16 GB rested entirely on `pnpm install` plus the Vite SSR build peaking at several GB next to a live stack, and that spike moves to a GitHub runner. Four chunks; the first two are the pipeline, the third is the documentation debt they create, the fourth is optional. Chunks 1 and 3 need no box and can land now; chunk 2 is testable locally but only proven on the box.
+**Status:** Active — **scoped 2026-09-16; chunk 1 shipped the same day and stays unverified until the first push to `main`.** Replaces the on-box build in `scripts/deploy.sh` with images built by GitHub Actions and pushed to GHCR; the box only pulls. This is what makes the 8 GB box in [hosting.md](hosting.md) valid — the sizing argument for 16 GB rested entirely on `pnpm install` plus the Vite SSR build peaking at several GB next to a live stack, and that spike moves to a GitHub runner. Four chunks; the first two are the pipeline, the third is the documentation debt they create, the fourth is optional. Chunk 3 needs no box and can land now; chunk 2 is testable locally but only proven on the box.
 
 ## Why now, and why this shape
 
@@ -16,13 +16,21 @@ Shape decisions, made here so the chunks do not re-open them:
 - **Build gated on the check job.** The image job lives in `ci.yml` with `needs: [check]` so a red `main` never publishes. Cross-workflow `needs` does not exist, which is why it is not a separate file.
 - **`linux/amd64` only.** The box is x86. The api Dockerfile keys its onnxruntime prune off `TARGETARCH`, which buildx sets from `--platform`, so no Dockerfile change. A multi-arch matrix buys nothing until a second box exists and costs a QEMU build of Prisma and Sharp every push.
 - **Tags are `sha-<7>` plus a moving `main`.** Deploy pins a sha; `main` exists for humans reading the GHCR page and for `docker compose pull` with no tag set.
-- **Public images.** The repo is public, GHCR packages inherit that, and the box pulls anonymously — no registry credential on the box. Everything baked into the web image (`VITE_API_URL`, `VITE_SITE_URL`, later the browser Sentry DSN) is already public in the served bundle.
+- **Public images.** The box pulls anonymously — no registry credential on the box. Note the mechanism, corrected while writing chunk 1: a package does *not* inherit the repository's visibility. A new GHCR package is private whatever the repo is, and linking one to a repo inherits its access permissions rather than its visibility, so each package is flipped to public once by hand after the first run. Everything baked into the web image (`VITE_API_URL`, `VITE_SITE_URL`, later the browser Sentry DSN) is already public in the served bundle.
 - **Build args come from GitHub Actions repository variables**, not secrets: `VITE_API_URL`, `VITE_SITE_URL`. `BUILD_COMMIT` is `github.sha` cut to seven. Runtime secrets stay in `/srv/vyoh/.env` on the box exactly as runbook step 2 says; the pipeline never sees them.
 - **Keep `build:` in `compose.prod.yaml` alongside `image:`.** Compose allows both; `docker compose build` still works for the container-divergence probes in [repo-conventions-web.md](../../repo-conventions-web.md), and deploy uses `pull` + `up -d --no-build` so it can never fall back to building on the box by accident.
 
-## Chunk 1 — build and push job · not started
+## Chunk 1 — build and push job · shipped 2026-09-16
 
 `.github/workflows/ci.yml` gains one job. Files: `ci.yml` only.
+
+Shipped as the `images` job, with the action majors current at the time — `setup-buildx-action@v4`, `login-action@v4`, `metadata-action@v6`, `build-push-action@v7`. Three things the scope below did not settle, decided while writing it:
+
+- **The api probe runs `--entrypoint node`.** The literal `docker run --rm <image> node -e …` below passes those words to `docker-entrypoint.sh` as arguments, and that script runs `prisma migrate deploy` first — so the probe would fail against a database the job has not got, for a reason that has nothing to do with onnx.
+- **Both pushes sit behind both smokes**, rather than each image pushing once its own probe passes. Publishing the api early leaves a commit whose `sha-<7>` names an api with no paired web image, which is the deploy-together invariant these tags exist to make structural.
+- **`provenance: false` on the push steps.** A single-platform image without attestations is a plain manifest rather than an index carrying an `unknown/unknown` entry, which is what keeps the GHCR page readable for the humans the `main` tag is for.
+
+Both probes were run against the pre-existing local `vyoh-api:local` and `vyoh-web:local` images before the job was written, so the commands are proven even though the job is not. The web one earned its retry loop there: the first `curl` was reset mid-boot.
 
 - `permissions: { contents: read, packages: write }` on the job, `if: github.event_name == 'push' && github.ref == 'refs/heads/main'`, `needs: [check]`.
 - `docker/setup-buildx-action`, `docker/login-action` against `ghcr.io` with `GITHUB_TOKEN`, `docker/metadata-action` producing `sha-<7>` and `main` tags for `ghcr.io/sergeantjonas/vyoh-api` and `ghcr.io/sergeantjonas/vyoh-web`.
@@ -30,7 +38,7 @@ Shape decisions, made here so the chunks do not re-open them:
 - **Smoke the api image in the job before pushing it**, because the one known silent failure is the onnx prune: `docker run --rm <image> node -e "require('onnxruntime-node')"`. Build with `load: true` and `push: false`, run the probe, then push in a second step reusing the cache. Without this the failure mode is exactly the one the Dockerfile comment warns about — an image that builds green and crashes on the first Steam artwork request.
 - Smoke the web image the same way: run it with `PORT` set and `API_INTERNAL_URL` pointing at nothing, `curl -f localhost:$PORT/robots.txt`. That is what its `HEALTHCHECK` already does, so it is one line and proves the type-stripping entrypoint boots outside the Dockerfile's own build context.
 
-Verify: the packages appear under the repo on GitHub; `docker pull ghcr.io/sergeantjonas/vyoh-web:sha-<7>` from the dev box works anonymously (OrbStack runs amd64 images under Rosetta, so `docker run` of the pulled image is also possible here); the `main` tag moves on the next push. First run will take several minutes with a cold cache — pnpm's `--mount=type=cache` inside the Dockerfile does not persist across runners, only the layer cache does, and that is acceptable at this cadence.
+Verify: the packages appear under the repo on GitHub; `docker pull ghcr.io/sergeantjonas/vyoh-web:sha-<7>` from the dev box works anonymously (OrbStack runs amd64 images under Rosetta, so `docker run` of the pulled image is also possible here); the `main` tag moves on the next push. **Two owner steps gate that first run.** Set the `VITE_API_URL` and `VITE_SITE_URL` repository variables before pushing — the job asserts both and fails fast without them, because Vite bakes them in and an unset one ships a bundle pointing at localhost. Then, after the first successful run, flip both packages to public: a new GHCR package is private whatever the repository's visibility is, and linking a package to a repo inherits its *access permissions*, not its visibility. Chunk 2's anonymous pull from the box 401s until that flip, and nothing in this job can catch it. First run will take several minutes with a cold cache — pnpm's `--mount=type=cache` inside the Dockerfile does not persist across runners, only the layer cache does, and that is acceptable at this cadence.
 
 ## Chunk 2 — compose pulls, deploy.sh stops building · not started
 

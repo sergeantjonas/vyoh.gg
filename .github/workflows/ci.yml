@@ -125,3 +125,181 @@ jobs:
       - run: pnpm --filter @vyoh/web build
 
       - run: pnpm --filter @vyoh/web size
+
+  images:
+    name: Build and push container images
+    runs-on: ubuntu-latest
+    needs: [check]
+    # Build on every green push to main; deploying stays a deliberate owner
+    # action from a local shell. Cross-workflow `needs` does not exist, which is
+    # why this lives here rather than in a file of its own.
+    # See docs/working-notes/ops/image-pipeline.md.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    env:
+      API_IMAGE: ghcr.io/sergeantjonas/vyoh-api
+      WEB_IMAGE: ghcr.io/sergeantjonas/vyoh-web
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Repository variables, not secrets: both are already public in the
+      # served bundle. Asserted because Vite bakes them in, so an unset value
+      # produces an image that builds green, pushes green, and points the whole
+      # client at localhost — a failure that first surfaces in a browser.
+      - name: Assert the build-arg variables are set
+        shell: bash
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_SITE_URL: ${{ vars.VITE_SITE_URL }}
+        run: |
+          : "${VITE_API_URL:?set the VITE_API_URL repository variable}"
+          : "${VITE_SITE_URL:?set the VITE_SITE_URL repository variable}"
+
+      - name: Resolve the short commit sha
+        id: commit
+        run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      # The OCI labels metadata-action emits are what link a GHCR package back
+      # to this repo. Note that linking inherits access permissions, not
+      # visibility: a new package is private until it is flipped once by hand,
+      # and the box pulls anonymously.
+      # `type=sha` is `sha-<7>`; `main` moves every push.
+      - name: Tags and labels for the api image
+        id: api-meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.API_IMAGE }}
+          tags: |
+            type=sha
+            type=raw,value=main
+
+      # linux/amd64 only: the box is x86, and buildx sets the Dockerfile's
+      # TARGETARCH from this. A multi-arch matrix buys nothing until a second
+      # box exists and costs a QEMU build of Prisma and Sharp every push.
+      - name: Build the api image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: ${{ steps.api-meta.outputs.tags }}
+          labels: ${{ steps.api-meta.outputs.labels }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
+
+      # The one silent failure this image has is the TARGETARCH-keyed onnx
+      # prune: keeping the wrong platform's runtime builds green and crashes on
+      # the first Steam artwork request.
+      #
+      # `--entrypoint node` because the real entrypoint runs `prisma migrate
+      # deploy` against a database this job has not got.
+      - name: Smoke the api image
+        env:
+          TAG: sha-${{ steps.commit.outputs.short }}
+        run: docker run --rm --entrypoint node "$API_IMAGE:$TAG" -e "require('onnxruntime-node')"
+
+      - name: Tags and labels for the web image
+        id: web-meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.WEB_IMAGE }}
+          tags: |
+            type=sha
+            type=raw,value=main
+
+      # BUILD_COMMIT is a build arg here and a runtime env for the api: Vite
+      # bakes it into the bundle, so the web tier cannot read it from compose.
+      - name: Build the web image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: ${{ steps.web-meta.outputs.tags }}
+          labels: ${{ steps.web-meta.outputs.labels }}
+          build-args: |
+            VITE_API_URL=${{ vars.VITE_API_URL }}
+            VITE_SITE_URL=${{ vars.VITE_SITE_URL }}
+            BUILD_COMMIT=${{ steps.commit.outputs.short }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
+
+      # Asks the image's own HEALTHCHECK question from outside, which proves
+      # the type-stripping entrypoint boots away from the build context that
+      # produced it. `API_INTERNAL_URL` points nowhere on purpose: a static
+      # file needs no api, so reaching one would mean the probe drifted.
+      - name: Smoke the web image
+        shell: bash
+        env:
+          TAG: sha-${{ steps.commit.outputs.short }}
+        run: |
+          cid=$(docker run -d -p 2009:2009 \
+            -e PORT=2009 \
+            -e API_INTERNAL_URL=http://127.0.0.1:1 \
+            "$WEB_IMAGE:$TAG")
+          ok=0
+          for _ in $(seq 1 30); do
+            if curl -fsS --max-time 5 http://127.0.0.1:2009/robots.txt >/dev/null; then
+              ok=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ok" != 1 ]; then
+            echo "::error::the web image did not serve /robots.txt within 30 attempts"
+            docker logs "$cid"
+          fi
+          docker rm -f "$cid" >/dev/null
+          test "$ok" = 1
+
+      # Both pushes sit behind both smokes. Publishing the api as soon as it
+      # passed its own probe would leave a commit whose `sha-<7>` names an api
+      # with no paired web image, which is the deploy-together invariant these
+      # tags exist to make structural.
+      #
+      # Each is a second pass over a build graph the steps above already built,
+      # so every layer is in the builder's cache and this only uploads.
+      - name: Push the api image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.api-meta.outputs.tags }}
+          labels: ${{ steps.api-meta.outputs.labels }}
+          cache-from: type=gha,scope=api
+          # A single-platform image without attestations is a plain manifest
+          # rather than an index carrying an `unknown/unknown` entry, which is
+          # what keeps the GHCR package page readable.
+          provenance: false
+
+      - name: Push the web image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.web-meta.outputs.tags }}
+          labels: ${{ steps.web-meta.outputs.labels }}
+          build-args: |
+            VITE_API_URL=${{ vars.VITE_API_URL }}
+            VITE_SITE_URL=${{ vars.VITE_SITE_URL }}
+            BUILD_COMMIT=${{ steps.commit.outputs.short }}
+          cache-from: type=gha,scope=web
+          provenance: false
