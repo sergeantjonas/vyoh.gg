@@ -107,7 +107,7 @@ step 3.
 
 **5. First deploy — against an empty database.** `VYOH_DEPLOY_HOST=vyoh scripts/deploy.sh`. **Today it still rsyncs and builds both images on the box**, which is exactly what 8 GB cannot afford next to a live stack — [image-pipeline.md](image-pipeline.md) chunk 2 is what makes it pull from GHCR instead, and it is a prerequisite of this step rather than a follow-up to it. Either way it then restarts the stack and smoke-checks the loopback endpoints, exiting non-zero if they do not answer. The api's entrypoint applies all migrations on start, so this is also what creates the schema.
 
-Once it pulls, the registry adds two preconditions here: a green `images` job for the sha being deployed, and both GHCR packages flipped to public so the box can pull anonymously. It also adds a rollback that is not a rebuild — `VYOH_IMAGE_TAG=sha-<old> scripts/deploy.sh`.
+Once it pulls, the registry adds one precondition here: a green `images` job for the sha being deployed. The box needs no registry credential — both packages are anonymously pullable, verified 2026-09-16. It also adds a rollback that is not a rebuild — `VYOH_IMAGE_TAG=sha-<old> scripts/deploy.sh`.
 
 Confirm the empty stack serves before putting data in it. [§ 7](#7-seed-production-from-the-dev-database--added-2026-08-16)
 is explicit about why: seeding first gives you two variables at once when
