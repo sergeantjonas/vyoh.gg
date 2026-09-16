@@ -608,16 +608,18 @@ on the same box should follow.
 - **Certbot handles all hostnames in one install.** Nginx plugin for
   the easy case; DNS-01 if/when we want wildcard certs. Renewal via
   the bundled `certbot.timer`, no hand-rolled cron.
-- **Deploys are `rsync` + `docker compose up -d --build`.** Per
+- **Deploys are `pull` + `docker compose up -d --no-build`.** Per
   project. A simple `deploy.sh` is enough; full CI/CD orchestration is
   out of scope for the portfolio tier. Watchtower is rejected — visible,
-  intentional deploys are more useful than auto-pulls for a few sites.
-  vyoh's is [`scripts/deploy.sh`](../../../scripts/deploy.sh): it rsyncs
-  (excluding `.env`, so production secrets stay on the box and have no
-  local counterpart), builds on the VPS, and then **smoke-checks the
-  three endpoints over ssh and exits non-zero if they do not answer**.
-  Images no longer build on the VPS: they are built by GitHub Actions and
-  pushed to GHCR, and the box pulls. That is what the box's 8 GB rests on.
+  intentional deploys are more useful than auto-pulls for a few sites,
+  and it is a different thing from pulling a tag you chose.
+  vyoh's is [`scripts/deploy.sh`](../../../scripts/deploy.sh): it refuses
+  a tag GHCR does not have, ships only the ops files (`compose.prod.yaml`,
+  `deploy/`, the two backup scripts — never source, and never `.env`,
+  which has no local counterpart), pulls both images, and then
+  **smoke-checks the three endpoints over ssh and exits non-zero if they
+  do not answer**. Images are built by GitHub Actions, not on the VPS,
+  which is what the box's 8 GB rests on.
   → [image-pipeline.md](image-pipeline.md)
 - **Migrations run from the api container's entrypoint**, not from
   `deploy.sh`. `prisma migrate deploy` is a no-op once the journal is

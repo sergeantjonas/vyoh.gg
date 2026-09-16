@@ -1,6 +1,6 @@
-# TanStack Start migration — Vite SPA → SSR on Hetzner
+# TanStack Start migration — Vite SPA → SSR on a self-hosted VPS
 
-**Status:** ✅ Shipped 2026-07-27 — all 6 chunks landed over two days (1–3 + 4a on 07-26; 4b, 5, 6 on 07-27). The app server-renders through TanStack Start, hydrates clean on 12 routes verified against the **containerised production stack**, and the deploy machinery exists in-repo (two Dockerfiles, `compose.prod.yaml`, Nginx vhosts, `deploy.sh`). Nothing here is blocked on the repo any more — launch is blocked on buying the VPS ([hosting.md](../ops/hosting.md) checklist items 4 and 5).
+**Status:** ✅ Shipped 2026-07-27 — all 6 chunks landed over two days (1–3 + 4a on 07-26; 4b, 5, 6 on 07-27). The app server-renders through TanStack Start, hydrates clean on 12 routes verified against the **containerised production stack**, and the deploy machinery exists in-repo (two Dockerfiles, `compose.prod.yaml`, Nginx vhosts, `deploy.sh`). Nothing here is blocked on the repo any more. The box was bought 2026-09-16 (a netcup VPS 1000 G12, not the Hetzner plan this note assumed) and the deploy became a registry pull rather than an on-box build — § "Hosting impact" below is kept as written, with its superseded claims marked. → [hosting.md](../ops/hosting.md) · [image-pipeline.md](../ops/image-pipeline.md)
 
 Read the four **"What N turned out to be"** sections below before touching SSR, loaders, or the build: each chunk was scoped against this note's own predictions and each one overturned them. 4a found the blocker was missing loaders and cache dehydration, not render shape. 4b found every route was *failing* hydration, so the SSR was real in the HTML and worth nothing to users. 5 found every page declaring itself a duplicate of the homepage, and that 4b's own production check had been vacuous. 6 found three defects that exist only inside a container. All three detail routes server-render their content as of 2026-09-05 (§ "What still does not render server-side" carries what is still open there), and the date formatters, the loader failure policy and the `PatchesPage` skeleton fix are settled in § "Route-loader failure policy and the timeZone sweep".
 
@@ -49,14 +49,16 @@ Hooks, `Link`, `useNavigate`, `useParams`, `useSearch`, `useRouterState`, `Splas
 
 [hosting.md](../ops/hosting.md) currently assumes the web tier is a static SPA: "Static SPAs are served by Nginx directly, no container. A container around `vite preview` or `serve` is pure overhead. Per site, expect 0–1 backend containers, not 2." The Start migration inverts that — the web tier becomes a long-running Node process behind Nginx.
 
-**This does not change the host pick.** Hetzner stays. The frontend-2026 edge-platform decision table explicitly lists "Self-host on a VPS to control costs → Coolify or Dokploy on Hetzner" as a top-row option, and a CAX31 (8 vCPU ARM / 16 GB / ~€12.49/mo per the existing hosting.md sizing) absorbs a Node SSR process without strain. What changes is the per-site shape:
+**This does not change the host pick.** A self-hosted VPS stays. The frontend-2026 edge-platform decision table explicitly lists "Self-host on a VPS to control costs → Coolify or Dokploy on Hetzner" as a top-row option, and a CAX31 (8 vCPU ARM / 16 GB / ~€12.49/mo per the existing hosting.md sizing) absorbs a Node SSR process without strain. What changes is the per-site shape:
+
+> **Superseded 2026-09-16, and the conclusion survives.** The box is a netcup VPS 1000 G12 (4 vCPU / 8 GB), not a CAX31, and the €12.49 predates Hetzner's June 2026 rise. The claim this section was actually making — that an SSR process fits without strain — still holds: the SSR tier's few hundred MB is not what sizing turns on. What it turned on was the on-box *build*, and that moved to CI. → [hosting.md § Sizing implications](../ops/hosting.md#sizing-implications)
 
 - Before: 1 Nginx vhost + static `/var/www/<project>/dist/` + 1 Node backend container.
 - After: 1 Nginx vhost + 1 Node web container (proxy_pass to `127.0.0.1:20XY`) + 1 Node backend container (proxy_pass to `127.0.0.1:20XX`).
 
-Two Node processes per project instead of one. Memory budget delta: ~150–300 MB RSS for the Start SSR process. On a CAX31 with vyoh.gg as the primary tenant, this is comfortable. If the multi-site layout grows to 4–5 tenants, the static-rsync sites stay static-rsync — only `vyoh.gg` and any other intentionally-SSR'd site pay the SSR cost.
+Two Node processes per project instead of one. Memory budget delta: ~150–300 MB RSS for the Start SSR process. On the box as bought, with vyoh.gg as the primary tenant, this is comfortable. If the multi-site layout grows to 4–5 tenants, the static-rsync sites stay static-rsync — only `vyoh.gg` and any other intentionally-SSR'd site pay the SSR cost.
 
-**Deploy mechanics on Hetzner.** Two valid shapes, both compatible with the existing hosting.md "rsync + `docker compose up -d --build`" convention:
+**Deploy mechanics on the VPS.** Two valid shapes, both compatible with the deploy convention as it stood — "rsync + `docker compose up -d --build`", which [image-pipeline.md](../ops/image-pipeline.md) replaced on 2026-09-16 with a registry pull. Shape 1 is what shipped, and the pull change did not disturb it: the `web` container is still a container in the same stack, only sourced from GHCR rather than built in place.
 
 1. **Add a `web` container to `vyoh.gg`'s docker-compose stack.** Same Dockerfile pattern as the `api`. Same loopback-port-Nginx-proxies-to-it pattern. No new infrastructure concept introduced.
 2. **Static-prerender what can be prerendered.** Start supports per-route `prerender: true`. `/`, `/status`, `/lol/_shared/*` non-data pages, anything not behind a Riot-keyed lookup — can ship as build-time HTML to `dist/static/` and be served by Nginx directly, bypassing the SSR process. Only data-driven routes (`/lol/$accountSlug/*`, `/steam`) hit the Node process. This is the right shape long-term: SSR where it earns its keep, SSG elsewhere.
@@ -242,7 +244,7 @@ Built in an isolated scratchpad workspace pinned to this repo's exact versions (
 ## Cross-references
 
 - [perf-baseline.md](perf-baseline.md) — bundle budgets and LCP ceiling that this migration removes. Re-baseline after chunk 4.
-- [case-study-topics.md](case-study-topics.md) — "SPA → SSR migration on a self-hosted Hetzner VPS via Docker Compose" is a sharper case-study line than the static deploy story. Add it as a topic when this note promotes to active.
+- [case-study-topics.md](case-study-topics.md) — "SPA → SSR migration on a self-hosted VPS via Docker Compose" is a sharper case-study line than the static deploy story. Add it as a topic when this note promotes to active.
 - [self-portrait-surfaces.md](self-portrait-surfaces.md) — every surface that depends on link previews / SEO benefits from chunk 3 specifically.
 - [../ops/hosting.md](../ops/hosting.md) — the "per-site shape" assumption changes; this note and that one must land together.
 - [../ops/owner-auth.md](../ops/owner-auth.md) — build auth against Start (cookie-in-loader) rather than the SPA (client-only).
