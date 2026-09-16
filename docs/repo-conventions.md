@@ -66,6 +66,8 @@ The LoL instance is the remake flag. Remakes are **persisted** as `remake: true`
 
 Two failures reached production through the gap this rule closes, both in code that never spelled `remake` at a filter site: `buildOutcomeSignal` walked an unfiltered history so a remake could pad a streak, and `getChampionExtras` counted remade games into item and matchup win rates. If an aggregation reads a match list and you cannot point at the `excludeRemakes()` call, assume it is wrong.
 
+The Steam session floor is the third instance: `SESSION_MIN_MINUTES`, `isBlipSession()` and `excludeBlipSessions()` in `packages/shared/src/steam/sessions/beats.ts` drop a closed `SteamPlaySession` row the poller saw on a single tick (it closes at its own `startedAt` and reads as zero minutes). The sessions page reads its closed rows through the helper; the other readers of that table (`home-*` services, `steam-moments`, the portrait) still aggregate raw rows and are tracked in [open-work.md](./working-notes/open-work.md). A new aggregation over that table iterates the helper.
+
 The Steam curation overlay is the second instance of this rule, and a stricter one: `excludeHiddenGames()`, `excludeUnfeaturedGames()`, `isHiddenGame()` and `visibleAppidFilter()` in `packages/shared/src/steam/curation.ts` are the *only* legitimate readers of a `SteamCurationSets`. Unlike `.remake` — a real field that display code legitimately reads for one match — a curation Set has no second use, so `conventions.spec.ts` bans `.hidden.has(…)` / `.unfeatured.has(…)` outright anywhere else, which covers the `.filter()` and the `if (…) continue` shapes in one lint instead of two.
 
 ### A response that varies by viewer is scoped on both sides

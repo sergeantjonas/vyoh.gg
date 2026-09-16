@@ -144,6 +144,24 @@ export interface SessionBeatContext {
   timeZone: string;
 }
 
+/**
+ * A session the poller saw across at least two ticks. Closing a session
+ * anchors `endedAt` to the last tick that still saw the game, so a game seen
+ * on one tick alone closes at its own `startedAt` and reads as zero minutes.
+ * Steam's presence flickers, and a row like that says nothing about play —
+ * it must not become the last session, count toward a streak or set a record.
+ */
+export const SESSION_MIN_MINUTES = 2;
+
+export function isBlipSession(s: BeatSession): boolean {
+  return sessionDurationMinutes(s) < SESSION_MIN_MINUTES;
+}
+
+/** The sessions page reads closed rows through this, never a bare row list. */
+export function excludeBlipSessions<T extends BeatSession>(rows: readonly T[]): T[] {
+  return rows.filter((r) => !isBlipSession(r));
+}
+
 export function sessionDurationMinutes(s: BeatSession): number {
   return Math.max(
     0,

@@ -6,6 +6,8 @@ import {
   type BeatSession,
   type SessionBeatContext,
   type SteamSessionBeat,
+  excludeBlipSessions,
+  isBlipSession,
   selectLiveSessionBeats,
   selectSessionBeats,
 } from "./beats.ts";
@@ -373,5 +375,18 @@ describe("selectSessionBeats", () => {
     const strengths = beats.slice(0, -1).map((x) => x.strength);
     expect([...strengths].sort((x, y) => y - x)).toEqual(strengths);
     expect(beats.at(-1)?.kind).toBe("shape");
+  });
+});
+
+describe("excludeBlipSessions", () => {
+  const t0 = new Date("2026-09-16T00:14:49.162Z");
+  const at = (ms: number) => new Date(t0.getTime() + ms);
+
+  it("drops a session the poller saw on a single tick and keeps a two-tick one", () => {
+    const blip = { appid: 1, startedAt: t0, endedAt: at(3) };
+    const bounce = { appid: 1, startedAt: t0, endedAt: at(2 * 60_000) };
+    expect(isBlipSession(blip)).toBe(true);
+    expect(isBlipSession(bounce)).toBe(false);
+    expect(excludeBlipSessions([blip, bounce])).toEqual([bounce]);
   });
 });

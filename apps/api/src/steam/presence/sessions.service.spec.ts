@@ -362,8 +362,11 @@ describe("SteamSessionsService.getSessions", () => {
       sessionId: "night",
       value: 26 * 60 + 12,
     });
-    // A single-tick session is a poller artefact, not the quickest bounce.
+    // A single-tick session is a poller artefact: not the quickest bounce,
+    // not the last session, not in the page at all.
     expect(page.records.quickestBounce).toMatchObject({ sessionId: "short", value: 30 });
+    expect(page.sessions.map((d) => d.id)).toEqual(["short", "night", "eve"]);
+    expect(page.window.sessionCount).toBe(3);
     expect(page.records.mostUnlocks).toBeNull();
     expect(page.records.longestDrySpell).toBeNull();
   });

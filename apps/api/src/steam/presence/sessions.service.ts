@@ -17,6 +17,7 @@ import {
   OWNER_TIME_ZONE,
   SESSION_UNLOCK_SLACK_MS,
   buildHourMatrix,
+  excludeBlipSessions,
   excludeHiddenGames,
   isHiddenGame,
   localSlot,
@@ -35,8 +36,6 @@ export const SESSIONS_MAX_WEEKS = 52;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * DAY_MS;
-/** A session shorter than this is a poller artefact, not a bounce. */
-const BOUNCE_MIN_MINUTES = 2;
 
 interface SessionRow {
   id: string;
@@ -95,19 +94,21 @@ export class SteamSessionsService {
     // Every closed session, not only the window's: the rank and return beats
     // read a game's whole history, and the table is small — the poller writes
     // a row per launch, not per tick.
-    const allRows: SessionRow[] = (
-      await this.prisma.steamPlaySession.findMany({
-        where: { endedAt: { not: null } },
-        orderBy: { startedAt: "asc" },
-        select: {
-          id: true,
-          appid: true,
-          gameNameSnapshot: true,
-          startedAt: true,
-          endedAt: true,
-        },
-      })
-    ).flatMap((r) => (r.endedAt ? [{ ...r, endedAt: r.endedAt }] : []));
+    const allRows: SessionRow[] = excludeBlipSessions(
+      (
+        await this.prisma.steamPlaySession.findMany({
+          where: { endedAt: { not: null } },
+          orderBy: { startedAt: "asc" },
+          select: {
+            id: true,
+            appid: true,
+            gameNameSnapshot: true,
+            startedAt: true,
+            endedAt: true,
+          },
+        })
+      ).flatMap((r) => (r.endedAt ? [{ ...r, endedAt: r.endedAt }] : []))
+    );
 
     // An open row only means "playing now" while the poller is actually
     // polling: the row closes on the tick that sees the game gone, and no
@@ -442,9 +443,7 @@ function records(
         ? d.durationMinutes
         : null
     ),
-    quickestBounce: minBy(digests, (d) =>
-      d.durationMinutes >= BOUNCE_MIN_MINUTES ? d.durationMinutes : null
-    ),
+    quickestBounce: minBy(digests, (d) => d.durationMinutes),
   };
 }
 
