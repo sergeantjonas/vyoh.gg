@@ -48,19 +48,7 @@ export function OffCameraLedger() {
             metricLabel={{ singular: "unlock", plural: "unlocks" }}
             verdict={`${total} ${total === 1 ? "unlock" : "unlocks"} across ${days} ${days === 1 ? "day" : "days"} and ${games} ${games === 1 ? "game" : "games"} landed while the api was not watching.`}
             prescription="Sessions are recorded only while the api runs, so this is play the log has no row for."
-            evidence={
-              <ul className="flex flex-col gap-1.5">
-                {offCamera.slice(0, ROWS_SHOWN).map((g) => (
-                  <LedgerRow key={`${g.game.appid}-${g.day}`} group={g} />
-                ))}
-                {offCamera.length > ROWS_SHOWN && (
-                  <li className="text-muted-foreground/70 text-xs">
-                    and {offCamera.length - ROWS_SHOWN} more{" "}
-                    {offCamera.length - ROWS_SHOWN === 1 ? "row" : "rows"}
-                  </li>
-                )}
-              </ul>
-            }
+            evidence={<Ledger groups={offCamera} />}
           />
         );
       }}
@@ -68,11 +56,65 @@ export function OffCameraLedger() {
   );
 }
 
+/** Rows arrive newest day first across games; the ledger reads per game. */
+function byGame(groups: SteamOffCameraUnlockGroup[]) {
+  const games = new Map<number, SteamOffCameraUnlockGroup[]>();
+  for (const g of groups) {
+    const rows = games.get(g.game.appid);
+    if (rows) rows.push(g);
+    else games.set(g.game.appid, [g]);
+  }
+  return [...games.values()];
+}
+
+function Ledger({ groups }: { groups: SteamOffCameraUnlockGroup[] }) {
+  const shown = groups.slice(0, ROWS_SHOWN);
+  const restDays = new Set(groups.slice(ROWS_SHOWN).map((g) => g.day)).size;
+  const totals = new Map<number, number>();
+  for (const g of groups)
+    totals.set(g.game.appid, (totals.get(g.game.appid) ?? 0) + g.count);
+  return (
+    <div className="flex flex-col gap-3">
+      {byGame(shown).map((rows) => {
+        const game = rows[0]?.game;
+        if (!game) return null;
+        const count = totals.get(game.appid) ?? 0;
+        return (
+          <section key={game.appid} className="flex flex-col gap-1.5">
+            <header className="flex items-baseline justify-between gap-3">
+              <Link
+                to="/steam/library/$appid"
+                params={{ appid: String(game.appid) }}
+                className="truncate font-medium text-foreground/90 text-sm hover:underline"
+              >
+                {game.name}
+              </Link>
+              <span className="shrink-0 text-muted-foreground/70 text-xs tabular-nums">
+                {count} {count === 1 ? "unlock" : "unlocks"}
+              </span>
+            </header>
+            <ul className="flex flex-col gap-1">
+              {rows.map((g) => (
+                <LedgerRow key={g.day} group={g} />
+              ))}
+            </ul>
+          </section>
+        );
+      })}
+      {restDays > 0 && (
+        <p className="text-muted-foreground/70 text-xs">
+          and {restDays} more {restDays === 1 ? "day" : "days"}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function LedgerRow({ group }: { group: SteamOffCameraUnlockGroup }) {
   const more = group.count - group.sample.length;
   return (
-    <li className="flex items-center gap-3">
-      <div className="flex shrink-0 -space-x-1.5">
+    <li className="flex items-start gap-3 text-xs">
+      <span className="flex w-16 shrink-0 -space-x-1.5 pt-0.5">
         {group.sample.map((u) => (
           <img
             key={u.apiName}
@@ -82,22 +124,20 @@ function LedgerRow({ group }: { group: SteamOffCameraUnlockGroup }) {
             className="size-6 rounded ring-1 ring-background"
           />
         ))}
-      </div>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Link
-          to="/steam/library/$appid"
-          params={{ appid: String(group.game.appid) }}
-          className="truncate font-medium text-foreground/90 text-sm hover:underline"
-        >
-          {group.game.name}
-        </Link>
-        <p className="truncate text-muted-foreground text-xs">
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="flex items-baseline justify-between gap-3">
+          <span className="text-muted-foreground tabular-nums">
+            {dayLabel(group.day)}
+          </span>
+          <span className="shrink-0 text-muted-foreground/70 tabular-nums">
+            {group.count}
+          </span>
+        </span>
+        <span className="truncate text-muted-foreground/70">
           {group.sample.map((u) => u.displayName).join(", ")}
           {more > 0 ? ` and ${more} more` : ""}
-        </p>
-      </div>
-      <span className="shrink-0 text-muted-foreground/70 text-xs tabular-nums">
-        {dayLabel(group.day)} · {group.count}
+        </span>
       </span>
     </li>
   );

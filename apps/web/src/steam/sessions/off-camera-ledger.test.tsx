@@ -76,9 +76,35 @@ describe("OffCameraLedger", () => {
       )
     ).toBeTruthy();
     expect(screen.getByText("Ashen, Bound, Cleaved and 10 more")).toBeTruthy();
-    expect(screen.getByText("Sat 22 Aug · 13")).toBeTruthy();
+    expect(screen.getByText("Sat 22 Aug")).toBeTruthy();
+    expect(screen.getByText("13 unlocks")).toBeTruthy();
     expect(screen.getByText("Dendrologist")).toBeTruthy();
     expect((await axe(container)).violations).toHaveLength(0);
+  });
+
+  it("names a game once over its days, totals it across the cap, and counts the hidden days", () => {
+    const days = ["09", "08", "07", "06", "05", "04", "03"];
+    mock(
+      page([
+        ...days.map((d) => ({
+          game: { appid: 1, name: "Onimusha" },
+          day: `2026-09-${d}`,
+          count: 2,
+          sample: [unlock(`A${d}`, `Ashen ${d}`)],
+        })),
+        {
+          game: { appid: 2, name: "Mortal Shell II" },
+          day: "2026-09-03",
+          count: 1,
+          sample: [unlock("B", "Bound")],
+        },
+      ])
+    );
+    render(<OffCameraLedger />);
+    expect(screen.getAllByText("Onimusha")).toHaveLength(1);
+    expect(screen.getByText("14 unlocks")).toBeTruthy();
+    expect(screen.queryByText("Mortal Shell II")).toBeNull();
+    expect(screen.getByText("and 1 more day")).toBeTruthy();
   });
 
   it("says so when every unlock was seen", () => {
