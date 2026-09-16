@@ -186,7 +186,7 @@ function UnlockRow({ appid, unlocks }: { appid: number; unlocks: SteamSessionUnl
             to="/steam/library/$appid"
             params={{ appid: String(appid) }}
             search={{ ach: u.apiName }}
-            className="flex items-center gap-2.5 rounded-md border border-border/60 bg-card/40 py-1.5 pr-3 pl-1.5 transition-colors hover:bg-card/70"
+            className="flex items-center gap-2.5 rounded-md border border-border/60 bg-card/50 py-1.5 pr-3 pl-1.5 transition-colors hover:bg-card/80"
           >
             <img
               src={steamAchievementIconUrl(appid, u.apiName)}
