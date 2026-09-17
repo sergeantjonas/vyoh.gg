@@ -33,6 +33,16 @@ name: vyoh-prod
 # the better home either way — the check there resolves its port from `PORT`
 # rather than restating it. `postgres` does have one below: the stock image
 # ships none.
+# Memory ceilings, not tuning. Measured 2026-09-17 on the live box: web 155 MiB,
+# api 339 MiB, postgres 254 MiB — 748 MiB against 7.9 GB. These sit at roughly
+# 3x observed so a runaway query or a leaking backfill hits its own container
+# instead of the box, where the OOM killer picks a victim by score rather than
+# by blame. Raise one if it ever bites; do not tighten them toward the measured
+# numbers, which would turn a spike into an outage.
+#
+# Deliberately no CPU limits: on 4 vCPU, throttling a legitimate sync tick costs
+# more than it protects, and CPU starvation degrades where memory starvation kills.
+
 x-logging: &logging
   driver: json-file
   options:
@@ -61,6 +71,10 @@ services:
       timeout: 5s
       retries: 12
     logging: *logging
+    deploy:
+      resources:
+        limits:
+          memory: 1g
 
   api:
     # Built and pushed by the `images` job in .github/workflows/ci.yml, tagged
@@ -119,6 +133,10 @@ services:
         condition: service_healthy
     restart: unless-stopped
     logging: *logging
+    deploy:
+      resources:
+        limits:
+          memory: 1536m
 
   web:
     image: ghcr.io/sergeantjonas/vyoh-web:${VYOH_IMAGE_TAG:-main}
@@ -168,6 +186,10 @@ services:
         condition: service_healthy
     restart: unless-stopped
     logging: *logging
+    deploy:
+      resources:
+        limits:
+          memory: 768m
 
 volumes:
   pgdata:
