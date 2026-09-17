@@ -58,9 +58,11 @@ ENV VITE_API_URL=${VITE_API_URL} \
 # unbuildable without a Sentry account, which is the wrong trade for a public
 # repo.
 ARG SENTRY_ORG
+ARG SENTRY_URL
 RUN --mount=type=secret,id=sentry_auth_token \
     SENTRY_AUTH_TOKEN="$(cat /run/secrets/sentry_auth_token 2>/dev/null || true)" \
     SENTRY_ORG="${SENTRY_ORG}" \
+    SENTRY_URL="${SENTRY_URL}" \
     pnpm --filter @vyoh/web build
 
 # Prunes devDependencies into a self-contained tree. Worth doing here (and not

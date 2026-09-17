@@ -87,6 +87,16 @@ const buildTime = new Date().toISOString();
 const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN;
 const sentryOrg = process.env.SENTRY_ORG;
 const sentryProject = process.env.SENTRY_PROJECT ?? "vyohgg-web";
+// Region-scoped, and not optional. This org lives in the EU (its DSN host is
+// `ingest.de.sentry.io`), while sentry-cli defaults its API to sentry.io —
+// which answers for a US org and fails for this one. An `sntrys_` org token
+// carries its region and needs no help; a personal token does not, so setting
+// it explicitly makes the build behave the same either way.
+//
+// `||` rather than `??`, for the reason SENTRY_SAMPLE_RATE already documents:
+// an unset GitHub Actions variable interpolates to an empty string, not to
+// undefined, and `??` would hand sentry-cli `""` as its API base.
+const sentryUrl = process.env.SENTRY_URL || "https://de.sentry.io/";
 
 export default defineConfig({
   define: {
@@ -128,6 +138,15 @@ export default defineConfig({
         // too.
         sourcemaps: { filesToDeleteAfterUpload: [] },
         telemetry: false,
+        url: sentryUrl,
+        // The plugin logs upload failures and lets the build succeed. That is a
+        // reasonable default and the wrong one here: the image would ship,
+        // deploy, and serve minified traces while every check reported green —
+        // the failure mode this whole chunk exists to remove. A token was
+        // supplied, so an upload was intended, so a failure is a build failure.
+        errorHandler: (err) => {
+          throw err;
+        },
       }),
     enableVisualizer &&
       visualizer({
