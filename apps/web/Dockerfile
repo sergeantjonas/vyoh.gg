@@ -47,7 +47,21 @@ ENV VITE_API_URL=${VITE_API_URL} \
     VITE_SENTRY_DSN=${VITE_SENTRY_DSN} \
     VITE_SENTRY_SAMPLE_RATE=${VITE_SENTRY_SAMPLE_RATE}
 
-RUN pnpm --filter @vyoh/web build
+# Sourcemap upload (E3). The org is a public identifier and rides as an ARG;
+# the auth token is a BuildKit secret mount, which exists only for the duration
+# of this RUN and is never written to a layer. An ARG would be readable via
+# `docker history` on a package that is anonymously pullable.
+#
+# `|| true` on the read: absent secret means an unauthenticated build (a local
+# `docker build`, or a fork's CI), and vite.config.ts already no-ops the plugin
+# when the token is empty. Failing here instead would make the image
+# unbuildable without a Sentry account, which is the wrong trade for a public
+# repo.
+ARG SENTRY_ORG
+RUN --mount=type=secret,id=sentry_auth_token \
+    SENTRY_AUTH_TOKEN="$(cat /run/secrets/sentry_auth_token 2>/dev/null || true)" \
+    SENTRY_ORG="${SENTRY_ORG}" \
+    pnpm --filter @vyoh/web build
 
 # Prunes devDependencies into a self-contained tree. Worth doing here (and not
 # in the api image) because nothing in the web runtime is generated at install

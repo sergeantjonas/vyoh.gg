@@ -92,6 +92,13 @@ allowBuilds:
   '@biomejs/biome': true
   '@nestjs/core': true
   '@prisma/engines': true
+  # Declined, and the upload still works — tested rather than assumed. The
+  # sentry-cli @sentry/vite-plugin shells out to is delivered by a
+  # platform-specific optional dependency (`@sentry/cli-linux-x64` and friends),
+  # not by this package's install hook, so the binary is present and runnable
+  # with the hook off. pnpm adds the entry as a placeholder demanding a decision;
+  # this is the decision.
+  '@sentry/cli': false
   '@swc/core': true
   core-js: false
   esbuild: true

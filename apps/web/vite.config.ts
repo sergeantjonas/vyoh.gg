@@ -1,6 +1,7 @@
 import { execSync } from "node:child_process";
 import path from "node:path";
 import babel from "@rolldown/plugin-babel";
+import { sentryVitePlugin } from "@sentry/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
@@ -76,6 +77,17 @@ const buildCommit = (() => {
 })();
 const buildTime = new Date().toISOString();
 
+// Gated on the token so the plugin is inert everywhere except the image build
+// that CI runs on a push to `main`. A local `pnpm build`, a PR check and a
+// contributor's clone all have no token and must not fail for it. The token is
+// the one value in this pipeline that is a repository *secret* rather than a
+// public variable, and it reaches the Docker build through a BuildKit secret
+// mount — never an ARG, which would write it into the image history of a
+// public package.
+const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN;
+const sentryOrg = process.env.SENTRY_ORG;
+const sentryProject = process.env.SENTRY_PROJECT ?? "vyohgg-web";
+
 export default defineConfig({
   define: {
     __BUILD_TIME__: JSON.stringify(buildTime),
@@ -98,6 +110,25 @@ export default defineConfig({
     babel({ presets: [reactCompilerPreset()] }),
     tailwindcss(),
     devFlattenCssNesting(),
+    // Last in the list on purpose: it reads the emitted bundle and its maps, so
+    // it has to run after everything that writes them. `release` is the same
+    // string as the deployed image tag — BUILD_COMMIT is github.sha cut to
+    // seven in both places — so an issue names a tag that can be deployed and
+    // rolled back, rather than an opaque release id.
+    sentryAuthToken &&
+      sentryOrg &&
+      sentryVitePlugin({
+        org: sentryOrg,
+        project: sentryProject,
+        authToken: sentryAuthToken,
+        release: { name: buildCommit },
+        // Kept rather than deleted after upload: the repo is public, the maps
+        // cost image size but no runtime bytes (a browser fetches one only with
+        // devtools open), and keeping them means traces resolve outside Sentry
+        // too.
+        sourcemaps: { filesToDeleteAfterUpload: [] },
+        telemetry: false,
+      }),
     enableVisualizer &&
       visualizer({
         filename: "dist/stats.html",
@@ -126,6 +157,20 @@ export default defineConfig({
   },
   build: {
     target: "baseline-widely-available",
+    // Without this every browser stack trace Sentry shows is minified, which
+    // makes the whole browser half of error tracking look like it works while
+    // being useless. The usual objection — shipping sourcemaps exposes your
+    // source — does not apply here: the repo is public, and the maps ship in
+    // the image either way.
+    //
+    // `"hidden"` rather than `true`, measured rather than assumed: it omits the
+    // `//# sourceMappingURL=` comments, which are counted bytes in the initial
+    // JS the budget gates on — 252.41 kB against 255 kB, where `true` cost
+    // 253.59 kB and left 1.4 kB of headroom. Sentry resolves traces from the
+    // upload regardless, and anyone who wants a map can still fetch
+    // `<chunk>.js.map`; the only thing given up is devtools resolving them
+    // automatically. Raising the budget to buy that was declined once already.
+    sourcemap: "hidden",
     // Emitted for `.size-limit.cjs`, which used to derive the initial-JS set by
     // parsing `dist/index.html`. Start renders the document per request, so
     // there is no build-time HTML left to parse and the manifest is the only
