@@ -1,6 +1,6 @@
 # Post-launch operations
 
-**Status:** Active — opened 2026-09-17, the day vyoh.gg went live, from what the launch itself exposed. Four chunks, each independently landable, **chunk 1 shipped the same evening**, plus a routine-operations reference that did not exist before. The launch runbook in [hosting.md](hosting.md#launch-runbook--added-2026-08-20) is deliberately a one-time document; **this is the one that applies every day after it**. Read this before touching `scripts/deploy.sh`.
+**Status:** Active — opened 2026-09-17, the day vyoh.gg went live, from what the launch itself exposed. Four chunks, each independently landable, **chunks 1, 3 and 4 shipped the same evening**, plus a routine-operations reference that did not exist before. The launch runbook in [hosting.md](hosting.md#launch-runbook--added-2026-08-20) is deliberately a one-time document; **this is the one that applies every day after it**. Read this before touching `scripts/deploy.sh`.
 
 The runbook covered getting to production and covered it well. What no document covered was what happens on the two hundred days after — deploying a change, rolling one back, and noticing that something has quietly stopped working. Each chunk below traces to something that actually happened on 2026-09-17 rather than to a general sense that operations deserve attention.
 
@@ -85,7 +85,9 @@ Rollback is documented, plausible, and has never been run. That is the same posi
 
 Worth finding out and writing down: how long the round trip takes, whether `docker image prune -f` in the deploy has already removed the images a rollback wants, and whether anything in the web bundle's baked `__BUILD_COMMIT__` reads oddly afterwards.
 
-## Chunk 3 — say when error reporting is off
+## Chunk 3 — say when error reporting is off — SHIPPED 2026-09-17
+
+`deploy.sh` reads both DSNs from `/srv/vyoh/.env` after the smoke and names any that is empty, as a warning. Values are never printed, only variable names. It reads the file rather than asking the container because an *empty* value is the thing being looked for, and `printenv` cannot distinguish unset from empty once the compose `:-` default has been applied. The original scoping follows.
 
 `SENTRY_DSN` and `SENTRY_WEB_DSN` carry `:-` defaults rather than `:?` guards, deliberately: an absent DSN disables the SDK, which is correct in dev and must not fail a boot. The cost is that an empty one is indistinguishable at runtime from a healthy one with nothing to report. Between first deploy and the evening of 2026-09-17, production reported nothing and looked exactly like production reporting nothing because nothing had gone wrong.
 
@@ -93,7 +95,15 @@ Worth finding out and writing down: how long the round trip takes, whether `dock
 
 The smallest of the four and the least interesting, which is exactly why it is written down instead of remembered.
 
-## Chunk 4 — warn when the shipped ops config is not the installed one
+## Chunk 4 — warn when the shipped ops config is not the installed one — SHIPPED 2026-09-17
+
+**The shape below was wrong, and running it against the box is what showed that.** A content `diff` reports both vhosts as differing on every deploy, permanently: certbot rewrote the installed copies in place to add the TLS blocks and the `:80` redirect, while the repo keeps them plain HTTP by decision. A check that fires every time is noise, and noise is what the deploy already had too much of.
+
+**What shipped compares mtimes instead — shipped newer than installed.** That stays silent through certbot's edits, which make the *installed* copy newer, and speaks up for the case that actually matters: a file edited in the repo, shipped by the rsync, never installed. `rsync -a` preserves mtimes, which is what makes it work. A fresh clone resets them and earns one spurious warning, at a moment when "check whether the box matches" is the right instinct anyway. It also reports `absent` for a file never installed at all.
+
+Settled the open question the scoping left: **a warning, not a non-zero exit.** The counter-argument was that this drift persists across later deploys where an absent DSN does not — true, but the answer to a persistent warning is to install the file, and failing the deploy would punish a legitimate intermediate state.
+
+The original scoping follows.
 
 The third member of the family chunks 1 and 3 belong to: a deploy that reports success while something it shipped is not in effect. A changed nginx vhost or systemd unit reaches `/srv/vyoh/deploy/` and goes no further, and nothing says so.
 

@@ -203,5 +203,74 @@ if [[ $public_failed -ne 0 ]]; then
   exit 1
 fi
 
+# Warnings, never failures. Both of the states below are legitimate — error
+# tracking can be deliberately off, and shipping a config change you have not
+# installed yet is a normal intermediate step. They just must not be silent,
+# which is the same defect the public smoke above exists to close.
+cyan "→ notices"
+notices=0
+
+# Read from .env rather than the container: an empty value is the thing being
+# looked for, and `printenv` cannot distinguish unset from empty across the
+# compose default. Values are never printed, only names.
+empty_dsns="$(ssh "$host" 'cd '"${remote}"' 2>/dev/null || exit 0
+for v in SENTRY_DSN SENTRY_WEB_DSN; do
+  val=$(sed -n "s/^${v}=//p" .env 2>/dev/null)
+  if [ -z "$val" ]; then echo "$v"; fi
+done' || true)"
+
+if [[ -n $empty_dsns ]]; then
+  notices=1
+  while read -r v; do
+    [[ -z $v ]] && continue
+    yellow "  ${v} is empty — that tier reports nothing, and looks identical to having nothing to report"
+  done <<< "$empty_dsns"
+fi
+
+# The rsync above ships deploy/ to the box; it does not install anything.
+# /etc/nginx and /etc/systemd/system hold copies, so a changed vhost or unit
+# sits on the box while the old one keeps running. Reading both locations needs
+# no privileges, which is why this reports rather than installs — see
+# docs/working-notes/ops/post-launch-ops.md § Chunk 4 for why not to automate it.
+#
+# Newer-than, not different-from. The installed vhosts are *permanently*
+# different: certbot rewrote them in place to add the TLS blocks and the :80
+# redirect, while the repo keeps them plain HTTP on purpose. A content compare
+# therefore fires on every deploy forever and becomes noise. An mtime compare
+# stays quiet through certbot's edits (which make the installed copy newer) and
+# speaks up for the case that matters — a file edited in the repo and shipped
+# but never installed. `rsync -a` preserves mtimes, which is what makes this
+# work; a fresh clone resets them and earns one spurious warning, at a moment
+# when "check whether the box matches" is the right instinct anyway.
+drift="$(ssh "$host" 'cd '"${remote}"'/deploy 2>/dev/null || exit 0
+check() {
+  [ -e "$2" ] || { echo "absent    $2"; return; }
+  [ "$1" -nt "$2" ] && echo "stale     $2"
+}
+for f in nginx/*.conf; do
+  [ -e "$f" ] || continue
+  b=$(basename "$f")
+  case "$b" in
+    *cache.conf) check "$f" "/etc/nginx/conf.d/$b" ;;
+    *)           check "$f" "/etc/nginx/sites-available/$b" ;;
+  esac
+done
+for f in systemd/*.service systemd/*.timer; do
+  [ -e "$f" ] || continue
+  check "$f" "/etc/systemd/system/$(basename "$f")"
+done' || true)"
+
+if [[ -n $drift ]]; then
+  notices=1
+  yellow "  shipped ops config is not what is installed:"
+  while read -r line; do
+    [[ -z $line ]] && continue
+    yellow "    ${line}"
+  done <<< "$drift"
+  yellow "  install with: sudo cp ${remote}/deploy/nginx/<file> /etc/nginx/sites-available/ && sudo nginx -t && sudo systemctl reload nginx"
+fi
+
+[[ $notices -eq 0 ]] && green "  none"
+
 green ""
 green "Deployed ${tag} to ${host}."
