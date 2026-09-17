@@ -19,9 +19,25 @@ directive and cannot live inside a `server` block.
 
 ## Install
 
+These files reach the box in `deploy.sh`'s rsync, so on a box that has never
+been deployed to they are not there yet. Send them up first, from the repo root
+on the laptop:
+
 ```sh
-sudo cp deploy/nginx/vyoh-cache.conf /etc/nginx/conf.d/
-sudo cp deploy/nginx/vyoh.gg.conf deploy/nginx/api.vyoh.gg.conf /etc/nginx/sites-available/
+rsync -az deploy/ vyoh:/srv/vyoh/deploy/
+```
+
+Then, on the box:
+
+```sh
+# nginx's mkdir() for a proxy_cache_path goes one level deep, so an absent
+# /var/cache/nginx fails `nginx -t` with ENOENT before it reads a single vhost.
+# Workers write the cache, hence the ownership.
+sudo mkdir -p /var/cache/nginx/vyoh-img
+sudo chown -R www-data:www-data /var/cache/nginx
+
+sudo cp /srv/vyoh/deploy/nginx/vyoh-cache.conf /etc/nginx/conf.d/
+sudo cp /srv/vyoh/deploy/nginx/vyoh.gg.conf /srv/vyoh/deploy/nginx/api.vyoh.gg.conf /etc/nginx/sites-available/
 sudo ln -sf /etc/nginx/sites-available/vyoh.gg.conf /etc/nginx/sites-enabled/
 sudo ln -sf /etc/nginx/sites-available/api.vyoh.gg.conf /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx

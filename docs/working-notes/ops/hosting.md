@@ -1,6 +1,6 @@
 # Hosting plan and pre-deploy checklist
 
-**Status:** Active — **Option C (VPS + Docker Compose) chosen 2026-07-26, on a netcup VPS 1000 G12 ordered 2026-09-16**, and **the machinery is written and verified as of 2026-07-27** ([Start migration](../cross-cutting/tanstack-start-migration.md) chunk 6). Nginx routes `vyoh.gg` and `api.vyoh.gg` as separate vhosts on the one VM; "same-origin" in the earlier drafts meant one machine, not one origin. Checklist items 1–3 are done in code; **4–7 remain — 4, 5 and 7 need the box, ordered 2026-09-16 and not yet provisioned, and 6 (backups, added 2026-08-01) is written and locally verified but not yet installed anywhere** — nothing *here* is blocked on the repo any more, it is blocked on the box coming up. That is a claim about this checklist, not about launch: two repo-side launch gates were added 2026-09-12 in [observability-floor.md](observability-floor.md) and land before the box does. Item 7 (seeding prod from the dev database, added 2026-08-16) is a launch step rather than a gate, but it is the reason launch is not the same thing as an empty database. The full launch-gate list (owner auth, ValidationPipe V3, timeZone sweep, branch protection, and this file's items 4–6) lives in [pre-launch-sweep.md](pre-launch-sweep.md).
+**Status:** Active — **Option C (VPS + Docker Compose) chosen 2026-07-26, on a netcup VPS 1000 G12 ordered 2026-09-16**, and **the machinery is written and verified as of 2026-07-27** ([Start migration](../cross-cutting/tanstack-start-migration.md) chunk 6). Nginx routes `vyoh.gg` and `api.vyoh.gg` as separate vhosts on the one VM; "same-origin" in the earlier drafts meant one machine, not one origin. Checklist items 1–3 are done in code; **4–7 remain — the box was provisioned and bootstrapped 2026-09-17, which is written up as [§ 9](#9-box-bootstrap--added-2026-09-17), so 4, 5 and 7 are in flight rather than blocked, and 6 (backups, added 2026-08-01) is written and locally verified but not yet installed anywhere** — nothing *here* is blocked on the repo any more. That is a claim about this checklist, not about launch: two repo-side launch gates were added 2026-09-12 in [observability-floor.md](observability-floor.md) and land before the box does. Item 7 (seeding prod from the dev database, added 2026-08-16) is a launch step rather than a gate, but it is the reason launch is not the same thing as an empty database. The full launch-gate list (owner auth, ValidationPipe V3, timeZone sweep, branch protection, and this file's items 4–6) lives in [pre-launch-sweep.md](pre-launch-sweep.md).
 
 **Read the [launch runbook](#launch-runbook--added-2026-08-20) first on the night.** The numbered items below it are reference detail on individual topics, not an order of operations, and three of them carry ordering constraints that only make sense once seen together — DNS before the first build because `VITE_API_URL` is baked in, `.env` on the box before the first deploy because compose refuses to start without it, and the backup drill after seeding rather than before so it tests a dump of real data. A 2026-08-20 audit of exactly this question found that every piece of the deploy was documented and the sequence was not, plus one hole that would have failed the first deploy outright (`compose.prod.yaml` never passed the owner-auth env vars).
 
@@ -87,9 +87,9 @@ The numbered sections below this one are reference detail, not a sequence —
 1 through 3 are already shipped code, and 4 through 8 are topics rather than
 steps.
 
-**0. The box — bought 2026-09-16.** A **netcup VPS 1000 G12**: 4 vCPU / 8 GB / 256 GB NVMe, Nuremberg, x86, hourly billing. Not the Hetzner CX43 this step named until then — Hetzner has had every CX and CAX plan unavailable since early September with no restock date, and the 16 GB argument stopped applying once builds moved off the box ([§ Sizing implications](#sizing-implications)). Docker, docker-compose-plugin, nginx, certbot. Nothing below works without it, and nothing above it in the repo is still blocking.
+**0. The box — bought 2026-09-16.** A **netcup VPS 1000 G12**: 4 vCPU / 8 GB / 256 GB NVMe, Nuremberg, x86, hourly billing. Not the Hetzner CX43 this step named until then — Hetzner has had every CX and CAX plan unavailable since early September with no restock date, and the 16 GB argument stopped applying once builds moved off the box ([§ Sizing implications](#sizing-implications)). Provisioned 2026-09-17 with Debian 13 pre-installed; the bootstrap it needs before step 1 — deploy user, Docker, nginx, certbot, SSH hardening and the netcup panel firewall — is [§ 9](#9-box-bootstrap--added-2026-09-17). Nothing below works without it, and nothing above it in the repo is still blocking.
 
-**1. DNS first, before any image is built.** Point `vyoh.gg`, `www.vyoh.gg` and `api.vyoh.gg` at the box ([§ 4](#4-custom-domain)). This has to precede the first build rather than follow it: `VITE_API_URL` is a **build argument** baked into the bundle and into the markup `head()` emits, so changing the api hostname later means rebuilding the web image, not editing a file. The prod OAuth app in step 3 also needs the final api hostname before it can be registered.
+**1. DNS first, before any image is built.** Point `vyoh.gg`, `www.vyoh.gg` and `api.vyoh.gg` at the box ([§ 4](#4-custom-domain)), then verify with `dig +short` against the address SCP → Network lists for the *server* — the gateway sits beside it on that page, and an A record pointing there still issues a certificate over IPv6 while serving nothing over v4 ([§ 9 IPv6](#ipv6)). This has to precede the first build rather than follow it: `VITE_API_URL` is a **build argument** baked into the bundle and into the markup `head()` emits, so changing the api hostname later means rebuilding the web image, not editing a file. The prod OAuth app in step 3 also needs the final api hostname before it can be registered.
 
 Same ordering, same reason, one layer out: **set the `VITE_API_URL`, `VITE_SITE_URL` and `VITE_SENTRY_DSN` repository variables in GitHub before the first push to `main` that should produce a deployable image** ([image-pipeline.md](image-pipeline.md)). A push to `main` is now what builds the web image, so the hostname has to be settled before that push rather than before a deploy. The job refuses to build without both, which makes forgetting loud rather than silent. These do **not** replace the `.env` line in step 2: `compose.prod.yaml` keeps its `build:` block, and compose interpolates `build.args` at config load even under `up --no-build`, so `VITE_API_URL` is required on the box too.
 
@@ -103,7 +103,9 @@ step 3.
 
 **3. Register the production GitHub OAuth app.** A **separate** app from the dev one: the client secret is shared across every redirect URI on a registration, so reusing dev's makes a laptop leak a production credential. Callback URL is `https://api.vyoh.gg/auth/github/callback`. Put the id, the secret, a fresh `SESSION_SECRET` (`openssl rand -hex 32`) and `OWNER_GITHUB_USER_ID` into the `.env` from step 2. Detail in [owner-auth.md](owner-auth.md).
 
-**4. Install nginx config, then TLS.** [`deploy/nginx/README.md`](../../../deploy/nginx/README.md). One ordering trap inside it: `vyoh-cache.conf` goes into `conf.d/` **before** enabling the vhosts, because they reference the `limit_req_zone` it declares and nginx will refuse to load a vhost naming a zone that does not exist yet. Then `certbot --nginx -d vyoh.gg -d www.vyoh.gg -d api.vyoh.gg`.
+**4. Install nginx config, then TLS.** [`deploy/nginx/README.md`](../../../deploy/nginx/README.md). Three traps inside it, all of which fail a first install specifically. The configs arrive on the box in step 5's rsync, so this step has to send them up by hand first (`rsync -az deploy/ vyoh:/srv/vyoh/deploy/`) — it reads their files before the thing that delivers them has run. `/var/cache/nginx` must exist, because nginx's `mkdir()` for the image-proxy `proxy_cache_path` goes one level deep and `nginx -t` fails with ENOENT before it parses a vhost. And `vyoh-cache.conf` goes into `conf.d/` **before** enabling the vhosts, because they reference the `limit_req_zone` it declares and nginx will refuse to load a vhost naming a zone that does not exist yet.
+
+Then TLS. Run it against staging first if the AAAA records from step 1 exist — `certbot certonly --nginx --dry-run -d vyoh.gg -d www.vyoh.gg -d api.vyoh.gg`. Let's Encrypt prefers IPv6 when an AAAA is published, so a v4-only firewall rule set fails the real issuance in a way that names nothing about IPv6, and the dry run costs no rate limit. Then `certbot --nginx -d vyoh.gg -d www.vyoh.gg -d api.vyoh.gg`.
 
 **5. First deploy — against an empty database.** `VYOH_DEPLOY_HOST=vyoh scripts/deploy.sh`. It refuses if the tag is not published, ships the ops files, **pulls both images from GHCR** and brings the stack up with `--no-build`, then smoke-checks the loopback endpoints and exits non-zero if they do not answer. The box never builds ([image-pipeline.md](image-pipeline.md)). The api's entrypoint applies all migrations on start, so this is also what creates the schema.
 
@@ -577,6 +579,158 @@ reason to skip C is that ratio, not the one currently written in the Dockerfile.
 
 **Not urgent either way:** 160 GB disk, and layer caching means only changed
 layers move on a deploy.
+
+### 9. Box bootstrap — added 2026-09-17
+
+Step 0 names a destination — Docker, nginx, certbot — and not the route. This is
+the route.
+
+netcup splits its panels and they take different credentials: **CCP**
+(`customercontrolpanel.de`) holds products, invoices and DNS, **SCP**
+(`servercontrolpanel.de`) holds the server itself — console, network, rescue
+system, firewall. The SCP login arrives in its own provisioning mail. The VPS
+1000 G12 ships with Debian 13 already installed, so image installation is not
+part of this.
+
+Two recovery paths exist before anything below can lock you out, both in SCP:
+the noVNC **Console**, which survives any sshd or firewall mistake, and the
+**Rescue system**, which boots a live image with the disk mounted. Root's
+password keeps working on the console after `PasswordAuthentication no`, because
+that setting belongs to sshd alone.
+
+#### The bootstrap
+
+As root, after `ssh-copy-id root@<ip>`:
+
+```sh
+adduser --disabled-password --gecos "" deploy
+mkdir -p /home/deploy/.ssh && cp ~/.ssh/authorized_keys /home/deploy/.ssh/
+chown -R deploy:deploy /home/deploy/.ssh && chmod 700 /home/deploy/.ssh
+
+apt update && apt install -y sudo ca-certificates curl gnupg nginx certbot python3-certbot-nginx rsync
+usermod -aG sudo deploy
+
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+chmod a+r /etc/apt/keyrings/docker.asc
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] \
+  https://download.docker.com/linux/debian $(. /etc/os-release && echo $VERSION_CODENAME) stable" \
+  > /etc/apt/sources.list.d/docker.list
+apt update && apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+usermod -aG docker deploy
+
+mkdir -p /srv/vyoh && chown deploy:deploy /srv/vyoh
+timedatectl set-timezone Europe/Brussels
+passwd deploy
+```
+
+Four of those lines are load-bearing for reasons not visible in them:
+
+- **`usermod -aG docker deploy`** is what lets `deploy.sh` run `docker compose`
+  over ssh without `sudo`; without it every remote command in the script fails
+  on permissions.
+- **`chown deploy:deploy /srv/vyoh`** is what lets the same script rsync into it.
+- **`timedatectl set-timezone`** is for the host, not the containers — those take
+  `TZ` from compose. It covers backup filenames and journal timestamps; the
+  seeding precondition in [§ 7](#7-seed-production-from-the-dev-database--added-2026-08-16)
+  is about the container zone, which compose already sets.
+- **`passwd deploy`** is required *because of* `--disabled-password`. sudo
+  authenticates the invoking user against their own password and a locked
+  account has none, so skipping this leaves the first `sudo` in step 4 with no
+  way to succeed while root ssh is already off — a console trip to fix. It does
+  not reopen password ssh; that is sshd's setting and stays `no`.
+
+`adduser --disabled-password` prints `usermod: no changes` on Debian 13. It is
+cosmetic: adduser applies the flag through usermod, which finds nothing to change
+on an account that never had a password. `id deploy` is the check.
+
+#### SSH hardening, and the drop-in that outranks it
+
+```sh
+sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin no/; s/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+sshd -T | grep -Ei 'permitrootlogin|passwordauthentication'
+```
+
+**The second line is the one that matters.** `/etc/ssh/sshd_config.d/` is
+`Include`d at the top of the main file and sshd is first-match-wins, so a
+cloud-init drop-in carrying `PasswordAuthentication yes` silently beats the edit
+above. `sshd -T` prints the resolved config, which is the only honest answer.
+Verify `ssh deploy@<ip>` and `sudo -n true` from a second terminal before
+closing the root session.
+
+#### The netcup firewall
+
+SCP carries a firewall, and it is the better layer here for two reasons:
+**Docker writes iptables rules that are evaluated ahead of ufw's**, so a
+published container port stays reachable through a ufw deny, and a lockout is
+recoverable from a browser tab rather than from the console.
+
+Its model is not per-server rules. Rules live in **Firewall Policies** —
+account-level objects attached to a server as an ordered list, flattened top to
+bottom, first match winning. Two netcup defaults ship attached: outgoing SMTP
+dropped, ICMP allowed both ways. A third, **`Implicit Rules → Accept all
+incoming`**, is appended by the system and is therefore the effective policy
+until something above it says otherwise. A fresh box with the firewall toggled
+*on* is still fully open inbound.
+
+The policy this box runs, attached **below** both netcup defaults so ICMP still
+matches first:
+
+| # | Action | Direction | Protocol | Dst port |
+|---|---|---|---|---|
+| 1 | ACCEPT | INCOMING | TCP | 22 |
+| 2 | ACCEPT | INCOMING | TCP | 80 |
+| 3 | ACCEPT | INCOMING | TCP | 443 |
+| 4 | DROP | INCOMING | TCP | `*` |
+| 5 | DROP | INCOMING | UDP | `*` |
+
+Four things that encodes:
+
+- **The protocol dropdown has no ANY** — TCP, UDP, ICMP, ICMPv6 only — so
+  default-deny costs two rules rather than one. Other IP protocols (GRE, ESP,
+  SCTP) still reach the implicit accept and cannot be closed from this UI.
+  Accepted: nothing on the box speaks them.
+- **No ICMP or ICMPv6 DROP.** Dropping ICMPv6 takes Neighbour Discovery and Path
+  MTU Discovery with it, which removes IPv6 entirely.
+- **The outgoing side stays untouched.** `steam-user` reaches Steam CMs on a
+  rotating 27015-27050 range (§ Steam network protocol) and that failure is a
+  silent timeout rather than an error.
+- **Saving spans two screens.** `Apply` in the Edit Policies dialog only stages
+  the attachment; the Firewall tab's own `Save` pushes it. A policy that looks
+  attached but was never saved leaves the box open, and the tell is a fast
+  `Connection refused` on a closed port where a live DROP gives a timeout.
+
+**It is stateful**, verified 2026-09-17: with rules 4 and 5 live, an outbound
+HTTPS request from the box still answers 200, so return traffic is not caught by
+the blanket incoming drop. That was the one finding that could have forced ufw
+and an `established,related` rule instead.
+
+#### IPv6
+
+netcup configures a global v6 address and a `fe80::1` default route on the image,
+and the box reaches the v6 internet without intervention, so publishing AAAA
+records is safe — both vhosts already carry `listen [::]:80`.
+
+What is *not* verifiable from the laptop is inbound v6, when the laptop's own
+connection is v4-only: an immediate "couldn't connect" there is the local stack
+declining to route, not the box declining the packet. The certbot staging dry run
+in step 4 answers it properly, because Let's Encrypt validates from a network
+that does have IPv6.
+
+**Inbound v6 is confirmed reachable, and the proof was an accident.** The first
+issuance succeeded while the A records still pointed at netcup's gateway address
+rather than the server — `159.195.24.1` instead of `159.195.25.131`, two
+adjacent fields on the SCP network page. Let's Encrypt prefers IPv6 when an AAAA
+is published, so the HTTP-01 challenge reached the right box over v6 and issued
+a certificate for all three names while a browser over v4 was still timing out.
+The firewall's TCP ACCEPT rules therefore cover both address families, which the
+policy editor gives no way to state and no way to read back.
+
+The trap worth naming: **a wrong A record and a right AAAA record produce a
+working certificate and an unreachable site.** Neither `certbot certificates`
+nor the deploy smoke says anything about it, because the smoke hits loopback.
+`dig +short vyoh.gg` against the address in SCP is the check, and it belongs in
+step 1 rather than after the deploy.
 
 ---
 
