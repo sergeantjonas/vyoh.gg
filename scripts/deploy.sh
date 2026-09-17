@@ -267,7 +267,13 @@ if [[ -n $drift ]]; then
     [[ -z $line ]] && continue
     yellow "    ${line}"
   done <<< "$drift"
-  yellow "  install with: sudo cp ${remote}/deploy/nginx/<file> /etc/nginx/sites-available/ && sudo nginx -t && sudo systemctl reload nginx"
+  # No generic `cp` hint here, deliberately. The destination differs per file,
+  # and for a vhost certbot has rewritten in place a copy would drop the TLS
+  # block — the repo keeps those files plain HTTP on purpose. A hint that is
+  # right for `conf.d/` and catastrophic for `sites-available/` is worse than
+  # no hint, so this points at the procedure instead of guessing.
+  yellow "  each path above is the destination; install to it, then: sudo nginx -t && sudo systemctl reload nginx"
+  yellow "  a vhost certbot has rewritten must be edited in place, never copied over — see docs/working-notes/ops/post-launch-ops.md § Before the second tenant"
 fi
 
 [[ $notices -eq 0 ]] && green "  none"
