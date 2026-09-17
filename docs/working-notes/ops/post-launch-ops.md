@@ -1,6 +1,6 @@
 # Post-launch operations
 
-**Status:** Active — opened 2026-09-17, the day vyoh.gg went live, from what the launch itself exposed. Three chunks, each independently landable, plus a routine-operations reference that did not exist before. The launch runbook in [hosting.md](hosting.md#launch-runbook--added-2026-08-20) is deliberately a one-time document; **this is the one that applies every day after it**. Read this before touching `scripts/deploy.sh`.
+**Status:** Active — opened 2026-09-17, the day vyoh.gg went live, from what the launch itself exposed. Four chunks, each independently landable, plus a routine-operations reference that did not exist before. The launch runbook in [hosting.md](hosting.md#launch-runbook--added-2026-08-20) is deliberately a one-time document; **this is the one that applies every day after it**. Read this before touching `scripts/deploy.sh`.
 
 The runbook covered getting to production and covered it well. What no document covered was what happens on the two hundred days after — deploying a change, rolling one back, and noticing that something has quietly stopped working. Each chunk below traces to something that actually happened on 2026-09-17 rather than to a general sense that operations deserve attention.
 
@@ -15,6 +15,17 @@ VYOH_DEPLOY_HOST=vyoh scripts/deploy.sh
 ```
 
 One command, from the repo root on the laptop. It refuses before touching the box if `sha-<7>` of HEAD is not published, ships the ops files, pulls both images, brings the stack up with `--no-build`, and smoke-checks the loopback endpoints. `main` is protected, so the commit has to be merged and its `images` job green first — the refusal is what tells you it is not.
+
+Nothing needs doing on the box afterwards. `up -d` recreates whatever changed and blocks on the healthchecks. It also picks up `/srv/vyoh/.env` edits, because compose re-resolves configuration on every `up` — the only time a manual `up` is needed is editing `.env` *without* deploying, and then the image tag has to be passed explicitly or it falls back to the `main` default and quietly moves off the pinned build.
+
+**But the deploy does not touch nginx or systemd.** It rsyncs `deploy/` to `/srv/vyoh/deploy/` and stops. `/etc/nginx/` and `/etc/systemd/system/` hold *copies*, not symlinks, so a changed vhost, a changed `vyoh-cache.conf` or a changed unit file lands on the box while the running configuration stays stale — and the deploy reports success either way. Installing is manual and needs `sudo`, which `deploy.sh` deliberately does not have:
+
+```sh
+sudo cp /srv/vyoh/deploy/nginx/vyoh.gg.conf /etc/nginx/sites-available/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Chunk 4 makes that drift loud rather than automating it away.
 
 ### Roll back
 
@@ -60,7 +71,17 @@ Worth finding out and writing down: how long the round trip takes, whether `dock
 
 **Shape:** have `deploy.sh` read the two values from `/srv/vyoh/.env` and print a warning — not a failure — when either is empty. A failure would be wrong: a deploy with error tracking off is a legitimate state, it just should not be a silent one.
 
-This is the smallest of the three and the least interesting, which is exactly why it is written down instead of remembered.
+The smallest of the four and the least interesting, which is exactly why it is written down instead of remembered.
+
+## Chunk 4 — warn when the shipped ops config is not the installed one
+
+The third member of the family chunks 1 and 3 belong to: a deploy that reports success while something it shipped is not in effect. A changed nginx vhost or systemd unit reaches `/srv/vyoh/deploy/` and goes no further, and nothing says so.
+
+**Do not automate the install.** Copying into `/etc/nginx/` and reloading needs `sudo`, and `deploy.sh` runs as `deploy` over ssh specifically so it does not have it — the `docker` group is the one privilege it was given. Granting a sudoers rule to save two commands would trade a deliberate boundary for convenience, and an automatic `systemctl reload nginx` inside a deploy is a good way to take the site down on a config that `nginx -t` would have caught.
+
+**Shape:** after the rsync, `diff` each file under `/srv/vyoh/deploy/nginx/` against its counterpart in `/etc/nginx/`, and each unit against `/etc/systemd/system/`. Print the list of files that differ, with the `sudo cp` line needed to install them. No sudo required to read either location, so this stays inside the privileges the script already has.
+
+Worth deciding when writing it: whether drift should be a warning or a non-zero exit. A warning matches chunk 3's reasoning — shipping a config change you have not installed yet is a legitimate intermediate state. The counter-argument is that unlike an absent Sentry DSN, this one silently persists across every later deploy, since each one re-ships the same already-diverged file.
 
 ## Not in scope
 
