@@ -138,7 +138,26 @@ describe("SteamIdentityHero", () => {
   });
 
   it("shows the persona-state presence label when not in-game", () => {
+    playerStateMock.mockReturnValue(playerState({ personaState: "online" }));
+    renderHero();
+    expect(screen.getByText("Online")).toBeTruthy();
+  });
+
+  it("prefers the polled player-state over the summary's persona state", () => {
+    // The two queries disagree by design: player-state refetches every 30s,
+    // summary has a 5-minute stale time and no interval. Reading the summary
+    // pinned the badge to page-load state while the timestamp beside it kept
+    // saying "checked just now".
+    summaryMock.mockReturnValue(summary({ personaState: "away" }));
+    playerStateMock.mockReturnValue(playerState({ personaState: "online" }));
+    renderHero();
+    expect(screen.getByText("Online")).toBeTruthy();
+    expect(screen.queryByText("Away")).toBeNull();
+  });
+
+  it("falls back to the summary when the poller has written no row yet", () => {
     summaryMock.mockReturnValue(summary({ personaState: "online" }));
+    playerStateMock.mockReturnValue(undefined);
     renderHero();
     expect(screen.getByText("Online")).toBeTruthy();
   });
@@ -195,7 +214,7 @@ describe("SteamIdentityHero", () => {
   });
 
   it("wears a sky activity ring when online (Steam brand colour, not emerald)", () => {
-    summaryMock.mockReturnValue(summary({ personaState: "online" }));
+    playerStateMock.mockReturnValue(playerState({ personaState: "online" }));
     const { container } = renderHero();
     const avatar = container.querySelector<HTMLImageElement>(
       'img[data-presence="online"]'
@@ -208,7 +227,7 @@ describe("SteamIdentityHero", () => {
   });
 
   it("maps each non-online persona state to its ring colour", () => {
-    const cases: Array<[SteamSummary["personaState"], string]> = [
+    const cases: Array<[SteamPlayerState["personaState"], string]> = [
       ["busy", "ring-rose-400"],
       ["away", "ring-amber-400"],
       ["snooze", "ring-amber-400"],
@@ -217,7 +236,7 @@ describe("SteamIdentityHero", () => {
       ["offline", "ring-white/15"],
     ];
     for (const [state, ringClass] of cases) {
-      summaryMock.mockReturnValue(summary({ personaState: state }));
+      playerStateMock.mockReturnValue(playerState({ personaState: state }));
       const { container, unmount } = renderHero();
       const avatar = container.querySelector<HTMLImageElement>(
         `img[data-presence="${state}"]`
