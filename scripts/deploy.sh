@@ -19,6 +19,8 @@ set -euo pipefail
 #   VYOH_IMAGE_TAG    image tag to deploy   (default sha-<short HEAD>)
 #   VYOH_WEB_URL      loopback smoke target (default http://127.0.0.1:2009)
 #   VYOH_API_URL      loopback smoke target (default http://127.0.0.1:2010)
+#   VYOH_PUBLIC_WEB_URL  public smoke target (default https://vyoh.gg)
+#   VYOH_PUBLIC_API_URL  public smoke target (default https://api.vyoh.gg)
 
 cd "$(dirname "$0")/.."
 
@@ -31,6 +33,9 @@ host="${VYOH_DEPLOY_HOST:-}"
 remote="${VYOH_DEPLOY_PATH:-/srv/vyoh}"
 web_url="${VYOH_WEB_URL:-http://127.0.0.1:2009}"
 api_url="${VYOH_API_URL:-http://127.0.0.1:2010}"
+# Overridable so the script stays usable for a second tenant on the same box.
+public_web_url="${VYOH_PUBLIC_WEB_URL:-https://vyoh.gg}"
+public_api_url="${VYOH_PUBLIC_API_URL:-https://api.vyoh.gg}"
 api_image="ghcr.io/sergeantjonas/vyoh-api"
 web_image="ghcr.io/sergeantjonas/vyoh-web"
 
@@ -162,6 +167,110 @@ if [[ $smoke_failed -ne 0 ]]; then
   red "  ssh ${host} 'cd ${remote} && docker compose -f compose.prod.yaml logs --tail 100'"
   exit 1
 fi
+
+# The loopback smoke above proves the containers came up. It says nothing about
+# whether anyone can reach them: DNS, nginx, TLS and the firewall all sit above
+# it. On 2026-09-17 this script reported a successful deploy while the site was
+# unreachable over IPv4, because the A records pointed at the provider's gateway
+# rather than the server.
+#
+# Run from here rather than over ssh, deliberately. A curl on the box can be
+# satisfied by a hosts entry or a loopback route and proves nothing about what a
+# visitor gets.
+cyan "→ public smoke"
+public_failed=0
+for target in "$public_web_url" "$public_web_url/robots.txt" "${public_api_url}/health"; do
+  status=""
+  for _ in 1 2 3 4 5; do
+    status="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$target" || true)"
+    [[ $status == "200" ]] && break
+    sleep 3
+  done
+  if [[ $status == "200" ]]; then
+    green "  200  ${target}"
+  else
+    red "  ${status:-no response}  ${target}"
+    public_failed=1
+  fi
+done
+
+if [[ $public_failed -ne 0 ]]; then
+  red ""
+  red "The stack is healthy on the box but unreachable from here."
+  red "That points at DNS, nginx, TLS or the firewall — not at the containers:"
+  red "  dig +short ${public_web_url#https://}"
+  red "  ssh ${host} 'sudo nginx -t && sudo systemctl status nginx --no-pager'"
+  exit 1
+fi
+
+# Warnings, never failures. Both of the states below are legitimate — error
+# tracking can be deliberately off, and shipping a config change you have not
+# installed yet is a normal intermediate step. They just must not be silent,
+# which is the same defect the public smoke above exists to close.
+cyan "→ notices"
+notices=0
+
+# Read from .env rather than the container: an empty value is the thing being
+# looked for, and `printenv` cannot distinguish unset from empty across the
+# compose default. Values are never printed, only names.
+empty_dsns="$(ssh "$host" 'cd '"${remote}"' 2>/dev/null || exit 0
+for v in SENTRY_DSN SENTRY_WEB_DSN; do
+  val=$(sed -n "s/^${v}=//p" .env 2>/dev/null)
+  if [ -z "$val" ]; then echo "$v"; fi
+done' || true)"
+
+if [[ -n $empty_dsns ]]; then
+  notices=1
+  while read -r v; do
+    [[ -z $v ]] && continue
+    yellow "  ${v} is empty — that tier reports nothing, and looks identical to having nothing to report"
+  done <<< "$empty_dsns"
+fi
+
+# The rsync above ships deploy/ to the box; it does not install anything.
+# /etc/nginx and /etc/systemd/system hold copies, so a changed vhost or unit
+# sits on the box while the old one keeps running. Reading both locations needs
+# no privileges, which is why this reports rather than installs — see
+# docs/working-notes/ops/post-launch-ops.md § Chunk 4 for why not to automate it.
+#
+# Newer-than, not different-from. The installed vhosts are *permanently*
+# different: certbot rewrote them in place to add the TLS blocks and the :80
+# redirect, while the repo keeps them plain HTTP on purpose. A content compare
+# therefore fires on every deploy forever and becomes noise. An mtime compare
+# stays quiet through certbot's edits (which make the installed copy newer) and
+# speaks up for the case that matters — a file edited in the repo and shipped
+# but never installed. `rsync -a` preserves mtimes, which is what makes this
+# work; a fresh clone resets them and earns one spurious warning, at a moment
+# when "check whether the box matches" is the right instinct anyway.
+drift="$(ssh "$host" 'cd '"${remote}"'/deploy 2>/dev/null || exit 0
+check() {
+  [ -e "$2" ] || { echo "absent    $2"; return; }
+  [ "$1" -nt "$2" ] && echo "stale     $2"
+}
+for f in nginx/*.conf; do
+  [ -e "$f" ] || continue
+  b=$(basename "$f")
+  case "$b" in
+    *cache.conf) check "$f" "/etc/nginx/conf.d/$b" ;;
+    *)           check "$f" "/etc/nginx/sites-available/$b" ;;
+  esac
+done
+for f in systemd/*.service systemd/*.timer; do
+  [ -e "$f" ] || continue
+  check "$f" "/etc/systemd/system/$(basename "$f")"
+done' || true)"
+
+if [[ -n $drift ]]; then
+  notices=1
+  yellow "  shipped ops config is not what is installed:"
+  while read -r line; do
+    [[ -z $line ]] && continue
+    yellow "    ${line}"
+  done <<< "$drift"
+  yellow "  install with: sudo cp ${remote}/deploy/nginx/<file> /etc/nginx/sites-available/ && sudo nginx -t && sudo systemctl reload nginx"
+fi
+
+[[ $notices -eq 0 ]] && green "  none"
 
 green ""
 green "Deployed ${tag} to ${host}."
