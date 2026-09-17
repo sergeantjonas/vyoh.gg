@@ -149,7 +149,7 @@ The audit found **65** re-declared sites, not the 20+ estimated here. They split
 Two predictions in the original plan did not survive contact:
 
 - **Tests needed no changes.** The helper falls back to `http://localhost:2010` when `VITE_API_URL` is unset, so all 116 assertions still compare against the same literal. The step-4 "parallel updates" never materialised.
-- **The Vite dev proxy (step 5) is dead work.** It assumed Option C means same-origin. It does not — the [topology](#topology) below routes `vyoh.gg` and `api.vyoh.gg` as separate vhosts even on a single VPS, so the public base is an absolute origin under every option. A path prefix could not work here regardless: the api serves `/lol/summoners/…` while the web app owns `/lol/$accountSlug/…`, and no prefix rule separates an account slug from a literal route segment.
+- **The Vite dev proxy (step 5) is dead work.** It assumed Option C means same-origin. It does not — the topology (now in the `shared-vps` skill) routes `vyoh.gg` and `api.vyoh.gg` as separate vhosts even on a single VPS, so the public base is an absolute origin under every option. A path prefix could not work here regardless: the api serves `/lol/summoners/…` while the web app owns `/lol/$accountSlug/…`, and no prefix rule separates an account slug from a literal route segment.
 
 What that leaves for the deploy: set `VITE_API_URL=https://api.vyoh.gg` at **build** time (it is baked into the bundle and into `index.html`'s `og:image`, not read at runtime), and `API_INTERNAL_URL` at **runtime** once SSR lands. Both are documented in `.env.example`.
 
@@ -760,95 +760,23 @@ once vendor URLs no longer appear in the browser.
 
 ## Multi-site target shape (single VPS, N projects)
 
-Option C above only describes vyoh.gg on its own box. The lean is to use
-the same VPS for additional sites and one-off projects, with vyoh.gg as
-the largest tenant. This section is the target shape — what to provision
-at the pre-launch hosting sweep, and what conventions every future site
-on the same box should follow.
+Option C above only describes vyoh.gg on its own box, and the box was always
+meant to carry more than one project.
 
-### Topology
+**The machine-level conventions moved out of this note on 2026-09-17, to the
+`shared-vps` skill in `~/.claude/skills/`.** They describe a machine rather than
+a tenant, and living inside one tenant's repo meant no other project could reach
+them — and that they would be archived along with this note one day. The skill
+holds the topology, the per-component conventions (host-installed nginx, loopback
+binds, one Postgres cluster with a role per project, CI-built images, per-project
+backup units), the add-a-tenant sequence, and the commands that interrogate the
+box's live state rather than trusting a written list of ports.
 
-```
-                  ┌──────────────────────────────────────────┐
-   :443  ─────►   │ Nginx (host-installed, not containerised)│
-                  │ - TLS termination (Certbot)              │
-                  │ - vhost routing by server_name           │
-                  │ - vyoh.gg          → SPA static root     │
-                  │ - api.vyoh.gg      → proxy_pass :20XX    │
-                  │ - other-site.tld   → static / proxy      │
-                  │ - /img/* proxy_cache (Phase 4)           │
-                  └────────────────┬─────────────────────────┘
-                                   │ 127.0.0.1:20XX (per-app loopback)
-                  ┌────────────────┼────────────────┐
-                  ▼                ▼                ▼
-            vyoh-api (Node)   site2-api (Node)   ...
-                  │                │
-                  └────────┬───────┘
-                           ▼
-              postgres (one cluster, DB+role per project)
-```
-
-### Per-component conventions
-
-- **Nginx is host-installed, not containerised.** It's the TLS
-  termination and cert-renewal point; running it as a container forces
-  cert-volume gymnastics and buys nothing on a single VPS. Configs live
-  at `/etc/nginx/sites-available/<project>.conf`, symlinked into
-  `sites-enabled/`. One file per project — each contains its `server_name`,
-  TLS block, static `root`, and any `proxy_pass` lines.
-- **Static SPAs are served by Nginx directly, no container.** Vite's
-  `pnpm build` outputs plain HTML/JS/CSS to `apps/<app>/dist/`; deploys
-  are `rsync` to `/var/www/<project>/dist/` (from CI or local). A
-  container around `vite preview` or `serve` is pure overhead. Per site,
-  expect 0–1 backend containers, not 2.
-  **vyoh.gg stopped qualifying when Start landed** (2026-07-27) — SSR
-  needs a long-lived Node process, so `vyoh.gg` is now a second
-  `proxy_pass` target rather than a static root, and the site runs 3
-  containers (web, api, postgres). The rule still holds for genuinely
-  static sites on the same box. Config:
-  [`deploy/nginx/vyoh.gg.conf`](../../../deploy/nginx/vyoh.gg.conf).
-  Note that `dist/client` is served by the *web container*, not by Nginx —
-  it lives inside the image, so mounting it out to a `root` directive
-  would mean a volume that has to stay in step with the image. The
-  adapter handles static files and Nginx handles compression, TLS and
-  logging; the split is written down in
-  [`node-adapter.ts`](../../../apps/web/server/node-adapter.ts).
-- **Backends run as per-project Docker Compose stacks.** Each project
-  gets `/srv/<project>/docker-compose.yml`. Backend containers bind to
-  a distinct `127.0.0.1:20XX` loopback port (no public bind, Nginx is
-  the only ingress). No cross-project Docker network meshing.
-- **One Postgres cluster, separate DB + role per project.** Postgres
-  itself is one container (or host-installed) shared across projects;
-  isolation is at the database + role layer, not the cluster layer.
-  Saves a few hundred MB of RAM vs a Postgres-per-project layout.
-  Example: `CREATE DATABASE vyoh; CREATE ROLE vyoh_app LOGIN; GRANT ALL
-  ON DATABASE vyoh TO vyoh_app;` — and a separate `vyoh_app` connection
-  string in vyoh-api's env.
-- **Certbot handles all hostnames in one install.** Nginx plugin for
-  the easy case; DNS-01 if/when we want wildcard certs. Renewal via
-  the bundled `certbot.timer`, no hand-rolled cron.
-- **Deploys are `pull` + `docker compose up -d --no-build`.** Per
-  project. A simple `deploy.sh` is enough; full CI/CD orchestration is
-  out of scope for the portfolio tier. Watchtower is rejected — visible,
-  intentional deploys are more useful than auto-pulls for a few sites,
-  and it is a different thing from pulling a tag you chose.
-  vyoh's is [`scripts/deploy.sh`](../../../scripts/deploy.sh): it refuses
-  a tag GHCR does not have, ships only the ops files (`compose.prod.yaml`,
-  `deploy/`, the two backup scripts — never source, and never `.env`,
-  which has no local counterpart), pulls both images, and then
-  **smoke-checks the three endpoints over ssh and exits non-zero if they
-  do not answer**. Images are built by GitHub Actions, not on the VPS,
-  which is what the box's 8 GB rests on.
-  → [image-pipeline.md](image-pipeline.md)
-- **Migrations run from the api container's entrypoint**, not from
-  `deploy.sh`. `prisma migrate deploy` is a no-op once the journal is
-  current, so a restart costs one query — and the alternative loses: a
-  container coming back after a crash would otherwise serve against
-  whatever schema it happened to find. This is also why the api image
-  keeps its devDependencies: the prisma CLI is one, and Prisma's
-  generated client is written into the virtual store at install time, so
-  `pnpm deploy --prod` would strip both. The web image does prune, for
-  exactly the reason the api cannot.
+What stays here is vyoh-specific: the sizing and cost reasoning below, which is
+an argument about *this* tenant's footprint, and everything above about the
+launch itself. What has to be settled before a second tenant arrives — the
+Postgres divergence, resource limits, and the unprefixed nginx zone names — is
+tracked in [post-launch-ops.md](post-launch-ops.md#before-the-second-tenant).
 
 ### Sizing implications
 

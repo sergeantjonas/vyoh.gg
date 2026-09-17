@@ -4,9 +4,12 @@ Host-installed Nginx is the only ingress on the VPS. Both containers bind
 `127.0.0.1` and are unreachable from outside the box, so everything below is
 about getting requests from :443 to a loopback port.
 
-Layout follows the multi-site convention in
-[hosting.md](../../docs/working-notes/ops/hosting.md#per-component-conventions):
-one file per project in `sites-available/`, symlinked into `sites-enabled/`.
+Layout follows the shared-box convention — one file per project in
+`sites-available/`, symlinked into `sites-enabled/`, with every `http`-context
+name project-prefixed because `conf.d/` is one global namespace. The machine-level
+conventions live in the `shared-vps` skill rather than in this repo; the
+vyoh-specific reasoning is in
+[hosting.md](../../docs/working-notes/ops/hosting.md#multi-site-target-shape-single-vps-n-projects).
 
 ```
 deploy/nginx/vyoh-cache.conf   → /etc/nginx/conf.d/vyoh-cache.conf

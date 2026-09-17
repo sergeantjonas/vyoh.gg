@@ -47,6 +47,20 @@ ls -lh /var/backups/vyoh                   # newest recent, size plausible
 
 A backup timer fails silently by nature, and a dump that halves in size is more alarming than one that fails outright — the failure is loud and the shrink is not. Sentry covers the application tiers now that both DSNs are set; it does not watch the box, the timer, or the certificate.
 
+## Before the second tenant
+
+The box was always meant to host more than vyoh.gg — [hosting.md § Multi-site target shape](hosting.md#multi-site-target-shape-single-vps-n-projects) is the plan, written before the box existed, and the launch followed it: host-installed nginx with one vhost file per project, every container bound to `127.0.0.1` so nginx is the only ingress, overridable ports, `/srv/<project>` and `/var/backups/<project>`, log caps so one noisy tenant cannot fill a shared disk. The 8 GB sizing only holds because builds moved off-box, and that headroom *is* the tenant budget.
+
+Four things are not ready, and all four get harder once there is a neighbour rather than easier. That is the whole argument for doing them while the box has exactly one tenant.
+
+**Postgres is the real divergence.** The target shape is one cluster with a database and role per project; what runs is a postgres container belonging to vyoh's compose stack, publishing `127.0.0.1:5432`. A second project either collides on that port or brings its own cluster, and a cluster per project is exactly the few-hundred-MB waste the plan rejected. Nothing is wrong today — the cost is that the documented end state is not what exists, and migrating a live database to a shared cluster is meaningfully harder than starting with one.
+
+**Port allocation has no record.** 2009, 2010 and 5432 are taken and nothing anywhere says so. The fix is not a registry file, which drifts the first time someone forgets to update it — it is a convention of asking the box, since the box cannot be wrong: `ssh vyoh 'ss -lntp'` before picking a port.
+
+**There are no resource limits.** `compose.prod.yaml` caps logs but sets no `deploy.resources.limits`, so on 8 GB one tenant can starve the others. Cheap to add now, and much cheaper than diagnosing it later as "the site got slow when I deployed the other thing".
+
+**nginx zone names are only half namespaced.** `vyoh-cache.conf` declares `vyoh_img`, but also `api_general`, `api_img` and `api_conn` — bare names in `conf.d/`, which is a single global namespace. A second project declaring `zone=api_general` makes nginx refuse to load, and the error will not obviously point at this file. Renaming them to `vyoh_*` is a one-line change per zone plus the matching `limit_req`/`limit_conn` references in the api vhost, and it is free today and disruptive later.
+
 ## Chunk 1 — smoke the public URL, not just loopback
 
 `deploy.sh` curls `127.0.0.1:2009` and `127.0.0.1:2010` **from the box**, then prints `Deployed sha-… to vyoh.` On 2026-09-17 it printed exactly that while `vyoh.gg` was unreachable from the internet, because the A records pointed at netcup's gateway instead of the server. Every layer that was actually broken — DNS, nginx, TLS, the firewall — sits above the loopback the smoke was testing.

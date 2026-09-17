@@ -185,6 +185,25 @@ The `merge-request-description` skill is `glab`-specific and does not apply —
 this repo is GitHub, and `--fill` taking the commit message as the PR body is
 the right shape for the single-commit PRs that dominate here.
 
+### vyoh.gg is one tenant on a shared box — load the `shared-vps` skill
+
+Production is a VPS the owner also hosts other projects on. The conventions that
+belong to the **machine** rather than to this project — loopback binds, one nginx
+vhost file per project, project-prefixed `conf.d/` zone names, the Postgres
+model, per-project backup units, and the commands that interrogate the box's live
+state instead of trusting a written list of ports — live in the `shared-vps`
+skill at `~/.claude/skills/`, not in this repo. They were moved out on 2026-09-17
+because a machine's operating manual living inside one tenant's repo is
+unreachable from every other tenant, and would be archived along with that repo.
+
+**How to apply:** load `shared-vps` before allocating a port, adding an nginx
+vhost, provisioning a database on the box, or arguing about its sizing. This
+repo's own hosting detail — the launch runbook, the box bootstrap, the seed
+procedure, the sizing argument — stays in
+[working-notes/ops/hosting.md](working-notes/ops/hosting.md), and day-to-day
+operations in [post-launch-ops.md](working-notes/ops/post-launch-ops.md). If the
+skill and a note here disagree, the note wins: it is closer to the box.
+
 ### Simulating network hangs for timeout verification
 
 Use `10.255.255.1` (RFC1918 black-hole address — TCP SYN goes nowhere, packets drop silently) when verifying that a timeout actually fires. Do not use `.invalid` TLDs (DNS resolves instantly to failure — different code path) or DevTools request blocking (also different code path). Only `10.255.255.1` reproduces a true network-level hang.
