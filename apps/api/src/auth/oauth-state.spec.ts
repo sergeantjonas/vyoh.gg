@@ -63,6 +63,24 @@ describe("signState / verifyState", () => {
     expect(verifyState(`${token.split(".")[0]}.short`, SECRET, NOW)).toBeNull();
   });
 
+  it("rejects a signature whose character length matches but byte length does not", () => {
+    // The case a character-length guard lets through. An HMAC-SHA256 in
+    // base64url is 43 ASCII characters and 43 bytes; a forgery of 43
+    // characters holding one multibyte character is 44 bytes, clears a
+    // `String.length` comparison, and reaches `timingSafeEqual` — which throws
+    // rather than returning false, turning a crafted `?state=` into a 500 on a
+    // public endpoint.
+    const token = signState(claims(), SECRET);
+    const payload = token.split(".")[0] ?? "";
+    const real = token.split(".")[1] ?? "";
+    for (const forged of [`é${real.slice(1)}`, `🙃${real.slice(2)}`]) {
+      expect(forged.length).toBe(real.length);
+      expect(Buffer.from(forged).length).not.toBe(Buffer.from(real).length);
+      expect(() => verifyState(`${payload}.${forged}`, SECRET, NOW)).not.toThrow();
+      expect(verifyState(`${payload}.${forged}`, SECRET, NOW)).toBeNull();
+    }
+  });
+
   it("mints a fresh nonce each time", () => {
     expect(newNonce()).not.toBe(newNonce());
   });

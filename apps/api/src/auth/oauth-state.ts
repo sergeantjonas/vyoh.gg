@@ -42,8 +42,18 @@ export function verifyState(
   const expected = sign(payload, secret);
   // Length is checked first because `timingSafeEqual` throws on mismatched
   // lengths — and the length of an HMAC is not a secret worth protecting.
-  if (signature.length !== expected.length) return null;
-  if (!timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
+  //
+  // Measured in bytes, not characters. `String.length` counts UTF-16 units
+  // while the buffers below are UTF-8, so a 43-character signature holding one
+  // multibyte character is 44 bytes: it clears a character-length guard and
+  // then throws ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH out of a public GET, which
+  // the fallback filter answers as a 500 and now reports to Sentry. Never a
+  // signature bypass — a multibyte character can only lengthen the buffer —
+  // but a crafted `?state=` should be a quiet null, not an error budget.
+  const actualBytes = Buffer.from(signature);
+  const expectedBytes = Buffer.from(expected);
+  if (actualBytes.length !== expectedBytes.length) return null;
+  if (!timingSafeEqual(actualBytes, expectedBytes)) return null;
 
   const claims = decodeClaims(payload);
   if (claims === null || claims.exp <= now) return null;
