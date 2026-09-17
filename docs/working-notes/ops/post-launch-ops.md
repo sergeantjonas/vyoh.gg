@@ -49,17 +49,27 @@ A backup timer fails silently by nature, and a dump that halves in size is more 
 
 ## Before the second tenant
 
-The box was always meant to host more than vyoh.gg — [hosting.md § Multi-site target shape](hosting.md#multi-site-target-shape-single-vps-n-projects) is the plan, written before the box existed, and the launch followed it: host-installed nginx with one vhost file per project, every container bound to `127.0.0.1` so nginx is the only ingress, overridable ports, `/srv/<project>` and `/var/backups/<project>`, log caps so one noisy tenant cannot fill a shared disk. The 8 GB sizing only holds because builds moved off-box, and that headroom *is* the tenant budget.
+The box was always meant to host more than vyoh.gg — the machine-level conventions live in the `shared-vps` skill, and the launch followed them: host-installed nginx with one vhost file per project, every container bound to `127.0.0.1` so nginx is the only ingress, overridable ports, `/srv/<project>` and `/var/backups/<project>`, log caps so one noisy tenant cannot fill a shared disk. The 8 GB sizing only holds because builds moved off-box, and that headroom *is* the tenant budget.
 
-Four things are not ready, and all four get harder once there is a neighbour rather than easier. That is the whole argument for doing them while the box has exactly one tenant.
+Four items were raised here on 2026-09-17. **Three are closed the same day and the fourth is now a decision rather than a gap.**
 
-**Postgres is the real divergence.** The target shape is one cluster with a database and role per project; what runs is a postgres container belonging to vyoh's compose stack, publishing `127.0.0.1:5432`. A second project either collides on that port or brings its own cluster, and a cluster per project is exactly the few-hundred-MB waste the plan rejected. Nothing is wrong today — the cost is that the documented end state is not what exists, and migrating a live database to a shared cluster is meaningfully harder than starting with one.
+**Postgres: per-project clusters, decided 2026-09-17 — the plan was amended, not the box.** The old target shape said one cluster with a database and role per project, on the grounds that a cluster each wastes a few hundred MB. Measured on the live box that day: web 155 MiB, api 339 MiB, postgres 254 MiB, 748 MiB total against 7.9 GB, with 6.6 GB available. So a second cluster costs roughly 250 MiB out of 6.6 GB spare, and consolidating would buy about 4% of RAM at three tenants in exchange for coupling independent projects into one failure domain, one upgrade schedule, and a `compose.prod.yaml` that no longer stands its own database up. The counter-argument is real and was weighed: one cluster with a role per project is the better ops story for a portfolio box. It lost on the arithmetic. **Revisit past roughly five tenants, or on a smaller VPS, where the numbers actually change.** What still matters is the port convention — ask the box before picking one, so a second database does not collide on 5432.
 
-**Port allocation has no record.** 2009, 2010 and 5432 are taken and nothing anywhere says so. The fix is not a registry file, which drifts the first time someone forgets to update it — it is a convention of asking the box, since the box cannot be wrong: `ssh vyoh 'ss -lntp'` before picking a port.
+**Port allocation: closed as a convention, not a file.** A registry drifts the first time someone forgets it. `ssh vyoh 'ss -lntp'` before picking a port cannot.
 
-**There are no resource limits.** `compose.prod.yaml` caps logs but sets no `deploy.resources.limits`, so on 8 GB one tenant can starve the others. Cheap to add now, and much cheaper than diagnosing it later as "the site got slow when I deployed the other thing".
+**Resource limits: shipped 2026-09-17.** Memory ceilings at roughly 3x measured — postgres 1g, api 1536m, web 768m — so a runaway query or a leaking backfill hits its own container rather than the box, where the OOM killer picks by score rather than by blame. No CPU limits: on 4 vCPU, throttling a legitimate sync tick costs more than it protects, and CPU starvation degrades where memory starvation kills.
 
-**nginx zone names are only half namespaced.** `vyoh-cache.conf` declares `vyoh_img`, but also `api_general`, `api_img` and `api_conn` — bare names in `conf.d/`, which is a single global namespace. A second project declaring `zone=api_general` makes nginx refuse to load, and the error will not obviously point at this file. Renaming them to `vyoh_*` is a one-line change per zone plus the matching `limit_req`/`limit_conn` references in the api vhost, and it is free today and disruptive later.
+**nginx zone names: shipped 2026-09-17.** `api_general`, `api_img` and `api_conn` became `vyoh_api_*`, joining `vyoh_img`. `conf.d/` is one global namespace and a second project declaring `zone=api_general` would have made nginx refuse to load, with an error naming neither file.
+
+**Installing that rename has a trap worth reading before you do it.** The two files must change together — `vyoh-cache.conf` declares the zones and `api.vyoh.gg.conf` references them, and nginx refuses to load a vhost naming a zone that does not exist. But **you cannot `sudo cp` the repo's `api.vyoh.gg.conf` over the installed one**: certbot rewrote that copy in place to add the `listen 443 ssl` block, the certificate paths and the `:80` redirect, none of which are in the repo version by decision. Copying it over drops TLS. Edit the installed file in place instead, then install the cache file, then test once:
+
+```sh
+sudo cp /srv/vyoh/deploy/nginx/vyoh-cache.conf /etc/nginx/conf.d/
+sudo sed -i 's/zone=api_general/zone=vyoh_api_general/g; s/zone=api_img/zone=vyoh_api_img/g; s/limit_conn api_conn/limit_conn vyoh_api_conn/g' /etc/nginx/sites-available/api.vyoh.gg.conf
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+This is the general shape of the problem chunk 4 warns about, not a one-off: **any vhost certbot has touched can never be installed by copying.** Worth remembering the next time a vhost changes in the repo.
 
 ## Chunk 1 — smoke the public URL, not just loopback — SHIPPED 2026-09-17
 
