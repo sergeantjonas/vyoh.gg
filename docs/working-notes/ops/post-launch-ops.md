@@ -1,6 +1,6 @@
 # Post-launch operations
 
-**Status:** Active — opened 2026-09-17, the day vyoh.gg went live, from what the launch itself exposed. Four chunks, each independently landable, plus a routine-operations reference that did not exist before. The launch runbook in [hosting.md](hosting.md#launch-runbook--added-2026-08-20) is deliberately a one-time document; **this is the one that applies every day after it**. Read this before touching `scripts/deploy.sh`.
+**Status:** Active — opened 2026-09-17, the day vyoh.gg went live, from what the launch itself exposed. Four chunks, each independently landable, **chunk 1 shipped the same evening**, plus a routine-operations reference that did not exist before. The launch runbook in [hosting.md](hosting.md#launch-runbook--added-2026-08-20) is deliberately a one-time document; **this is the one that applies every day after it**. Read this before touching `scripts/deploy.sh`.
 
 The runbook covered getting to production and covered it well. What no document covered was what happens on the two hundred days after — deploying a change, rolling one back, and noticing that something has quietly stopped working. Each chunk below traces to something that actually happened on 2026-09-17 rather than to a general sense that operations deserve attention.
 
@@ -14,7 +14,7 @@ The reference half of this note. Nothing here is planned work.
 VYOH_DEPLOY_HOST=vyoh scripts/deploy.sh
 ```
 
-One command, from the repo root on the laptop. It refuses before touching the box if `sha-<7>` of HEAD is not published, ships the ops files, pulls both images, brings the stack up with `--no-build`, and smoke-checks the loopback endpoints. `main` is protected, so the commit has to be merged and its `images` job green first — the refusal is what tells you it is not.
+One command, from the repo root on the laptop. It refuses before touching the box if `sha-<7>` of HEAD is not published, ships the ops files, pulls both images, brings the stack up with `--no-build`, smoke-checks the loopback endpoints, and then smoke-checks the public URLs from your machine. `main` is protected, so the commit has to be merged and its `images` job green first — the refusal is what tells you it is not.
 
 Nothing needs doing on the box afterwards. `up -d` recreates whatever changed and blocks on the healthchecks. It also picks up `/srv/vyoh/.env` edits, because compose re-resolves configuration on every `up` — the only time a manual `up` is needed is editing `.env` *without* deploying, and then the image tag has to be passed explicitly or it falls back to the `main` default and quietly moves off the pinned build.
 
@@ -61,7 +61,13 @@ Four things are not ready, and all four get harder once there is a neighbour rat
 
 **nginx zone names are only half namespaced.** `vyoh-cache.conf` declares `vyoh_img`, but also `api_general`, `api_img` and `api_conn` — bare names in `conf.d/`, which is a single global namespace. A second project declaring `zone=api_general` makes nginx refuse to load, and the error will not obviously point at this file. Renaming them to `vyoh_*` is a one-line change per zone plus the matching `limit_req`/`limit_conn` references in the api vhost, and it is free today and disruptive later.
 
-## Chunk 1 — smoke the public URL, not just loopback
+## Chunk 1 — smoke the public URL, not just loopback — SHIPPED 2026-09-17
+
+Landed the same evening it was scoped. `deploy.sh` now runs a second smoke from the laptop after the loopback one passes, against `VYOH_PUBLIC_WEB_URL` (default `https://vyoh.gg`), its `/robots.txt`, and `VYOH_PUBLIC_API_URL/health` (default `https://api.vyoh.gg`), and exits non-zero with a message that points at DNS, nginx, TLS or the firewall rather than at the containers.
+
+One deviation from the shape below: **`www` is not checked.** It resolves and answers 200 directly rather than redirecting, so it would work — but the public web URL is a single overridable variable, and deriving `www.` from it would break for a tenant that does not have that name. Two overridable origins beat three with one of them inferred.
+
+The original scoping follows.
 
 `deploy.sh` curls `127.0.0.1:2009` and `127.0.0.1:2010` **from the box**, then prints `Deployed sha-… to vyoh.` On 2026-09-17 it printed exactly that while `vyoh.gg` was unreachable from the internet, because the A records pointed at netcup's gateway instead of the server. Every layer that was actually broken — DNS, nginx, TLS, the firewall — sits above the loopback the smoke was testing.
 

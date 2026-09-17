@@ -19,6 +19,8 @@ set -euo pipefail
 #   VYOH_IMAGE_TAG    image tag to deploy   (default sha-<short HEAD>)
 #   VYOH_WEB_URL      loopback smoke target (default http://127.0.0.1:2009)
 #   VYOH_API_URL      loopback smoke target (default http://127.0.0.1:2010)
+#   VYOH_PUBLIC_WEB_URL  public smoke target (default https://vyoh.gg)
+#   VYOH_PUBLIC_API_URL  public smoke target (default https://api.vyoh.gg)
 
 cd "$(dirname "$0")/.."
 
@@ -31,6 +33,9 @@ host="${VYOH_DEPLOY_HOST:-}"
 remote="${VYOH_DEPLOY_PATH:-/srv/vyoh}"
 web_url="${VYOH_WEB_URL:-http://127.0.0.1:2009}"
 api_url="${VYOH_API_URL:-http://127.0.0.1:2010}"
+# Overridable so the script stays usable for a second tenant on the same box.
+public_web_url="${VYOH_PUBLIC_WEB_URL:-https://vyoh.gg}"
+public_api_url="${VYOH_PUBLIC_API_URL:-https://api.vyoh.gg}"
 api_image="ghcr.io/sergeantjonas/vyoh-api"
 web_image="ghcr.io/sergeantjonas/vyoh-web"
 
@@ -160,6 +165,41 @@ if [[ $smoke_failed -ne 0 ]]; then
   red ""
   red "Deploy finished but the stack is not answering. Logs:"
   red "  ssh ${host} 'cd ${remote} && docker compose -f compose.prod.yaml logs --tail 100'"
+  exit 1
+fi
+
+# The loopback smoke above proves the containers came up. It says nothing about
+# whether anyone can reach them: DNS, nginx, TLS and the firewall all sit above
+# it. On 2026-09-17 this script reported a successful deploy while the site was
+# unreachable over IPv4, because the A records pointed at the provider's gateway
+# rather than the server.
+#
+# Run from here rather than over ssh, deliberately. A curl on the box can be
+# satisfied by a hosts entry or a loopback route and proves nothing about what a
+# visitor gets.
+cyan "→ public smoke"
+public_failed=0
+for target in "$public_web_url" "$public_web_url/robots.txt" "${public_api_url}/health"; do
+  status=""
+  for _ in 1 2 3 4 5; do
+    status="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$target" || true)"
+    [[ $status == "200" ]] && break
+    sleep 3
+  done
+  if [[ $status == "200" ]]; then
+    green "  200  ${target}"
+  else
+    red "  ${status:-no response}  ${target}"
+    public_failed=1
+  fi
+done
+
+if [[ $public_failed -ne 0 ]]; then
+  red ""
+  red "The stack is healthy on the box but unreachable from here."
+  red "That points at DNS, nginx, TLS or the firewall — not at the containers:"
+  red "  dig +short ${public_web_url#https://}"
+  red "  ssh ${host} 'sudo nginx -t && sudo systemctl status nginx --no-pager'"
   exit 1
 fi
 
