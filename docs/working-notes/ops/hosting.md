@@ -84,8 +84,12 @@ down anywhere, and several of these steps have hard constraints that are only
 discoverable by having read all of them. Follow it top to bottom.
 
 The numbered sections below this one are reference detail, not a sequence —
-1 through 3 are already shipped code, and 4 through 8 are topics rather than
+1 through 3 are already shipped code, and 4 through 9 are topics rather than
 steps.
+
+**This runbook is one-time by design.** Deploying a change, rolling one back,
+and noticing that something has quietly stopped working all live in
+[post-launch-ops.md](post-launch-ops.md), opened the day this ran.
 
 **0. The box — bought 2026-09-16.** A **netcup VPS 1000 G12**: 4 vCPU / 8 GB / 256 GB NVMe, Nuremberg, x86, hourly billing. Not the Hetzner CX43 this step named until then — Hetzner has had every CX and CAX plan unavailable since early September with no restock date, and the 16 GB argument stopped applying once builds moved off the box ([§ Sizing implications](#sizing-implications)). Provisioned 2026-09-17 with Debian 13 pre-installed; the bootstrap it needs before step 1 — deploy user, Docker, nginx, certbot, SSH hardening and the netcup panel firewall — is [§ 9](#9-box-bootstrap--added-2026-09-17). Nothing below works without it, and nothing above it in the repo is still blocking.
 
