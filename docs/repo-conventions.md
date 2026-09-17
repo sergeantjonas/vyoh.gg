@@ -123,6 +123,41 @@ Blank pages or empty-status rows on `localhost:<port>` after a devcontainer rebu
 
 ## Workflow
 
+### `main` is protected; changes land through a PR
+
+Enabled 2026-09-17, when the site went live and the 2026-07-26 deferral's
+trigger fired. The ruleset on the default branch requires a pull request at **0
+approvals** — a solo repo cannot approve its own PR — requires the three checks
+that run on `pull_request`, blocks force-pushes and deletions, and carries an
+empty bypass list so the owner is not silently exempt.
+
+This scopes the cross-project "owner handles pushes personally" rule rather than
+contradicting it. A feature branch is reversible and gated by CI; `main` was
+neither, which is what that rule existed to protect.
+
+**How to apply:** branch as `type/short-description` matching the commit type,
+push it, open the PR with `gh pr create --fill`, and let auto-merge land it.
+Never push `main`. Queueing the merge is the owner's call per PR — an agent that
+both opens and merges holds the key to the gate it is standing at.
+
+Use `--rebase`, never `--squash`. One logical change per commit is the point
+here, and squash flattens it, for the same reason the stacked-branch rule warns
+against squashing onto the wrong branch.
+
+**`Build and push container images` must never become a required check.** It is
+`if: github.event_name == 'push'`, so it never starts on a pull request, and
+requiring it would leave every PR waiting on a check that cannot run.
+
+Worth knowing so the protection is not mistaken for more than it is: **this was
+never what protected the deploy.** The `images` job has `needs: [check]`, so a
+red commit publishes nothing, and `scripts/deploy.sh` refuses a tag GHCR does
+not hold. What the ruleset adds is a floor under irreversible mistakes and a
+public history that reads as deliberate.
+
+The `merge-request-description` skill is `glab`-specific and does not apply —
+this repo is GitHub, and `--fill` taking the commit message as the PR body is
+the right shape for the single-commit PRs that dominate here.
+
 ### Simulating network hangs for timeout verification
 
 Use `10.255.255.1` (RFC1918 black-hole address — TCP SYN goes nowhere, packets drop silently) when verifying that a timeout actually fires. Do not use `.invalid` TLDs (DNS resolves instantly to failure — different code path) or DevTools request blocking (also different code path). Only `10.255.255.1` reproduces a true network-level hang.
