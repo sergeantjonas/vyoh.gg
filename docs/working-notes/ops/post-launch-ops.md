@@ -113,6 +113,8 @@ The smallest of the four and the least interesting, which is exactly why it is w
 
 First real run, 2026-09-17, caught drift correctly on both nginx files with no false positives — and exposed a defect in its own output. The warning printed a generic `sudo cp <file> /etc/nginx/sites-available/` hint, which is the wrong destination for `vyoh-cache.conf` and actively dangerous for `api.vyoh.gg.conf`: copying over a certbot-rewritten vhost drops the TLS block. **A hint that is right for one path and catastrophic for another is worse than no hint**, so it now points at the destination the check already computed and names the certbot constraint instead of guessing a command.
 
+The round trip is verified end to end: the check fired on real drift, the rename was installed (`vyoh-cache.conf` copied, `api.vyoh.gg.conf` edited in place to preserve certbot's TLS block), and the next deploy reported `notices: none`. Firing was easy to test; clearing was the half that needed real drift to resolve.
+
 Settled the open question the scoping left: **a warning, not a non-zero exit.** The counter-argument was that this drift persists across later deploys where an absent DSN does not — true, but the answer to a persistent warning is to install the file, and failing the deploy would punish a legitimate intermediate state.
 
 The original scoping follows.
