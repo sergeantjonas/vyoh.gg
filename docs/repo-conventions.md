@@ -121,6 +121,33 @@ Owner lives near Brussels, Belgium. Use `Europe/Brussels` for any owner-local ti
 
 Blank pages or empty-status rows on `localhost:<port>` after a devcontainer rebuild are stale HTTP/2 streams that the browser is holding from the previous container. Storage clears, extension toggling, and ETP exemptions won't fix it — only a Firefox restart does. Mention this proactively if symptoms match.
 
+### `Permission denied (publickey)` means the host agent is empty
+
+Git over SSH works in the devcontainer because VS Code forwards the host's
+ssh-agent socket — no key ever enters the container, which is why it survives a
+rebuild with nothing to reconfigure. When it stops working, the cause is almost
+always that the **host** agent has no key loaded, not anything container-side.
+
+```sh
+ssh-add -l               # "The agent has no identities" is the tell
+ssh -T git@github.com    # should greet you by username
+```
+
+The fix is on the host: `ssh-add --apple-use-keychain ~/.ssh/id_ed25519`, plus
+`AddKeysToAgent`/`UseKeychain` under `Host github.com` in the host `~/.ssh/config`
+so it survives a reboot.
+
+**Do not "fix" this by mounting `~/.ssh` into the container or switching the
+remote to HTTPS.** Both are attractive at the moment of failure and both are
+worse: the first puts private key material somewhere rebuildable, and the second
+trades an agent socket for a stored credential. The forwarded agent is already
+the right design; it just needs a key in it.
+
+`gh` is a separate credential and genuinely does not survive a rebuild —
+`~/.config/gh` is not among the mounts in `.devcontainer/devcontainer.json`, by
+decision, since a `repo`-scoped token in a bind mount is the same risk class as
+the key. Re-run `gh auth login` after a rebuild.
+
 ## Workflow
 
 ### `main` is protected; changes land through a PR
