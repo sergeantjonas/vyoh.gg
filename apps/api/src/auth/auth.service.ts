@@ -18,6 +18,13 @@ export const SESSION_EXTEND_AFTER_MS = 24 * 60 * 60 * 1000;
 
 const GITHUB_TIMEOUT_MS = 10_000;
 
+/**
+ * The `iss` GitHub puts on the authorisation response (RFC 9207). Compared
+ * exactly: a value that is present and different did not come from the server
+ * this handshake was started with.
+ */
+export const GITHUB_ISSUER = "https://github.com/login/oauth";
+
 export type GithubIdentity = { id: number; login: string };
 
 export type IssuedSession = { token: string; expiresAt: Date };

@@ -137,6 +137,41 @@ describe("GET /auth/github/callback", () => {
     expect(res.cleared).toContain(STATE_COOKIE);
   });
 
+  it("accepts the issuer GitHub actually sends", async () => {
+    const auth = defaults();
+    const controller = await build(auth);
+    const { state, nonce } = startLogin(controller, "/status");
+
+    const res = fakeResponse();
+    // Spelled out rather than imported: a drifted constant should fail here,
+    // and comparing the constant against itself can never notice.
+    await controller.callback(
+      { code: "abc", state, iss: "https://github.com/login/oauth" },
+      request(`${STATE_COOKIE}=${nonce}`),
+      res
+    );
+
+    expect(cookieValue(res, SESSION_COOKIE)).toBe("fresh-token");
+    expect(res.redirectedTo).toBe("http://web.test/status");
+  });
+
+  it("refuses a response whose issuer is not the server the handshake started with", async () => {
+    const auth = defaults();
+    const controller = await build(auth);
+    const { state, nonce } = startLogin(controller, "/lol/ahri");
+
+    const res = fakeResponse();
+    await controller.callback(
+      { code: "abc", state, iss: "https://evil.test/login/oauth" },
+      request(`${STATE_COOKIE}=${nonce}`),
+      res
+    );
+
+    expect(cookieValue(res, SESSION_COOKIE)).toBeUndefined();
+    expect(res.redirectedTo).toBe("http://web.test/login?error=state&next=%2Flol%2Fahri");
+    expect(auth.exchangeCode).not.toHaveBeenCalled();
+  });
+
   it("refuses a state token whose nonce does not match the browser's cookie", async () => {
     const auth = defaults();
     const controller = await build(auth);
@@ -193,8 +228,10 @@ describe("GET /auth/github/callback", () => {
     const { state, nonce } = startLogin(controller);
 
     const res = fakeResponse();
+    // Carries `iss` too — RFC 9207 puts it on error responses, so the issuer
+    // check running first must not turn a cancel into a state failure.
     await controller.callback(
-      { error: "access_denied", state },
+      { error: "access_denied", state, iss: "https://github.com/login/oauth" },
       request(`${STATE_COOKIE}=${nonce}`),
       res
     );

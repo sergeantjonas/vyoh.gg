@@ -38,4 +38,16 @@ export class GithubCallbackQueryDto {
   @IsString()
   @MaxLength(512)
   error_uri?: string;
+
+  /**
+   * RFC 9207 issuer identifier. GitHub sends it on the authorisation response,
+   * so an app that does not declare it answers 400 to every real login. The
+   * controller checks the value rather than merely tolerating it — the
+   * parameter exists so a client talking to several authorisation servers can
+   * detect one server's response replayed as another's.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(256)
+  iss?: string;
 }

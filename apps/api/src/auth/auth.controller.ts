@@ -3,7 +3,7 @@ import type { Viewer } from "@vyoh/shared";
 import type { Request, Response } from "express";
 import { GithubCallbackQueryDto, LoginQueryDto } from "./auth-query.dto";
 import { AUTH_CONFIG, type AuthConfig } from "./auth.config";
-import { AuthService, SESSION_TTL_MS } from "./auth.service";
+import { AuthService, GITHUB_ISSUER, SESSION_TTL_MS } from "./auth.service";
 import {
   SESSION_COOKIE,
   STATE_COOKIE,
@@ -57,6 +57,13 @@ export class AuthController {
     // handshake — without it a signed state token from anywhere logs anyone in.
     if (claims === null || nonce === undefined || claims.nonce !== nonce) {
       return this.deny(res, "state", DEFAULT_NEXT);
+    }
+    // A response carrying someone else's issuer is not this handshake's, so it
+    // is refused before the code is worth anything. Absent is accepted because
+    // only the authorisation server decides whether to send it, and requiring
+    // it would turn a GitHub-side change into a total login outage.
+    if (query.iss !== undefined && query.iss !== GITHUB_ISSUER) {
+      return this.deny(res, "state", claims.next);
     }
     // GitHub sends `?error=access_denied` instead of a code when authorisation
     // is declined; there is nothing to exchange.
