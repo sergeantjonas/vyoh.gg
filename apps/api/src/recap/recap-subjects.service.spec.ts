@@ -97,7 +97,8 @@ function makeService(
   curation: SteamCurationSets = NO_CURATION,
   // Only the dormant lane reads these. Defaulted so a test aimed at the active
   // lane keeps its behaviour without knowing about achievement progress.
-  dormant: { unlocks?: UnlockRow[]; achievementMeta?: AchievementMetaRow[] } = {}
+  dormant: { unlocks?: UnlockRow[]; achievementMeta?: AchievementMetaRow[] } = {},
+  steamMomentCandidates: RecapCandidate[] = []
 ): RecapSubjectsService {
   const ownedGames = {
     getOwnedGames: vi.fn().mockResolvedValue(makeOwnedGames(games)),
@@ -138,7 +139,7 @@ function makeService(
     detectAll: vi.fn().mockResolvedValue([]),
   } as unknown as LolMomentsService;
   const steamMoments = {
-    detectAll: vi.fn().mockResolvedValue([]),
+    detectAll: vi.fn().mockResolvedValue(steamMomentCandidates),
   } as unknown as SteamMomentsService;
   return new RecapSubjectsService(ownedGames, prisma, lolMoments, steamMoments, {
     getCuration: vi.fn().mockResolvedValue(curation),
@@ -508,6 +509,191 @@ describe("RecapSubjectsService.getChapters", () => {
       expect(
         chapters.filter((c) => c.kind === "steam-subject" && c.appid === 1)
       ).toHaveLength(1);
+    });
+
+    it("keeps a game carrying an ACHIEVEMENT_CLUSTER eligible for the dormant lane", async () => {
+      // A cluster is a complementary fact, not a substitute framing, so it
+      // must not cost the game its subject slot. Excluding on it sent the
+      // freshest, largest playthrough to the Highlights rack and backfilled
+      // the lane with a smaller game months older — appid 2 outranking
+      // appid 1 here is exactly that inversion.
+      const service = makeService(
+        [
+          makeOwnedGame({
+            appid: 1,
+            name: "Binged",
+            playtimeForeverMinutes: 60 * 60,
+            playtime2WeeksMinutes: 0,
+            rtimeLastPlayedAt: new Date(
+              NOW.getTime() - 20 * 24 * 60 * 60 * 1000
+            ).toISOString(),
+          }),
+          makeOwnedGame({
+            appid: 2,
+            name: "Older",
+            playtimeForeverMinutes: 60 * 7,
+            playtime2WeeksMinutes: 0,
+            rtimeLastPlayedAt: new Date(
+              NOW.getTime() - 130 * 24 * 60 * 60 * 1000
+            ).toISOString(),
+          }),
+        ],
+        [],
+        [],
+        [],
+        NO_CURATION,
+        {},
+        [
+          {
+            kind: "steam-moment",
+            slug: "steam-moment-cluster-1",
+            momentType: "ACHIEVEMENT_CLUSTER",
+            appid: 1,
+            name: "Binged",
+            baseSignal: 40,
+            daysSince: 20,
+            cluster: {
+              unlockCount: 6,
+              spanHours: 5,
+              capUnlockedAt: new Date(
+                NOW.getTime() - 20 * 24 * 60 * 60 * 1000
+              ).toISOString(),
+              unlockNames: ["A", "B", "C", "D", "E", "F"],
+            },
+          },
+        ]
+      );
+
+      const chapters = await service.getChapters(NOW);
+      // Subject lane leads with the fresher game, and the cluster still
+      // renders alongside it.
+      expect(
+        chapters.filter((c) => c.kind === "steam-subject").map((c) => c.appid)
+      ).toEqual([1, 2]);
+      expect(chapters.filter((c) => c.kind === "steam-moment")).toHaveLength(1);
+    });
+
+    it("keeps a game out of the dormant lane when its FIRST_TIME_GAME renders", async () => {
+      // The one substitute framing: "the first time you loaded X" and
+      // "earlier this year on X" are the same game's story told twice, and
+      // the second contradicts the first. The moment wins, the dormant row
+      // is dropped, and the older game takes the slot instead.
+      const service = makeService(
+        [
+          makeOwnedGame({
+            appid: 1,
+            name: "Brand New",
+            playtimeForeverMinutes: 60 * 60,
+            playtime2WeeksMinutes: 0,
+            rtimeLastPlayedAt: new Date(
+              NOW.getTime() - 20 * 24 * 60 * 60 * 1000
+            ).toISOString(),
+          }),
+          makeOwnedGame({
+            appid: 2,
+            name: "Older",
+            playtimeForeverMinutes: 60 * 7,
+            playtime2WeeksMinutes: 0,
+            rtimeLastPlayedAt: new Date(
+              NOW.getTime() - 130 * 24 * 60 * 60 * 1000
+            ).toISOString(),
+          }),
+        ],
+        [],
+        [],
+        [],
+        NO_CURATION,
+        {},
+        [
+          {
+            kind: "steam-moment",
+            slug: "steam-moment-first-1",
+            momentType: "FIRST_TIME_GAME",
+            appid: 1,
+            name: "Brand New",
+            baseSignal: 40,
+            daysSince: 20,
+            firstTime: {
+              windowPlayMinutes: 600,
+              sessionCount: 4,
+              firstSessionMinutes: 90,
+              addedAt: new Date(NOW.getTime() - 25 * 24 * 60 * 60 * 1000).toISOString(),
+              firstPlayedAt: new Date(
+                NOW.getTime() - 24 * 24 * 60 * 60 * 1000
+              ).toISOString(),
+            },
+          },
+        ]
+      );
+
+      const chapters = await service.getChapters(NOW);
+      expect(
+        chapters.filter((c) => c.kind === "steam-subject").map((c) => c.appid)
+      ).toEqual([2]);
+      expect(
+        chapters.filter((c) => c.kind === "steam-moment").map((c) => c.appid)
+      ).toEqual([1]);
+    });
+
+    it("keeps a game eligible when its FIRST_TIME_GAME falls below the score floor", async () => {
+      // The exclusion reads the rendered list, not the raw candidates. A
+      // first-time moment that never reaches the page has no framing left
+      // for a dormant row to contradict, and deleting the game from the
+      // lane on a candidate nobody sees is silent loss.
+      const service = makeService(
+        [
+          makeOwnedGame({
+            appid: 1,
+            name: "Barely Started",
+            playtimeForeverMinutes: 60 * 60,
+            playtime2WeeksMinutes: 0,
+            rtimeLastPlayedAt: new Date(
+              NOW.getTime() - 20 * 24 * 60 * 60 * 1000
+            ).toISOString(),
+          }),
+          makeOwnedGame({
+            appid: 2,
+            name: "Older",
+            playtimeForeverMinutes: 60 * 7,
+            playtime2WeeksMinutes: 0,
+            rtimeLastPlayedAt: new Date(
+              NOW.getTime() - 130 * 24 * 60 * 60 * 1000
+            ).toISOString(),
+          }),
+        ],
+        [],
+        [],
+        [],
+        NO_CURATION,
+        {},
+        [
+          {
+            kind: "steam-moment",
+            slug: "steam-moment-first-1",
+            momentType: "FIRST_TIME_GAME",
+            appid: 1,
+            // Decays to ~1.5 against RECAP_SCORE_FLOOR = 5.
+            name: "Barely Started",
+            baseSignal: 4,
+            daysSince: 20,
+            firstTime: {
+              windowPlayMinutes: 60,
+              sessionCount: 1,
+              firstSessionMinutes: 60,
+              addedAt: new Date(NOW.getTime() - 25 * 24 * 60 * 60 * 1000).toISOString(),
+              firstPlayedAt: new Date(
+                NOW.getTime() - 24 * 24 * 60 * 60 * 1000
+              ).toISOString(),
+            },
+          },
+        ]
+      );
+
+      const chapters = await service.getChapters(NOW);
+      expect(chapters.filter((c) => c.kind === "steam-moment")).toHaveLength(0);
+      expect(
+        chapters.filter((c) => c.kind === "steam-subject").map((c) => c.appid)
+      ).toEqual([1, 2]);
     });
 
     it("ignores brief-launch lastPlayed when ranking — a 3m relaunch must not outrank an older real session", async () => {

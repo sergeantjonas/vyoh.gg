@@ -160,11 +160,6 @@ export class RecapSubjectsService {
         bestMomentByAppid.get(c.appid) === c
     );
 
-    const allSteamMomentAppids = new Set(
-      dedupedMomentCandidates
-        .filter((c) => c.kind === "steam-moment")
-        .map((c) => (c.kind === "steam-moment" ? c.appid : -1))
-    );
     // Steam-moment ↔ steam-subject dedup, momentType-scoped. FIRST_TIME_GAME
     // and "Playing lately" overlap by construction — a freshly-added game
     // with hours of recent play fires both, and the two are genuinely
@@ -234,13 +229,40 @@ export class RecapSubjectsService {
     const activeSteamSubjectAppids = new Set(
       active.filter((c) => c.kind === "steam-subject").map((c) => c.appid)
     );
-    // Dormant top-up exclusion uses the FULL steam-moment set (every
-    // momentType), not just FIRST_TIME_GAME. A game with a recent
-    // ACHIEVEMENT_CLUSTER or LAUNCH_RARITY_DRIFT has very recent activity by
-    // definition, so it should never reappear lower down as a dormant
-    // "Earlier this year on…" row — that framing fights the moment's
-    // "this week" register.
-    const excludeAppids = new Set([...activeSteamSubjectAppids, ...allSteamMomentAppids]);
+    // Dormant exclusion is momentType-scoped for the same reason the
+    // subject dedup above is. A rendered FIRST_TIME_GAME already tells this
+    // game's whole story, and "Earlier this year on…" directly contradicts
+    // it, so that appid stays out. ACHIEVEMENT_CLUSTER, LAUNCH_RARITY_DRIFT
+    // and STEAM_SESSION are complementary facts about a game the page should
+    // still be naming — excluding on those sent the two largest playthroughs
+    // in the library to the Highlights rack while the dormant lane backfilled
+    // with games an order of magnitude smaller and months older, purely
+    // because those had no moment to disqualify them. A game played three
+    // weeks ago is not dormant in any register the reader can see, and both
+    // eyebrows bucket the same `freshest`, so ordinarily they agree.
+    //
+    // One band where they don't: a 60-119 minute return to a game whose
+    // progress has been frozen a year clears STEAM_SESSION's own 60-minute
+    // floor — which reads `endedAt` directly — while failing
+    // STALE_RETURN_2W_MINUTES here, so the subject re-dates to the prior
+    // unlock and reads "Earlier in <year>" beside a this-week session tile.
+    // Accepted: that backstop fires on nothing in the library today, and
+    // the alternative is deleting the game from the page entirely, which is
+    // the failure this narrowing exists to undo. Revisit by comparing the
+    // dormant date against the moment's anchor if it ever fires.
+    //
+    // Floored-out moments don't exclude: a moment that never renders has no
+    // framing to fight, which is why this reads `active` and not the raw
+    // candidate list.
+    const renderedFirstTimeAppids = new Set(
+      active
+        .filter((c) => c.kind === "steam-moment" && c.momentType === "FIRST_TIME_GAME")
+        .map((c) => (c.kind === "steam-moment" ? c.appid : -1))
+    );
+    const excludeAppids = new Set([
+      ...activeSteamSubjectAppids,
+      ...renderedFirstTimeAppids,
+    ]);
     const steamSlack = STEAM_SUBJECT_HARD_CAP - activeSteamSubjectAppids.size;
     const dormant =
       steamSlack > 0

@@ -1,6 +1,6 @@
 # Dormant chapter ranking
 
-**Status:** **Shipped 2026-08-25, and the completion gate replaced 2026-09-01** by the sharper signal this note left unscoped — see § "The completion gate is gone". Everything below about D2 still describes the code; D1's 25% gate does not.
+**Status:** **Shipped 2026-08-25; the completion gate replaced 2026-09-01; the moment exclusion narrowed 2026-09-17** — see § "The completion gate is gone" and § "The moment exclusion was too wide (2026-09-17)". Everything below about D2 still describes the code; D1's 25% gate does not.
 
 **Original status, kept because the reasoning it records is still live:** D1 (a 25% completion gate, so benchmark hours can't pass as play), D2 (the brief-launch guard now governs the unlock half of `freshest` too), and the review prompt now leads with the game that has hours behind it. Verified against the live api: the gate removed Cyberpunk from the chapter list and Resident Evil 4 backfilled the slot, as predicted. The sort order is unchanged and *correct* — `/` is a current-activity portrait, and the first draft's proposal to rank on lifetime hours was wrong for reasons the code had already recorded. Cyberpunk needs no `unfeaturedAt` row and has none.
 
@@ -149,6 +149,33 @@ Why each half is load-bearing: **"achievements remain"** is the Silksong exempti
 `STALE_RETURN_2W_MINUTES = 120` therefore fires on nothing in the library today, and it ships as a stated backstop rather than a measured improvement — the case it covers (a stress-testing loop left running past half an hour) is the one the gate used to catch, and it should not be silently uncovered when the gate goes.
 
 Known false negative, recorded at the constant: a genuine 90-minute revisit of a year-stale game that earns nothing keeps its old date. It re-dates itself on the first achievement, and the failure direction is a game staying where it was rather than a benchmark loop claiming the lane.
+
+## The moment exclusion was too wide (2026-09-17)
+
+The lane's eligibility filter, not its sort. `getChapters` excluded from the dormant top-up every appid carrying *any* steam-moment candidate, on the reasoning that a game with a recent moment has recent activity by definition and shouldn't also get an "Earlier this year on…" row. That reasoning holds for `FIRST_TIME_GAME` and for nothing else.
+
+Observed on the live api, owner-reported:
+
+```
+steam-subject | Onimusha: Way of the Sword | 61.67h | 1d    (active)
+steam-subject | Mortal Shell               | 10.67h | 31d
+steam-subject | Sekiro                     | 53.85h | 92d
+steam-subject | Resident Evil 4            | 25.77h | 97d
+steam-subject | Resident Evil 3            |  7.20h | 138d
+steam-moment  | ACHIEVEMENT_CLUSTER | Mortal Shell II        | 25d
+steam-moment  | LAUNCH_RARITY_DRIFT | Beast of Reincarnation | 34d
+```
+
+Mortal Shell II (62.75h, 18d) and Beast of Reincarnation (46.67h, 34d) are the two largest playthroughs in the library and the two freshest things on the page after Onimusha. Both were barred from the lane by a cluster and a drift respectively, so the four slack slots backfilled with games months older and up to nine times smaller — and a 7.2-hour Resident Evil 3 playthrough from May took a full-bleed chapter while a 62-hour one from three weeks ago got a Highlights tile. Neither game had 2w playtime or a 14d unlock, so neither could reach the active lane either; the exclusion was the only thing standing between them and the page.
+
+This is the same mistake the active branch already corrected for its own dedup, and the fix is the same shape: scope it to `FIRST_TIME_GAME`. "The first time you loaded X" and "earlier this year on X" are one game's story told twice, and the second contradicts the first — that one stays excluded. A cluster, a drift and a session are complementary facts about a game the page should still be naming, exactly as they are for an active subject.
+
+Two details worth keeping:
+
+- **The register objection mostly doesn't survive contact with the data, but it has one live band.** The original comment worried that a dormant eyebrow would fight a moment's "this week" voice. Ordinarily it can't: both buckets come from `ageBucketFromDaysSince` over the same `freshest`, so an 18-day subject reads "recent" and its 25-day cluster reads "recent" too. The exception is `STEAM_SESSION`, which anchors on `endedAt` and never passes through the brief-launch guard, against its own 60-minute floor in `steam-moments.service.ts`. A 60–119 minute return to a game whose progress has been frozen a year clears that floor and fails `STALE_RETURN_2W_MINUTES = 120` here, so the subject re-dates to the prior unlock and can read "Earlier in 2025 on X" beside a this-week session tile. Accepted rather than fixed: the stale-return backstop fires on nothing in the library today (both observed Cyberpunk benchmark launches are under the *ordinary* 30-minute floor), and the old behaviour in that band was to delete the game from the page altogether — which is the failure this narrowing exists to undo. If it ever fires, the fix is to compare the dormant row's date against the rendered moment's anchor rather than to widen the exclusion back out.
+- **Only *rendered* moments exclude.** The exclusion set is built from the post-floor, post-cap output of `selectChapters` rather than from the raw candidate list. A first-time moment that never reaches the page has no framing left to fight, and under the old code a floored-out candidate still silently deleted its game from the lane.
+
+After, against the same live data: Mortal Shell II (18d) and Beast of Reincarnation (34d) take subject slots in recency order, Sekiro holds the last one, and RE3 and RE4 fall off the lane. Both moments still render in Highlights. The invariant above is untouched — Onimusha is an active subject and still leads the block.
 
 ## Considered and rejected
 
