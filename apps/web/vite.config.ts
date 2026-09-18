@@ -87,16 +87,20 @@ const buildTime = new Date().toISOString();
 const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN;
 const sentryOrg = process.env.SENTRY_ORG;
 const sentryProject = process.env.SENTRY_PROJECT ?? "vyohgg-web";
-// Region-scoped, and not optional. This org lives in the EU (its DSN host is
-// `ingest.de.sentry.io`), while sentry-cli defaults its API to sentry.io —
-// which answers for a US org and fails for this one. An `sntrys_` org token
-// carries its region and needs no help; a personal token does not, so setting
-// it explicitly makes the build behave the same either way.
+// Left unset by default, and that default is the correction to a wrong guess.
+// A DSN host of `ingest.de.sentry.io` says where the project's *data* lands,
+// not where its API lives: Sentry's control plane is `sentry.io` for every org
+// regardless of region, and `de.sentry.io` only serves regional data
+// endpoints. Forcing the regional host broke nothing while the token was an
+// `sntrys_` one — those embed their own URL and override this, which is how
+// the mismatch got noticed — but it would send a personal token, which embeds
+// nothing, to the wrong base. The variable stays wired for the day a regional
+// endpoint is genuinely needed.
 //
 // `||` rather than `??`, for the reason SENTRY_SAMPLE_RATE already documents:
 // an unset GitHub Actions variable interpolates to an empty string, not to
 // undefined, and `??` would hand sentry-cli `""` as its API base.
-const sentryUrl = process.env.SENTRY_URL || "https://de.sentry.io/";
+const sentryUrl = process.env.SENTRY_URL || undefined;
 
 export default defineConfig({
   define: {
@@ -138,7 +142,7 @@ export default defineConfig({
         // too.
         sourcemaps: { filesToDeleteAfterUpload: [] },
         telemetry: false,
-        url: sentryUrl,
+        ...(sentryUrl ? { url: sentryUrl } : {}),
         // The plugin logs upload failures and lets the build succeed. That is a
         // reasonable default and the wrong one here: the image would ship,
         // deploy, and serve minified traces while every check reported green —
