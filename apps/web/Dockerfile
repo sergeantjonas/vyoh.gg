@@ -11,6 +11,15 @@
 
 FROM node:22-bookworm-slim AS build
 
+# `ca-certificates` is not in node:*-slim — the image ships an empty
+# /etc/ssl/certs. Node carries its own bundled trust store, so npm and pnpm
+# reach the registry fine and the gap stays invisible; sentry-cli is a Rust
+# binary that reads the *system* store, so the sourcemap upload dies on
+# `SSL certificate problem: unable to get local issuer certificate`.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN corepack enable
 WORKDIR /repo
 
