@@ -87,19 +87,20 @@ const buildTime = new Date().toISOString();
 const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN;
 const sentryOrg = process.env.SENTRY_ORG;
 const sentryProject = process.env.SENTRY_PROJECT ?? "vyohgg-web";
-// Left unset by default, and that default is the correction to a wrong guess.
-// A DSN host of `ingest.de.sentry.io` says where the project's *data* lands,
-// not where its API lives: Sentry's control plane is `sentry.io` for every org
-// regardless of region, and `de.sentry.io` only serves regional data
-// endpoints. Forcing the regional host broke nothing while the token was an
-// `sntrys_` one — those embed their own URL and override this, which is how
-// the mismatch got noticed — but it would send a personal token, which embeds
-// nothing, to the wrong base. The variable stays wired for the day a regional
-// endpoint is genuinely needed.
+// Honoured if something in the environment sets it, but deliberately not
+// plumbed through the Dockerfile or CI. A DSN host of `ingest.de.sentry.io`
+// says where a project's *data* lands, not where its API lives — Sentry's
+// control plane is `sentry.io` for every org — so the regional URL this once
+// carried was answering a question nobody had asked.
 //
-// `||` rather than `??`, for the reason SENTRY_SAMPLE_RATE already documents:
-// an unset GitHub Actions variable interpolates to an empty string, not to
-// undefined, and `??` would hand sentry-cli `""` as its API base.
+// Passing it through the image was worse than useless. `ARG SENTRY_URL` puts
+// the variable in the RUN environment even when the build arg is empty, and
+// sentry-cli reads the variable directly: `""` is not "unset" to it, it is a
+// URL with no scheme, and the build dies on `bad sentry url: unknown scheme
+// ()` before the plugin's own config is read. A `${VAR:+…}` guard on the
+// command does not help, because the ARG has already exported it.
+//
+// `||` rather than `??` for the same empty-string reason.
 const sentryUrl = process.env.SENTRY_URL || undefined;
 
 export default defineConfig({
