@@ -201,6 +201,17 @@ describe("copyFor", () => {
     );
   });
 
+  it("keeps the noun in the nearly-complete chip, which has no sentence beside it", () => {
+    expect(
+      copyFor({ kind: "nearly-complete", strength: 0.45, remaining: 2, total: 40 }, d)
+        .chip
+    ).toBe("2 achievements left");
+    expect(
+      copyFor({ kind: "nearly-complete", strength: 0.45, remaining: 1, total: 40 }, d)
+        .chip
+    ).toBe("1 achievement left");
+  });
+
   it("speaks about rarity only when a percent is known", () => {
     expect(
       copyFor({ kind: "unlocks", strength: 0.6, count: 3, rarestPercent: 2.5 }, d)

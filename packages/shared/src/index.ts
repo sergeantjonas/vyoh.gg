@@ -461,6 +461,13 @@ export {
 } from "./steam/sessions/hour-matrix.ts";
 export type { LocalSlot, MatrixInterval } from "./steam/sessions/hour-matrix.ts";
 export {
+  buildDayStrip,
+  dayStripActiveDays,
+  dayStripPeakMinutes,
+  localDay,
+} from "./steam/sessions/day-strip.ts";
+export type { DayStripCell, DayStripSession } from "./steam/sessions/day-strip.ts";
+export {
   BEAT_BOUNCE_MAX_MINUTES,
   BEAT_EARLY_START_BEFORE_HOUR,
   BEAT_FIRST_SESSION_MIN_SHARE,

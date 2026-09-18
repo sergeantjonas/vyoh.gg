@@ -1,14 +1,18 @@
 import { Link } from "@tanstack/react-router";
-import { formatHoursMinutes } from "@vyoh/shared";
 import { FactCard } from "./_shared/fact-card";
 import { FactCardData } from "./_shared/fact-card-data";
+import { RecentSessionRows } from "./sessions/recent-session-rows";
 import { headlineFor, liveHeadlineFor } from "./sessions/session-copy";
+import { SessionDayStrip } from "./sessions/session-day-strip";
 import { useElapsedMinutes } from "./sessions/use-elapsed-minutes";
 import { useSteamSessions } from "./sessions/use-sessions";
 
 const TITLE = "Last session";
 /** Enough weeks for a quiet month to still produce a session, cheap enough to fetch for a chip. */
 const CHIP_WEEKS = 4;
+const CHIP_DAYS = CHIP_WEEKS * 7;
+/** Five rows plus the strip fill the height the paired unlocks card sets; a sixth overflows it. */
+const ROW_LIMIT = 5;
 
 // The one curated highlight the landing page carries from the sessions route,
 // per the per-stream rule: the headline the beat model gives the last (or
@@ -41,13 +45,6 @@ export function LastSessionChip() {
             : null;
         const game = data.live?.game ?? latest?.game;
         if (!headline || !game) return null;
-        // The sentence names the game itself, so the verdict is the sentence
-        // and the game-plus-duration line sits under it as the receipt.
-        const duration = data.live
-          ? headline.masthead
-          : latest
-            ? formatHoursMinutes(latest.durationMinutes)
-            : "";
         return (
           <FactCard
             title={data.live ? "Now playing" : TITLE}
@@ -55,11 +52,29 @@ export function LastSessionChip() {
             metricLabel={{ singular: "session", plural: "sessions" }}
             verdict={headline.sentence}
             prescription={headline.chips.join(" · ") || undefined}
+            evidenceFills
             evidence={
-              <div className="flex flex-col gap-1.5 text-xs">
-                <p className="text-muted-foreground/80 tabular-nums">
-                  {game.name} · {duration}
-                </p>
+              <div className="flex flex-1 flex-col gap-3 text-xs">
+                {/* The running session is the one the rows below cannot show —
+                    it has no end yet — so the counter is its only receipt. A
+                    finished session is already the first row, to the minute. */}
+                {data.live && (
+                  <p className="text-muted-foreground/80 tabular-nums">
+                    Playing for {headline.masthead}
+                  </p>
+                )}
+                <SessionDayStrip
+                  sessions={data.sessions}
+                  live={data.live}
+                  timeZone={data.timeZone}
+                  days={CHIP_DAYS}
+                  through={data.window.to}
+                />
+                <RecentSessionRows
+                  sessions={data.sessions}
+                  limit={ROW_LIMIT}
+                  headlineAppid={game.appid}
+                />
                 <Link
                   to="/steam/sessions"
                   className="text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
