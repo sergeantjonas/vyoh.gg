@@ -39,6 +39,19 @@ describe("CardShell", () => {
     expect(screen.getByText("EVIDENCE")).toBeTruthy();
   });
 
+  it("leaves the evidence wrapper alone by default", () => {
+    // Every existing caller relies on this: the opt-in must not reflow them.
+    renderShell({ evidence: <div>EVIDENCE</div> });
+    const wrapper = screen.getByText("EVIDENCE").parentElement;
+    expect(wrapper?.className).toBe("mt-0.5");
+  });
+
+  it("lets the evidence absorb the row's slack when asked", () => {
+    renderShell({ evidence: <div>EVIDENCE</div>, evidenceFills: true });
+    const wrapper = screen.getByText("EVIDENCE").parentElement;
+    expect(wrapper?.className).toContain("flex-1");
+  });
+
   it("renders the prescription footer when provided", () => {
     renderShell({ prescription: "Do this." });
     expect(screen.getByText("Do this.")).toBeTruthy();

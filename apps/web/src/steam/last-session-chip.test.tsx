@@ -1,3 +1,4 @@
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { render, screen } from "@testing-library/react";
 import type { SteamSessions } from "@vyoh/shared";
 import { configureAxe } from "jest-axe";
@@ -66,6 +67,15 @@ function mock(data: SteamSessions) {
   } as unknown as ReturnType<typeof useSteamSessions>);
 }
 
+// The day strip's per-bar tooltips read the provider the root layout mounts.
+function renderChip() {
+  return render(
+    <TooltipPrimitive.Provider delayDuration={0}>
+      <LastSessionChip />
+    </TooltipPrimitive.Provider>
+  );
+}
+
 describe("LastSessionChip", () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -73,11 +83,12 @@ describe("LastSessionChip", () => {
 
   it("carries the last session's headline and links into the sessions page", async () => {
     mock(BASE);
-    const { container } = render(<LastSessionChip />);
+    const { container } = renderChip();
     expect(vi.mocked(useSteamSessions)).toHaveBeenCalledWith(4);
     expect(screen.getByText("Your third-longest Onimusha session of 10.")).toBeTruthy();
-    expect(screen.getByText("Onimusha · 1h 50m")).toBeTruthy();
     expect(screen.getByText("3 days running")).toBeTruthy();
+    // A finished session is the first row, so the card does not also say it in prose.
+    expect(screen.queryByText(/^Playing for/)).toBeNull();
     expect(screen.getByText(/Every session/).getAttribute("to")).toBe("/steam/sessions");
     expect((await axe(container)).violations).toHaveLength(0);
   });
@@ -94,9 +105,41 @@ describe("LastSessionChip", () => {
         beats: [],
       },
     });
-    render(<LastSessionChip />);
+    renderChip();
     expect(screen.getByText("Now playing")).toBeTruthy();
     expect(screen.getByText("Onimusha, open since 21:00.")).toBeTruthy();
-    expect(screen.getByText("Onimusha · 1h 30m")).toBeTruthy();
+    expect(screen.getByText("Playing for 1h 30m")).toBeTruthy();
+    // The running session is a played day too, so the strip has its two.
+    expect(screen.getByRole("rowheader", { name: "15 Sept" })).toBeTruthy();
+  });
+
+  it("draws the day strip over the fetched window", () => {
+    mock({
+      ...BASE,
+      sessions: [
+        ...BASE.sessions,
+        {
+          id: "s2",
+          game: { appid: 1, name: "Onimusha" },
+          startedAt: "2026-09-06T17:00:00.000Z",
+          endedAt: "2026-09-06T19:30:00.000Z",
+          durationMinutes: 150,
+          beats: [],
+          unlocks: [],
+        },
+      ],
+    });
+    renderChip();
+    expect(
+      screen.getByRole("img", { name: "Minutes played per day over the last 28 days" })
+    ).toBeTruthy();
+    expect(screen.getByRole("rowheader", { name: "13 Sept" })).toBeTruthy();
+    expect(screen.getByRole("rowheader", { name: "6 Sept" })).toBeTruthy();
+  });
+
+  it("omits the strip when the window holds a single played day", () => {
+    mock(BASE);
+    renderChip();
+    expect(screen.queryByRole("img", { name: /Minutes played per day/ })).toBeNull();
   });
 });

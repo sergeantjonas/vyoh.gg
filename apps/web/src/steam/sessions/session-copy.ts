@@ -5,6 +5,7 @@ import {
   type SteamPlaySessionDigest,
   type SteamSessionBeat,
   formatHoursMinutes,
+  localSlot,
 } from "@vyoh/shared";
 
 // The words for each beat. Shared picks the beat and carries its numbers; this
@@ -43,6 +44,18 @@ export function clockOf(iso: string): string {
 
 function weekdayOf(slot: { weekday: number }): string {
   return WEEKDAYS[slot.weekday] ?? "day";
+}
+
+/**
+ * A session's slot in three words — `Tue evening`. The short form of what
+ * `shape` says in a sentence, for lists where the beat model has no room to
+ * speak; it reads the same clock and the same dayparts, so a row and a
+ * headline about the same session cannot disagree about which part of the day
+ * it was.
+ */
+export function sessionSlotLabel(iso: string): string {
+  const slot = localSlot(new Date(iso), OWNER_TIME_ZONE);
+  return `${weekdayOf(slot).slice(0, 3)} ${daypartOf(slot.hour)}`;
 }
 
 function daypartOf(hour: number): string {
@@ -157,7 +170,9 @@ export function copyFor(
     case "nearly-complete":
       return {
         sentence: `${plural(beat.remaining, "achievement")} from finishing${named ? ` ${game}` : ""}.`,
-        chip: `${beat.remaining} to finish`,
+        // The noun has to survive the short form: "2 to finish" reads as two
+        // sessions, or two games, to anyone who has not seen the sentence.
+        chip: `${plural(beat.remaining, "achievement")} left`,
       };
     case "unlocks":
       return {

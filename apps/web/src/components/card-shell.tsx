@@ -36,6 +36,14 @@ export interface CardShellProps {
    * docs/repo-conventions.md.
    */
   frosted?: boolean;
+  /**
+   * Let the evidence slot absorb the row's slack instead of the prescription's
+   * `mt-auto` opening a hole above it. Opt-in, because it makes the evidence a
+   * flex column: only cards whose evidence can actually use the height (a
+   * chart that scales to its container) want it, and a card with a fixed list
+   * would just move the same gap inside its own wrapper.
+   */
+  evidenceFills?: boolean;
 }
 
 // The two recipes differ only in how much room the card takes for the same
@@ -71,6 +79,7 @@ export function CardShell({
   className,
   empty = false,
   frosted = true,
+  evidenceFills = false,
 }: CardShellProps) {
   const reduced = useReducedMotion();
   const density = DENSITY[useCardDensity()];
@@ -118,7 +127,11 @@ export function CardShell({
           {verdict}
         </m.p>
       </AnimatePresence>
-      {evidence !== undefined && <div className="mt-0.5">{evidence}</div>}
+      {evidence !== undefined && (
+        <div className={cn("mt-0.5", evidenceFills && "flex min-h-0 flex-1 flex-col")}>
+          {evidence}
+        </div>
+      )}
       {prescription !== undefined && (
         <p
           className={cn(
