@@ -1,11 +1,12 @@
 import { useSectionShellState } from "@/_shared/section-layout/section-shell-context";
+import { RelativeTime } from "@/lib/relative-time";
 import { cn } from "@/lib/utils";
 import { championHeroSplashUrl } from "@/lol/_shared/assets/champion-icon";
 import { championTheme } from "@/lol/_shared/assets/champion-theme";
 import { profileIconUrl } from "@/lol/_shared/assets/summoner-icon";
 import { useDDragonVersion } from "@/lol/_shared/patch/use-ddragon-version";
 import { useChampionName } from "@/lol/champions/use-champions";
-import { type RankEntry, formatTimeAgo } from "@vyoh/shared";
+import type { RankEntry } from "@vyoh/shared";
 import {
   m,
   useMotionValue,
@@ -265,7 +266,7 @@ export function LolIdentityHero({
           {lastMatch && (
             <m.p {...detailReveal(1)} className="text-muted-foreground text-sm">
               Last played {championName(lastMatch.champion)} ·{" "}
-              {formatTimeAgo(lastMatch.playedAt)}
+              <RelativeTime iso={lastMatch.playedAt} />
             </m.p>
           )}
         </div>

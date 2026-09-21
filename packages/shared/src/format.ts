@@ -82,8 +82,11 @@ export function formatPercent(ratio: number, decimals = 0): string {
 // several Steam surfaces. Sub-minute diffs collapse to "just now" — the
 // earlier "0m ago" form read awkwardly in suffix positions
 // ("checked 0m ago"). Reads naturally in every existing caller's framing.
-export function formatTimeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
+// `now` is injectable so a caller can subscribe to a ticking clock and have
+// the string age with it; reading `Date.now()` here would pin it to whenever
+// React last had a reason to re-render.
+export function formatTimeAgo(iso: string, now: number = Date.now()): string {
+  const diff = now - new Date(iso).getTime();
   const mins = Math.floor(diff / 60_000);
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;

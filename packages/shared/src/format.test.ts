@@ -199,6 +199,12 @@ describe("formatTimeAgo", () => {
   it("renders multi-day diffs in days", () => {
     expect(formatTimeAgo(ago(2 * 24 * 60 * 60_000))).toBe("2d ago");
   });
+
+  it("measures against a supplied clock, so a caller can tick it", () => {
+    const iso = "2026-09-21T00:14:00Z";
+    expect(formatTimeAgo(iso, Date.parse("2026-09-21T00:47:00Z"))).toBe("33m ago");
+    expect(formatTimeAgo(iso, Date.parse("2026-09-21T14:00:00Z"))).toBe("13h ago");
+  });
 });
 
 describe("formatElapsedCompact", () => {
