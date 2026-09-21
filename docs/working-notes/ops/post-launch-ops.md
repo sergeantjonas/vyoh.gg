@@ -51,13 +51,15 @@ A backup timer fails silently by nature, and a dump that halves in size is more 
 
 The box was always meant to host more than vyoh.gg — the machine-level conventions live in the `shared-vps` skill, and the launch followed them: host-installed nginx with one vhost file per project, every container bound to `127.0.0.1` so nginx is the only ingress, overridable ports, `/srv/<project>` and `/var/backups/<project>`, log caps so one noisy tenant cannot fill a shared disk. The 8 GB sizing only holds because builds moved off-box, and that headroom *is* the tenant budget.
 
-Four items were raised here on 2026-09-17. **Three are closed the same day and the fourth is now a decision rather than a gap.**
+Four items were raised here on 2026-09-17. **Three are closed the same day and the fourth is now a decision rather than a gap.** A fifth surfaced on 2026-09-21, the day the second tenant started deploying, and is closed below.
 
 **Postgres: per-project clusters, decided 2026-09-17 — the plan was amended, not the box.** The old target shape said one cluster with a database and role per project, on the grounds that a cluster each wastes a few hundred MB. Measured on the live box that day: web 155 MiB, api 339 MiB, postgres 254 MiB, 748 MiB total against 7.9 GB, with 6.6 GB available. So a second cluster costs roughly 250 MiB out of 6.6 GB spare, and consolidating would buy about 4% of RAM at three tenants in exchange for coupling independent projects into one failure domain, one upgrade schedule, and a `compose.prod.yaml` that no longer stands its own database up. The counter-argument is real and was weighed: one cluster with a role per project is the better ops story for a portfolio box. It lost on the arithmetic. **Revisit past roughly five tenants, or on a smaller VPS, where the numbers actually change.** What still matters is the port convention — ask the box before picking one, so a second database does not collide on 5432.
 
 **Port allocation: closed as a convention, not a file.** A registry drifts the first time someone forgets it. `ssh vyoh 'ss -lntp'` before picking a port cannot.
 
 **Resource limits: shipped 2026-09-17.** Memory ceilings at roughly 3x measured — postgres 1g, api 1536m, web 768m — so a runaway query or a leaking backfill hits its own container rather than the box, where the OOM killer picks by score rather than by blame. No CPU limits: on 4 vCPU, throttling a legitimate sync tick costs more than it protects, and CPU starvation degrades where memory starvation kills.
+
+**Daemon-wide image prune: scoped 2026-09-21.** `deploy.sh` ended with `docker image prune -f`. One Docker daemon serves every `/srv/<project>`, so that prune reached across tenants: it would have removed every other project's orphaned `:main` image — their local rollback target — and succeeded silently, with nothing tying the loss to a vyoh deploy. It now filters on `label=org.opencontainers.image.source=https://github.com/sergeantjonas/vyoh.gg`, which `docker/metadata-action` stamps on every image the pipeline builds; the value was verified against the deployed `:main` images before the change. Same shape as the zone-name collision: with one tenant the scoped and unscoped forms behave identically, so the bug is unobservable until the box is shared and the script already reads as proven.
 
 **nginx zone names: shipped 2026-09-17.** `api_general`, `api_img` and `api_conn` became `vyoh_api_*`, joining `vyoh_img`. `conf.d/` is one global namespace and a second project declaring `zone=api_general` would have made nginx refuse to load, with an error naming neither file.
 
@@ -93,7 +95,7 @@ Rollback is documented, plausible, and has never been run. That is the same posi
 
 **Shape:** roll back to the previous `sha-`, confirm the site still serves and `/srv/vyoh/.image-tag` names the old tag, then roll forward again. Record what actually happens, particularly around the api's `migrate deploy` on start — the two tags in question have no migration between them, which makes this a clean first rehearsal rather than a compound one.
 
-Worth finding out and writing down: how long the round trip takes, whether `docker image prune -f` in the deploy has already removed the images a rollback wants, and whether anything in the web bundle's baked `__BUILD_COMMIT__` reads oddly afterwards.
+Worth finding out and writing down: how long the round trip takes, and whether anything in the web bundle's baked `__BUILD_COMMIT__` reads oddly afterwards. The prune question is settled without a drill: `docker image prune` only takes untagged images, and every deployed tag is a `sha-` that stays tagged, so no rollback target has ever been eligible — see [image-pipeline.md § Risks carried](image-pipeline.md#risks-carried-not-solved).
 
 ## Chunk 3 — say when error reporting is off — SHIPPED 2026-09-17
 
