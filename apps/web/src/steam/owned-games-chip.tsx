@@ -16,7 +16,7 @@ export function OwnedGamesChip() {
       title="Most played"
       pendingLabel="Loading playtime…"
       errorLabel="Playtime is unavailable right now."
-      emptyLabel="Nothing played yet — first poll lands at 04:00 Brussels time."
+      emptyLabel="Nothing played yet — the next poll lands within 15 minutes."
       isEmpty={(data) => data.games.every((g) => g.playtimeForeverMinutes === 0)}
     >
       {(data) => {

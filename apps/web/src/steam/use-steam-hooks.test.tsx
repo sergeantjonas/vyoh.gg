@@ -7,7 +7,7 @@ import { useCompletionCandidates } from "./use-completion-candidates";
 import { useCrossGameRarest } from "./use-cross-game-rarest";
 import { useLibraryCompletion } from "./use-library-completion";
 import { useSteamLibrarySummary } from "./use-library-summary";
-import { useSteamOwnedGames } from "./use-owned-games";
+import { steamOwnedGamesQueryOptions, useSteamOwnedGames } from "./use-owned-games";
 import { useSteamPlatformMix } from "./use-platform-mix";
 import { useSteamPlayerState } from "./use-player-state";
 import { useRecentUnlocks } from "./use-recent-unlocks";
@@ -210,4 +210,32 @@ describe("viewer-scoped reads", () => {
       expect(callFor(url)?.[1]).toBeUndefined();
     }
   );
+});
+
+// The router disables focus refetch globally. These two opt back in because
+// they are what a tab left open for hours reads: without it the presence badge
+// waits for the next interval tick and the library never re-asks at all.
+describe("focus refetch on the surfaces a long-open tab shows", () => {
+  it("re-asks for owned games when the tab comes back", () => {
+    expect(steamOwnedGamesQueryOptions().refetchOnWindowFocus).toBe(true);
+  });
+
+  it("re-asks for presence rather than waiting out the interval", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    seedViewer(client);
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ steamId: "1" }), { status: 200 })
+    );
+    const { result } = renderHook(() => useSteamPlayerState(), {
+      wrapper: ({ children }: { children: ReactNode }) =>
+        createElement(QueryClientProvider, { client }, children),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    const [query] = client
+      .getQueryCache()
+      .findAll({ queryKey: ["steam", "player-state"] });
+
+    expect(query?.observers[0]?.options.refetchOnWindowFocus).toBe(true);
+  });
 });

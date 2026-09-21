@@ -22,9 +22,9 @@ async function fetchPlatformMix(): Promise<SteamPlatformMix> {
 // Primed in the /steam loader alongside the portrait, since the Portrait's
 // platform card is a claim rather than a count: 166 B answered in ~2 ms.
 //
-// Same backing poller as library-summary (daily 04:00 Brussels). Mix changes
-// are slower than library count changes, but keeping the stale-time aligned
-// keeps cache invalidation simple.
+// Same backing poller as library-summary (owned games, every 15 min). Mix
+// changes are slower than library count changes, but keeping the stale-time
+// aligned keeps cache invalidation simple.
 export function platformMixQueryOptions() {
   return queryOptions({
     queryKey: ["steam", "platform-mix"],

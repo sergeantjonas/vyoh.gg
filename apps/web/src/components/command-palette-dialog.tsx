@@ -23,6 +23,7 @@ import { DialogTitle } from "@/components/ui/dialog";
 import { type ShareableChapter, shareChapterCard } from "@/home/recap/share-chapter-card";
 import { useMe } from "@/identity/use-me";
 import { clearMatchHighlights, paintMatchHighlights } from "@/lib/highlight-matches";
+import { RelativeTime } from "@/lib/relative-time";
 import { useAudio } from "@/lib/use-audio";
 import { cn } from "@/lib/utils";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
@@ -120,16 +121,6 @@ const WISHLIST_DESTINATIONS = {
   WishlistPaletteTarget,
   { value: string; label: string; path: string; icon: ReactNode }
 >;
-
-function relativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
 
 function recentIcon(kind: RecentKind) {
   switch (kind) {
@@ -1024,7 +1015,9 @@ export default function CommandPaletteDialog({ open, onOpenChange }: Props) {
                         {match.kills}/{match.deaths}/{match.assists}
                       </span>
                       <span>{queueLabel(match.queueId)}</span>
-                      <span>{relativeTime(match.playedAt)}</span>
+                      <span>
+                        <RelativeTime iso={match.playedAt} />
+                      </span>
                     </span>
                   </CommandItem>
                 ))

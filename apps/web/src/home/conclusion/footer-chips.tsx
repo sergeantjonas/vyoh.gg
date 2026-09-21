@@ -1,4 +1,5 @@
-import { formatTimeAgo } from "@vyoh/shared";
+import { RelativeTime } from "@/lib/relative-time";
+import type { ReactNode } from "react";
 
 // First commit on this repo. Truthful and always derivable; decided
 // 2026-05-14 over deploy / registration-style alternatives.
@@ -16,7 +17,7 @@ function FooterChip({
   mono,
 }: {
   label: string;
-  value: string;
+  value: ReactNode;
   mono?: boolean;
 }) {
   return (
@@ -38,11 +39,10 @@ function FooterChip({
  * said what it wanted to say.
  */
 export function ConclusionFooterChips() {
-  const deployRelative = formatTimeAgo(__BUILD_TIME__);
   const days = daysSince(LAUNCH_ISO);
   return (
     <footer className="flex flex-wrap items-baseline justify-center gap-x-6 gap-y-2 px-6 pb-12 pt-6">
-      <FooterChip label="Deployed" value={deployRelative} />
+      <FooterChip label="Deployed" value={<RelativeTime iso={__BUILD_TIME__} />} />
       <FooterChip label="Commit" value={__BUILD_COMMIT__} mono />
       <FooterChip label="Live for" value={`${days} ${days === 1 ? "day" : "days"}`} />
     </footer>

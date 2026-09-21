@@ -106,7 +106,7 @@ describe("OwnedGamesChip", () => {
     });
     renderChip();
     expect(
-      screen.getByText(/Nothing played yet — first poll lands at 04:00/)
+      screen.getByText(/Nothing played yet — the next poll lands within 15 min/)
     ).toBeTruthy();
   });
 

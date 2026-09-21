@@ -21,14 +21,25 @@ async function fetchOwnedGames(): Promise<SteamOwnedGames> {
   return res.json() as Promise<SteamOwnedGames>;
 }
 
-// Backed by the daily 04:00 Europe/Brussels poller — values change at most
-// once per 24h. Same stale-time as the other owned-games-derived hooks.
+// Backed by the 15-min owned-games poller, which upserts into the owner's
+// current local day — `snapshotDate` is a day, but the row behind it is
+// rewritten four times an hour, so playtime and last-launched move all day.
+// Same stale-time as the other owned-games-derived hooks.
 export function steamOwnedGamesQueryOptions(isOwner = false) {
   return queryOptions({
     queryKey: ["steam", "owned-games", viewerScope(isOwner)],
     queryFn: fetchOwnedGames,
+    // Deliberately longer than the poller's 15 min: the response runs to
+    // hundreds of kilobytes, so tracking the poller would spend that on every
+    // tab return to move a handful of playtime figures.
     staleTime: 30 * 60 * 1_000,
     ...viewerScopedQuery,
+    // Overrides the router's global `false`, which is what left a long-open tab
+    // with no route back to fresh data: no interval and no passive
+    // invalidation, so nothing asked. Focus is the right trigger rather than a
+    // poll — nobody is reading a tab they are not looking at, and the handler
+    // is a Prisma read of the latest snapshot.
+    refetchOnWindowFocus: true,
   });
 }
 

@@ -4,6 +4,7 @@
 // data) stays where it already lives in CommandPaletteDialog, instead of
 // re-deriving it here.
 
+import { RelativeTime } from "@/lib/relative-time";
 import { ChampionSquareIcon } from "@/lol/_shared/assets/champion-square-icon";
 import { useChampionName } from "@/lol/champions/use-champions";
 import { type MatchSummary, formatDuration, formatKda, queueLabel } from "@vyoh/shared";
@@ -11,16 +12,6 @@ import { type MatchSummary, formatDuration, formatKda, queueLabel } from "@vyoh/
 type Props = {
   match: MatchSummary;
 };
-
-function relativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
 
 export function CommandPalettePreviewMatch({ match }: Props) {
   const championName = useChampionName();
@@ -66,7 +57,9 @@ export function CommandPalettePreviewMatch({ match }: Props) {
         </span>
         <span className="tabular-nums">{formatKda(kdaRatio)} KDA</span>
         <span className="tabular-nums">{formatDuration(match.durationSec)}</span>
-        <span>{relativeTime(match.playedAt)}</span>
+        <span>
+          <RelativeTime iso={match.playedAt} />
+        </span>
       </div>
     </aside>
   );

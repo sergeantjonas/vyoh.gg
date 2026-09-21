@@ -36,6 +36,12 @@ export function useSteamPlayerState() {
     ...viewerScopedQuery,
     staleTime: 30 * 1_000,
     refetchInterval: 30 * 1_000,
+    // Overrides the router's global `false`. The interval keeps running while
+    // the tab is hidden but skips the fetch, and a sleeping machine stops it
+    // firing at all, so a tab returned to after hours shows the presence it was
+    // left with until the next tick — up to 30s of a stale "Away". Cheap to
+    // correct on the way in: this route reads the poller's row, not Steam.
+    refetchOnWindowFocus: true,
     retry: (failureCount, error) =>
       error instanceof HttpError && error.status === 404 ? false : failureCount < 2,
   });

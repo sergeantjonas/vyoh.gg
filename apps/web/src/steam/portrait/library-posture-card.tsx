@@ -15,7 +15,7 @@ export function LibraryPostureCard() {
       title={TITLE}
       pendingLabel="Counting the shelf…"
       errorLabel="Library posture is unavailable right now."
-      emptyLabel="Library hasn't synced yet — first poll lands at 04:00 Brussels time."
+      emptyLabel="Library hasn't synced yet — the next poll lands within 15 minutes."
       isEmpty={(data) => data.posture.ownedCount === 0}
     >
       {({ posture }) => {

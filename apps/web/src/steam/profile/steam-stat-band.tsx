@@ -1,7 +1,8 @@
+import { RelativeTime } from "@/lib/relative-time";
 import { steamLibraryLogoUrl } from "@/steam/_shared/steam-image";
 import { useSteamLibrarySummary } from "@/steam/use-library-summary";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
-import { formatPlaytime, formatTimeAgo, isSteamGameAppType } from "@vyoh/shared";
+import { formatPlaytime, isSteamGameAppType } from "@vyoh/shared";
 import { m, useReducedMotion } from "motion/react";
 import { useMemo, useState } from "react";
 
@@ -73,7 +74,7 @@ function RecentlyPlayedCell({
         )}
       </div>
       <span className="truncate font-medium text-foreground/60 text-xs">
-        {formatTimeAgo(lastPlayedAt)}
+        <RelativeTime iso={lastPlayedAt} />
       </span>
       <span className="truncate font-medium text-[11px] text-muted-foreground uppercase tracking-[0.16em]">
         Recently played

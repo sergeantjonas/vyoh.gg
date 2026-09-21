@@ -1,11 +1,12 @@
 import { useSectionShellState } from "@/_shared/section-layout/section-shell-context";
+import { RelativeTime } from "@/lib/relative-time";
 import { useHydratedSync } from "@/lib/use-hydrated";
 import { cn } from "@/lib/utils";
 import { steamLibraryHeroUrl } from "@/steam/_shared/steam-image";
 import { useSteamOwnedGames } from "@/steam/use-owned-games";
 import { useSteamPlayerState } from "@/steam/use-player-state";
 import { useSteamSummary } from "@/steam/use-steam-summary";
-import { formatTimeAgo, isSteamGameAppType } from "@vyoh/shared";
+import { isSteamGameAppType } from "@vyoh/shared";
 import {
   m,
   useMotionValue,
@@ -152,9 +153,7 @@ export function SteamIdentityHero() {
   // Poller staleness, folded in from the deleted NowPlayingChip — its one bit
   // of non-duplicated info. The player-state poller runs every ~2 min, so this
   // tells the viewer how fresh the presence read is.
-  const lastChecked = playerState?.lastPolledAt
-    ? formatTimeAgo(playerState.lastPolledAt)
-    : null;
+  const lastCheckedIso = playerState?.lastPolledAt ?? null;
 
   // Pointer parallax — same treatment as the LoL hero; springs smooth the raw
   // pointer signal and the transform sits on a wrapper distinct from the
@@ -340,8 +339,10 @@ export function SteamIdentityHero() {
                 <span className="relative inline-flex size-2 rounded-full bg-emerald-400" />
               </span>
               Now playing {liveGame.name}
-              {lastChecked && (
-                <span className="text-emerald-300/60">· checked {lastChecked}</span>
+              {lastCheckedIso && (
+                <span className="text-emerald-300/60">
+                  · checked <RelativeTime iso={lastCheckedIso} />
+                </span>
               )}
             </m.p>
           ) : (
@@ -352,9 +353,9 @@ export function SteamIdentityHero() {
               >
                 <span className={cn("inline-flex size-2 rounded-full", presence.dot)} />
                 {presence.label}
-                {lastChecked && (
+                {lastCheckedIso && (
                   <span className="text-muted-foreground/60">
-                    · checked {lastChecked}
+                    · checked <RelativeTime iso={lastCheckedIso} />
                   </span>
                 )}
               </m.p>

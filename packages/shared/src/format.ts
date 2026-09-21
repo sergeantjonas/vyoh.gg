@@ -82,19 +82,28 @@ export function formatPercent(ratio: number, decimals = 0): string {
 // several Steam surfaces. Sub-minute diffs collapse to "just now" — the
 // earlier "0m ago" form read awkwardly in suffix positions
 // ("checked 0m ago"). Reads naturally in every existing caller's framing.
-export function formatTimeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
+// `now` is injectable so a caller can subscribe to a ticking clock and have
+// the string age with it; reading `Date.now()` here would pin it to whenever
+// React last had a reason to re-render.
+export function formatTimeAgo(iso: string, now: number = Date.now()): string {
+  const diff = now - new Date(iso).getTime();
   const mins = Math.floor(diff / 60_000);
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+  if (days < 7) return `${days}d ago`;
+  // Match lists reach back months, where a day count stops being a duration
+  // anyone reads and becomes a number they have to divide.
+  const weeks = Math.floor(days / 7);
+  return `${weeks}w ago`;
 }
 
 // Suffix-less sibling of formatTimeAgo for chip positions that already carry
-// their own framing ("· 5m", "unlocked 3h"). Clamps to at least "1m" — the
+// their own framing ("· 5m", "unlocked 3h"). Stops at days rather than carrying
+// the weeks tier — a chip sits beside a verb about something recent, where "3w"
+// is a sign the chip should not be there. Clamps to at least "1m" — the
 // recap chips sit next to a verb, where "0m" reads as a glitch — and treats a
 // future or unparsable timestamp as "just now" rather than a negative count.
 export function formatElapsedCompact(iso: string): string {
