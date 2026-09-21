@@ -139,7 +139,13 @@ cyan "→ drop dangling images"
 # A no-op for `sha-` deploys: the previous tag still names its images, so
 # nothing is dangling. That is the trade — disk grows per deploy, and a
 # rollback to a recent tag needs no network. See the note's § Risks carried.
-ssh "$host" "docker image prune -f" >/dev/null
+#
+# The label filter is what keeps this inside vyoh. One Docker daemon serves
+# every tenant on the box, so an unqualified prune would also take the other
+# projects' orphaned `:main` images — their local rollback targets — and
+# succeed silently. metadata-action stamps the label on every image the
+# pipeline builds; verified on the live images 2026-09-21.
+ssh "$host" "docker image prune -f --filter 'label=org.opencontainers.image.source=https://github.com/sergeantjonas/vyoh.gg'" >/dev/null
 
 cyan "→ smoke"
 # `docker compose up -d` returns once the containers are started, and the api's
