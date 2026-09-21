@@ -23,8 +23,9 @@ export function useSteamLibrarySummary() {
   return useQuery({
     queryKey: ["steam", "library-summary"],
     queryFn: fetchLibrarySummary,
-    // Backed by the daily 04:00 Europe/Brussels poller — values change at most
-    // once per 24h. Keep stale-time generous; refetches between polls are noise.
+    // Backed by the 15-min owned-games poller, which rewrites the current
+    // day's snapshot rather than appending one. Keep stale-time generous
+    // anyway: a library count moves far slower than the rows behind it.
     staleTime: 30 * 60 * 1_000,
   });
 }

@@ -26,8 +26,9 @@ async function fetchPortrait(): Promise<SteamPortrait> {
 // "server-render the routes a crawler cares about" rule, where the sibling
 // summary endpoint fails the latency one.
 //
-// Recomputed from the daily 04:00 Europe/Brussels playtime snapshot, so the
-// answer cannot change more than once a day.
+// Recomputed from the playtime snapshot the owned-games poller rewrites every
+// 15 min — the row is keyed by the owner's local day, which is what the
+// "daily" framing used to describe.
 export function portraitQueryOptions(isOwner = false) {
   return queryOptions({
     queryKey: ["steam", "portrait", viewerScope(isOwner)],
