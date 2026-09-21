@@ -140,7 +140,7 @@ function LibraryPage() {
         <EmptyState
           illustration={<EmptyLibraryIllustration />}
           title="Library hasn't synced yet"
-          hint="First poll lands at 04:00 Brussels time."
+          hint="The next poll lands within 15 minutes."
         />
       )}
 

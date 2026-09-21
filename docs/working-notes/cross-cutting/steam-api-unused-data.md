@@ -26,7 +26,7 @@ Hero headline target: **"Member since 2010 · Level 14 · top 5%"** — the hone
 
 ### A — Owned-games aggregate we already fetch but never surface
 
-We pull `GetOwnedGames` daily (04:00 Brussels poller) and use it for the library + most-played, but the **collection-level totals are discarded**:
+We pull `GetOwnedGames` every 15 min (owned-games poller) and use it for the library + most-played, but the **collection-level totals are discarded**:
 
 - `game_count` = **175 owned**
 - summed `playtime_forever` = **~2,860 h total**
