@@ -5,6 +5,7 @@
 // filter already consumes rather than refetching.
 
 import { useIsOwner } from "@/auth/use-viewer";
+import { RelativeTime } from "@/lib/relative-time";
 import { steamLibraryCapsuleUrl } from "@/steam/_shared/steam-image";
 import { libraryCompletionQueryOptions } from "@/steam/use-library-completion";
 import { steamOwnedGamesQueryOptions } from "@/steam/use-owned-games";
@@ -15,16 +16,6 @@ import { formatPlaytime } from "@vyoh/shared";
 type Props = {
   appid: string;
 };
-
-function relativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
 
 export function CommandPalettePreviewSteamGame({ appid }: Props) {
   const queryClient = useQueryClient();
@@ -43,7 +34,6 @@ export function CommandPalettePreviewSteamGame({ appid }: Props) {
 
   const capsuleUrl = steamLibraryCapsuleUrl(game.appid, game.assetTimestamp);
   const lifetime = formatPlaytime(game.playtimeForeverMinutes);
-  const lastPlayed = game.rtimeLastPlayedAt ? relativeTime(game.rtimeLastPlayedAt) : null;
 
   const completionRow = completion?.stats.find((s) => s.appid === appidNum);
   const percent =
@@ -74,7 +64,11 @@ export function CommandPalettePreviewSteamGame({ appid }: Props) {
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground">
         <span className="text-foreground">{lifetime} lifetime</span>
-        {lastPlayed && <span>last played {lastPlayed}</span>}
+        {game.rtimeLastPlayedAt && (
+          <span>
+            last played <RelativeTime iso={game.rtimeLastPlayedAt} />
+          </span>
+        )}
         {percent !== null && (
           <span data-testid="achievement-percent" className="tabular-nums">
             {percent}% unlocked

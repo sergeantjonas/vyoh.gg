@@ -1,5 +1,6 @@
 import { CountUp } from "@/components/count-up";
 import { Sparkline } from "@/components/ui/sparkline";
+import { RelativeTime } from "@/lib/relative-time";
 import { useHoverPrefetch } from "@/lib/use-hover-prefetch";
 import { cn } from "@/lib/utils";
 import { supportsViewTransitions } from "@/lib/view-transition-nav";
@@ -38,19 +39,6 @@ function formatDuoLabel(duos: Duo[]): string {
   if (names.length === 1) return names[0] ?? "";
   if (names.length === 2) return `${names[0]} & ${names[1]}`;
   return `${names[0]}, ${names[1]} +${names.length - 2}`;
-}
-
-function formatTimeAgo(iso: string): string {
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const minutes = Math.round(diffMs / 60_000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.round(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  const weeks = Math.round(days / 7);
-  return `${weeks}w ago`;
 }
 
 export function MatchRow({
@@ -283,7 +271,7 @@ export function MatchRow({
                   />
                   <span>
                     {queueLabel(match.queueId)} · {formatDuration(match.durationSec)} ·{" "}
-                    {formatTimeAgo(match.playedAt)}
+                    <RelativeTime iso={match.playedAt} />
                   </span>
                   {match.teamGoldDiffSeries.length >= 5 && (
                     <Sparkline

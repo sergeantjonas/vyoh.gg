@@ -93,11 +93,17 @@ export function formatTimeAgo(iso: string, now: number = Date.now()): string {
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+  if (days < 7) return `${days}d ago`;
+  // Match lists reach back months, where a day count stops being a duration
+  // anyone reads and becomes a number they have to divide.
+  const weeks = Math.floor(days / 7);
+  return `${weeks}w ago`;
 }
 
 // Suffix-less sibling of formatTimeAgo for chip positions that already carry
-// their own framing ("· 5m", "unlocked 3h"). Clamps to at least "1m" — the
+// their own framing ("· 5m", "unlocked 3h"). Stops at days rather than carrying
+// the weeks tier — a chip sits beside a verb about something recent, where "3w"
+// is a sign the chip should not be there. Clamps to at least "1m" — the
 // recap chips sit next to a verb, where "0m" reads as a glitch — and treats a
 // future or unparsable timestamp as "just now" rather than a negative count.
 export function formatElapsedCompact(iso: string): string {

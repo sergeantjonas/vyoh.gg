@@ -198,6 +198,12 @@ describe("formatTimeAgo", () => {
 
   it("renders multi-day diffs in days", () => {
     expect(formatTimeAgo(ago(2 * 24 * 60 * 60_000))).toBe("2d ago");
+    expect(formatTimeAgo(ago(6 * 24 * 60 * 60_000))).toBe("6d ago");
+  });
+
+  it("switches to weeks past the point a day count stops reading as a duration", () => {
+    expect(formatTimeAgo(ago(7 * 24 * 60 * 60_000))).toBe("1w ago");
+    expect(formatTimeAgo(ago(21 * 24 * 60 * 60_000))).toBe("3w ago");
   });
 
   it("measures against a supplied clock, so a caller can tick it", () => {

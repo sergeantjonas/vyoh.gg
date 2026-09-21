@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * MINUTE_MS;
 const DAY_MS = 24 * HOUR_MS;
+const WEEK_MS = 7 * DAY_MS;
 
 // How long until `formatTimeAgo` would return something different. Its units
 // coarsen as the gap grows, so a day-old timestamp needs one wake-up a day,
@@ -12,7 +13,8 @@ const DAY_MS = 24 * HOUR_MS;
 function msUntilNextChange(elapsedMs: number): number {
   if (elapsedMs < HOUR_MS) return MINUTE_MS - (elapsedMs % MINUTE_MS);
   if (elapsedMs < DAY_MS) return HOUR_MS - (elapsedMs % HOUR_MS);
-  return DAY_MS - (elapsedMs % DAY_MS);
+  if (elapsedMs < WEEK_MS) return DAY_MS - (elapsedMs % DAY_MS);
+  return WEEK_MS - (elapsedMs % WEEK_MS);
 }
 
 /**

@@ -250,6 +250,15 @@ describe("MatchRow", () => {
     expect(container.textContent).toMatch(/3h ago/);
   });
 
+  // Reports elapsed time rather than rounding to the nearest unit: 90 minutes
+  // is an hour and a half gone, not two hours away.
+  it("floors a part-way hour rather than rounding it up", () => {
+    const { container } = renderRow({
+      match: summary({ playedAt: new Date(Date.now() - 90 * 60_000).toISOString() }),
+    });
+    expect(container.textContent).toMatch(/1h ago/);
+  });
+
   it("formats day-old games as 'Xd ago'", () => {
     const { container } = renderRow({
       match: summary({

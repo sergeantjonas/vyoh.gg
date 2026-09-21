@@ -54,6 +54,18 @@ describe("RelativeTime", () => {
     expect(screen.getByText("2h ago")).toBeTruthy();
   });
 
+  it("waits out the whole week once the string is counting weeks", () => {
+    render(<RelativeTime iso={LAST_PLAYED} />);
+    act(() => vi.advanceTimersByTime(8 * 24 * 60 * 60_000));
+    expect(screen.getByText("1w ago")).toBeTruthy();
+
+    act(() => vi.advanceTimersByTime(5 * 24 * 60 * 60_000));
+    expect(screen.getByText("1w ago")).toBeTruthy();
+
+    act(() => vi.advanceTimersByTime(24 * 60 * 60_000));
+    expect(screen.getByText("2w ago")).toBeTruthy();
+  });
+
   // A sleeping machine stops firing timers entirely, so the wake-up that should
   // have stepped the string never ran — the overnight case from the report.
   it("re-reads the clock when a hidden tab becomes visible again", () => {
