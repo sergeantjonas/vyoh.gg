@@ -52,6 +52,25 @@ describe("bufferEarlyErrors", () => {
     expect(buffer.drain().map(earlyErrorValue)).toEqual(["Script error."]);
   });
 
+  // Seen in production 2026-09-21: the browser's own layout bail-out, with no
+  // error object and no stack. Dropping it here keeps it out of the bounded
+  // hold as well as out of Sentry.
+  it("drops a benign browser notice rather than holding it", () => {
+    const target = new EventTarget();
+    const buffer = bufferEarlyErrors(target);
+
+    target.dispatchEvent(
+      errorEvent(
+        undefined,
+        "ResizeObserver loop completed with undelivered notifications."
+      )
+    );
+    // The string older Chrome and Edge use for the same bail-out.
+    target.dispatchEvent(errorEvent(undefined, "ResizeObserver loop limit exceeded"));
+
+    expect(buffer.drain()).toEqual([]);
+  });
+
   // A crash loop can outpace the chunk request; the first few carry the cause.
   it("stops holding past the limit rather than growing without bound", () => {
     const target = new EventTarget();

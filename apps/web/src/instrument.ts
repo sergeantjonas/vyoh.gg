@@ -1,6 +1,10 @@
 import * as Sentry from "@sentry/react";
 import { scrubPayload } from "@vyoh/shared";
-import { type EarlyError, earlyErrorValue } from "./lib/early-errors";
+import {
+  BENIGN_ERROR_PATTERNS,
+  type EarlyError,
+  earlyErrorValue,
+} from "./lib/early-errors";
 import type { ErrorTier } from "./lib/report-error";
 
 /**
@@ -30,6 +34,10 @@ Sentry.init({
   // release name here — it would collect every unversioned build into one
   // bucket — so it maps to undefined, matching the SSR tier's `|| undefined`.
   release: __BUILD_COMMIT__ === "dev" ? undefined : __BUILD_COMMIT__,
+  // Browser notices that reach `window.onerror` without anything being wrong.
+  // `early-errors.ts` drops them before they can fill the pre-init buffer; this
+  // covers the same events once the SDK's own handler is the one catching them.
+  ignoreErrors: [...BENIGN_ERROR_PATTERNS],
   sendDefaultPii: false,
   // `|| 1` rather than `??`, for the reason spelled out in the api's
   // `instrument.ts`: a set-but-empty value parses to 0, which the SDK accepts

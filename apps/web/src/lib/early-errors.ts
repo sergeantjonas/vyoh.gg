@@ -51,6 +51,30 @@ export function earlyErrorValue(event: EarlyError): unknown {
 }
 
 /**
+ * Messages the browser fires at `window.onerror` that are not faults.
+ *
+ * The ResizeObserver one is the spec's own bail-out: a callback resized
+ * something inside the tree it observes, so the browser delivers one more round
+ * and then reports whatever is left over. It means a frame's layout settled a
+ * beat late, carries no error object and no stack, and nothing in the app is
+ * broken when it fires — which makes it pure noise in an unhandled bucket.
+ *
+ * Applied to the buffer as well as to the SDK's own `ignoreErrors`, because the
+ * buffer holds a bounded number of events: a burst of these during hydration
+ * would evict the crash it exists to catch.
+ */
+export const BENIGN_ERROR_PATTERNS: readonly RegExp[] = [/^ResizeObserver loop/];
+
+function isBenign(event: EarlyError): boolean {
+  // A real throw carries an `error` object worth reporting whatever its message
+  // says; these notices never do, so the absence is part of the match.
+  const message = "message" in event && !event.error ? event.message : undefined;
+  return (
+    typeof message === "string" && BENIGN_ERROR_PATTERNS.some((p) => p.test(message))
+  );
+}
+
+/**
  * `limit` bounds the hold rather than the reporting: a crash loop can fire
  * these faster than the chunk loads, and the first few carry the cause.
  */
@@ -59,6 +83,7 @@ export function bufferEarlyErrors(target: EventTarget, limit = 10): EarlyErrorBu
 
   const capture = (event: Event): void => {
     if (!isEarlyError(event)) return;
+    if (isBenign(event)) return;
     if (held.length >= limit) return;
     held.push(event);
   };
