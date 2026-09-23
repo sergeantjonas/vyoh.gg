@@ -13,6 +13,7 @@ import type {
   SteamSessions,
 } from "@vyoh/shared";
 import {
+  LIVE_POLL_FRESH_MS,
   OFF_CAMERA_SAMPLE_LIMIT,
   OWNER_TIME_ZONE,
   SESSION_UNLOCK_SLACK_MS,
@@ -35,8 +36,6 @@ export const SESSIONS_MAX_WEEKS = 52;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * DAY_MS;
-// Seven missed two-minute ticks: long enough to ride out a restart.
-const LIVE_POLL_FRESH_MS = 15 * 60 * 1000;
 
 interface SessionRow {
   id: string;
@@ -114,9 +113,7 @@ export class SteamSessionsService {
     // An open row only means "playing now" while the poller is actually
     // polling: the row closes on the tick that sees the game gone, and no
     // tick comes while the api is down. So the row is live only if the last
-    // tick is recent and still saw this game. Deliberately tighter than the
-    // bound that ends a session across a gap: a row may still be continued
-    // after a blind half hour, but it should not claim "now" through one.
+    // tick is recent and still saw this game.
     const [openRow, playerState] = await Promise.all([
       this.prisma.steamPlaySession.findFirst({
         where: { endedAt: null },

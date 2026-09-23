@@ -498,7 +498,10 @@ export type {
   SteamSessionBeat,
   SteamSessionBeatKind,
 } from "./steam/sessions/beats.ts";
-export { OFF_CAMERA_SAMPLE_LIMIT } from "./steam/sessions/sessions.ts";
+export {
+  LIVE_POLL_FRESH_MS,
+  OFF_CAMERA_SAMPLE_LIMIT,
+} from "./steam/sessions/sessions.ts";
 export type {
   SteamLiveSession,
   SteamOffCameraUnlockGroup,

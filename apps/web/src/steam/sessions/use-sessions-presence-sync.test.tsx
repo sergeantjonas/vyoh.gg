@@ -6,13 +6,19 @@ import type { ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 import { useSessionsPresenceSync } from "./use-sessions-presence-sync";
 
+const POLLED_AT = "2026-09-22T22:26:00.000Z";
 const OPEN = {
   currentGame: { appid: 2638890, name: "Onimusha" },
+  lastPolledAt: POLLED_AT,
 } as unknown as SteamPlayerState;
 const OTHER = {
   currentGame: { appid: 1245620, name: "Elden Ring" },
+  lastPolledAt: POLLED_AT,
 } as unknown as SteamPlayerState;
-const IDLE = { currentGame: null } as unknown as SteamPlayerState;
+const IDLE = {
+  currentGame: null,
+  lastPolledAt: POLLED_AT,
+} as unknown as SteamPlayerState;
 
 const PAGE_KEY = ["steam", "sessions", 12, "public"];
 const CHIP_KEY = ["steam", "sessions", 4, "owner"];
@@ -61,6 +67,21 @@ describe("useSessionsPresenceSync", () => {
     rerender({ state: OPEN, scope: "public" });
     rerender({ state: { ...OPEN }, scope: "public" });
     expect(stale(PAGE_KEY)).toBe(false);
+  });
+
+  it("marks the windows stale when the poll comes back after a gap on the same game", () => {
+    const at = (minutes: number) =>
+      ({
+        ...OPEN,
+        lastPolledAt: new Date(Date.UTC(2026, 8, 22, 22, 26 + minutes)).toISOString(),
+      }) as SteamPlayerState;
+    const { rerender, stale } = setup({ state: at(0), scope: "public" });
+    rerender({ state: at(2), scope: "public" });
+    rerender({ state: at(17), scope: "public" });
+    expect(stale(PAGE_KEY)).toBe(false);
+    rerender({ state: at(33), scope: "public" });
+    expect(stale(PAGE_KEY)).toBe(true);
+    expect(stale(CHIP_KEY)).toBe(true);
   });
 
   it("ignores the game appearing only because the viewer scope flipped", () => {
