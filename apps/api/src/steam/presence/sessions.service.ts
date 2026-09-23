@@ -13,6 +13,7 @@ import type {
   SteamSessions,
 } from "@vyoh/shared";
 import {
+  LIVE_POLL_FRESH_MS,
   OFF_CAMERA_SAMPLE_LIMIT,
   OWNER_TIME_ZONE,
   SESSION_UNLOCK_SLACK_MS,
@@ -29,7 +30,6 @@ import {
   visibleAppidFilter,
 } from "@vyoh/shared";
 import { PrismaService } from "../../prisma/prisma.service";
-import { SESSION_POLL_GAP_MAX_MS } from "./play-sessions.service";
 
 export const SESSIONS_DEFAULT_WEEKS = 12;
 export const SESSIONS_MAX_WEEKS = 52;
@@ -113,8 +113,7 @@ export class SteamSessionsService {
     // An open row only means "playing now" while the poller is actually
     // polling: the row closes on the tick that sees the game gone, and no
     // tick comes while the api is down. So the row is live only if the last
-    // tick is recent and still saw this game — the same bound the state
-    // machine uses to end a session across a gap.
+    // tick is recent and still saw this game.
     const [openRow, playerState] = await Promise.all([
       this.prisma.steamPlaySession.findFirst({
         where: { endedAt: null },
@@ -127,7 +126,7 @@ export class SteamSessionsService {
     ]);
     const pollIsFresh =
       playerState !== null &&
-      to.getTime() - playerState.lastPolledAt.getTime() <= SESSION_POLL_GAP_MAX_MS;
+      to.getTime() - playerState.lastPolledAt.getTime() <= LIVE_POLL_FRESH_MS;
     const liveRow =
       openRow &&
       pollIsFresh &&

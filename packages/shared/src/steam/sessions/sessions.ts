@@ -98,6 +98,15 @@ export interface SteamLiveSession {
   beats: SteamSessionBeat[];
 }
 
+// How recent the presence poll must be for an open row to read as live —
+// seven missed two-minute ticks, long enough to ride out a restart.
+// Deliberately tighter than the bound that ends a session across a gap: a row
+// may still be continued after a blind half hour, but it should not claim
+// "now" through one. Shared because the page has to notice the poll coming
+// back past it, which is the one change a live flag can lose that no game
+// transition reports.
+export const LIVE_POLL_FRESH_MS = 15 * 60 * 1000;
+
 export interface SteamSessionsWindow {
   from: string;
   to: string;

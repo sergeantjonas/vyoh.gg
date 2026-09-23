@@ -33,6 +33,12 @@ describe("sessionsQueryOptions", () => {
       "owner",
     ]);
   });
+
+  // Overrides the router's global `false`; the unlock refresh that follows a
+  // session close has no other route onto an open page.
+  it("re-asks when the tab comes back", () => {
+    expect(sessionsQueryOptions().refetchOnWindowFocus).toBe(true);
+  });
 });
 
 describe("useSteamSessions", () => {

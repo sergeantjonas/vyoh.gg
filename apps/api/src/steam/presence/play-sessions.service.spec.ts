@@ -70,6 +70,17 @@ describe("computeTransition", () => {
     expect(action).toEqual({ type: "noop" });
   });
 
+  it("keeps one session across a Steam-side outage of a quarter hour", () => {
+    const action = computeTransition(
+      input({
+        openSession: { id: "s1", appid: 870780 },
+        previous: { appid: 870780, lastPolledAt: new Date(NOW.getTime() - 16 * 60_000) },
+        next: { appid: 870780, gameName: "Control Ultimate Edition" },
+      })
+    );
+    expect(action).toEqual({ type: "noop" });
+  });
+
   it("opens a new session on null → X transition", () => {
     const action = computeTransition(
       input({

@@ -15,15 +15,22 @@ export interface TransitionInput {
 
 /**
  * A gap between two ticks longer than this ends the open session at the
- * last tick that saw it, even when the same game is showing again now. The
- * poller runs every two minutes, so this is seven missed ticks — well past a
- * restart, well short of an evening. Without it the api sleeping overnight
- * with the game open on both sides stitched two evenings into one 29-hour
- * row (Mortal Shell II, 2026-08-18 → 20; the playtime snapshots for those
- * days sum to under eleven hours). Splitting a real sitting across a long
- * outage is the honest failure: the middle was not observed either way.
+ * last tick that saw it, even when the same game is showing again now.
+ * Without it the api sleeping overnight with the game open on both sides
+ * stitched two evenings into one 29-hour row (Mortal Shell II, 2026-08-18 →
+ * 20; the playtime snapshots for those days sum to under eleven hours).
+ *
+ * An hour, because the gaps production sees are Steam's rather than ours:
+ * GetPlayerSummaries answered 502 for twelve minutes of a Tuesday afternoon
+ * Pacific, Valve's usual maintenance slot, and a fifteen-minute bound split
+ * an evening of Control in two around it (2026-09-22, 22:26 → 22:42 UTC). A
+ * gap only merges two rows when the same game shows on both sides, so what
+ * the hour risks is a quit-and-relaunch of that game while the poller was
+ * blind.
+ * Splitting a real sitting across a longer outage is the honest failure: the
+ * middle was not observed either way.
  */
-export const SESSION_POLL_GAP_MAX_MS = 15 * 60 * 1000;
+export const SESSION_POLL_GAP_MAX_MS = 60 * 60 * 1000;
 
 export type TransitionAction =
   | { type: "noop" }
