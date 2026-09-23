@@ -30,11 +30,14 @@ async function fetchSessions(weeks: number): Promise<SteamSessions> {
 // 45 kB on 2026-09-15, which is what made carrying it in the document the
 // right trade for a page that is one argument from top to bottom.
 //
-// Five minutes stale: the presence poller closes a session every two, so a
-// tab left open sees a finished evening on the next focus rather than the one
-// after. While a session is live the page polls at the poller's own cadence,
-// so the hero swaps from the counter to the closed session within a tick of
-// the game closing; the counter itself needs no fetch, it reads the clock.
+// Five minutes stale, and re-asked on focus over the router's global `false`.
+// The presence sync refetches the moment a game closes, but the unlocks for
+// that session can arrive later — the per-game refresh is fire-and-forget,
+// and when it drops the hourly and four-hourly pollers reconcile — so
+// without focus a tab left open never shows them. While a session is live
+// the page polls at the poller's own cadence, so the hero swaps from the
+// counter to the closed session within a tick of the game closing; the
+// counter itself needs no fetch, it reads the clock.
 export const LIVE_REFETCH_MS = 2 * 60 * 1_000;
 
 export function sessionsQueryOptions(isOwner = false, weeks = SESSIONS_WEEKS) {
@@ -43,6 +46,7 @@ export function sessionsQueryOptions(isOwner = false, weeks = SESSIONS_WEEKS) {
     queryFn: () => fetchSessions(weeks),
     staleTime: 5 * 60 * 1_000,
     refetchInterval: (query) => (query.state.data?.live ? LIVE_REFETCH_MS : false),
+    refetchOnWindowFocus: true,
     ...viewerScopedQuery,
   });
 }
