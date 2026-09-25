@@ -152,5 +152,5 @@ Browsers that already hold a poisoned response keep it; only a URL change reache
 ## Not in scope
 
 - **The off-box backup copy.** Tracked as the open half of the backup gate in [hosting.md § 6](hosting.md#6-backups--added-2026-08-01); it is a decision about a storage target, not an operations improvement.
-- **E3, sourcemaps and releases.** The last open launch gate, owned by [error-tracking.md](error-tracking.md).
+- **E3, sourcemaps and releases.** Owned by [error-tracking.md](error-tracking.md); the last launch gate, closed once its upload ran.
 - **Uptime monitoring.** No external check watches the box today. Deliberately left out until there is a reason beyond completeness — the site is a portfolio surface, not a service with an SLA, and the honest first question is who would be woken up.
