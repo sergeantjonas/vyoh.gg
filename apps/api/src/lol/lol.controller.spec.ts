@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 // owner.guard.spec.ts, its placement by conventions.spec.ts.
 import { AuthService } from "../auth/auth.service";
 import { AccountParamsDto } from "./account-params.dto";
+import { ChampionMasteryService } from "./champion-mastery.service";
 import { LolAnalyticsService } from "./lol-analytics.service";
 import { LolChampionAnalyticsService } from "./lol-champion-analytics.service";
 import { LolController } from "./lol.controller";
@@ -24,6 +25,7 @@ describe("LolController", () => {
         { provide: LolService, useValue: { getMatchesForSummoner: stub } },
         { provide: LolAnalyticsService, useValue: {} },
         { provide: LolChampionAnalyticsService, useValue: {} },
+        { provide: ChampionMasteryService, useValue: {} },
         { provide: MatchBaselineService, useValue: {} },
         { provide: MatchNarrativeService, useValue: {} },
         { provide: AuthService, useValue: {} },
@@ -53,6 +55,7 @@ describe("LolController", () => {
         { provide: LolService, useValue: {} },
         { provide: LolAnalyticsService, useValue: {} },
         { provide: LolChampionAnalyticsService, useValue: {} },
+        { provide: ChampionMasteryService, useValue: {} },
         { provide: MatchBaselineService, useValue: {} },
         { provide: MatchNarrativeService, useValue: { getNarrativeWindow: stub } },
         { provide: AuthService, useValue: {} },

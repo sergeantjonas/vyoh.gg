@@ -1,6 +1,6 @@
 # vyoh.gg — App state analysis & improvement plan
 
-**Status:** Reference — living analysis, last fresh read 2026-05-13. Phases 1–5 of the improvement plan all shipped; Phase 6 (Mastery integration, multi-account compare, live-tab audit) remains optional and tracked in [open-work.md](../open-work.md). Refresh the structural read when a new feature arc materially changes the LoL section's shape.
+**Status:** Reference — living analysis, last fresh read 2026-05-13. Phases 1–5 of the improvement plan all shipped; in Phase 6, mastery shipped 2026-09-25, and multi-account compare and the live-tab audit remain optional, tracked in [open-work.md](../open-work.md). Refresh the structural read when a new feature arc materially changes the LoL section's shape.
 
 Last fresh read: 2026-05-13. Captures what the LoL section looks like today, what's carrying the app, what the structural gap is, and where the next arcs should land. Read this when scoping a new feature arc or when deciding whether a Champions-tab renovation is the right next move (spoiler: probably not the *first* move).
 
@@ -292,7 +292,7 @@ Cherry-pick when appetite for visible work is low or the portfolio story needs a
 | Composite LP forecast tile | M | Composition only; no new data. |
 | Champion-pool drift verdict | S | 14d-vs-prior-14d diff over windowed data. |
 | Champions list role/queue filters | S | Mirror Matches/Trends. |
-| Mastery pull | S | ⚠️ Half done: `RiotService.getChampionMasteryByChampion` exists and the live-game poller consumes it; no Champions-side surface. |
+| Mastery pull | S | ✅ Shipped 2026-09-25: `GET …/champions/:championKey/mastery` reads Riot's by-puuid list (every champion in one call, 173 on the main account), cached per account for 15 min, and the champion-detail hero carries a `Mastery 105 · 1.12M` pill beside *Last played*, exact points and last game in its tooltip. Client-only, so the server render has no pill. Not on the list rows: they are rich cards, and a mastery sort would be its own change. |
 | Recap density expansion | M | ✅ shipped 2026-05-14. 4 sections added; share-image still deferred. |
 | Multi-account compare | L | New view; lean into architecture story. |
 | Live tab audit | S | Read-only review pass. |

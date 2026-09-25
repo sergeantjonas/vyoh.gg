@@ -20,7 +20,8 @@ export type MethodFamily =
   | "league-entries-by-puuid"
   | "summoner-by-puuid"
   | "active-game-by-puuid"
-  | "champion-mastery-by-champion";
+  | "champion-mastery-by-champion"
+  | "champion-masteries-by-puuid";
 
 export interface AppWindowSnapshot {
   regional: Regional;

@@ -220,6 +220,13 @@ export interface RiotChampionMastery {
   championPoints: number;
 }
 
+// The by-puuid list carries more per entry than the by-champion call is typed
+// for; only what a surface reads is declared.
+export interface RiotChampionMasteryEntry extends RiotChampionMastery {
+  /** Epoch milliseconds. */
+  lastPlayTime: number;
+}
+
 export interface RiotParticipantFrame {
   participantId: number;
   totalGold: number;

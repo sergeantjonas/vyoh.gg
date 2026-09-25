@@ -9,6 +9,7 @@ import type {
   RiotAccount,
   RiotActiveGame,
   RiotChampionMastery,
+  RiotChampionMasteryEntry,
   RiotLeagueEntry,
   RiotMatch,
   RiotMatchTimeline,
@@ -133,6 +134,25 @@ export class RiotService {
         throw err;
       }
     });
+  }
+
+  // Every champion the player has any mastery on, in one call — 173 entries for
+  // the owner's main account, measured 2026-09-25.
+  async getChampionMasteries(
+    puuid: string,
+    platform: Platform
+  ): Promise<RiotChampionMasteryEntry[]> {
+    const rateKey = platformToRegional(platform);
+    const path = `/lol/champion-mastery/v4/champion-masteries/by-puuid/${puuid}`;
+    return this.limiter.schedule(rateKey, "champion-masteries-by-puuid", () =>
+      this.fetchWithRetry<RiotChampionMasteryEntry[]>(
+        platform,
+        rateKey,
+        "champion-masteries-by-puuid",
+        path,
+        0
+      )
+    );
   }
 
   // Returns null when the player has no mastery on the given champion (404 = never played).

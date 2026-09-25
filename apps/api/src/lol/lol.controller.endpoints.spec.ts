@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { ChampionMasteryService } from "./champion-mastery.service";
 import type { LolAnalyticsService } from "./lol-analytics.service";
 import type { LolChampionAnalyticsService } from "./lol-champion-analytics.service";
 import { LolController } from "./lol.controller";
@@ -41,6 +42,7 @@ function makeController() {
     getChampionLanePhase: vi.fn(),
   };
   const baseline = { getBaseline: vi.fn() };
+  const mastery = { getChampionMastery: vi.fn() };
   const narrative = { getNarrativeWindow: vi.fn(), getLifetimeNarrative: vi.fn() };
   return {
     controller: new LolController(
@@ -48,11 +50,13 @@ function makeController() {
       analytics as unknown as LolAnalyticsService,
       baseline as unknown as MatchBaselineService,
       narrative as unknown as MatchNarrativeService,
-      championAnalytics as unknown as LolChampionAnalyticsService
+      championAnalytics as unknown as LolChampionAnalyticsService,
+      mastery as unknown as ChampionMasteryService
     ),
     lol,
     analytics,
     championAnalytics,
+    mastery,
     baseline,
     narrative,
   };
@@ -258,6 +262,17 @@ describe("LolController endpoint delegations", () => {
       "EUW",
       "ahri",
       100
+    );
+  });
+
+  it("getChampionMastery delegates to the mastery service with the route's champion key", async () => {
+    const { controller, mastery } = makeController();
+    await controller.getChampionMastery(championParams);
+    expect(mastery.getChampionMastery).toHaveBeenCalledWith(
+      "euw1",
+      "Vyoh",
+      "EUW",
+      "ahri"
     );
   });
 

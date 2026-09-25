@@ -42,6 +42,7 @@ import { ChampionBuildPath } from "@/lol/champions/champion-build-path";
 import { ChampionCardChrome } from "@/lol/champions/champion-card";
 import { ChampionHero } from "@/lol/champions/champion-hero";
 import { ChampionLanePhase } from "@/lol/champions/champion-lane-phase";
+import { ChampionMasteryBadge } from "@/lol/champions/champion-mastery-badge";
 import { ChampionPatchHistory } from "@/lol/champions/champion-patch-history";
 import { ChampionPositionHeatmap } from "@/lol/champions/champion-position-heatmap";
 import { ChampionRuneDiversity } from "@/lol/champions/champion-rune-diversity";
@@ -446,7 +447,9 @@ function ChampionDetailPage() {
               <ChampionCardChrome champion={alias} />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background/95 via-background/30 to-transparent" />
               <div className="absolute bottom-0 left-0 right-0 p-5">
-                <div className="relative flex items-center gap-2">
+                {/* Wraps so a long name and both pills fit a phone: without it
+                    "Aurelion Sol" breaks mid-name and each pill wraps inside itself. */}
+                <div className="relative flex flex-wrap items-center gap-x-2 gap-y-1">
                   <span className="text-2xl font-bold">{championName(alias)}</span>
                   <TooltipPrimitive.Root>
                     <TooltipPrimitive.Trigger asChild>
@@ -475,6 +478,10 @@ function ChampionDetailPage() {
                       buildLabel="Last build"
                     />
                   )}
+                  <ChampionMasteryBadge
+                    accountSlug={accountSlug}
+                    championKey={championKey}
+                  />
                 </div>
                 {parentClassChips.length > 0 && (
                   <div className="relative mt-0.5 flex items-center gap-2 text-xs text-muted-foreground/70">

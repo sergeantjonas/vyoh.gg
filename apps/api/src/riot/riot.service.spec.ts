@@ -284,6 +284,34 @@ describe("RiotService.getLeagueEntriesByPuuid", () => {
   });
 });
 
+describe("RiotService.getChampionMasteries", () => {
+  it("asks the platform host for every champion's mastery under its own family", async () => {
+    const entries = [{ championId: 103, championLevel: 105, championPoints: 1_124_191 }];
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify(entries), { status: 200 })
+    );
+    const schedule = vi.fn(<T>(_: unknown, __: unknown, fn: () => Promise<T>) => fn());
+    const limiter = {
+      schedule,
+      syncFromHeaders: async () => undefined,
+    } as unknown as RateLimiterService;
+    const service = new RiotService(limiter);
+
+    const result = await service.getChampionMasteries("p1", "euw1");
+
+    expect(result).toEqual(entries);
+    expect(schedule).toHaveBeenCalledWith(
+      "europe",
+      "champion-masteries-by-puuid",
+      expect.any(Function)
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      "https://euw1.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-puuid/p1",
+      expect.anything()
+    );
+  });
+});
+
 describe("RiotService.getSummonerByPuuid", () => {
   it("returns the summoner payload routed through the platform host", async () => {
     const summoner = { puuid: "p1", summonerLevel: 250, profileIconId: 1 };
