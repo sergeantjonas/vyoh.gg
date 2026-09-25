@@ -3,6 +3,7 @@ import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { ChampionRecap, LolAccount } from "@vyoh/shared";
 
 import { API_URL } from "@/lib/api-url";
+import { HttpError } from "@/lib/http-error";
 
 /**
  * Tanstack-Query options for the per-champion landing-chapter recap. The
@@ -29,7 +30,7 @@ export function championRecapQueryOptions(
         `${API_URL}/lol/summoners/${encodeURIComponent(account.region)}/${encodeURIComponent(account.gameName)}/${encodeURIComponent(account.tagLine)}/champions/${encodeURIComponent(championKey)}/recap`
       );
       const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new HttpError(res.status, `HTTP ${res.status}`);
       return res.json() as Promise<ChampionRecap>;
     },
     enabled: !!account,

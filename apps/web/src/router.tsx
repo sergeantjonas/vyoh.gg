@@ -32,6 +32,12 @@ function RoutePending() {
   );
 }
 
+// A failure the api cannot have reported. An `HttpError` means it answered —
+// a 5xx it already reported, a 4xx it meant — and an offline visitor fails
+// every query at once with nothing of ours to fix.
+const isBrowserOnlyFailure = (error: unknown) =>
+  !(error instanceof HttpError) && globalThis.navigator?.onLine !== false;
+
 const errorMessage = (error: unknown, fallback: string) => {
   if (error instanceof HttpError) return error.message;
   if (error instanceof Error && error.message) return error.message;
@@ -68,23 +74,31 @@ export function getRouter() {
       },
     },
     queryCache: new QueryCache({
-      // Deliberately not reported, and the guard is narrower than it looks:
-      // it drops every failure with no cached data, not just background
-      // refreshes. A refresh of data already on screen fails mostly on a
-      // briefly-flaky upstream, already toasts, and when the cause is a real
-      // 5xx the api reports it with far better context — so reporting here
-      // would duplicate that signal, and this is the largest quota risk in the
-      // app.
+      // A refresh of data already on screen toasts and is deliberately not
+      // reported: it fails mostly on a briefly-flaky upstream, and when the
+      // cause is a real 5xx the api reports it with far better context — so
+      // reporting here would duplicate that signal, and this is the largest
+      // quota risk in the app.
       //
-      // What it also drops is a first load that never had data: a prime routed
-      // through `primeQuietly` (its `allSettled` means the loader does not
-      // reject, so no errorComponent runs) or a `useQuery` no loader primes.
-      // Those reach nobody — no toast, no report. That is a known gap rather
-      // than a consequence of the decision above; see open-work.md. Closing it
-      // means reporting *this* branch selectively, not lifting the guard.
+      // A first load with no data does not toast, since the surface renders its
+      // own error state. Some of those reach no boundary at all — a prime routed
+      // through `primeQuietly` (its `allSettled` stops the loader rejecting) or
+      // a `useQuery` no loader primes — so the ones the api cannot have seen are
+      // reported here: an api that could not be reached, a body that would not
+      // parse, a throw in the query function. An edge 429 counts too once its
+      // retries run out, since nginx's own answers carry no CORS header and
+      // reach the browser as a network error.
+      //
+      // A blocking prime's failure also reaches its errorComponent, which
+      // reports the same error object at route tier. This handler runs first,
+      // and the browser SDK's default dedupe drops the later repeat, so such a
+      // failure is usually filed under `query` rather than `route`.
       onError: (error, query) => {
-        if (query.state.data === undefined) return;
-        void toastError(errorMessage(error, "Background refresh failed"));
+        if (query.state.data !== undefined) {
+          void toastError(errorMessage(error, "Background refresh failed"));
+          return;
+        }
+        if (isBrowserOnlyFailure(error)) reportError(error, "query");
       },
     }),
     mutationCache: new MutationCache({

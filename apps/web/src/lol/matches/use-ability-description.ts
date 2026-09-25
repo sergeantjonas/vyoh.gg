@@ -2,6 +2,7 @@ import { type UseQueryResult, useQuery } from "@tanstack/react-query";
 import type { LolAbilityDescriptionDto } from "@vyoh/shared";
 
 import { API_URL } from "@/lib/api-url";
+import { HttpError } from "@/lib/http-error";
 
 // Lazy per-ability description fetch. The bundle ships identity (id, slot,
 // abilityIndex, name, icon); description text is resolved on demand here
@@ -18,7 +19,10 @@ async function fetchAbilityDescription(
     `${API_URL}/lol/static/ability/${championId}/${slot}/${abilityIndex}`
   );
   if (!res.ok) {
-    throw new Error(`Failed to load ability description: HTTP ${res.status}`);
+    throw new HttpError(
+      res.status,
+      `Failed to load ability description: HTTP ${res.status}`
+    );
   }
   return (await res.json()) as LolAbilityDescriptionDto;
 }

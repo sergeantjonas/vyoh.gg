@@ -5,6 +5,7 @@ import type { ChampionExtras, LolAccount } from "@vyoh/shared";
 import { useMemo } from "react";
 
 import { API_URL } from "@/lib/api-url";
+import { HttpError } from "@/lib/http-error";
 
 export function championExtrasQueryOptions(
   account: LolAccount | undefined,
@@ -30,7 +31,7 @@ export function championExtrasQueryOptions(
         url.searchParams.set("queues", queueIds.join(","));
       }
       const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new HttpError(res.status, `HTTP ${res.status}`);
       return res.json() as Promise<ChampionExtras>;
     },
     enabled: !!account,

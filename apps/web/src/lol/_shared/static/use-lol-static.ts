@@ -2,13 +2,15 @@ import { type UseQueryResult, useQuery } from "@tanstack/react-query";
 import type { LolStaticBundle } from "@vyoh/shared";
 
 import { API_URL } from "@/lib/api-url";
+import { HttpError } from "@/lib/http-error";
 const STATIC_URL = `${API_URL}/lol/static`;
 
 const LOL_STATIC_KEY = ["lol", "static"] as const;
 
 async function fetchLolStatic(): Promise<LolStaticBundle> {
   const res = await fetch(STATIC_URL);
-  if (!res.ok) throw new Error(`Failed to load static bundle: HTTP ${res.status}`);
+  if (!res.ok)
+    throw new HttpError(res.status, `Failed to load static bundle: HTTP ${res.status}`);
   return (await res.json()) as LolStaticBundle;
 }
 
