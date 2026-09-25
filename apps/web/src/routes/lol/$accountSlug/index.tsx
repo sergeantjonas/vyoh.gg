@@ -257,9 +257,10 @@ function ProfilePage() {
           <ProfileActivityCalendar accountSlug={accountSlug} />
         </Suspense>
       </CvSection>
-      {/* Neither is CV-gated: both render null until their query lands, and
-          "On this day" stays null on about half the days of the year, so a
-          reserved minHeight would leave a gap. */}
+      {/* Not wrapped in CvSection here: both render null until their query
+          lands, and "On this day" stays null on about half the days of the
+          year, so a reserved minHeight would leave a gap. "On this day" gates
+          itself once it has rows; the chips are plain pills with nothing to gate. */}
       <ProfileHistoryChips accountSlug={accountSlug} />
       <ProfileOnThisDay accountSlug={accountSlug} />
       <CvSection minHeight={100}>
