@@ -6,6 +6,7 @@ import { LolController } from "./lol.controller";
 import type { LolService } from "./lol.service";
 import type { MatchBaselineService } from "./match-baseline.service";
 import type { MatchNarrativeService } from "./match-narrative.service";
+import type { OnThisDayService } from "./on-this-day.service";
 
 function makeController() {
   const lol = {
@@ -43,6 +44,7 @@ function makeController() {
   };
   const baseline = { getBaseline: vi.fn() };
   const mastery = { getChampionMastery: vi.fn() };
+  const onThisDay = { getOnThisDay: vi.fn() };
   const narrative = { getNarrativeWindow: vi.fn(), getLifetimeNarrative: vi.fn() };
   return {
     controller: new LolController(
@@ -51,12 +53,14 @@ function makeController() {
       baseline as unknown as MatchBaselineService,
       narrative as unknown as MatchNarrativeService,
       championAnalytics as unknown as LolChampionAnalyticsService,
-      mastery as unknown as ChampionMasteryService
+      mastery as unknown as ChampionMasteryService,
+      onThisDay as unknown as OnThisDayService
     ),
     lol,
     analytics,
     championAnalytics,
     mastery,
+    onThisDay,
     baseline,
     narrative,
   };
@@ -100,6 +104,12 @@ describe("LolController endpoint delegations", () => {
     const { controller, analytics } = makeController();
     await controller.getChronotype(params, 500);
     expect(analytics.getChronotype).toHaveBeenCalledWith("euw1", "Vyoh", "EUW", 500);
+  });
+
+  it("getOnThisDay delegates to the on-this-day service with the account params", async () => {
+    const { controller, onThisDay } = makeController();
+    await controller.getOnThisDay(params);
+    expect(onThisDay.getOnThisDay).toHaveBeenCalledWith("euw1", "Vyoh", "EUW");
   });
 
   it("getChampionPairs delegates to analytics.getChampionPairs", async () => {

@@ -219,6 +219,8 @@ export {
 } from "./lol/rank-history.ts";
 export type { ChampionExtras, ItemStats, MatchupStats } from "./lol/champion-extras.ts";
 export type { ChampionMastery, ChampionMasteryResponse } from "./lol/champion-mastery.ts";
+export { ON_THIS_DAY_WINDOW_DAYS } from "./lol/on-this-day.ts";
+export type { OnThisDay, OnThisDayGame, OnThisDayYear } from "./lol/on-this-day.ts";
 export { isRolePosition } from "./lol/role-position.ts";
 export type { RolePosition } from "./lol/role-position.ts";
 export type { ChampionRoleSplit, ChampionStats } from "./lol/champion-stats.ts";

@@ -15,6 +15,7 @@ import { MatchEventsService } from "./match-events.service";
 import { MatchNarrativeService } from "./match-narrative.service";
 import { MatchSyncService } from "./match-sync.service";
 import { MatchController } from "./match.controller";
+import { OnThisDayService } from "./on-this-day.service";
 import { PatchController } from "./patch.controller";
 import { PatchService } from "./patch.service";
 
@@ -28,6 +29,7 @@ import { PatchService } from "./patch.service";
     LolAnalyticsService,
     LolChampionAnalyticsService,
     ChampionMasteryService,
+    OnThisDayService,
     MatchBaselineService,
     MatchNarrativeService,
     MatchSyncService,

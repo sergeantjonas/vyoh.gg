@@ -18,6 +18,7 @@ import { ProfileMultikillStrip } from "@/lol/profile/profile-multikill-strip";
 import { ProfileNowPlaying } from "@/lol/profile/profile-now-playing";
 import { ProfileObjectiveFirsts } from "@/lol/profile/profile-objective-firsts";
 import { ProfileObjectiveParticipation } from "@/lol/profile/profile-objective-participation";
+import { ProfileOnThisDay } from "@/lol/profile/profile-on-this-day";
 import { ProfileQueueDistribution } from "@/lol/profile/profile-queue-distribution";
 import { ProfileRecentForm } from "@/lol/profile/profile-recent-form";
 import { ProfileRoleStrip } from "@/lol/profile/profile-role-strip";
@@ -253,6 +254,9 @@ function ProfilePage() {
           <ProfileActivityCalendar accountSlug={accountSlug} />
         </Suspense>
       </CvSection>
+      {/* Not CV-gated, for the same reason as squads: it renders null on about
+          half the days of the year, and a reserved minHeight would leave a gap. */}
+      <ProfileOnThisDay accountSlug={accountSlug} />
       <CvSection minHeight={100}>
         <ProfileStatsBar accountSlug={accountSlug} />
       </CvSection>
