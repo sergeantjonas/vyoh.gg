@@ -35,6 +35,7 @@ import type {
   MatchSyncResult,
   ObjectiveFirsts,
   ObjectiveParticipation,
+  OnThisDay,
   PregameCalibrationByQueue,
   RankHistoryResponse,
   Squad,
@@ -60,6 +61,7 @@ import { LolService } from "./lol.service";
 import { MatchBaselineService } from "./match-baseline.service";
 import { NarrativeWindowDto } from "./match-narrative.dto";
 import { MatchNarrativeService } from "./match-narrative.service";
+import { OnThisDayService } from "./on-this-day.service";
 
 @Controller("lol/summoners/:region/:gameName/:tagLine")
 export class LolController {
@@ -69,7 +71,8 @@ export class LolController {
     private readonly baseline: MatchBaselineService,
     private readonly narrative: MatchNarrativeService,
     private readonly championAnalytics: LolChampionAnalyticsService,
-    private readonly mastery: ChampionMasteryService
+    private readonly mastery: ChampionMasteryService,
+    private readonly onThisDay: OnThisDayService
   ) {}
 
   @Get("matches")
@@ -157,6 +160,13 @@ export class LolController {
     @Query("count", new DefaultValuePipe(500), COUNT_PIPE) count: number
   ): Promise<Chronotype> {
     return this.analytics.getChronotype(region, gameName, tagLine, count);
+  }
+
+  @Get("on-this-day")
+  async getOnThisDay(
+    @Param() { region, gameName, tagLine }: AccountParamsDto
+  ): Promise<OnThisDay> {
+    return this.onThisDay.getOnThisDay(region, gameName, tagLine);
   }
 
   @Get("champion-pairs")

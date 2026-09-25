@@ -14,6 +14,7 @@ import { LolService } from "./lol.service";
 import { MatchBaselineService } from "./match-baseline.service";
 import { NarrativeWindowDto } from "./match-narrative.dto";
 import { MatchNarrativeService } from "./match-narrative.service";
+import { OnThisDayService } from "./on-this-day.service";
 
 describe("LolController", () => {
   it("delegates to LolService.getMatchesForSummoner", async () => {
@@ -26,6 +27,7 @@ describe("LolController", () => {
         { provide: LolAnalyticsService, useValue: {} },
         { provide: LolChampionAnalyticsService, useValue: {} },
         { provide: ChampionMasteryService, useValue: {} },
+        { provide: OnThisDayService, useValue: {} },
         { provide: MatchBaselineService, useValue: {} },
         { provide: MatchNarrativeService, useValue: {} },
         { provide: AuthService, useValue: {} },
@@ -56,6 +58,7 @@ describe("LolController", () => {
         { provide: LolAnalyticsService, useValue: {} },
         { provide: LolChampionAnalyticsService, useValue: {} },
         { provide: ChampionMasteryService, useValue: {} },
+        { provide: OnThisDayService, useValue: {} },
         { provide: MatchBaselineService, useValue: {} },
         { provide: MatchNarrativeService, useValue: { getNarrativeWindow: stub } },
         { provide: AuthService, useValue: {} },
