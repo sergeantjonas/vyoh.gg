@@ -7,10 +7,9 @@ import { STEAM_OWNER_ID } from "../client/steam.config";
 import type { SteamPlayerRaw } from "../client/types";
 import { SteamPlaySessionsService } from "./play-sessions.service";
 
-// Same mapping as SteamService.mapPlayerToSummary. Duplicated rather than
-// shared because the persisted state row is the canonical home for the
-// normalized string going forward — once chunk 4 wires session events,
-// surfaces should read from this table, not re-derive on each /summary call.
+// The only place Steam's numeric persona state becomes a string. `/summary`
+// deliberately carries no persona state: surfaces read this table, which the
+// poller keeps fresh, rather than a summary cached for minutes.
 const PERSONA_STATE: Record<
   SteamPlayerRaw["personastate"],
   SteamPlayerState["personaState"]

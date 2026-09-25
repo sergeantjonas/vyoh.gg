@@ -46,7 +46,6 @@ function summary(overrides: Partial<SteamSummary> = {}): SteamSummary {
     personaName: "Vyoh",
     profileUrl: "https://steamcommunity.com/id/vyoh/",
     avatarUrl: "https://example.com/avatar_full.jpg",
-    personaState: "offline",
     currentGame: null,
     memberSinceUnix: 1263864425, // 2010-01-19
     steamLevel: 14,
@@ -143,23 +142,16 @@ describe("SteamIdentityHero", () => {
     expect(screen.getByText("Online")).toBeTruthy();
   });
 
-  it("prefers the polled player-state over the summary's persona state", () => {
-    // The two queries disagree by design: player-state refetches every 30s,
-    // summary has a 5-minute stale time and no interval. Reading the summary
-    // pinned the badge to page-load state while the timestamp beside it kept
-    // saying "checked just now".
-    summaryMock.mockReturnValue(summary({ personaState: "away" }));
-    playerStateMock.mockReturnValue(playerState({ personaState: "online" }));
-    renderHero();
-    expect(screen.getByText("Online")).toBeTruthy();
-    expect(screen.queryByText("Away")).toBeNull();
-  });
-
-  it("falls back to the summary when the poller has written no row yet", () => {
-    summaryMock.mockReturnValue(summary({ personaState: "online" }));
+  it("shows no presence until the poller has written a row", () => {
+    // Presence has one source; the summary carries none.
     playerStateMock.mockReturnValue(undefined);
-    renderHero();
-    expect(screen.getByText("Online")).toBeTruthy();
+    const { container } = renderHero();
+    expect(screen.queryByText("Offline")).toBeNull();
+    expect(screen.queryByText("Online")).toBeNull();
+    const avatar = container.querySelector<HTMLImageElement>(
+      'img[data-presence="unknown"]'
+    );
+    expect(avatar?.className).toContain("ring-white/15");
   });
 
   it("folds the poller staleness into the presence line", () => {
@@ -189,7 +181,6 @@ describe("SteamIdentityHero", () => {
         currentGame: { appid: 431960, name: "Wallpaper Engine" },
       })
     );
-    summaryMock.mockReturnValue(summary({ personaState: "online" }));
     ownedMock.mockReturnValue({
       steamId: "76561198020053778",
       games: [{ appid: 431960, name: "Wallpaper Engine", appType: 6 }],
@@ -251,7 +242,6 @@ describe("SteamIdentityHero", () => {
   });
 
   it("overrides the persona ring with an emerald activity ring + pulse when in-game", () => {
-    summaryMock.mockReturnValue(summary({ personaState: "online" }));
     playerStateMock.mockReturnValue(
       playerState({
         personaState: "online",

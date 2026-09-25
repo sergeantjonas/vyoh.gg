@@ -138,16 +138,12 @@ export function SteamIdentityHero() {
   const heroUrl = heroAppId ? steamLibraryHeroUrl(heroAppId, heroAssetTs) : null;
   const [heroLoaded, setHeroLoaded] = useState(false);
 
-  // Presence comes from the player-state poller, not from `/summary`. Both
-  // carry `personaState`, but only this one is kept live: it refetches every
-  // 30s behind a 2-min server poller, where the summary query has a 5-minute
-  // stale time and no interval, so a badge bound to it sits on whatever value
-  // the page loaded with. That produced the worst possible pairing — a stale
-  // status beside the fresh `lastPolledAt` below, reading "Away · checked just
-  // now". Summary stays as the fallback for the gap where the poller has not
-  // written a row yet. See the note on `SteamPlayerStateService`: surfaces read
-  // this table rather than re-deriving from a summary call.
-  const personaState = playerState?.personaState ?? summary?.personaState ?? null;
+  // Presence comes only from the player-state poller, which refetches every
+  // 30s behind a 2-min server poller. `/summary` carries no persona state: its
+  // 5-minute stale time and lack of an interval would pin a badge to the
+  // page-load value beside the fresh `lastPolledAt` below, reading "Away ·
+  // checked just now".
+  const personaState = playerState?.personaState ?? null;
   const presence = personaState ? PRESENCE[personaState] : null;
   const inGame = !!liveGame;
   // Poller staleness, folded in from the deleted NowPlayingChip — its one bit

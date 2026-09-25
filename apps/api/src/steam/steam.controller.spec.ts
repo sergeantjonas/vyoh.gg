@@ -44,7 +44,6 @@ describe("SteamController", () => {
       personaName: "Vyoh",
       profileUrl: "https://steamcommunity.com/id/vyoh/",
       avatarUrl: "https://example.com/avatar_full.jpg",
-      personaState: "online",
       currentGame: null,
       privacyPrereqs: { profilePublic: true, gameDetailsPublic: "unknown" },
     };

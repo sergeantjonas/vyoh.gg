@@ -42,19 +42,6 @@ interface CachedName {
   fetchedAt: number;
 }
 
-const PERSONA_STATE: Record<
-  SteamPlayerRaw["personastate"],
-  SteamSummary["personaState"]
-> = {
-  0: "offline",
-  1: "online",
-  2: "busy",
-  3: "away",
-  4: "snooze",
-  5: "looking-to-trade",
-  6: "looking-to-play",
-};
-
 @Injectable()
 export class SteamService {
   private readonly logger = new Logger(SteamService.name);
@@ -335,7 +322,6 @@ function mapPlayerToSummary(
           profileBackgroundVideoUrl: `${STEAM_COMMUNITY_ITEMS_CDN}${backgroundVideoPath}`,
         }
       : {}),
-    personaState: PERSONA_STATE[player.personastate],
     currentGame,
     // `timecreated` is absent on privacy-locked profiles; only surface it when
     // present so the frontend can branch on its absence.
