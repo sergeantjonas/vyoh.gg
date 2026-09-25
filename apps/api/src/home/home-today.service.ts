@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import type { HomeToday } from "@vyoh/shared";
-import { OWNER_TIME_ZONE } from "@vyoh/shared";
+import { OWNER_TIME_ZONE, excludeBlipSessions } from "@vyoh/shared";
 import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { clipSessionMinutes, startOfLocalDay } from "./home-activity-intensity.service";
@@ -64,7 +64,7 @@ export class HomeTodayService {
       kills,
       deaths,
       assists,
-      steamMinutes: clipSessionMinutes(sessionRows, dayStart, now),
+      steamMinutes: clipSessionMinutes(excludeBlipSessions(sessionRows), dayStart, now),
       achievementUnlocks: unlockCount,
       asOf: now.toISOString(),
       timeZone: OWNER_TIME_ZONE,

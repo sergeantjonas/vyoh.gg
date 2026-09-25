@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import type { HomeActivityIntensity } from "@vyoh/shared";
-import { OWNER_TIME_ZONE } from "@vyoh/shared";
+import { OWNER_TIME_ZONE, excludeBlipSessions } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -122,7 +122,11 @@ export class HomeActivityIntensityService {
     ]);
 
     const lolMatches24h = matchRows.length;
-    const steamMinutesToday = clipSessionMinutes(sessionRows, dayStart, now);
+    const steamMinutesToday = clipSessionMinutes(
+      excludeBlipSessions(sessionRows),
+      dayStart,
+      now
+    );
     const intensity = computeIntensity(lolMatches24h, steamMinutesToday);
 
     return {

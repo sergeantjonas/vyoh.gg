@@ -389,4 +389,10 @@ describe("excludeBlipSessions", () => {
     expect(isBlipSession(bounce)).toBe(false);
     expect(excludeBlipSessions([blip, bounce])).toEqual([bounce]);
   });
+
+  it("keeps an open session, which is live rather than a flicker", () => {
+    const live = { startedAt: t0, endedAt: null };
+    expect(isBlipSession(live)).toBe(false);
+    expect(excludeBlipSessions([live])).toEqual([live]);
+  });
 });

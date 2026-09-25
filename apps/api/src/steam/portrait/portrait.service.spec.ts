@@ -42,7 +42,7 @@ function mockPrisma(options: {
   dates: Date[];
   snapshots: Snapshot[];
   enrichment: Enrichment[];
-  sessions?: { appid: number; startedAt: Date }[];
+  sessions?: { appid: number; startedAt: Date; endedAt: Date | null }[];
   /** appid → achievements in the schema. */
   schemas?: Record<number, number>;
   /** appid → achievements unlocked. */
@@ -86,6 +86,32 @@ function mockPrisma(options: {
 }
 
 describe("SteamPortraitService.getPortrait", () => {
+  it("does not let a session under the two-minute floor count as a launch day", async () => {
+    // Two launch days would rescue a 12-minute game into the meaningful cohort.
+    const prisma = mockPrisma({
+      dates: [LATEST],
+      snapshots: [{ appid: 2, snapshotDate: LATEST, playtimeForeverMinutes: 12 }],
+      enrichment: [{ appid: 2, appType: 0, tagIds: [2] }],
+      sessions: [
+        {
+          appid: 2,
+          startedAt: new Date("2026-07-01T20:00:00Z"),
+          endedAt: new Date("2026-07-01T20:12:00Z"),
+        },
+        {
+          appid: 2,
+          startedAt: new Date("2026-07-02T20:00:00Z"),
+          endedAt: new Date("2026-07-02T20:01:00Z"),
+        },
+      ],
+    });
+
+    const portrait = await new SteamPortraitService(prisma).getPortrait(NO_CURATION);
+
+    expect(portrait.posture.meaningfulCount).toBe(0);
+    expect(portrait.posture.tastedCount).toBe(1);
+  });
+
   it("returns an empty portrait rather than throwing before the first poll", async () => {
     const prisma = mockPrisma({ dates: [], snapshots: [], enrichment: [] });
 
