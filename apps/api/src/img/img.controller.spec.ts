@@ -1,9 +1,12 @@
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
+import * as Sentry from "@sentry/nestjs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ImgController } from "./img.controller";
 import { LolImageService } from "./lol-image.service";
 import { SteamImageService } from "./steam-image.service";
 import * as upstream from "./upstream";
+
+vi.mock("@sentry/nestjs", () => ({ captureException: vi.fn() }));
 
 const fetchChainSpy = vi.spyOn(upstream, "fetchUpstreamChain");
 const transcodeSpy = vi.spyOn(upstream, "transcodeToWebp");
@@ -85,6 +88,7 @@ afterEach(() => {
   fetchChainSpy.mockReset();
   transcodeSpy.mockReset();
   streamSpy.mockReset();
+  vi.mocked(Sentry.captureException).mockClear();
 });
 
 describe("ImgController.champion", () => {
@@ -118,6 +122,92 @@ describe("ImgController.champion", () => {
     await expect(
       makeController().champion("ahri", "square", res as never)
     ).rejects.toThrow(/real bug/);
+  });
+});
+
+// Nest sets the route's `@Header` Cache-Control before the handler runs, so
+// each failure answer has to replace it or ship the success response's.
+describe("ImgController upstream failure answers", () => {
+  const outage = (host = "cdn.example") =>
+    new upstream.UpstreamError(`https://${host}/a.png`, "HTTP 503", 503);
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("relays a missing asset as a 404 with a short cache, unreported", async () => {
+    fetchChainSpy.mockRejectedValueOnce(
+      new upstream.UpstreamError("https://cdn.example/a.png", "HTTP 404", 404)
+    );
+    const res = makeRes();
+    await makeController().champion("ahri", "square", res as never);
+    expect(res._status).toBe(404);
+    expect(res._headers["Cache-Control"]).toBe("public, max-age=3600");
+    expect(Sentry.captureException).not.toHaveBeenCalled();
+  });
+
+  it("answers an outage with an uncacheable 502 and reports it", async () => {
+    fetchChainSpy.mockRejectedValueOnce(outage());
+    const res = makeRes();
+    await makeController().champion("ahri", "square", res as never);
+    expect(res._status).toBe(502);
+    expect(res._headers["Cache-Control"]).toBe("no-store");
+    expect(Sentry.captureException).toHaveBeenCalledWith(
+      expect.any(upstream.UpstreamError),
+      { tags: { upstreamHost: "cdn.example" } }
+    );
+  });
+
+  it("reports one outage per upstream host per window, not one per image", async () => {
+    vi.useFakeTimers();
+    const controller = makeController();
+    const fail = async (host?: string) => {
+      fetchChainSpy.mockRejectedValueOnce(outage(host));
+      await controller.champion("ahri", "square", makeRes() as never);
+    };
+
+    await fail();
+    await fail();
+    await fail("other.example");
+    expect(Sentry.captureException).toHaveBeenCalledTimes(2);
+
+    vi.advanceTimersByTime(10 * 60_000);
+    await fail();
+    expect(Sentry.captureException).toHaveBeenCalledTimes(3);
+  });
+
+  it("gives a streamed asset the same answers", async () => {
+    streamSpy.mockRejectedValueOnce(
+      new upstream.UpstreamError("https://cdn.example/clip.webm", "HTTP 404", 404)
+    );
+    const res = makeRes();
+    await makeController().steamDescriptionAsset(
+      "1245620",
+      `${"a".repeat(32)}.webm`,
+      undefined,
+      res as never
+    );
+    expect(res._status).toBe(404);
+    expect(res._headers["Cache-Control"]).toBe("public, max-age=3600");
+  });
+
+  it("answers an achievement the resolver cannot find with the short-cache 404", async () => {
+    const controller = makeController({}, {
+      achievement: vi.fn().mockRejectedValue(new NotFoundException("no row")),
+    } as unknown as Partial<SteamImageService>);
+    const res = makeRes();
+    await controller.steamAchievement("1245620", "ACH_1", res as never);
+    expect(res._status).toBe(404);
+    expect(res._headers["Cache-Control"]).toBe("public, max-age=3600");
+  });
+
+  it("lets a resolver failure that is not a miss reach the exception filter", async () => {
+    const controller = makeController({
+      ability: vi.fn().mockRejectedValue(new Error("database unreachable")),
+    } as unknown as Partial<LolImageService>);
+    await expect(
+      controller.ability("103", "Q", "1", "26.10.1", makeRes() as never)
+    ).rejects.toThrow(/database unreachable/);
   });
 });
 
@@ -271,11 +361,14 @@ describe("ImgController.ability", () => {
 
   it("returns 404 when the resolver throws (ability row missing)", async () => {
     const controller = makeController({
-      ability: vi.fn().mockRejectedValue(new Error("unknown ability 999/Q/0")),
+      ability: vi
+        .fn()
+        .mockRejectedValue(new NotFoundException("unknown ability 999/Q/0")),
     } as unknown as Partial<LolImageService>);
     const res = makeRes();
     await controller.ability("999", "Q", "0", "26.10.1", res as never);
     expect(res._status).toBe(404);
+    expect(res._headers["Cache-Control"]).toBe("public, max-age=3600");
     expect(upstream.fetchUpstreamChain).not.toHaveBeenCalled();
   });
 
@@ -298,12 +391,13 @@ describe("ImgController.map", () => {
   it("returns 404 when the resolver throws (unknown mapId)", async () => {
     const controller = makeController({
       map: vi.fn().mockImplementation(() => {
-        throw new Error("unknown mapId 999");
+        throw new NotFoundException("unknown mapId 999");
       }),
     } as unknown as Partial<LolImageService>);
     const res = makeRes();
     await controller.map("999", res as never);
     expect(res._status).toBe(404);
+    expect(res._headers["Cache-Control"]).toBe("public, max-age=3600");
     expect(upstream.fetchUpstreamChain).not.toHaveBeenCalled();
   });
 

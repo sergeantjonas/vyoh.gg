@@ -1,4 +1,14 @@
-import { Controller, Get, Header, Headers, HttpStatus, Param, Res } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  Header,
+  Headers,
+  HttpStatus,
+  NotFoundException,
+  Param,
+  Res,
+} from "@nestjs/common";
+import * as Sentry from "@sentry/nestjs";
 import type { Response } from "express";
 import {
   CHAMPION_CLASS_SLUGS,
@@ -17,11 +27,23 @@ import {
   type TranscodeParams,
   UpstreamError,
   fetchUpstreamChain,
+  isMissingAsset,
   streamUpstream,
   transcodeToWebp,
+  upstreamHost,
 } from "./upstream";
 
 const IMMUTABLE_YEAR = "public, max-age=31536000, immutable";
+
+// Matches nginx's own `proxy_cache_valid 404 1h`: long enough to absorb a
+// page's worth of repeats, short enough that an asset published after the
+// first request turns up within the hour.
+const MISSING_ASSET_CACHE = "public, max-age=3600";
+
+// A CDN outage fails every image on every page at once, and one page asks for
+// dozens, so reporting each failure would spend the month's error quota on a
+// single incident. One report per upstream host per window still says it.
+const UPSTREAM_REPORT_WINDOW_MS = 10 * 60_000;
 
 // Description-block extras: content-hashed `<hash>.poster.avif` posters and
 // `<hash>.webm` clips Steam emits inline in `about_the_game` HTML. The hash
@@ -88,6 +110,8 @@ const RANK_TIERS = new Set<RankTierSlug>(RANK_TIER_SLUGS);
 
 @Controller("img")
 export class ImgController {
+  private readonly lastReportedAt = new Map<string, number>();
+
   constructor(
     private readonly lol: LolImageService,
     private readonly steam: SteamImageService
@@ -169,8 +193,9 @@ export class ImgController {
     let resolved: Awaited<ReturnType<LolImageService["ability"]>>;
     try {
       resolved = await this.lol.ability(cid, slot, idx, patch);
-    } catch {
-      res.status(HttpStatus.NOT_FOUND).send();
+    } catch (err) {
+      if (!(err instanceof NotFoundException)) throw err;
+      answerMissing(res);
       return;
     }
     await this.proxyWebp(resolved.urls, resolved.params, res);
@@ -262,8 +287,9 @@ export class ImgController {
     let resolved: ReturnType<LolImageService["map"]>;
     try {
       resolved = this.lol.map(id);
-    } catch {
-      res.status(HttpStatus.NOT_FOUND).send();
+    } catch (err) {
+      if (!(err instanceof NotFoundException)) throw err;
+      answerMissing(res);
       return;
     }
     await this.proxyWebp(resolved.urls, resolved.params, res);
@@ -489,7 +515,14 @@ export class ImgController {
       res.status(HttpStatus.BAD_REQUEST).send();
       return;
     }
-    const resolved = await this.steam.achievement(id, apiName);
+    let resolved: Awaited<ReturnType<SteamImageService["achievement"]>>;
+    try {
+      resolved = await this.steam.achievement(id, apiName);
+    } catch (err) {
+      if (!(err instanceof NotFoundException)) throw err;
+      answerMissing(res);
+      return;
+    }
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
@@ -506,7 +539,14 @@ export class ImgController {
       res.status(HttpStatus.BAD_REQUEST).send();
       return;
     }
-    const resolved = await this.steam.achievementGray(id, apiName);
+    let resolved: Awaited<ReturnType<SteamImageService["achievementGray"]>>;
+    try {
+      resolved = await this.steam.achievementGray(id, apiName);
+    } catch (err) {
+      if (!(err instanceof NotFoundException)) throw err;
+      answerMissing(res);
+      return;
+    }
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
@@ -558,7 +598,7 @@ export class ImgController {
       result.body.pipe(res);
     } catch (err) {
       if (err instanceof UpstreamError) {
-        res.status(HttpStatus.BAD_GATEWAY).send();
+        this.answerUpstreamFailure(res, err);
         return;
       }
       throw err;
@@ -617,7 +657,7 @@ export class ImgController {
       result.body.pipe(res);
     } catch (err) {
       if (err instanceof UpstreamError) {
-        res.status(HttpStatus.BAD_GATEWAY).send();
+        this.answerUpstreamFailure(res, err);
         return;
       }
       throw err;
@@ -659,7 +699,7 @@ export class ImgController {
       result.body.pipe(res);
     } catch (err) {
       if (err instanceof UpstreamError) {
-        res.status(HttpStatus.BAD_GATEWAY).send();
+        this.answerUpstreamFailure(res, err);
         return;
       }
       throw err;
@@ -677,10 +717,41 @@ export class ImgController {
       res.send(webp);
     } catch (err) {
       if (err instanceof UpstreamError) {
-        res.status(HttpStatus.BAD_GATEWAY).send();
+        this.answerUpstreamFailure(res, err);
         return;
       }
       throw err;
     }
   }
+
+  // Nest applies `@Header` before the handler runs, so a failure answered here
+  // goes out under the success response's Cache-Control unless it is replaced
+  // — `immutable` for a year on the transcoded routes, which nginx honours
+  // ahead of its own `proxy_cache_valid` list. One transient blip would then
+  // poison the URL in the shared cache and every browser that saw it.
+  private answerUpstreamFailure(res: Response, err: UpstreamError): void {
+    if (isMissingAsset(err)) {
+      answerMissing(res);
+      return;
+    }
+    this.reportUpstreamFailure(err);
+    res.setHeader("Cache-Control", "no-store");
+    res.status(HttpStatus.BAD_GATEWAY).send();
+  }
+
+  // The failure is answered here rather than thrown, so the fallback filter —
+  // the api's usual reporting point — never sees it.
+  private reportUpstreamFailure(err: UpstreamError): void {
+    const host = upstreamHost(err.url);
+    const now = Date.now();
+    const last = this.lastReportedAt.get(host);
+    if (last !== undefined && now - last < UPSTREAM_REPORT_WINDOW_MS) return;
+    this.lastReportedAt.set(host, now);
+    Sentry.captureException(err, { tags: { upstreamHost: host } });
+  }
+}
+
+function answerMissing(res: Response): void {
+  res.setHeader("Cache-Control", MISSING_ASSET_CACHE);
+  res.status(HttpStatus.NOT_FOUND).send();
 }

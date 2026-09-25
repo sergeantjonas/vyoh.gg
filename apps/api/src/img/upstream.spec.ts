@@ -4,6 +4,7 @@ import {
   UpstreamError,
   fetchUpstream,
   fetchUpstreamChain,
+  isMissingAsset,
   streamUpstream,
   transcodeToWebp,
 } from "./upstream";
@@ -40,6 +41,7 @@ describe("fetchUpstream", () => {
       {
         url: "https://cdn.example/missing.webp",
         message: expect.stringContaining("HTTP 404"),
+        status: 404,
       }
     );
   });
@@ -116,6 +118,52 @@ describe("fetchUpstreamChain", () => {
 
   it("throws an UpstreamError on an empty chain (last URL fallback)", async () => {
     await expect(fetchUpstreamChain([])).rejects.toBeInstanceOf(UpstreamError);
+  });
+
+  it("reports an outage rather than a missing asset when only some candidates 404", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL) =>
+        url.toString().endsWith("a.webp")
+          ? new Response(null, { status: 503 })
+          : new Response(null, { status: 404 })
+      )
+    );
+
+    await expect(
+      fetchUpstreamChain(["https://cdn.example/a.webp", "https://cdn.example/b.webp"])
+    ).rejects.toMatchObject({ url: "https://cdn.example/a.webp", status: 503 });
+  });
+});
+
+describe("isMissingAsset", () => {
+  it.each([404, 410])("treats a %i as a missing asset", (status) => {
+    expect(
+      isMissingAsset(
+        new UpstreamError("https://cdn.example/a.png", `HTTP ${status}`, status)
+      )
+    ).toBe(true);
+  });
+
+  it("treats DDragon's 403 as a missing asset", () => {
+    const url = "https://ddragon.leagueoflegends.com/cdn/img/champion/splash/X_0.jpg";
+    expect(isMissingAsset(new UpstreamError(url, "HTTP 403", 403))).toBe(true);
+  });
+
+  it("treats a 403 from any other host as a failure, since a WAF block says 403 too", () => {
+    const url =
+      "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1/header.jpg";
+    expect(isMissingAsset(new UpstreamError(url, "HTTP 403", 403))).toBe(false);
+  });
+
+  it("treats an upstream 5xx as a failure", () => {
+    expect(isMissingAsset(new UpstreamError("https://up", "HTTP 500", 500))).toBe(false);
+  });
+
+  it("treats a failure with no response as a failure", () => {
+    expect(isMissingAsset(new UpstreamError("https://up", new Error("timeout")))).toBe(
+      false
+    );
   });
 });
 

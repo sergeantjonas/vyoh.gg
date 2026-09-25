@@ -26,9 +26,32 @@ const SHARP_INPUT_LIMITS = { limitInputPixels: 40_000_000 } as const;
 export class UpstreamError extends Error {
   constructor(
     public readonly url: string,
-    public override readonly cause: unknown
+    public override readonly cause: unknown,
+    // Set only when the upstream answered with an error status. A timeout, a
+    // refused redirect or a network failure leaves it unset.
+    public readonly status?: number
   ) {
     super(`upstream fetch failed for ${url}: ${String(cause)}`);
+  }
+}
+
+// DDragon is S3-backed and answers a missing key with 403, where every other
+// upstream says 404 — probed 2026-09-25. Only there, though: Akamai answers a
+// WAF or IP block with 403 as well, and reading that as "missing" would blank
+// every Steam image behind cached 404s with nothing reported.
+const DDRAGON_HOST = "ddragon.leagueoflegends.com";
+
+// A missing asset is an answer to relay, not an outage to report.
+export function isMissingAsset(err: UpstreamError): boolean {
+  if (err.status === 404 || err.status === 410) return true;
+  return err.status === 403 && upstreamHost(err.url) === DDRAGON_HOST;
+}
+
+export function upstreamHost(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return "unknown";
   }
 }
 
@@ -49,7 +72,7 @@ export async function fetchUpstream(url: string): Promise<Buffer> {
   try {
     const res = await fetch(url, { signal: ac.signal, redirect: "manual" });
     if (isRedirect(res)) throw new UpstreamError(url, `refused redirect ${res.status}`);
-    if (!res.ok) throw new UpstreamError(url, `HTTP ${res.status}`);
+    if (!res.ok) throw new UpstreamError(url, `HTTP ${res.status}`, res.status);
 
     // Refuse on the declared length when there is one, so an oversized asset
     // costs a header round-trip rather than a full download.
@@ -198,7 +221,7 @@ export async function streamUpstream(
     if (isRedirect(res)) throw new UpstreamError(url, `refused redirect ${res.status}`);
     // 206 Partial Content is a success for `Range` requests; treat it like 200.
     if (!res.ok && res.status !== 206) {
-      throw new UpstreamError(url, `HTTP ${res.status}`);
+      throw new UpstreamError(url, `HTTP ${res.status}`, res.status);
     }
     if (!res.body) {
       throw new UpstreamError(url, "no body");
@@ -223,15 +246,22 @@ export async function streamUpstream(
 // for Steam's hashed → legacy filename fallback chain — keeps the fallback
 // logic inside the proxy instead of distributing it across N URL helpers in
 // the web app or across two requests with a client-side onError handler.
+//
+// The chain is only missing when every candidate said so. One that failed any
+// other way wins, because a 404 is cached and an outage must not be — a hashed
+// URL that timed out ahead of a legacy URL that 404'd may well exist.
 export async function fetchUpstreamChain(urls: string[]): Promise<Buffer> {
-  let lastErr: unknown;
+  let missing: unknown;
+  let failure: unknown;
   for (const url of urls) {
     try {
       return await fetchUpstream(url);
     } catch (err) {
-      lastErr = err;
+      if (err instanceof UpstreamError && isMissingAsset(err)) missing = err;
+      else failure = err;
     }
   }
+  const lastErr = failure ?? missing;
   throw lastErr instanceof Error
     ? lastErr
     : new UpstreamError(urls[urls.length - 1] ?? "", lastErr);
