@@ -31,6 +31,7 @@ One-line pointers to work that was scoped, evaluated, and intentionally set asid
 
 ### Self-portrait surfaces (not chosen as next tile)
 
+- **"Long time no see" strip** — champions played a lot and then not for months, on the `/lol` landing page. Measured 2026-09-25 on the main account and parked: it only means anything on Rift pick queues (ARAM assigns champions, Swarm and Arena are event rosters), and there the account has 218 games across 17 champions, so nothing clears 5 games and 60 days away except Seraphine at 5. Every queue would fill it with July 2024 Swarm champions instead. Trigger: Rift pick history deep enough that a 10-game, 90-day floor names three champions. → [self-portrait-surfaces.md](cross-cutting/self-portrait-surfaces.md)
 - **"Greatest hits" chapter kind** — a retrospective chapter scored on magnitude (434h in Nightreign at 100% has nowhere to go on `/` today), kept outside subject scoring so it cannot compete with current activity. Unscoped. Trigger: before the library's best stories are all more than a year old. → [dormant-chapter-ranking.md § Parked](cross-cutting/dormant-chapter-ranking.md#parked-the-greatest-hits-chapter-kind)
 - **You-vs-you comparison surface** — same axes, two time windows. I flagged this as reasonable but lower-priority than career-arc / tilt-protection / aesthetic-responses; revisit after those prove out. → [self-portrait-surfaces.md](cross-cutting/self-portrait-surfaces.md)
 

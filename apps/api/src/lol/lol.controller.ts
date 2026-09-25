@@ -13,6 +13,7 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import type {
+  AccountHistory,
   AramProfile,
   CachedMatchesResult,
   CarryProfile,
@@ -49,6 +50,7 @@ import {
   QUEUE_PIPE_OPTIONAL,
   START_PIPE,
 } from "../bounded-int.pipe";
+import { AccountHistoryService } from "./account-history.service";
 import {
   AccountParamsDto,
   BaselineParamsDto,
@@ -72,7 +74,8 @@ export class LolController {
     private readonly narrative: MatchNarrativeService,
     private readonly championAnalytics: LolChampionAnalyticsService,
     private readonly mastery: ChampionMasteryService,
-    private readonly onThisDay: OnThisDayService
+    private readonly onThisDay: OnThisDayService,
+    private readonly history: AccountHistoryService
   ) {}
 
   @Get("matches")
@@ -160,6 +163,13 @@ export class LolController {
     @Query("count", new DefaultValuePipe(500), COUNT_PIPE) count: number
   ): Promise<Chronotype> {
     return this.analytics.getChronotype(region, gameName, tagLine, count);
+  }
+
+  @Get("history")
+  async getAccountHistory(
+    @Param() { region, gameName, tagLine }: AccountParamsDto
+  ): Promise<AccountHistory> {
+    return this.history.getAccountHistory(region, gameName, tagLine);
   }
 
   @Get("on-this-day")

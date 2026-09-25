@@ -61,9 +61,9 @@ TFT lives in its own working note now — see [tft-integration.md](../tft/tft-in
 ### Temporal anniversaries (LoL data, all liked 2026-05-14)
 
 - **"On this day."** Surface the match closest to today's calendar date from each prior year. Extension of the Same-Day-Last-Year vNext idea into multi-year; emotional payoff scales with history depth. Re-derives daily from stored matches; no maintenance. **Shipped 2026-09-25** as a card on the per-account `/lol` landing page, after Activity: per earlier year, the nearest Brussels day within ±3 that has games, its record, most-played champion and best game, linking to it. LoL-only by the owner's call, since Steam's year-old record is achievement unlocks alone (sessions start 2026-05-16); a cross-stream chapter on `/` becomes possible once session history crosses a year. Measured on the main account, it has something to show on 174 of 365 days (66 on the exact date), and renders nothing on the rest.
-- **Anniversary chips.** *"5,247 ranked games played."* / *"First tracked ranked: 2018-03-14, Yasuo, loss."* Generated once per visit from the match table, never stale.
+- **Anniversary chips.** *"5,247 ranked games played."* / *"First tracked ranked: 2018-03-14, Yasuo, loss."* Generated once per visit from the match table, never stale. **Shipped 2026-09-25** as a *History* pair on the per-account `/lol` landing page, just above *On this day*: *"569 games tracked since 1 Jun 2024"* and a link to the first game (*"Azir · ARAM · loss"* on the main account). Every queue counts, not ranked only, since it is the account's story rather than a performance read.
 - **First-of-season firsts.** Auto-detected milestones: first ranked of a split, first win, first new champion of the year. No manual flagging — pure timestamp + roster derivation.
-- **Last-time chips.** *"Last AP Yasuo: 8 months ago."* Per-champion / per-build last-played, surfaces on Champion Detail or as a Profile micro-strip.
+- **Last-time chips.** *"Last AP Yasuo: 8 months ago."* Per-champion / per-build last-played, surfaces on Champion Detail or as a Profile micro-strip. **Measured 2026-09-25 and parked**, see [parked.md](../parked.md): as a "long time no see" strip it has almost nothing to say yet.
 
 ### Style / signature fingerprint (LoL data, all liked 2026-05-14)
 

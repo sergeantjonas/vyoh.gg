@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module";
 import { RiotModule } from "../riot/riot.module";
 import { SyncJobsModule } from "../sync-jobs/sync-jobs.module";
+import { AccountHistoryService } from "./account-history.service";
 import { ChampionMasteryService } from "./champion-mastery.service";
 import { LiveGamePollerService } from "./live-game-poller.service";
 import { LolAnalyticsService } from "./lol-analytics.service";
@@ -30,6 +31,7 @@ import { PatchService } from "./patch.service";
     LolChampionAnalyticsService,
     ChampionMasteryService,
     OnThisDayService,
+    AccountHistoryService,
     MatchBaselineService,
     MatchNarrativeService,
     MatchSyncService,
