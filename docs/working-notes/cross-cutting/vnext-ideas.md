@@ -37,7 +37,7 @@ This is a backlog. Bands set the search order, not commitment:
 
 **Cross-account portfolio / unified identity.** Multi-account is supported; "Account A vs Account B" comparison is missing. Smurf vs main, EU vs NA. Single Profile-level "unified identity" view across whitelisted accounts.
 
-**"Same day, last year."** Time-machine card on Profile — what were you playing exactly 365 days ago. Cheap to implement once historical backfill is complete; emotional payoff disproportionate to effort.
+**"Same day, last year."** ✅ Shipped 2026-09-25 as the LoL "On this day" card, see [self-portrait-surfaces.md](self-portrait-surfaces.md). Time-machine card on Profile — what were you playing exactly 365 days ago. Cheap to implement once historical backfill is complete; emotional payoff disproportionate to effort.
 
 **Post-game close-the-loop surface.** ✅ PG1 + PG2 + PG3 (Profile-framing close-the-loop) all shipped 2026-05-13; PG4 (peer-route post-game artifact) deferred to v2. See [post-game-close-the-loop.md](../lol/post-game-close-the-loop.md). The after-game counterpart to Pregame Ritual; reuses every primitive that already exists (`ConclusionCard`, `RitualSignal`, SSE invalidation). Strongest single visible-payoff move on the board and the cleanest case-study candidate.
 

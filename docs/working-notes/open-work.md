@@ -78,7 +78,7 @@ One-line pointers into the owning notes. Read this first when scoping the next s
 
 ## Unpromoted vNext top-tier candidates
 
-Cross-account unified identity · "Same day, last year" · match annotations · weekly markdown digest · PDF/image export of match detail · Discord webhook · drag-to-reorder Profile. (ARAM dashboard shipped 2026-06-22 as D.7; the View Transitions spike was overtaken by the 2026-05-24 VT migration; the bundle-budget half of ten-pick #9 shipped as the `size-limit` CI job and the Web Vitals trend dashboard is sequenced behind the post-launch RUM backend.) → [vnext-ideas.md](cross-cutting/vnext-ideas.md)
+Cross-account unified identity · match annotations · weekly markdown digest · PDF/image export of match detail · Discord webhook · drag-to-reorder Profile. ("Same day, last year" shipped 2026-09-25 as the LoL "On this day" card, see [self-portrait-surfaces.md](cross-cutting/self-portrait-surfaces.md); ARAM dashboard shipped 2026-06-22 as D.7; the View Transitions spike was overtaken by the 2026-05-24 VT migration; the bundle-budget half of ten-pick #9 shipped as the `size-limit` CI job and the Web Vitals trend dashboard is sequenced behind the post-launch RUM backend.) → [vnext-ideas.md](cross-cutting/vnext-ideas.md)
 
 ## Case-study backlog
 
