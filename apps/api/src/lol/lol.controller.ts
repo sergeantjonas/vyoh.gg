@@ -19,6 +19,7 @@ import type {
   ChampionBuildFlowEntry,
   ChampionExtras,
   ChampionLanePhase,
+  ChampionMasteryResponse,
   ChampionPair,
   ChampionRecap,
   ChampionRuneDiversityEntry,
@@ -52,6 +53,7 @@ import {
   BaselineParamsDto,
   ChampionAccountParamsDto,
 } from "./account-params.dto";
+import { ChampionMasteryService } from "./champion-mastery.service";
 import { LolAnalyticsService } from "./lol-analytics.service";
 import { LolChampionAnalyticsService } from "./lol-champion-analytics.service";
 import { LolService } from "./lol.service";
@@ -66,7 +68,8 @@ export class LolController {
     private readonly analytics: LolAnalyticsService,
     private readonly baseline: MatchBaselineService,
     private readonly narrative: MatchNarrativeService,
-    private readonly championAnalytics: LolChampionAnalyticsService
+    private readonly championAnalytics: LolChampionAnalyticsService,
+    private readonly mastery: ChampionMasteryService
   ) {}
 
   @Get("matches")
@@ -280,6 +283,13 @@ export class LolController {
       championKey,
       queues
     );
+  }
+
+  @Get("champions/:championKey/mastery")
+  async getChampionMastery(
+    @Param() { region, gameName, tagLine, championKey }: ChampionAccountParamsDto
+  ): Promise<ChampionMasteryResponse> {
+    return this.mastery.getChampionMastery(region, gameName, tagLine, championKey);
   }
 
   @Get("champions/:championKey/recap")

@@ -218,6 +218,7 @@ export {
   pickHigherRank,
 } from "./lol/rank-history.ts";
 export type { ChampionExtras, ItemStats, MatchupStats } from "./lol/champion-extras.ts";
+export type { ChampionMastery, ChampionMasteryResponse } from "./lol/champion-mastery.ts";
 export { isRolePosition } from "./lol/role-position.ts";
 export type { RolePosition } from "./lol/role-position.ts";
 export type { ChampionRoleSplit, ChampionStats } from "./lol/champion-stats.ts";
@@ -592,6 +593,7 @@ export { syncJobHealth } from "./status.ts";
 export type {
   AppWindowSnapshot,
   LimiterCounts,
+  MethodFamily,
   MethodLimiterSnapshot,
   RateLimiterSnapshot,
   StatusSnapshot,

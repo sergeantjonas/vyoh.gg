@@ -292,7 +292,7 @@ Cherry-pick when appetite for visible work is low or the portfolio story needs a
 | Composite LP forecast tile | M | Composition only; no new data. |
 | Champion-pool drift verdict | S | 14d-vs-prior-14d diff over windowed data. |
 | Champions list role/queue filters | S | Mirror Matches/Trends. |
-| Mastery pull | S | ⚠️ Half done: `RiotService.getChampionMasteryByChampion` exists and the live-game poller consumes it; no Champions-side surface. |
+| Mastery pull | S | ⚠️ Api live 2026-09-25: `GET …/champions/:championKey/mastery` reads Riot's by-puuid list (every champion in one call, 173 on the main account), cached per account for 15 min; the champion-detail surface is pending. |
 | Recap density expansion | M | ✅ shipped 2026-05-14. 4 sections added; share-image still deferred. |
 | Multi-account compare | L | New view; lean into architecture story. |
 | Live tab audit | S | Read-only review pass. |
