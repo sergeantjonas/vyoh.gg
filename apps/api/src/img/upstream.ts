@@ -6,7 +6,7 @@ import sharp from "sharp";
 // the only thing in the request path between the browser and the CDN, so a
 // fast 502 lets the caller (and any future Nginx layer with `proxy_cache_use_
 // stale`) react instead of waiting.
-const FETCH_TIMEOUT_MS = 5_000;
+export const FETCH_TIMEOUT_MS = 5_000;
 
 // The timeout bounds how long an upstream may take, not how much it may send,
 // and the whole body is buffered into memory before sharp ever sees it. The
