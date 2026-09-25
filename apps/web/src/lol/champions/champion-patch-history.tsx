@@ -50,13 +50,15 @@ function patchVerdict(stats: readonly PatchStat[]): string | null {
 
 export function ChampionPatchHistory({
   matches,
-  championAlias,
+  championName,
 }: {
   // Pre-filtered to this champion's matches by the page so we don't re-walk
   // the full window. Page provides a wide-enough fetch (CHAMPION_DETAIL_
   // FETCH_COUNT) for the strip's 6-patch tail.
   matches: readonly MatchSummary[];
-  championAlias: string;
+  // The display name ("Wukong"), not the alias ("MonkeyKing"): it only ever
+  // reaches the tooltip's sentence.
+  championName: string;
 }) {
   const stats = useMemo(() => buildPatchStats(matches), [matches]);
   const verdict = useMemo(() => patchVerdict(stats), [stats]);
@@ -140,7 +142,7 @@ export function ChampionPatchHistory({
                   collisionPadding={8}
                   className={cn(TOOLTIP_CONTENT_COMPACT, "px-3 py-2")}
                 >
-                  Patch {p.patch} on {championAlias}: {games}{" "}
+                  Patch {p.patch} on {championName}: {games}{" "}
                   {games === 1 ? "game" : "games"} · {wrText} WR
                 </TooltipPrimitive.Content>
               </TooltipPrimitive.Portal>
