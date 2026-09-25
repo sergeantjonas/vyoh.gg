@@ -51,7 +51,9 @@ vi.mock("@/lol/_shared/assets/splash-backdrop", () => ({
 }));
 
 vi.mock("@/lol/_shared/assets/champion-square-icon", () => ({
-  ChampionSquareIcon: ({ alt }: { alt: string }) => <img alt={alt} />,
+  ChampionSquareIcon: ({ alt, championName }: { alt: string; championName: string }) => (
+    <img alt={alt} data-champion={championName} />
+  ),
 }));
 
 vi.mock("@/lol/_shared/assets/item-icon", () => ({
@@ -176,10 +178,12 @@ describe("PatchesPage", () => {
         champions: [
           {
             champion: "Ahri",
+            championAlias: "Ahri",
             changes: [{ changeType: "buff", changeText: "Damage up" }],
           },
           {
             champion: "Lee Sin",
+            championAlias: "LeeSin",
             changes: [{ changeType: "nerf", changeText: "Mana cost up" }],
           },
         ],
@@ -197,8 +201,38 @@ describe("PatchesPage", () => {
     ).filter((li) => (li.style.viewTransitionName ?? "").startsWith("patches-champion-"));
     expect(championLis.map((li) => li.style.viewTransitionName)).toEqual([
       "patches-champion-Ahri",
-      "patches-champion-Lee Sin",
+      "patches-champion-LeeSin",
     ]);
+  });
+
+  it("names the icon by the api's alias before the champion map can reverse the display name", () => {
+    // Pre-load, the client reverse lookup hands the display name straight
+    // back, and the proxy has no `wukong` — only `monkeyking`.
+    vi.mocked(useChampions).mockReturnValue({
+      isSuccess: false,
+    } as unknown as ReturnType<typeof useChampions>);
+    mockPatchList([
+      { version: "16.10.1", patchDate: "2026-05-08T00:00:00Z" },
+    ] as PatchListEntry[]);
+    mockPatchChanges({
+      data: {
+        patchVersion: "16.10.1",
+        champions: [
+          {
+            champion: "Wukong",
+            championId: 62,
+            championAlias: "MonkeyKing",
+            changes: [{ changeType: "buff", changeText: "Damage up" }],
+          },
+        ],
+        items: [],
+        runes: [],
+      } as unknown as PatchChangesResponse,
+    });
+    render(<PatchesPage versionParam={undefined} asSlug="jonas-euw" />);
+    expect(screen.getByAltText("Wukong").getAttribute("data-champion")).toBe(
+      "MonkeyKing"
+    );
   });
 
   it("filters to 'my champions' when the toggle is pressed and shows the empty message when none match", () => {

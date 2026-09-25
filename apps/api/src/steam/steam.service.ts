@@ -5,7 +5,7 @@ import type {
   SteamWishlist,
   SteamWishlistItem,
 } from "@vyoh/shared";
-import { excludeHiddenGames, isHiddenGame } from "@vyoh/shared";
+import { excludeHiddenGames } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamClientService } from "./client/steam-client.service";
 import { STEAM_OWNER_ID } from "./client/steam.config";
@@ -60,7 +60,7 @@ export class SteamService {
     private readonly prisma: PrismaService
   ) {}
 
-  async getOwnerSummary(curation: SteamCurationSets): Promise<SteamSummary> {
+  async getOwnerSummary(): Promise<SteamSummary> {
     // Fetch player + equipped items + community level in parallel. Only the
     // player payload is must-have; items and level are optional — a failure on
     // either leaves the corresponding fields undefined rather than blocking the
@@ -105,7 +105,7 @@ export class SteamService {
             return null;
           })
         : null;
-    return mapPlayerToSummary(player, items, level, levelPercentile, curation);
+    return mapPlayerToSummary(player, items, level, levelPercentile);
   }
 
   async getOwnerWishlist(curation: SteamCurationSets): Promise<SteamWishlist> {
@@ -276,23 +276,9 @@ function mapPlayerToSummary(
   player: SteamPlayerRaw,
   items: SteamGetProfileItemsEquippedResponse["response"] | null,
   steamLevel: number | null,
-  steamLevelPercentile: number | null,
-  curation: SteamCurationSets
+  steamLevelPercentile: number | null
 ): SteamSummary {
   const profilePublic = player.communityvisibilitystate === 3;
-  // Game-details visibility can't be verified from GetPlayerSummaries — that
-  // probe requires GetOwnedGames, which lands in S3. Surface "unknown" rather
-  // than guessing so the frontend can render honest copy.
-  // Same suppression as `getPlayerState`: a session in a hidden game reads as
-  // no session. This endpoint is the live one — it calls Steam per request
-  // rather than reading the poller's row — so both paths have to drop it or the
-  // "Now playing" surface and the summary disagree about the same moment.
-  const liveAppid = player.gameid === undefined ? null : Number(player.gameid);
-  const currentGame =
-    liveAppid !== null && !isHiddenGame(liveAppid, curation)
-      ? { appid: liveAppid, name: player.gameextrainfo ?? "" }
-      : null;
-
   // Steam serves animated avatars as a .gif at `image_small` (the name refers
   // to display size, not file size — image_small is the canonical animated form,
   // image_large is the static jpg fallback for clients that can't render the gif).
@@ -322,7 +308,6 @@ function mapPlayerToSummary(
           profileBackgroundVideoUrl: `${STEAM_COMMUNITY_ITEMS_CDN}${backgroundVideoPath}`,
         }
       : {}),
-    currentGame,
     // `timecreated` is absent on privacy-locked profiles; only surface it when
     // present so the frontend can branch on its absence.
     ...(player.timecreated !== undefined ? { memberSinceUnix: player.timecreated } : {}),
@@ -330,6 +315,9 @@ function mapPlayerToSummary(
     ...(steamLevelPercentile !== null ? { steamLevelPercentile } : {}),
     privacyPrereqs: {
       profilePublic,
+      // Game-details visibility can't be verified from GetPlayerSummaries —
+      // that probe requires GetOwnedGames, which lands in S3. Surface
+      // "unknown" rather than guessing so the frontend can render honest copy.
       gameDetailsPublic: "unknown",
     },
   };

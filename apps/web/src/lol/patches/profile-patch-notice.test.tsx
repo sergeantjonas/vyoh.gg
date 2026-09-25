@@ -32,7 +32,9 @@ vi.mock("@/lol/patches/use-current-patch-changes", () => ({
 }));
 
 vi.mock("@/lol/_shared/assets/champion-square-icon", () => ({
-  ChampionSquareIcon: ({ alt }: { alt: string }) => <img alt={alt} />,
+  ChampionSquareIcon: ({ alt, championName }: { alt: string; championName: string }) => (
+    <img alt={alt} data-champion={championName} />
+  ),
 }));
 
 function mockChampions(ready: boolean) {
@@ -148,6 +150,19 @@ describe("ProfilePatchNotice", () => {
     expect(screen.getByText(/Patch 16\.10\.1 · changes for your champions/)).toBeTruthy();
     expect(screen.getByText("Ahri")).toBeTruthy();
     expect(screen.getByText("Damage increased.")).toBeTruthy();
+  });
+
+  it("names the icon by the api's alias, which the display name cannot reach", () => {
+    mockChanges({
+      patchVersion: "16.10.1",
+      changes: [
+        { champion: "Wukong", championId: 62, championAlias: "MonkeyKing", changes: [] },
+      ],
+    } as unknown as CurrentPatchChangesResponse);
+    renderNotice();
+    expect(screen.getByAltText("Wukong").getAttribute("data-champion")).toBe(
+      "MonkeyKing"
+    );
   });
 
   it("collapses changes past MAX_LINES_PER_CHAMPION and expands on click", () => {

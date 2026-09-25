@@ -246,11 +246,7 @@ export type {
   MatchTimelineBuildEventType,
   MatchTimelineSkillEvent,
 } from "./lol/match-timeline.ts";
-export type {
-  SteamCurrentGame,
-  SteamPrivacyPrereqs,
-  SteamSummary,
-} from "./steam/summary.ts";
+export type { SteamPrivacyPrereqs, SteamSummary } from "./steam/summary.ts";
 export {
   classifyReleasePrecision,
   type ReleasePrecision,
@@ -296,7 +292,7 @@ export {
   steamTrailerCdnUrl,
 } from "./steam/trailers.ts";
 export type { SteamAdaptiveTrailer, SteamGameTrailer } from "./steam/trailers.ts";
-export type { SteamPlayerState } from "./steam/player-state.ts";
+export type { SteamCurrentGame, SteamPlayerState } from "./steam/player-state.ts";
 export {
   NO_CURATION,
   curationForOwner,

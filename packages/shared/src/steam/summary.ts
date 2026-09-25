@@ -1,8 +1,3 @@
-export interface SteamCurrentGame {
-  appid: number;
-  name: string;
-}
-
 // `profilePublic` is verifiable from GetPlayerSummaries (communityvisibilitystate === 3).
 // `gameDetailsPublic` requires a probe of GetOwnedGames, which lands in S3 — until
 // then we surface "unknown" rather than guessing, so the frontend can render
@@ -12,8 +7,12 @@ export interface SteamPrivacyPrereqs {
   gameDetailsPublic: boolean | "unknown";
 }
 
-// No persona state here: presence lives on `SteamPlayerState`, which is polled
-// every two minutes, where this is cached for five and never refreshed live.
+// No presence here, neither persona state nor the current game: it lives on
+// `SteamPlayerState`, which is polled every two minutes, where this is cached
+// for five and never refreshed live. Leaving the current game out is also what
+// keeps this response the same for every viewer, since a hidden game is
+// suppressed by viewer. The equipped-item URLs still carry the appid of the
+// game an item came from, which hidden-games.md records as an accepted leak.
 export interface SteamSummary {
   steamId: string;
   personaName: string;
@@ -32,7 +31,6 @@ export interface SteamSummary {
   animatedAvatarUrl?: string;
   profileBackgroundUrl?: string;
   profileBackgroundVideoUrl?: string;
-  currentGame: SteamCurrentGame | null;
   // Account-creation epoch (seconds), for the "member since {year}" headline.
   // Optional — privacy-locked profiles omit `timecreated` upstream.
   memberSinceUnix?: number;

@@ -201,6 +201,36 @@ describe("ImgController upstream failure answers", () => {
     expect(res._headers["Cache-Control"]).toBe("public, max-age=3600");
   });
 
+  it("answers a failed rune manifest like any upstream outage", async () => {
+    const controller = makeController({
+      rune: vi
+        .fn()
+        .mockRejectedValue(
+          new upstream.UpstreamError(
+            "https://raw.communitydragon.org/perks.json",
+            "HTTP 404"
+          )
+        ),
+    } as unknown as Partial<LolImageService>);
+    const res = makeRes();
+    await controller.rune("8112", res as never);
+    expect(res._status).toBe(502);
+    expect(res._headers["Cache-Control"]).toBe("no-store");
+    expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+  });
+
+  it("answers an unknown summoner spell with the short-cache 404", async () => {
+    const controller = makeController({
+      spell: vi
+        .fn()
+        .mockRejectedValue(new NotFoundException("unknown summoner spell id 99")),
+    } as unknown as Partial<LolImageService>);
+    const res = makeRes();
+    await controller.spell("99", res as never);
+    expect(res._status).toBe(404);
+    expect(res._headers["Cache-Control"]).toBe("public, max-age=3600");
+  });
+
   it("lets a resolver failure that is not a miss reach the exception filter", async () => {
     const controller = makeController({
       ability: vi.fn().mockRejectedValue(new Error("database unreachable")),

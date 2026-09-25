@@ -704,7 +704,10 @@ function ChampionDetailPage() {
           same dataset (was drifting when the strip self-fetched 2000 matches
           but the page used the bounded count selector). */}
           <CvSection minHeight={140}>
-            <ChampionPatchHistory matches={champMatches} championAlias={alias} />
+            <ChampionPatchHistory
+              matches={champMatches}
+              championName={championName(alias)}
+            />
           </CvSection>
 
           {/* Top items */}

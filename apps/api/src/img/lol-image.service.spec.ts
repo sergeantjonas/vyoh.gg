@@ -1,6 +1,8 @@
+import { NotFoundException } from "@nestjs/common";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service";
 import { LolImageService } from "./lol-image.service";
+import { UpstreamError, isMissingAsset } from "./upstream";
 
 interface PrismaStub {
   lolProfileIcon: {
@@ -512,6 +514,61 @@ describe("LolImageService.rune", () => {
   it("throws for an unknown perk id rather than constructing a 404-bound URL", async () => {
     const { service } = makeService();
     await expect(service.rune(99_999)).rejects.toThrow(/unknown perk id 99999/);
+    await expect(service.rune(99_999)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("reports a missing manifest as an outage, not a missing icon", async () => {
+    // Every rune depends on perks.json; a 404 there must not read as "this
+    // one icon does not exist" and be cached as such.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 404 }))
+    );
+    const { service } = makeService();
+    const err = await service.rune(8005).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(UpstreamError);
+    expect(isMissingAsset(err as UpstreamError)).toBe(false);
+  });
+
+  it("wraps an unreachable manifest host in an UpstreamError", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("fetch failed");
+      })
+    );
+    const { service } = makeService();
+    await expect(service.rune(8005)).rejects.toBeInstanceOf(UpstreamError);
+  });
+
+  it("tries the manifest again after a failed fetch", async () => {
+    const working = globalThis.fetch;
+    let calls = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL) =>
+        ++calls === 1 ? new Response(null, { status: 503 }) : working(url)
+      )
+    );
+    const { service } = makeService();
+    await expect(service.rune(8005)).rejects.toBeInstanceOf(UpstreamError);
+    await expect(service.rune(8005)).resolves.toMatchObject({ params: { width: 40 } });
+  });
+
+  it("refetches the manifest for an unknown id at most once an hour", async () => {
+    vi.useFakeTimers();
+    try {
+      const { service } = makeService();
+      await expect(service.rune(99_999)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.rune(99_999)).rejects.toBeInstanceOf(NotFoundException);
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+
+      vi.advanceTimersByTime(60 * 60_000);
+      await expect(service.rune(99_999)).rejects.toBeInstanceOf(NotFoundException);
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -630,5 +687,6 @@ describe("LolImageService.spell", () => {
     await expect(service.spell(99_999)).rejects.toThrow(
       /unknown summoner spell id 99999/
     );
+    await expect(service.spell(99_999)).rejects.toBeInstanceOf(NotFoundException);
   });
 });

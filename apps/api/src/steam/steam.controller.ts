@@ -74,9 +74,8 @@ export class SteamController {
   ) {}
 
   @Get("summary")
-  @WithViewer()
-  async getSummary(@ViewerIsOwner() isOwner: boolean): Promise<SteamSummary> {
-    return this.steam.getOwnerSummary(await this.curation.getCurationFor(isOwner));
+  async getSummary(): Promise<SteamSummary> {
+    return this.steam.getOwnerSummary();
   }
 
   // Cached presence snapshot, refreshed every 2 min by the player-state

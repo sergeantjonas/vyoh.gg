@@ -190,14 +190,10 @@ export class ImgController {
       res.status(HttpStatus.BAD_REQUEST).send();
       return;
     }
-    let resolved: Awaited<ReturnType<LolImageService["ability"]>>;
-    try {
-      resolved = await this.lol.ability(cid, slot, idx, patch);
-    } catch (err) {
-      if (!(err instanceof NotFoundException)) throw err;
-      answerMissing(res);
-      return;
-    }
+    const resolved = await this.resolveOrAnswer(res, () =>
+      this.lol.ability(cid, slot, idx, patch)
+    );
+    if (!resolved) return;
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
@@ -256,7 +252,8 @@ export class ImgController {
       res.status(HttpStatus.BAD_REQUEST).send();
       return;
     }
-    const resolved = await this.lol.rune(id);
+    const resolved = await this.resolveOrAnswer(res, () => this.lol.rune(id));
+    if (!resolved) return;
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
@@ -269,7 +266,8 @@ export class ImgController {
       res.status(HttpStatus.BAD_REQUEST).send();
       return;
     }
-    const resolved = await this.lol.spell(key);
+    const resolved = await this.resolveOrAnswer(res, () => this.lol.spell(key));
+    if (!resolved) return;
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
@@ -284,14 +282,8 @@ export class ImgController {
       res.status(HttpStatus.BAD_REQUEST).send();
       return;
     }
-    let resolved: ReturnType<LolImageService["map"]>;
-    try {
-      resolved = this.lol.map(id);
-    } catch (err) {
-      if (!(err instanceof NotFoundException)) throw err;
-      answerMissing(res);
-      return;
-    }
+    const resolved = await this.resolveOrAnswer(res, () => this.lol.map(id));
+    if (!resolved) return;
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
@@ -515,14 +507,10 @@ export class ImgController {
       res.status(HttpStatus.BAD_REQUEST).send();
       return;
     }
-    let resolved: Awaited<ReturnType<SteamImageService["achievement"]>>;
-    try {
-      resolved = await this.steam.achievement(id, apiName);
-    } catch (err) {
-      if (!(err instanceof NotFoundException)) throw err;
-      answerMissing(res);
-      return;
-    }
+    const resolved = await this.resolveOrAnswer(res, () =>
+      this.steam.achievement(id, apiName)
+    );
+    if (!resolved) return;
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
@@ -539,14 +527,10 @@ export class ImgController {
       res.status(HttpStatus.BAD_REQUEST).send();
       return;
     }
-    let resolved: Awaited<ReturnType<SteamImageService["achievementGray"]>>;
-    try {
-      resolved = await this.steam.achievementGray(id, apiName);
-    } catch (err) {
-      if (!(err instanceof NotFoundException)) throw err;
-      answerMissing(res);
-      return;
-    }
+    const resolved = await this.resolveOrAnswer(res, () =>
+      this.steam.achievementGray(id, apiName)
+    );
+    if (!resolved) return;
     await this.proxyWebp(resolved.urls, resolved.params, res);
   }
 
@@ -719,6 +703,28 @@ export class ImgController {
       if (err instanceof UpstreamError) {
         this.answerUpstreamFailure(res, err);
         return;
+      }
+      throw err;
+    }
+  }
+
+  // A resolver says "no such row" with `NotFoundException` and a failed
+  // manifest fetch with `UpstreamError`, and each gets the answer a failed
+  // asset fetch would. Anything else is ours and reaches the exception filter.
+  private async resolveOrAnswer<T extends object>(
+    res: Response,
+    resolve: () => T | Promise<T>
+  ): Promise<T | null> {
+    try {
+      return await resolve();
+    } catch (err) {
+      if (err instanceof NotFoundException) {
+        answerMissing(res);
+        return null;
+      }
+      if (err instanceof UpstreamError) {
+        this.answerUpstreamFailure(res, err);
+        return null;
       }
       throw err;
     }

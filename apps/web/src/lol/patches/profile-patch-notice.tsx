@@ -57,9 +57,9 @@ function markDismissed(patchVersion: string): void {
 export function ProfilePatchNotice({ accountSlug }: { accountSlug: string }) {
   const { matches } = useMatchWindow();
   const championName = useChampionName();
-  // Server returns wiki names ("Wukong"); the icon proxy expects Riot
-  // aliases ("MonkeyKing"). Reverse-map via the same CDragon data so the
-  // round-trip stays consistent.
+  // Server groups carry wiki names ("Wukong") and, once the static sync has
+  // stored the champion, the Riot alias ("MonkeyKing") the icon proxy expects.
+  // The reverse map covers a champion CommunityDragon lists before that.
   const championAliasFromName = useChampionAliasFromName();
   // Gate on the CDragon champion map being loaded — pre-load, `championName`
   // falls back to the raw Riot alias (e.g. "MonkeyKing") which won't match
@@ -133,7 +133,9 @@ export function ProfilePatchNotice({ accountSlug }: { accountSlug: string }) {
               )}
               <div className="flex gap-3">
                 <ChampionSquareIcon
-                  championName={championAliasFromName(group.champion)}
+                  championName={
+                    group.championAlias ?? championAliasFromName(group.champion)
+                  }
                   alt={group.champion}
                   className="size-9 shrink-0 rounded-md"
                 />

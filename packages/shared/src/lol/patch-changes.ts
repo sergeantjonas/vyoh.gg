@@ -44,6 +44,12 @@ export interface ChampionPatchChangeGroup {
   // static sync yet (newly-released champion before the next nightly cron).
   // Required to compose the ability-icon proxy URL.
   championId: number | null;
+  // Riot alias (`LolChampion.alias`, e.g. "MonkeyKing"), resolved in the same
+  // join. The image proxy keys on it, and carrying it here lets the first
+  // render — the server one included — name the right icon rather than wait
+  // for the web's champion map to reverse the display name. Null on the same
+  // terms as `championId`.
+  championAlias: string | null;
   changes: ChampionPatchChangeLine[];
 }
 

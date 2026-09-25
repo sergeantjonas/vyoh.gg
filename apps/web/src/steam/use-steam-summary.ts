@@ -1,5 +1,3 @@
-import { useIsOwner } from "@/auth/use-viewer";
-import { viewerScope, viewerScopedQuery } from "@/auth/viewer-scope";
 import { HttpError } from "@/lib/http-error";
 import { useQuery } from "@tanstack/react-query";
 import type { SteamSummary } from "@vyoh/shared";
@@ -7,7 +5,7 @@ import type { SteamSummary } from "@vyoh/shared";
 import { API_URL } from "@/lib/api-url";
 
 async function fetchSteamSummary(): Promise<SteamSummary> {
-  const res = await fetch(`${API_URL}/steam/summary`, { credentials: "include" });
+  const res = await fetch(`${API_URL}/steam/summary`);
   if (!res.ok) {
     let message = `HTTP ${res.status}`;
     try {
@@ -22,11 +20,9 @@ async function fetchSteamSummary(): Promise<SteamSummary> {
 }
 
 export function useSteamSummary() {
-  const scope = viewerScope(useIsOwner());
   return useQuery({
-    queryKey: ["steam", "summary", scope],
+    queryKey: ["steam", "summary"],
     queryFn: fetchSteamSummary,
     staleTime: 5 * 60 * 1_000,
-    ...viewerScopedQuery,
   });
 }

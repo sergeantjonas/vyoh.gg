@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
-import type { TranscodeParams } from "./upstream";
+import { FETCH_TIMEOUT_MS, type TranscodeParams, UpstreamError } from "./upstream";
 import {
   wikiAbilityIconUrl,
   wikiAttackIconUrl,
@@ -46,11 +46,68 @@ function cdragonMinimapUrl(mapId: number): string | null {
 
 // `/perk/<id>/icon` and `/spell/<id>/icon` on cdn.communitydragon.org return
 // 404 — the real icon paths come from perks.json / summoner-spells.json
-// `iconPath` fields. Cache the id → path map in memory; refresh on demand if
-// a lookup misses (a new keystone shipped this patch).
+// `iconPath` fields. The id → path map is held in memory and refetched when a
+// lookup misses, at most once an hour: often enough that a keystone shipped
+// this patch resolves without a restart, rarely enough that a bogus id cannot
+// turn every request into a manifest download.
 interface CDragonItem {
   id: number;
   iconPath: string;
+}
+
+const MANIFEST_REFRESH_MS = 60 * 60_000;
+
+class IdPathManifest {
+  private map: Map<number, string> | null = null;
+  private loadedAt = 0;
+  private pending: Promise<Map<number, string>> | null = null;
+
+  constructor(private readonly url: string) {}
+
+  async lookup(id: number): Promise<string | undefined> {
+    const hit = (await this.load()).get(id);
+    if (hit !== undefined || Date.now() - this.loadedAt < MANIFEST_REFRESH_MS) return hit;
+    this.map = null;
+    return (await this.load()).get(id);
+  }
+
+  // A failed fetch is not memoised: `pending` clears either way and `map` is
+  // only set on success, so the next request tries again.
+  private load(): Promise<Map<number, string>> {
+    if (this.map) return Promise.resolve(this.map);
+    if (this.pending) return this.pending;
+    this.pending = fetchIdPathMap(this.url)
+      .then((map) => {
+        this.map = map;
+        this.loadedAt = Date.now();
+        return map;
+      })
+      .finally(() => {
+        this.pending = null;
+      });
+    return this.pending;
+  }
+}
+
+// Every failure is an `UpstreamError` *without* a status, so even a 404 on the
+// manifest reads as an outage rather than a missing asset: every rune or spell
+// icon depends on this one file, and answering them all as cached 404s would
+// blank the lot for an hour with nothing reported. The time budget and the
+// redirect refusal match an asset fetch, since a stalled manifest would
+// otherwise hold every rune and spell request behind one shared promise.
+async function fetchIdPathMap(url: string): Promise<Map<number, string>> {
+  try {
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      redirect: "manual",
+    });
+    if (!res.ok) throw new UpstreamError(url, `HTTP ${res.status}`);
+    const raw = (await res.json()) as CDragonItem[];
+    return new Map(raw.map((it) => [it.id, it.iconPath]));
+  } catch (err) {
+    if (err instanceof UpstreamError) throw err;
+    throw new UpstreamError(url, err);
+  }
 }
 
 function gameDataUrlFromIconPath(iconPath: string): string {
@@ -168,10 +225,10 @@ export interface Resolved {
 
 @Injectable()
 export class LolImageService {
-  private perkPaths: Map<number, string> | null = null;
-  private spellPaths: Map<number, string> | null = null;
-  private perkPathsPending: Promise<Map<number, string>> | null = null;
-  private spellPathsPending: Promise<Map<number, string>> | null = null;
+  private readonly perkPaths = new IdPathManifest(`${CDRAGON_GAME_DATA}/v1/perks.json`);
+  private readonly spellPaths = new IdPathManifest(
+    `${CDRAGON_GAME_DATA}/v1/summoner-spells.json`
+  );
   private profileIconTitles: Map<number, string> | null = null;
   private profileIconTitlesPending: Promise<Map<number, string>> | null = null;
   private championDisplayNames: Map<string, string> | null = null;
@@ -461,10 +518,9 @@ export class LolImageService {
   // the first sync still resolves. The CDragon iconPath is also required
   // when no wiki name is known.
   async rune(keystoneId: number): Promise<Resolved> {
-    const paths = await this.loadPerkPaths();
-    const iconPath = paths.get(keystoneId);
+    const iconPath = await this.perkPaths.lookup(keystoneId);
     if (!iconPath) {
-      throw new Error(`unknown perk id ${keystoneId}`);
+      throw new NotFoundException(`unknown perk id ${keystoneId}`);
     }
     const cdragonUrl = gameDataUrlFromIconPath(iconPath);
     const names = await this.loadPerkIconNames();
@@ -480,10 +536,9 @@ export class LolImageService {
   // CDragon `iconPath` lookup. Cold-start before the first sync also lands
   // on CDragon alone.
   async spell(spellKey: number): Promise<Resolved> {
-    const paths = await this.loadSpellPaths();
-    const iconPath = paths.get(spellKey);
+    const iconPath = await this.spellPaths.lookup(spellKey);
     if (!iconPath) {
-      throw new Error(`unknown summoner spell id ${spellKey}`);
+      throw new NotFoundException(`unknown summoner spell id ${spellKey}`);
     }
     const cdragonUrl = gameDataUrlFromIconPath(iconPath);
     const names = await this.loadSpellIconNames();
@@ -572,43 +627,6 @@ export class LolImageService {
       });
     this.spellIconNamesPending = pending;
     return pending;
-  }
-
-  private loadPerkPaths(): Promise<Map<number, string>> {
-    if (this.perkPaths) return Promise.resolve(this.perkPaths);
-    if (this.perkPathsPending) return this.perkPathsPending;
-    this.perkPathsPending = this.fetchIdPathMap(`${CDRAGON_GAME_DATA}/v1/perks.json`)
-      .then((map) => {
-        this.perkPaths = map;
-        return map;
-      })
-      .finally(() => {
-        this.perkPathsPending = null;
-      });
-    return this.perkPathsPending;
-  }
-
-  private loadSpellPaths(): Promise<Map<number, string>> {
-    if (this.spellPaths) return Promise.resolve(this.spellPaths);
-    if (this.spellPathsPending) return this.spellPathsPending;
-    this.spellPathsPending = this.fetchIdPathMap(
-      `${CDRAGON_GAME_DATA}/v1/summoner-spells.json`
-    )
-      .then((map) => {
-        this.spellPaths = map;
-        return map;
-      })
-      .finally(() => {
-        this.spellPathsPending = null;
-      });
-    return this.spellPathsPending;
-  }
-
-  private async fetchIdPathMap(url: string): Promise<Map<number, string>> {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`${url} HTTP ${res.status}`);
-    const raw = (await res.json()) as CDragonItem[];
-    return new Map(raw.map((it) => [it.id, it.iconPath]));
   }
 
   // Wiki-primary with CDragon SVG fallback. Wiki ships these as `{Title}_icon.png`

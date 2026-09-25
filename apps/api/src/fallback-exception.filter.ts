@@ -7,6 +7,7 @@ import {
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import * as Sentry from "@sentry/nestjs";
+import { type ErrorResponseTarget, sendErrorBody } from "./error-response";
 import { SteamRateLimiterTimeoutError } from "./steam/client/rate-limiter.service";
 import { SteamClientError } from "./steam/client/steam-client.service";
 
@@ -35,11 +36,7 @@ export class FallbackExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const request = ctx.getRequest<{ method?: string; url?: string }>();
-    const response = ctx.getResponse<{
-      headersSent?: boolean;
-      setHeader: (name: string, value: string) => void;
-      status: (code: number) => { json: (body: unknown) => void };
-    }>();
+    const response = ctx.getResponse<ErrorResponseTarget>();
 
     const route = `${request.method ?? "?"} ${request.url ?? "?"}`;
     const verdict = classify(exception, route);
@@ -53,18 +50,7 @@ export class FallbackExceptionFilter implements ExceptionFilter {
     if (verdict.log && verdict.status >= 500) {
       Sentry.captureException(exception, { tags: { route } });
     }
-    // A throw after the headers are out (a streaming route mid-stream) has no
-    // response left to shape; writing would only raise a second error.
-    if (response.headersSent) return;
-    // The image and OG routes declare an image Content-Type up front, and
-    // Express's `res.json` leaves an existing header alone — without this a
-    // JSON error body would go out labelled `image/webp`.
-    response.setHeader("Content-Type", "application/json; charset=utf-8");
-    // Same reason, for caching: Nest applied the route's `@Header` before the
-    // handler threw, so a 5xx from an image route would otherwise go out as
-    // `immutable` for a year, and nginx honours that over `proxy_cache_valid`.
-    if (verdict.status >= 500) response.setHeader("Cache-Control", "no-store");
-    response.status(verdict.status).json(verdict.body);
+    sendErrorBody(response, verdict.status, verdict.body);
   }
 }
 

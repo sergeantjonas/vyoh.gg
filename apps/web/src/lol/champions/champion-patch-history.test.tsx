@@ -1,5 +1,5 @@
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { MatchSummary } from "@vyoh/shared";
 import { MotionConfig } from "motion/react";
 import type { ReactNode } from "react";
@@ -26,7 +26,7 @@ function renderWith(ui: ReactNode) {
 describe("ChampionPatchHistory", () => {
   it("renders nothing when no matches are present", () => {
     const { container } = renderWith(
-      <ChampionPatchHistory matches={[]} championAlias="Ahri" />
+      <ChampionPatchHistory matches={[]} championName="Ahri" />
     );
     expect(container.firstChild).toBeNull();
   });
@@ -39,7 +39,7 @@ describe("ChampionPatchHistory", () => {
           match("14.20.586.5840", false),
           match("14.21.586.5840", true),
         ]}
-        championAlias="Ahri"
+        championName="Ahri"
       />
     );
     // Patch labels come from groupByPatch (major.minor).
@@ -52,7 +52,7 @@ describe("ChampionPatchHistory", () => {
     renderWith(
       <ChampionPatchHistory
         matches={[match("14.20.586.5840", true), match("14.20.586.5840", false)]}
-        championAlias="Ahri"
+        championName="Ahri"
       />
     );
     expect(screen.getByText(/This patch \(24\.20\):/)).toBeTruthy();
@@ -68,11 +68,24 @@ describe("ChampionPatchHistory", () => {
           match("14.21.586.5840", true),
           match("14.21.586.5840", true),
         ]}
-        championAlias="Ahri"
+        championName="Ahri"
       />
     );
     // current = 14.21 (100% WR), prev = 14.20 (50% WR) → +50% from 14.20
     expect(screen.getByText(/\+50% from 24\.20/)).toBeTruthy();
+  });
+
+  it("names the champion by its display name in the tile tooltip", async () => {
+    renderWith(
+      <ChampionPatchHistory
+        matches={[match("14.20.586.5840", true)]}
+        championName="Wukong"
+      />
+    );
+    fireEvent.focus(screen.getByText("24.20"));
+    expect((await screen.findAllByText(/Patch 24\.20 on Wukong/)).length).toBeGreaterThan(
+      0
+    );
   });
 
   it("filters out remakes before computing patch stats", () => {
@@ -82,7 +95,7 @@ describe("ChampionPatchHistory", () => {
           { ...match("14.20.586.5840", true), remake: true } as MatchSummary,
           match("14.20.586.5840", false),
         ]}
-        championAlias="Ahri"
+        championName="Ahri"
       />
     );
     // remake is excluded, so the only counted game is the loss → 0%

@@ -1,5 +1,6 @@
 import { type ArgumentsHost, Catch, type ExceptionFilter, Logger } from "@nestjs/common";
 import * as Sentry from "@sentry/nestjs";
+import { type ErrorResponseTarget, sendErrorBody } from "../error-response";
 import { RateLimiterTimeoutError, RiotError } from "./riot.error";
 
 @Catch(RiotError)
@@ -12,9 +13,7 @@ export class RiotExceptionFilter implements ExceptionFilter {
     );
 
     const ctx = host.switchToHttp();
-    const response = ctx.getResponse<{
-      status: (code: number) => { json: (body: unknown) => void };
-    }>();
+    const response = ctx.getResponse<ErrorResponseTarget>();
 
     const status = mapStatus(exception);
     const message = mapMessage(exception);
@@ -29,7 +28,7 @@ export class RiotExceptionFilter implements ExceptionFilter {
       });
     }
 
-    response.status(status).json({ statusCode: status, message });
+    sendErrorBody(response, status, { statusCode: status, message });
   }
 }
 
