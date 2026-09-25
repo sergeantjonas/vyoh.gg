@@ -50,6 +50,11 @@ vi.mock("./use-champions", () => ({
   }),
 }));
 
+const masteryList = vi.fn(() => ({ data: undefined as unknown }));
+vi.mock("@/lol/profile/use-champion-mastery-list", () => ({
+  useChampionMasteryList: () => masteryList(),
+}));
+
 vi.mock("@/lol/_shared/ui/card-tilt", () => ({
   CardTilt: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
@@ -164,6 +169,40 @@ describe("ChampionTable", () => {
     renderTable(<ChampionTable stats={items} sort="playtime" accountSlug="ahri" />);
     const chrome = screen.getAllByTestId("chrome").map((el) => el.textContent);
     expect(chrome).toEqual(["Long", "Short"]);
+  });
+
+  it("sorts by lifetime mastery when sort='mastery', unmastered champions last", () => {
+    masteryList.mockReturnValue({
+      data: {
+        champions: [
+          {
+            alias: "Ahri",
+            level: 105,
+            points: 1_124_191,
+            lastPlayedAt: "2026-09-10T20:00:00Z",
+          },
+          {
+            alias: "Lulu",
+            level: 14,
+            points: 168_625,
+            lastPlayedAt: "2026-09-04T20:00:00Z",
+          },
+        ],
+      },
+    });
+    try {
+      const items = [
+        stat({ champion: "Never", games: 40 }),
+        stat({ champion: "Lulu", games: 30 }),
+        stat({ champion: "Ahri", games: 10 }),
+      ];
+      renderTable(<ChampionTable stats={items} sort="mastery" accountSlug="ahri" />);
+      const chrome = screen.getAllByTestId("chrome").map((el) => el.textContent);
+      expect(chrome).toEqual(["Ahri", "Lulu", "Never"]);
+      expect(screen.getByText(/· Mastery 105/)).toBeTruthy();
+    } finally {
+      masteryList.mockReturnValue({ data: undefined });
+    }
   });
 
   it("stamps `champion-${alias}` as view-transition-name on the row li so sort/role reorders pair OLD↔NEW", () => {

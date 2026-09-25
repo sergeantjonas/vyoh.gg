@@ -6,6 +6,7 @@ export const CHAMPION_SORT_OPTIONS = [
   { value: "winRate", label: "Win rate" },
   { value: "avgKda", label: "KDA" },
   { value: "playtime", label: "Playtime" },
+  { value: "mastery", label: "Mastery" },
 ] as const;
 
 export type ChampionSortOption = (typeof CHAMPION_SORT_OPTIONS)[number]["value"];
