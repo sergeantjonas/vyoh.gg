@@ -15,3 +15,13 @@ export interface ChampionMasteryResponse {
    */
   mastery: ChampionMastery | null;
 }
+
+export interface ChampionMasteryEntry extends ChampionMastery {
+  /** Riot alias ("MonkeyKing"), which the image proxy and champion routes key on. */
+  alias: string;
+}
+
+export interface ChampionMasteryList {
+  /** Every champion with mastery on the account, most points first. */
+  champions: ChampionMasteryEntry[];
+}

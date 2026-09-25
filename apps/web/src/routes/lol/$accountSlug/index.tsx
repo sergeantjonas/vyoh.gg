@@ -15,6 +15,7 @@ import { ProfileAramDashboard } from "@/lol/profile/profile-aram-dashboard";
 import { ProfileCarryProfile } from "@/lol/profile/profile-carry-profile";
 import { ProfileDuos } from "@/lol/profile/profile-duos";
 import { ProfileHistoryChips } from "@/lol/profile/profile-history-chips";
+import { ProfileMostMastered } from "@/lol/profile/profile-most-mastered";
 import { ProfileMultikillStrip } from "@/lol/profile/profile-multikill-strip";
 import { ProfileNowPlaying } from "@/lol/profile/profile-now-playing";
 import { ProfileObjectiveFirsts } from "@/lol/profile/profile-objective-firsts";
@@ -229,6 +230,7 @@ function ProfilePage() {
       <CvSection minHeight={160}>
         <ProfileNowPlaying accountSlug={accountSlug} />
       </CvSection>
+      <ProfileMostMastered accountSlug={accountSlug} />
       <CvSection minHeight={140}>
         <ProfileRoleStrip />
       </CvSection>

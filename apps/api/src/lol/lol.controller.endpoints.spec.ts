@@ -44,7 +44,7 @@ function makeController() {
     getChampionLanePhase: vi.fn(),
   };
   const baseline = { getBaseline: vi.fn() };
-  const mastery = { getChampionMastery: vi.fn() };
+  const mastery = { getChampionMastery: vi.fn(), getMasteryList: vi.fn() };
   const onThisDay = { getOnThisDay: vi.fn() };
   const history = { getAccountHistory: vi.fn() };
   const narrative = { getNarrativeWindow: vi.fn(), getLifetimeNarrative: vi.fn() };
@@ -283,6 +283,12 @@ describe("LolController endpoint delegations", () => {
       "ahri",
       100
     );
+  });
+
+  it("getMasteryList delegates to the mastery service with the account params", async () => {
+    const { controller, mastery } = makeController();
+    await controller.getMasteryList(params);
+    expect(mastery.getMasteryList).toHaveBeenCalledWith("euw1", "Vyoh", "EUW");
   });
 
   it("getChampionMastery delegates to the mastery service with the route's champion key", async () => {

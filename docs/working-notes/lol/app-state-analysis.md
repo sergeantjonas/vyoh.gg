@@ -292,7 +292,7 @@ Cherry-pick when appetite for visible work is low or the portfolio story needs a
 | Composite LP forecast tile | M | Composition only; no new data. |
 | Champion-pool drift verdict | S | 14d-vs-prior-14d diff over windowed data. |
 | Champions list role/queue filters | S | Mirror Matches/Trends. |
-| Mastery pull | S | ✅ Shipped 2026-09-25: `GET …/champions/:championKey/mastery` reads Riot's by-puuid list (every champion in one call, 173 on the main account), cached per account for 15 min, and the champion-detail hero carries a `Mastery 105 · 1.12M` pill beside *Last played*, exact points and last game in its tooltip. Client-only, so the server render has no pill. Not on the list rows: they are rich cards, and a mastery sort would be its own change. |
+| Mastery pull | S | ✅ Shipped 2026-09-25: `GET …/champions/:championKey/mastery` reads Riot's by-puuid list (every champion in one call, 173 on the main account), cached per account for 15 min, and the champion-detail hero carries a `Mastery 105 · 1.12M` pill beside *Last played*, exact points and last game in its tooltip. Client-only, so the server render has no pill. The `/lol` landing page adds a *Most mastered* top-three card from `GET …/mastery`, the whole list alias-keyed off the same cached call. Not on the list rows: they are rich cards, and a mastery sort would be its own change. |
 | Recap density expansion | M | ✅ shipped 2026-05-14. 4 sections added; share-image still deferred. |
 | Multi-account compare | L | New view; lean into architecture story. |
 | Live tab audit | S | Read-only review pass. |

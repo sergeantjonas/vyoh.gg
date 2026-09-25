@@ -20,6 +20,7 @@ import type {
   ChampionBuildFlowEntry,
   ChampionExtras,
   ChampionLanePhase,
+  ChampionMasteryList,
   ChampionMasteryResponse,
   ChampionPair,
   ChampionRecap,
@@ -303,6 +304,13 @@ export class LolController {
       championKey,
       queues
     );
+  }
+
+  @Get("mastery")
+  async getMasteryList(
+    @Param() { region, gameName, tagLine }: AccountParamsDto
+  ): Promise<ChampionMasteryList> {
+    return this.mastery.getMasteryList(region, gameName, tagLine);
   }
 
   @Get("champions/:championKey/mastery")

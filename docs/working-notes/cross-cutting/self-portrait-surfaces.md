@@ -53,7 +53,7 @@ These respect the filter but haven't been pulled into a focused panel yet. Liste
 
 ### Riot-side untapped data (LoL only, no new integration)
 
-- **Champion mastery + emblems.** Currently unused endpoint. Surface as its own "I've put 412k points into Vex" panel or feed an existing `ConclusionCard`.
+- **Champion mastery + emblems.** Surface as its own "I've put 412k points into Vex" panel or feed an existing `ConclusionCard`. **Shipped 2026-09-25** as a *Most mastered* podium on the per-account `/lol` landing page (top three by lifetime points, linking to each champion) in addition to the champion-detail hero pill; both read one cached Riot call per account.
 - **Free-week / rotation echo.** *"Three of this week's free-week champions are ones you've never played."* Passive, automatic, calm. Cheap.
 
 TFT lives in its own working note now — see [tft-integration.md](../tft/tft-integration.md). It's a separate game integration, not just an "untapped endpoint."
