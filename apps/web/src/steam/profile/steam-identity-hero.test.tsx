@@ -46,7 +46,6 @@ function summary(overrides: Partial<SteamSummary> = {}): SteamSummary {
     personaName: "Vyoh",
     profileUrl: "https://steamcommunity.com/id/vyoh/",
     avatarUrl: "https://example.com/avatar_full.jpg",
-    currentGame: null,
     memberSinceUnix: 1263864425, // 2010-01-19
     steamLevel: 14,
     steamLevelPercentile: 94.66,

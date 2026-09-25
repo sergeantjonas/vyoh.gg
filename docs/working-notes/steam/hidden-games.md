@@ -96,14 +96,14 @@ Rows the owner creates by hand are `reviewedAt`-stamped on arrival — a hand-ma
 
 **Two leaks found while wiring, not in the original survey:**
 
-- **`/steam/summary` carries `currentGame`**, not just `/steam/player-state`. Both are chunk 4.
+- **`/steam/summary` carries `currentGame`**, not just `/steam/player-state`. Both are chunk 4. **Closed structurally 2026-09-25:** the summary no longer carries a current game at all (nothing on the web read it), so it no longer names a game, and the route dropped its viewer scope with it.
 - **The Steam OG card** (`generateSteamGameCard`) renders the game's name into a public, cacheable, shareable image. It now reads the *public* curation unconditionally — an OG card has no viewer to be aware of, and a cached card naming a hidden game would be the one copy of that name to outlive the hiding.
 
 **Internal callers had to choose explicitly**, which is what the required argument bought. The enrichment poller, the enrichment backfill script and the image prewarm all pass `NO_CURATION`: they are data maintenance on the owner's real library, and hiding a game from visitors is not a decision to stop tracking it.
 
 ## The live and named surfaces (chunk 4)
 
-**Two independent copies of the now-playing leak**, and both had to be closed or the surfaces disagree about the same moment. `/steam/player-state` reads the poller's cached row; `/steam/summary` calls Steam per request. Neither returns a redacted placeholder — the session reads as *no session*, so the owner appears online and playing nothing. "Playing something private" would announce, at the exact moment it is happening, that there is something to hide, which is a worse tell than the title. The poller keeps writing the row and the play session; only the projection drops it, so the hours survive for the aggregates.
+**Two independent copies of the now-playing leak**, and both had to be closed or the surfaces disagree about the same moment. (Since 2026-09-25 there is one: `/steam/summary` carries no current game.) `/steam/player-state` reads the poller's cached row; `/steam/summary` calls Steam per request. Neither returns a redacted placeholder — the session reads as *no session*, so the owner appears online and playing nothing. "Playing something private" would announce, at the exact moment it is happening, that there is something to hide, which is a worse tell than the title. The poller keeps writing the row and the play session; only the projection drops it, so the hours survive for the aggregates.
 
 **The portrait splits on a line the feature already drew.** `lifetime`, `recent` and `posture` are pure aggregates — genre shares, counts, minutes — and keep counting hidden games. `anti`, `backlog` and `completion` name titles and see only the visible set. `backlog` is still *scored* against the unfiltered lifetime fingerprint: the recommendation stays calibrated on everything the owner actually plays, it just cannot name a hidden game as the pick.
 
@@ -137,7 +137,7 @@ Fifteen routes carry `@WithViewer()`, so fifteen web reads had to stop treating 
 
 The scope defaults to public wherever it is optional, and that is the same argument the api's `@ViewerIsOwner()` makes: a call site that forgets to ask serves the owner a visitor's view, which is visible to the only person who can fix it and cannot leak the other way. It also means the four route loaders needed no changes — SSR *should* prime the public key, because a loader runs on the server where the visitor's cookie is out of scope.
 
-**The cookie is the half that fails silently.** None of these fetches sent `credentials: "include"`, so even with perfect keys the api would have seen an anonymous request and answered the public projection — which then sits in the owner-scoped entry looking entirely correct. Both halves are now asserted per hook in [use-steam-hooks.test.tsx](../../../apps/web/src/steam/use-steam-hooks.test.tsx), including a paired case for the four Steam reads that are *not* viewer-aware and must not send it.
+**The cookie is the half that fails silently.** None of these fetches sent `credentials: "include"`, so even with perfect keys the api would have seen an anonymous request and answered the public projection — which then sits in the owner-scoped entry looking entirely correct. Both halves are now asserted per hook in [use-steam-hooks.test.tsx](../../../apps/web/src/steam/use-steam-hooks.test.tsx), including a paired case for the five Steam reads that are *not* viewer-aware and must not send it.
 
 Two smaller consequences:
 
@@ -199,6 +199,7 @@ The owner sees hidden games on every surface by design, which left them unable t
 Recorded so they don't get re-raised as defects:
 
 - **`/img/steam/...` stays unfiltered.** It is appid-addressable, nginx-cached, carries no viewer context, and isn't enumerable. Someone who already knows the appid can confirm art exists; they learn nothing they didn't bring with them.
+- **Equipped profile items name their source game.** `/steam/summary` is viewer-independent, but a profile background or animated avatar is served from `items/<appid>/…`, so an item that came from a hidden game shows that appid and its art to every visitor. The owner equips these publicly on Steam itself, so the summary repeats what the profile already shows.
 - **Aggregate totals include hidden hours**, by decision 2. A visitor diffing lifetime hours against the sum of listed games can infer that a gap exists — not what fills it. This is the intended trade.
 
 ## Chunk plan

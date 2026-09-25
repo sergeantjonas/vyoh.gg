@@ -475,8 +475,8 @@ model SteamGameAchievementMeta {
 // inline so the chip can render the human label without a second lookup
 // against owned-games — and so it still renders for non-owned titles
 // (friend's shared library, family-share, etc.). `personaState` stores
-// the already-normalized string union from SteamSummary so the read
-// endpoint doesn't have to re-map on every request.
+// the already-normalized string union so the read endpoint doesn't have
+// to re-map on every request; this is the only place it is normalized.
 model SteamPlayerState {
   steamId           String   @id
   personaName       String

@@ -1,11 +1,13 @@
-import type { SteamCurrentGame } from "./summary.ts";
+export interface SteamCurrentGame {
+  appid: number;
+  name: string;
+}
 
 // Live owner presence — persisted snapshot of GetPlayerSummaries, refreshed
 // every 2 min by the player-state poller. The frontend can poll this on a
 // short stale-time (30–60s) without hitting Steam directly.
 //
-// `currentGame` is the same shape used by SteamSummary; null when the owner
-// isn't in-game. `lastPolledAt` lets surfaces show "last seen N min ago"
+// `currentGame` is null when the owner isn't in-game. `lastPolledAt` lets surfaces show "last seen N min ago"
 // instead of pretending real-time when the poller is paused.
 export interface SteamPlayerState {
   steamId: string;

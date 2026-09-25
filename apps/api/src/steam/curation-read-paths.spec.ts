@@ -423,10 +423,9 @@ describe("the live now-playing surfaces", () => {
     expect(state?.currentGame?.appid).toBe(VISIBLE);
   });
 
-  // `/summary` calls Steam per request rather than reading the poller's row, so
-  // it is a second, independent copy of the same leak. Both have to suppress or
-  // the two surfaces disagree about the same moment.
-  it("suppresses the live summary's currentGame as well", async () => {
+  // `/summary` answers every viewer the same, with no curation to apply, so it
+  // must not name the live game at all — for anyone.
+  it("keeps the live game out of the summary entirely", async () => {
     const client = {
       getPlayerSummary: vi.fn().mockResolvedValue({
         steamid: "76561198020053778",
@@ -444,10 +443,8 @@ describe("the live now-playing surfaces", () => {
     };
     const svc = new SteamService(client as never, {} as PrismaService);
 
-    expect((await svc.getOwnerSummary(curation())).currentGame).toBeNull();
-    expect((await svc.getOwnerSummary(NO_CURATION)).currentGame).toEqual({
-      appid: HIDDEN,
-      name: "Something Private",
-    });
+    const body = JSON.stringify(await svc.getOwnerSummary());
+    expect(body).not.toContain(String(HIDDEN));
+    expect(body).not.toContain("Something Private");
   });
 });

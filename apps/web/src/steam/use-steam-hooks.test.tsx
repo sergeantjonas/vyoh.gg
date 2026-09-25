@@ -54,7 +54,6 @@ function callFor(url: string) {
 const cases: Case[] = [
   {
     name: "useSteamSummary",
-    viewerAware: true,
     hook: () => useSteamSummary(),
     url: "http://localhost:2010/steam/summary",
   },

@@ -44,7 +44,6 @@ describe("SteamController", () => {
       personaName: "Vyoh",
       profileUrl: "https://steamcommunity.com/id/vyoh/",
       avatarUrl: "https://example.com/avatar_full.jpg",
-      currentGame: null,
       privacyPrereqs: { profilePublic: true, gameDetailsPublic: "unknown" },
     };
     const stub = vi.fn().mockResolvedValue(summary);
@@ -71,7 +70,7 @@ describe("SteamController", () => {
     }).compile();
 
     const controller = moduleRef.get(SteamController);
-    await expect(controller.getSummary(false)).resolves.toBe(summary);
+    await expect(controller.getSummary()).resolves.toBe(summary);
     expect(stub).toHaveBeenCalledOnce();
   });
 
