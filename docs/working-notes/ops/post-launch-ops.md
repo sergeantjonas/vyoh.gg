@@ -140,12 +140,12 @@ What shipped:
 - **Anything else is a 502 with `no-store`, reported to Sentry**, tagged `upstreamHost`, at most once per host per ten minutes: an outage fails every image on every page, and one page asks for dozens.
 - **A fallback chain is missing only when every candidate said so.** A hashed URL that timed out ahead of a legacy URL that 404'd may well exist, and a cached 404 there would outlive the outage.
 - **The rune and spell manifests fail the same way.** Both resolvers depend on one CommunityDragon JSON file each, fetched with a plain `fetch` that threw a plain `Error`, so a manifest outage reached the filter as a 500 per icon, reported every time. It is an `UpstreamError` now, deliberately without a status so even a 404 on the manifest reads as an outage rather than a missing icon, with the same five-second budget and redirect refusal as an asset fetch, and a miss refetches the manifest at most once an hour so a keystone shipped mid-patch resolves without a restart. The six resolver-backed routes share one `resolveOrAnswer` helper (fixed 2026-09-25).
-- **`FallbackExceptionFilter` sets `no-store` on any 5xx**, covering the throws the handler does not catch (a sharp decode failure) under the same pre-applied header.
+- **Both exception filters mark a 5xx or a 429 `no-store` and label the body as JSON**, through one `sendErrorBody` in `error-response.ts`. That covers the throws the handler does not catch (a sharp decode failure) under the same pre-applied header, and the Riot filter, which set neither: the OG match card calls Riot on a cache miss under `s-maxage=2592000`, so a Riot outage or rate limit would have sat in nginx for thirty days labelled `image/png`. A deliberate 4xx keeps the route's caching.
 
 **One-time cleanup on the box after the deploy that carries this:** entries cached before it keep their year. List them, then remove what the list shows:
 
 ```sh
-sudo grep -rlaE '^HTTP/1\.1 (404|5[0-9]{2})' /var/cache/nginx/vyoh-img
+sudo grep -rlaE '^HTTP/1\.1 (404|429|5[0-9]{2})' /var/cache/nginx/vyoh-img
 ```
 
 Browsers that already hold a poisoned response keep it; only a URL change reaches them.

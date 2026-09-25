@@ -82,6 +82,12 @@ describe("FallbackExceptionFilter", () => {
     expect(setHeader).toHaveBeenCalledWith("Cache-Control", "no-store");
   });
 
+  it("makes a rate limit uncacheable too, since it means not now rather than never", () => {
+    const { host, setHeader } = makeHost();
+    filter.catch(new SteamClientError("Steam 429", 429, "/IPlayerService"), host);
+    expect(setHeader).toHaveBeenCalledWith("Cache-Control", "no-store");
+  });
+
   it("leaves a deliberate 4xx's caching to the route", () => {
     const { host, setHeader } = makeHost();
     filter.catch(new NotFoundException("no such asset"), host);

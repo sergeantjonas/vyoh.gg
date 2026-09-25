@@ -9,14 +9,37 @@ vi.mock("@sentry/nestjs", () => ({ captureException: vi.fn() }));
 function makeHost() {
   const json = vi.fn();
   const status = vi.fn().mockReturnValue({ json });
+  const setHeader = vi.fn();
   const host = {
-    switchToHttp: () => ({ getResponse: () => ({ status }) }),
+    switchToHttp: () => ({
+      getResponse: () => ({ headersSent: false, setHeader, status }),
+    }),
   } as unknown as ArgumentsHost;
-  return { host, status, json };
+  return { host, status, json, setHeader };
 }
 
 describe("RiotExceptionFilter", () => {
   const filter = new RiotExceptionFilter();
+
+  // The OG match card calls Riot on a cache miss under a 30-day `s-maxage`.
+  it.each([500, 429])(
+    "keeps a Riot %i out of every cache, labelled as JSON",
+    (riotStatus) => {
+      const { host, setHeader } = makeHost();
+      filter.catch(new RiotError(`Riot ${riotStatus}`, riotStatus, "/match"), host);
+      expect(setHeader).toHaveBeenCalledWith("Cache-Control", "no-store");
+      expect(setHeader).toHaveBeenCalledWith(
+        "Content-Type",
+        "application/json; charset=utf-8"
+      );
+    }
+  );
+
+  it("leaves a summoner miss's caching to the route", () => {
+    const { host, setHeader } = makeHost();
+    filter.catch(new RiotError("Riot 404", 404, "/account"), host);
+    expect(setHeader).not.toHaveBeenCalledWith("Cache-Control", expect.anything());
+  });
 
   it("maps 404 to 404 with summoner-not-found message", () => {
     const { host, status, json } = makeHost();
