@@ -102,6 +102,25 @@ describe("PatchService.getCurrentChanges", () => {
     expect(prisma.patchChange.findMany).not.toHaveBeenCalled();
   });
 
+  it("carries the Riot alias a display name resolves to, so the icon needs no client lookup", async () => {
+    const prisma = makePrisma();
+    prisma.patchVersion.findFirst.mockResolvedValue({ version: "26.10" });
+    prisma.patchChange.findMany.mockResolvedValue([
+      { subject: "Wukong", ability: "Q", changeText: "Damage up.", changeType: "buff" },
+    ]);
+    prisma.lolChampion.findMany.mockResolvedValue([
+      { id: 62, name: "Wukong", alias: "MonkeyKing" },
+    ]);
+
+    const result = await makeService(prisma).getCurrentChanges(["Wukong"]);
+
+    expect(result.changes[0]).toMatchObject({
+      champion: "Wukong",
+      championId: 62,
+      championAlias: "MonkeyKing",
+    });
+  });
+
   it("groups rows by champion and preserves DB order within each group", async () => {
     const prisma = makePrisma();
     prisma.patchVersion.findFirst.mockResolvedValue({ version: "26.10" });
@@ -133,6 +152,7 @@ describe("PatchService.getCurrentChanges", () => {
       {
         champion: "Ahri",
         championId: null,
+        championAlias: null,
         changes: [
           {
             ability: "Q",
@@ -151,6 +171,7 @@ describe("PatchService.getCurrentChanges", () => {
       {
         champion: "Lee Sin",
         championId: null,
+        championAlias: null,
         changes: [
           {
             ability: "W",

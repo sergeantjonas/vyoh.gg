@@ -232,10 +232,11 @@ export class PatchService {
       },
       orderBy: [{ subject: "asc" }, { id: "asc" }],
     });
-    const { championIds, abilityIndexes } = await this.resolveChampionIdentities(rows);
+    const { championIdentities, abilityIndexes } =
+      await this.resolveChampionIdentities(rows);
     return {
       patchVersion: latest.version,
-      changes: groupChampionRows(rows, championIds, abilityIndexes),
+      changes: groupChampionRows(rows, championIdentities, abilityIndexes),
     };
   }
 
@@ -278,43 +279,44 @@ export class PatchService {
       else if (row.section === "item") items.push(row);
       else if (row.section === "rune") runes.push(row);
     }
-    const [{ championIds, abilityIndexes }, itemIds, perkIds] = await Promise.all([
+    const [{ championIdentities, abilityIndexes }, itemIds, perkIds] = await Promise.all([
       this.resolveChampionIdentities(champions),
       this.resolveEntityIds("item", items),
       this.resolveEntityIds("rune", runes),
     ]);
     return {
       patchVersion: version,
-      champions: groupChampionRows(champions, championIds, abilityIndexes),
+      champions: groupChampionRows(champions, championIdentities, abilityIndexes),
       items: groupEntryRows(items, itemIds),
       runes: groupEntryRows(runes, perkIds),
     };
   }
 
   // Resolves the wire-side identity columns for champion-section rows:
-  // wiki subject → LolChampion.id, plus (championId, slot, ability name) →
+  // wiki subject → LolChampion id and alias, plus (championId, slot, ability name) →
   // LolChampionAbility.abilityIndex. Both lookups miss silently — a brand-new
   // champion or a renamed ability resolves to null and the web renders no
   // icon rather than a broken one.
   private async resolveChampionIdentities(
     rows: ReadonlyArray<{ subject: string; ability: string | null; slot: string | null }>
   ): Promise<{
-    championIds: Map<string, number>;
+    championIdentities: Map<string, { id: number; alias: string }>;
     abilityIndexes: Map<string, number>;
   }> {
     const subjects = new Set<string>();
     for (const row of rows) subjects.add(row.subject);
-    const championIds = new Map<string, number>();
-    if (subjects.size === 0) return { championIds, abilityIndexes: new Map() };
+    const championIdentities = new Map<string, { id: number; alias: string }>();
+    if (subjects.size === 0) return { championIdentities, abilityIndexes: new Map() };
     const champions = await this.prisma.lolChampion.findMany({
       where: { name: { in: [...subjects] } },
-      select: { id: true, name: true },
+      select: { id: true, name: true, alias: true },
     });
-    for (const c of champions) championIds.set(c.name, c.id);
+    for (const c of champions)
+      championIdentities.set(c.name, { id: c.id, alias: c.alias });
 
     const championIdList = champions.map((c) => c.id);
     const abilityIndexes = new Map<string, number>();
-    if (championIdList.length === 0) return { championIds, abilityIndexes };
+    if (championIdList.length === 0) return { championIdentities, abilityIndexes };
     const abilityRows = await this.prisma.lolChampionAbility.findMany({
       where: { championId: { in: championIdList } },
       select: { championId: true, slot: true, name: true, abilityIndex: true },
@@ -322,7 +324,7 @@ export class PatchService {
     for (const a of abilityRows) {
       abilityIndexes.set(abilityKey(a.championId, a.slot, a.name), a.abilityIndex);
     }
-    return { championIds, abilityIndexes };
+    return { championIdentities, abilityIndexes };
   }
 
   // Resolves wiki subject → LolItem.id / LolPerk.id by name. Misses go
@@ -421,7 +423,7 @@ function abilityKey(championId: number, slot: string | null, name: string): stri
 }
 
 // Group raw champion-section rows by subject (wiki champion name),
-// preserving DB order (already subject ASC, id ASC). `championIds` and
+// preserving DB order (already subject ASC, id ASC). `championIdentities` and
 // `abilityIndexes` are pre-resolved by `resolveChampionIdentities`. The
 // `changeType` cast is safe: it's only ever written by the parser using the
 // ChampionPatchChangeKind union or null.
@@ -433,7 +435,7 @@ function groupChampionRows(
     changeText: string;
     changeType: string | null;
   }>,
-  championIds: ReadonlyMap<string, number>,
+  championIdentities: ReadonlyMap<string, { id: number; alias: string }>,
   abilityIndexes: ReadonlyMap<string, number>
 ): ChampionPatchChangeGroup[] {
   const groups = new Map<string, ChampionPatchChangeGroup>();
@@ -442,7 +444,8 @@ function groupChampionRows(
     if (!group) {
       group = {
         champion: row.subject,
-        championId: championIds.get(row.subject) ?? null,
+        championId: championIdentities.get(row.subject)?.id ?? null,
+        championAlias: championIdentities.get(row.subject)?.alias ?? null,
         changes: [],
       };
       groups.set(row.subject, group);

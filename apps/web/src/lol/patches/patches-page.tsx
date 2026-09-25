@@ -55,6 +55,11 @@ export function PatchesPage({
     : undefined;
   const championName = useChampionName();
   const championAliasFromName = useChampionAliasFromName();
+  // The api resolves the alias in the same join as the champion id, so it is
+  // right from the first render. The client reverse lookup covers a champion
+  // CommunityDragon lists before the nightly static sync has stored it.
+  const aliasOf = (group: ChampionPatchChangeGroup) =>
+    group.championAlias ?? championAliasFromName(group.champion);
   // Gate derivation on the CDragon champion map being loaded; pre-load,
   // `championName` returns the raw Riot alias which won't match the
   // wiki-name keys the API stores against. See `useChampions` for the
@@ -114,12 +119,12 @@ export function PatchesPage({
   // most-played changed champion under the `?as=` lens, else the alpha-first
   // change. One backdrop layer through the existing SplashProvider crossfade,
   // so the cost is O(1) regardless of how many champions a patch touches.
-  // Gated on championsReady: pre-load, aliasFromName falls back to the wiki
-  // display name, which isn't a valid splash asset key.
-  const headlineChampion = sortedChampions[0]?.champion ?? null;
-  useSplashChampion(
-    championsReady && headlineChampion ? championAliasFromName(headlineChampion) : null
-  );
+  // Gated on championsReady even though the api names the alias: under `?as=`
+  // the headline is the most-played changed champion, and play counts are
+  // keyed by display name through the champion map, so claiming earlier can
+  // crossfade to a different champion once the map lands.
+  const headline = sortedChampions[0] ?? null;
+  useSplashChampion(championsReady && headline ? aliasOf(headline) : null);
 
   const visibleChampions = useMemo(() => {
     if (!myOnly) return sortedChampions;
@@ -275,7 +280,7 @@ export function PatchesPage({
         ) : (
           <ul className="flex flex-col divide-y">
             {visibleChampions.map((group) => {
-              const alias = championAliasFromName(group.champion);
+              const alias = aliasOf(group);
               return (
                 <li
                   key={group.champion}
@@ -289,7 +294,7 @@ export function PatchesPage({
                 >
                   <ChampionRow
                     group={group}
-                    aliasFromName={championAliasFromName}
+                    alias={alias}
                     isMyChampion={myChampions.has(group.champion)}
                     patch={resolvedPatch}
                   />
@@ -419,12 +424,12 @@ function PatchEntrySection({
 
 function ChampionRow({
   group,
-  aliasFromName,
+  alias,
   isMyChampion,
   patch,
 }: {
   group: ChampionPatchChangeGroup;
-  aliasFromName: (n: string) => string;
+  alias: string;
   isMyChampion: boolean;
   patch: string;
 }) {
@@ -435,7 +440,7 @@ function ChampionRow({
     // emphasis idiom as champion-patch-history's current-patch tile.
     <div className="flex gap-3 p-3 transition-colors hover:bg-card/40">
       <ChampionSquareIcon
-        championName={aliasFromName(group.champion)}
+        championName={alias}
         alt={group.champion}
         className={cn(
           "size-12 shrink-0 rounded-md",
