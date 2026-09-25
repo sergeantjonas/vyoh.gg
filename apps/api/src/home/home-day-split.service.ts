@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import type { HomeDaySplit, HomeDaySplitHour } from "@vyoh/shared";
-import { OWNER_TIME_ZONE } from "@vyoh/shared";
+import { OWNER_TIME_ZONE, excludeBlipSessions } from "@vyoh/shared";
 import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -83,7 +83,7 @@ export class HomeDaySplitService {
       startedAt: r.playedAt,
       endedAt: new Date(r.playedAt.getTime() + r.durationSec * 1000),
     }));
-    const steamIntervals: DaySplitInterval[] = sessionRows
+    const steamIntervals: DaySplitInterval[] = excludeBlipSessions(sessionRows)
       .filter((r): r is { startedAt: Date; endedAt: Date } => r.endedAt !== null)
       .map((r) => ({ startedAt: r.startedAt, endedAt: r.endedAt }));
 

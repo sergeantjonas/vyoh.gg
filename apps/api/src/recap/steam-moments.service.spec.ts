@@ -157,6 +157,29 @@ function unlockAt({
 }
 
 describe("SteamMomentsService.detectFirstTimeGames", () => {
+  it("does not let a session under the two-minute floor become the first sit-down", async () => {
+    const addedAt = new Date("2026-05-26T10:00:00Z");
+    const realStart = new Date("2026-05-28T20:00:00Z");
+    const { service } = makeService({
+      eligibleGames: [{ appid: 130, name: "Flicker", firstSeenAt: addedAt }],
+      allOwnedGames: [{ appid: 130, name: "Flicker", firstSeenAt: addedAt }],
+      enrichments: [{ appid: 130, appType: 0 }],
+      sessions: [
+        {
+          appid: 130,
+          startedAt: new Date("2026-05-27T09:00:00Z"),
+          endedAt: new Date("2026-05-27T09:01:00Z"),
+        },
+        { appid: 130, startedAt: realStart, endedAt: new Date("2026-05-28T21:30:00Z") },
+      ],
+    });
+    const [candidate] = await service.detectFirstTimeGames(NOW, NO_CURATION);
+    if (candidate?.kind !== "steam-moment") throw new Error("expected steam-moment");
+    expect(candidate.firstTime?.firstPlayedAt).toBe(realStart.toISOString());
+    expect(candidate.firstTime?.firstSessionMinutes).toBe(90);
+    expect(candidate.firstTime?.sessionCount).toBe(1);
+  });
+
   it("returns no candidates when no games were added inside the recency window", async () => {
     const { service } = makeService({ eligibleGames: [] });
     const result = await service.detectFirstTimeGames(NOW, NO_CURATION);

@@ -1,6 +1,6 @@
 # Post-launch operations
 
-**Status:** Active — opened 2026-09-17, the day vyoh.gg went live, from what the launch itself exposed. Four chunks, each independently landable, **chunks 1, 3 and 4 shipped the same evening**, plus a routine-operations reference that did not exist before. The launch runbook in [hosting.md](hosting.md#launch-runbook--added-2026-08-20) is deliberately a one-time document; **this is the one that applies every day after it**. Read this before touching `scripts/deploy.sh`.
+**Status:** Active — opened 2026-09-17, the day vyoh.gg went live, from what the launch itself exposed. Four chunks, each independently landable, **chunks 1, 3 and 4 shipped the same evening**, plus a routine-operations reference that did not exist before. **The image proxy's cache poisoning, measured 2026-09-18, was fixed 2026-09-25** — see § Image-proxy failures. The launch runbook in [hosting.md](hosting.md#launch-runbook--added-2026-08-20) is deliberately a one-time document; **this is the one that applies every day after it**. Read this before touching `scripts/deploy.sh`.
 
 The runbook covered getting to production and covered it well. What no document covered was what happens on the two hundred days after — deploying a change, rolling one back, and noticing that something has quietly stopped working. Each chunk below traces to something that actually happened on 2026-09-17 rather than to a general sense that operations deserve attention.
 
@@ -129,8 +129,28 @@ The third member of the family chunks 1 and 3 belong to: a deploy that reports s
 
 Worth deciding when writing it: whether drift should be a warning or a non-zero exit. A warning matches chunk 3's reasoning — shipping a config change you have not installed yet is a legitimate intermediate state. The counter-argument is that unlike an absent Sentry DSN, this one silently persists across every later deploy, since each one re-ships the same already-diverged file.
 
+## Image-proxy failures went out under the success cache header — FIXED 2026-09-25
+
+Measured against production 2026-09-18. Nest applies a route's `@Header` before the handler runs, so every failure the image proxy answered carried the success response's `public, max-age=31536000, immutable`, and nginx honours an upstream `max-age` over its own `proxy_cache_valid` list (verified: `MISS` then `HIT` on a fresh URL answering 502). One transient upstream blip poisoned that URL in the shared cache and in every browser that saw it, for a year. The same answer made a missing asset and a CDN outage indistinguishable, and because the 502 was answered in the handler rather than thrown, `FallbackExceptionFilter` never saw it and nothing reported it.
+
+What shipped:
+
+- **`UpstreamError` carries the upstream status**, and `isMissingAsset()` names what means "does not exist": 404 and 410 anywhere, and **403 from DDragon only**, which is S3-backed and answers a missing key that way (probed 2026-09-25; CommunityDragon, both Steam CDNs and the wiki all say 404). Only there because Akamai also answers a WAF or IP block with 403, and reading that as missing would blank every Steam image behind cached 404s with nothing reported.
+- **A missing asset is a 404 with `max-age=3600`**, matching nginx's `proxy_cache_valid 404 1h`, so an asset published after the first request appears within the hour. The four resolver misses (`ability`, `map`, both achievement icons) answer the same way; they were 404s under the year-long header. Each resolver throws `NotFoundException` for a miss, and only that is caught, so a database failure behind one reaches the filter as a reported 5xx instead of passing for a missing icon.
+- **Anything else is a 502 with `no-store`, reported to Sentry**, tagged `upstreamHost`, at most once per host per ten minutes: an outage fails every image on every page, and one page asks for dozens.
+- **A fallback chain is missing only when every candidate said so.** A hashed URL that timed out ahead of a legacy URL that 404'd may well exist, and a cached 404 there would outlive the outage.
+- **`FallbackExceptionFilter` sets `no-store` on any 5xx**, covering the throws the handler does not catch (a sharp decode failure) under the same pre-applied header.
+
+**One-time cleanup on the box after the deploy that carries this:** entries cached before it keep their year. List them, then remove what the list shows:
+
+```sh
+sudo grep -rlaE '^HTTP/1\.1 (404|5[0-9]{2})' /var/cache/nginx/vyoh-img
+```
+
+Browsers that already hold a poisoned response keep it; only a URL change reaches them.
+
 ## Not in scope
 
 - **The off-box backup copy.** Tracked as the open half of the backup gate in [hosting.md § 6](hosting.md#6-backups--added-2026-08-01); it is a decision about a storage target, not an operations improvement.
-- **E3, sourcemaps and releases.** The last open launch gate, owned by [error-tracking.md](error-tracking.md).
+- **E3, sourcemaps and releases.** Owned by [error-tracking.md](error-tracking.md); the last launch gate, closed once its upload ran.
 - **Uptime monitoring.** No external check watches the box today. Deliberately left out until there is a reason beyond completeness — the site is a portfolio surface, not a service with an SLA, and the honest first question is who would be woken up.

@@ -161,6 +161,24 @@ describe("HomeDaySplitService.getDaySplit", () => {
     return new HomeDaySplitService(prisma, identity);
   }
 
+  it("leaves out a session under the two-minute floor", async () => {
+    const service = makeService(
+      [],
+      [
+        {
+          startedAt: new Date("2026-01-15T19:00:00Z"),
+          endedAt: new Date("2026-01-15T19:01:00Z"),
+        },
+        {
+          startedAt: new Date("2026-01-15T19:10:00Z"),
+          endedAt: new Date("2026-01-15T19:40:00Z"),
+        },
+      ]
+    );
+    const result = await service.getDaySplit();
+    expect(result.totalSteamMinutes).toBe(30);
+  });
+
   it("returns 24 zero-valued hours when there is no activity", async () => {
     const service = makeService([], []);
     const result = await service.getDaySplit();

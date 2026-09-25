@@ -31,6 +31,7 @@ One-line pointers to work that was scoped, evaluated, and intentionally set asid
 
 ### Self-portrait surfaces (not chosen as next tile)
 
+- **"Greatest hits" chapter kind** — a retrospective chapter scored on magnitude (434h in Nightreign at 100% has nowhere to go on `/` today), kept outside subject scoring so it cannot compete with current activity. Unscoped. Trigger: before the library's best stories are all more than a year old. → [dormant-chapter-ranking.md § Parked](cross-cutting/dormant-chapter-ranking.md#parked-the-greatest-hits-chapter-kind)
 - **You-vs-you comparison surface** — same axes, two time windows. I flagged this as reasonable but lower-priority than career-arc / tilt-protection / aesthetic-responses; revisit after those prove out. → [self-portrait-surfaces.md](cross-cutting/self-portrait-surfaces.md)
 
 ### LoL owner-data — surface-specific tiers

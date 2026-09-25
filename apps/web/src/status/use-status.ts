@@ -17,7 +17,7 @@ import { ownerRequest } from "@/lib/owner-request";
 
 async function fetchStatus(): Promise<StatusSnapshot> {
   const res = await fetch(`${API_URL}/status`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) throw new HttpError(res.status, `HTTP ${res.status}`);
   return res.json();
 }
 

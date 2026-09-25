@@ -33,7 +33,14 @@ export type ErrorTier =
   /** A rejected route loader, or a throw inside a route component. */
   | "route"
   /** A failed mutation: an owner-initiated write that did not happen. */
-  | "mutation";
+  | "mutation"
+  /**
+   * A query that failed before it held data, on a path the api cannot have
+   * reported: unreachable, unparseable, or a throw in the query function. Also
+   * where a blocking loader's failure usually lands, since this report goes
+   * first and dedupe drops the `route` repeat.
+   */
+  | "query";
 
 export function reportError(error: unknown, tier: ErrorTier): void {
   // Vite substitutes a literal here per build, so the dynamic import below is

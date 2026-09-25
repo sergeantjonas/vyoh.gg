@@ -1,3 +1,4 @@
+import { HttpError } from "@/lib/http-error";
 import { TOOLTIP_CONTENT_COMPACT } from "@/lib/tooltip";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
@@ -12,7 +13,7 @@ import { API_URL } from "@/lib/api-url";
 
 async function fetchDetail(matchId: string): Promise<MatchDetail> {
   const res = await fetch(`${API_URL}/lol/matches/${encodeURIComponent(matchId)}`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) throw new HttpError(res.status, `HTTP ${res.status}`);
   return res.json() as Promise<MatchDetail>;
 }
 

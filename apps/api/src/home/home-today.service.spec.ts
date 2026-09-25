@@ -86,6 +86,25 @@ describe("HomeTodayService.getToday", () => {
     );
   });
 
+  it("counts a live session but not one under the two-minute floor", async () => {
+    // Midday Brussels, so both rows sit inside today rather than straddling it.
+    const now = new Date("2026-06-02T10:00:00Z");
+    vi.useFakeTimers({ now });
+    try {
+      const minutesAgo = (m: number) => new Date(now.getTime() - m * 60_000);
+      const { service } = makeService({
+        sessions: [
+          { startedAt: minutesAgo(90), endedAt: minutesAgo(89) },
+          { startedAt: minutesAgo(30), endedAt: null },
+        ],
+      });
+      const result = await service.getToday();
+      expect(result.steamMinutes).toBe(30);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("counts unlocks inside the rolling-24h window", async () => {
     const { service, prisma } = makeService({ unlockCount: 7 });
     const result = await service.getToday();

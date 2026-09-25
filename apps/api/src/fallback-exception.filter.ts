@@ -60,6 +60,10 @@ export class FallbackExceptionFilter implements ExceptionFilter {
     // Express's `res.json` leaves an existing header alone — without this a
     // JSON error body would go out labelled `image/webp`.
     response.setHeader("Content-Type", "application/json; charset=utf-8");
+    // Same reason, for caching: Nest applied the route's `@Header` before the
+    // handler threw, so a 5xx from an image route would otherwise go out as
+    // `immutable` for a year, and nginx honours that over `proxy_cache_valid`.
+    if (verdict.status >= 500) response.setHeader("Cache-Control", "no-store");
     response.status(verdict.status).json(verdict.body);
   }
 }

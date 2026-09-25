@@ -12,6 +12,8 @@ export interface SteamPrivacyPrereqs {
   gameDetailsPublic: boolean | "unknown";
 }
 
+// No persona state here: presence lives on `SteamPlayerState`, which is polled
+// every two minutes, where this is cached for five and never refreshed live.
 export interface SteamSummary {
   steamId: string;
   personaName: string;
@@ -30,14 +32,6 @@ export interface SteamSummary {
   animatedAvatarUrl?: string;
   profileBackgroundUrl?: string;
   profileBackgroundVideoUrl?: string;
-  personaState:
-    | "offline"
-    | "online"
-    | "busy"
-    | "away"
-    | "snooze"
-    | "looking-to-trade"
-    | "looking-to-play";
   currentGame: SteamCurrentGame | null;
   // Account-creation epoch (seconds), for the "member since {year}" headline.
   // Optional — privacy-locked profiles omit `timecreated` upstream.

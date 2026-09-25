@@ -25,6 +25,7 @@ import {
   buildGenreFingerprint,
   excludeBarelyPlayedInWindow,
   excludeBarelyTouched,
+  excludeBlipSessions,
   excludeHiddenGames,
   isSteamGameAppType,
   selectBacklogCandidates,
@@ -228,7 +229,7 @@ export class SteamPortraitService {
         }),
         this.prisma.steamTag.findMany({ select: { id: true, name: true } }),
         this.prisma.steamPlaySession.findMany({
-          select: { appid: true, startedAt: true },
+          select: { appid: true, startedAt: true, endedAt: true },
         }),
         this.prisma.steamGameAchievement.groupBy({
           by: ["appid"],
@@ -256,7 +257,7 @@ export class SteamPortraitService {
     const unlockCount = new Map(unlocks.map((row) => [row.appid, row._count.apiName]));
 
     const launchDays = new Map<number, Set<string>>();
-    for (const session of sessions) {
+    for (const session of excludeBlipSessions(sessions)) {
       const days = launchDays.get(session.appid) ?? new Set<string>();
       days.add(session.startedAt.toISOString().slice(0, 10));
       launchDays.set(session.appid, days);

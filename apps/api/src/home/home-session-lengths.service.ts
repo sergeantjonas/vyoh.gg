@@ -4,6 +4,7 @@ import type {
   HomeSessionLengthsBucket,
   SessionLengthBucketLabel,
 } from "@vyoh/shared";
+import { excludeBlipSessions, sessionDurationMinutes } from "@vyoh/shared";
 import { IdentityService } from "../identity/identity.service";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -142,12 +143,9 @@ export class HomeSessionLengthsService {
 
     const lolSessions = stitchLolSessions(matchRows, STITCH_GAP_MINUTES);
     const lolMinutes = lolSessions.map((s) => s.durationMinutes);
-    const steamMinutes = sessionRows
+    const steamMinutes = excludeBlipSessions(sessionRows)
       .filter((r): r is { startedAt: Date; endedAt: Date } => r.endedAt !== null)
-      .map((r) =>
-        Math.round((r.endedAt.getTime() - r.startedAt.getTime()) / MS_PER_MINUTE)
-      )
-      .filter((m) => m > 0);
+      .map(sessionDurationMinutes);
 
     const buckets = histogramSessionLengths(lolMinutes, steamMinutes);
 

@@ -178,6 +178,48 @@ describe("getRouter", () => {
     expect(toastError).not.toHaveBeenCalled();
   });
 
+  it("reports a first-load failure the api cannot have seen", () => {
+    // A `primeQuietly` prime or an unprimed `useQuery` reaches no boundary, so
+    // without this an unreachable api or a throwing query function is silent.
+    reportError.mockClear();
+    const client = clientOf(getRouter());
+    const error = new TypeError("Failed to fetch");
+
+    client
+      .getQueryCache()
+      .config.onError?.(error, { state: { data: undefined } } as never);
+
+    expect(reportError).toHaveBeenCalledWith(error, "query");
+  });
+
+  it("leaves a first-load failure the api answered to the api", () => {
+    // A 5xx is reported server-side with better context; a 4xx is deliberate.
+    reportError.mockClear();
+    const onError = clientOf(getRouter()).getQueryCache().config.onError;
+    const fresh = { state: { data: undefined } } as never;
+
+    onError?.(new HttpError(502, "riot upstream down"), fresh);
+    onError?.(new HttpError(404), fresh);
+
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it("does not report first-load failures while the visitor is offline", () => {
+    reportError.mockClear();
+    const onLine = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    try {
+      const client = clientOf(getRouter());
+
+      client.getQueryCache().config.onError?.(new TypeError("Failed to fetch"), {
+        state: { data: undefined },
+      } as never);
+
+      expect(reportError).not.toHaveBeenCalled();
+    } finally {
+      onLine.mockRestore();
+    }
+  });
+
   it("prefers the upstream message and falls back when there is none", () => {
     // HttpError bodies carry the api's own wording ("Riot rate limit hit");
     // an errorless throw (a string, an empty Error) must still say something.

@@ -119,6 +119,22 @@ describe("HomeActivityIntensityService.getActivityIntensity", () => {
     return new HomeActivityIntensityService(prisma);
   }
 
+  it("counts a live session but not one under the two-minute floor", async () => {
+    const now = new Date("2026-06-02T12:00:00Z");
+    const minutesAgo = (m: number) => new Date(now.getTime() - m * 60_000);
+    const service = makeService(
+      [],
+      [
+        { startedAt: minutesAgo(90), endedAt: minutesAgo(89) },
+        { startedAt: minutesAgo(30), endedAt: null },
+      ]
+    );
+
+    const result = await service.getActivityIntensity(now);
+
+    expect(result.steamMinutesToday).toBe(30);
+  });
+
   it("rolls up matches in last 24h and Steam minutes today into a 0..1 intensity", async () => {
     // Pin `now` to mid-day Brussels so a 30-min-old session sits cleanly
     // inside "today" — without pinning, runs around midnight Brussels

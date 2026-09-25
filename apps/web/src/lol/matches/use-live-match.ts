@@ -3,6 +3,7 @@ import type { LiveGameEvent, LiveMatch, LolAccount } from "@vyoh/shared";
 import { useEffect, useRef } from "react";
 
 import { API_URL } from "@/lib/api-url";
+import { HttpError } from "@/lib/http-error";
 
 type LiveGameEventCallbacks = {
   onGameStarted?: (event: LiveGameEvent) => void;
@@ -15,7 +16,7 @@ function summonerBase(account: LolAccount): string {
 
 async function fetchLiveGame(account: LolAccount): Promise<LiveMatch | null> {
   const res = await fetch(`${summonerBase(account)}/live`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) throw new HttpError(res.status, `HTTP ${res.status}`);
   // NestJS serializes a `null` controller return as an empty body, not "null",
   // so res.json() would throw "Unexpected end of JSON input" when the game ends.
   const text = await res.text();

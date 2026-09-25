@@ -153,16 +153,29 @@ export interface SessionBeatContext {
  */
 export const SESSION_MIN_MINUTES = 2;
 
-export function isBlipSession(s: BeatSession): boolean {
-  return sessionDurationMinutes(s) < SESSION_MIN_MINUTES;
+/** A row as a reader selects it: `endedAt` is null while the sitting is live. */
+export interface SessionSpan {
+  startedAt: Date;
+  endedAt: Date | null;
 }
 
-/** The sessions page reads closed rows through this, never a bare row list. */
-export function excludeBlipSessions<T extends BeatSession>(rows: readonly T[]): T[] {
+export function isBlipSession(s: SessionSpan): boolean {
+  // An open row is a sitting still in progress, not a flicker that closed.
+  if (s.endedAt === null) return false;
+  return (
+    sessionDurationMinutes({ startedAt: s.startedAt, endedAt: s.endedAt }) <
+    SESSION_MIN_MINUTES
+  );
+}
+
+/** Every reader of `SteamPlaySession` iterates this, never a bare row list. */
+export function excludeBlipSessions<T extends SessionSpan>(rows: readonly T[]): T[] {
   return rows.filter((r) => !isBlipSession(r));
 }
 
-export function sessionDurationMinutes(s: BeatSession): number {
+export function sessionDurationMinutes(
+  s: Pick<BeatSession, "startedAt" | "endedAt">
+): number {
   return Math.max(
     0,
     Math.round((s.endedAt.getTime() - s.startedAt.getTime()) / MINUTE_MS)

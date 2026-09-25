@@ -5,6 +5,7 @@ import {
   type RecapCandidate,
   type SteamCurationSets,
   deriveLaunchDrift,
+  excludeBlipSessions,
   excludeUnfeaturedGames,
   launchDriftBaseSignal,
   launchDriftDaysSince,
@@ -299,7 +300,7 @@ export class SteamMomentsService {
     // the iteration cost once.
     const firstSessionByAppid = new Map<number, { startedAt: Date; minutes: number }>();
     const firstSeenByAppid = new Map(candidatePool.map((g) => [g.appid, g.firstSeenAt]));
-    for (const session of sessions) {
+    for (const session of excludeBlipSessions(sessions)) {
       if (!session.endedAt) continue;
       const firstSeen = firstSeenByAppid.get(session.appid);
       if (!firstSeen || session.startedAt < firstSeen) continue;

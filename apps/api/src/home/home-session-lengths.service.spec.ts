@@ -142,6 +142,24 @@ describe("HomeSessionLengthsService.getSessionLengths", () => {
     return new HomeSessionLengthsService(prisma, identity);
   }
 
+  it("does not count a session under the two-minute floor", async () => {
+    const service = makeService(
+      [],
+      [
+        {
+          startedAt: new Date("2026-05-01T20:00:00Z"),
+          endedAt: new Date("2026-05-01T20:01:00Z"),
+        },
+        {
+          startedAt: new Date("2026-05-01T21:00:00Z"),
+          endedAt: new Date("2026-05-01T21:45:00Z"),
+        },
+      ]
+    );
+    const result = await service.getSessionLengths();
+    expect(result.steamSessionCount).toBe(1);
+  });
+
   it("returns five empty buckets when there is no activity", async () => {
     const service = makeService([], []);
     const result = await service.getSessionLengths();

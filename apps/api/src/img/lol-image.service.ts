@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import type { TranscodeParams } from "./upstream";
 import {
@@ -346,7 +346,9 @@ export class LolImageService {
       include: { champion: { select: { name: true, alias: true } } },
     });
     if (!row) {
-      throw new Error(`unknown ability ${championId}/${slot}/${abilityIndex}`);
+      throw new NotFoundException(
+        `unknown ability ${championId}/${slot}/${abilityIndex}`
+      );
     }
     const slug = normalizeChampionAlias(row.champion.alias).toLowerCase();
     const cdragonUrl = `${CDRAGON_CDN}/champion/${slug}/ability-icon/${slot.toLowerCase()}`;
@@ -399,7 +401,7 @@ export class LolImageService {
     const wikiUrl = wikiMinimapUrl(mapId);
     const cdragonUrl = cdragonMinimapUrl(mapId);
     if (!wikiUrl && !cdragonUrl) {
-      throw new Error(`unknown mapId ${mapId}`);
+      throw new NotFoundException(`unknown mapId ${mapId}`);
     }
     const urls = [wikiUrl, cdragonUrl].filter((u): u is string => u !== null);
     return { urls, params: { width: 256, quality: 85 } };

@@ -76,6 +76,18 @@ describe("FallbackExceptionFilter", () => {
     );
   });
 
+  it("makes a 5xx uncacheable over whatever the route declared", () => {
+    const { host, setHeader } = makeHost();
+    filter.catch(new Error("sharp could not decode"), host);
+    expect(setHeader).toHaveBeenCalledWith("Cache-Control", "no-store");
+  });
+
+  it("leaves a deliberate 4xx's caching to the route", () => {
+    const { host, setHeader } = makeHost();
+    filter.catch(new NotFoundException("no such asset"), host);
+    expect(setHeader).not.toHaveBeenCalledWith("Cache-Control", expect.anything());
+  });
+
   it("writes nothing once the headers are already out", () => {
     const { host, status, setHeader } = makeHost(true);
     filter.catch(new Error("mid-stream"), host);

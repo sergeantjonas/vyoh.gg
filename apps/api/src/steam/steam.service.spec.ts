@@ -74,7 +74,6 @@ describe("SteamService.getOwnerSummary", () => {
     expect(summary).toMatchObject({
       steamId: "76561198020053778",
       personaName: "Vyoh",
-      personaState: "online",
       currentGame: null,
       privacyPrereqs: { profilePublic: true, gameDetailsPublic: "unknown" },
     });
