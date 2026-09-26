@@ -25,6 +25,10 @@ function makeService(opts: { championId?: number | null; masteries?: unknown } =
       findFirst: vi
         .fn()
         .mockResolvedValue(championId === null ? null : { id: championId }),
+      findMany: vi.fn().mockResolvedValue([
+        { id: 103, alias: "Ahri" },
+        { id: 62, alias: "MonkeyKing" },
+      ]),
     },
   };
   const service = new ChampionMasteryService(
@@ -136,5 +140,35 @@ describe("ChampionMasteryService.getChampionMastery", () => {
       service.getChampionMastery("euw1", "Stranger", "EUW", "ahri")
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(riot.getChampionMasteries).not.toHaveBeenCalled();
+  });
+});
+
+describe("ChampionMasteryService.getMasteryList", () => {
+  const WUKONG = {
+    championId: 62,
+    championLevel: 19,
+    championPoints: 228_511,
+    lastPlayTime: Date.parse("2026-09-04T20:00:00Z"),
+  };
+  const UNSYNCED = { ...WUKONG, championId: 999, championPoints: 5_000_000 };
+
+  it("lists every champion by points, named by alias, leaving out ones with none stored", async () => {
+    const { service, prisma } = makeService({ masteries: [WUKONG, UNSYNCED, AHRI] });
+    const { champions } = await service.getMasteryList("euw1", "Vyoh", "EUW");
+    expect(prisma.lolChampion.findMany).toHaveBeenCalledWith({
+      where: { id: { in: [62, 999, 103] } },
+      select: { id: true, alias: true },
+    });
+    expect(champions.map((c) => [c.alias, c.level, c.points])).toEqual([
+      ["Ahri", 105, 1_124_191],
+      ["MonkeyKing", 19, 228_511],
+    ]);
+  });
+
+  it("shares the cached Riot answer with the per-champion read", async () => {
+    const { service, riot } = makeService();
+    await service.getMasteryList("euw1", "Vyoh", "EUW");
+    await service.getChampionMastery("euw1", "Vyoh", "EUW", "ahri");
+    expect(riot.getChampionMasteries).toHaveBeenCalledTimes(1);
   });
 });

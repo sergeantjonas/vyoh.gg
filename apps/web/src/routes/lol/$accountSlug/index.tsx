@@ -14,6 +14,8 @@ import { LolIdentityHero } from "@/lol/profile/identity-hero";
 import { ProfileAramDashboard } from "@/lol/profile/profile-aram-dashboard";
 import { ProfileCarryProfile } from "@/lol/profile/profile-carry-profile";
 import { ProfileDuos } from "@/lol/profile/profile-duos";
+import { ProfileHistoryChips } from "@/lol/profile/profile-history-chips";
+import { ProfileMostMastered } from "@/lol/profile/profile-most-mastered";
 import { ProfileMultikillStrip } from "@/lol/profile/profile-multikill-strip";
 import { ProfileNowPlaying } from "@/lol/profile/profile-now-playing";
 import { ProfileObjectiveFirsts } from "@/lol/profile/profile-objective-firsts";
@@ -228,6 +230,7 @@ function ProfilePage() {
       <CvSection minHeight={160}>
         <ProfileNowPlaying accountSlug={accountSlug} />
       </CvSection>
+      <ProfileMostMastered accountSlug={accountSlug} />
       <CvSection minHeight={140}>
         <ProfileRoleStrip />
       </CvSection>
@@ -254,8 +257,11 @@ function ProfilePage() {
           <ProfileActivityCalendar accountSlug={accountSlug} />
         </Suspense>
       </CvSection>
-      {/* Not CV-gated, for the same reason as squads: it renders null on about
-          half the days of the year, and a reserved minHeight would leave a gap. */}
+      {/* Not wrapped in CvSection here: both render null until their query
+          lands, and "On this day" stays null on about half the days of the
+          year, so a reserved minHeight would leave a gap. "On this day" gates
+          itself once it has rows; the chips are plain pills with nothing to gate. */}
+      <ProfileHistoryChips accountSlug={accountSlug} />
       <ProfileOnThisDay accountSlug={accountSlug} />
       <CvSection minHeight={100}>
         <ProfileStatsBar accountSlug={accountSlug} />

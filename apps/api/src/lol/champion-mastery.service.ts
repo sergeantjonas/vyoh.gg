@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type { ChampionMasteryResponse } from "@vyoh/shared";
+import type { ChampionMasteryList, ChampionMasteryResponse } from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import type { Platform } from "../riot/regions";
 import { RiotService } from "../riot/riot.service";
@@ -51,6 +51,39 @@ export class ChampionMasteryService {
         lastPlayedAt: new Date(entry.lastPlayTime).toISOString(),
       },
     };
+  }
+
+  // The same cached answer as the per-champion read, so opening the landing page
+  // and then a champion costs one Riot call between them. A champion the static
+  // sync has not stored yet has no alias to link to, so it is left out.
+  async getMasteryList(
+    region: string,
+    gameName: string,
+    tagLine: string
+  ): Promise<ChampionMasteryList> {
+    const { puuid } = await this.lol.resolveSummoner(region, gameName, tagLine);
+    const masteries = await this.masteriesFor(puuid, region.toLowerCase() as Platform);
+    const aliases = await this.prisma.lolChampion.findMany({
+      where: { id: { in: [...masteries.keys()] } },
+      select: { id: true, alias: true },
+    });
+    const aliasById = new Map(aliases.map((c) => [c.id, c.alias]));
+    const champions = [...masteries.values()]
+      .flatMap((e) => {
+        const alias = aliasById.get(e.championId);
+        return alias
+          ? [
+              {
+                alias,
+                level: e.championLevel,
+                points: e.championPoints,
+                lastPlayedAt: new Date(e.lastPlayTime).toISOString(),
+              },
+            ]
+          : [];
+      })
+      .sort((a, b) => b.points - a.points || a.alias.localeCompare(b.alias));
+    return { champions };
   }
 
   // The promise is what gets cached, so two panels opened at once share one

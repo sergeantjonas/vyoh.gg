@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { AccountHistoryService } from "./account-history.service";
 import type { ChampionMasteryService } from "./champion-mastery.service";
 import type { LolAnalyticsService } from "./lol-analytics.service";
 import type { LolChampionAnalyticsService } from "./lol-champion-analytics.service";
@@ -43,8 +44,9 @@ function makeController() {
     getChampionLanePhase: vi.fn(),
   };
   const baseline = { getBaseline: vi.fn() };
-  const mastery = { getChampionMastery: vi.fn() };
+  const mastery = { getChampionMastery: vi.fn(), getMasteryList: vi.fn() };
   const onThisDay = { getOnThisDay: vi.fn() };
+  const history = { getAccountHistory: vi.fn() };
   const narrative = { getNarrativeWindow: vi.fn(), getLifetimeNarrative: vi.fn() };
   return {
     controller: new LolController(
@@ -54,13 +56,15 @@ function makeController() {
       narrative as unknown as MatchNarrativeService,
       championAnalytics as unknown as LolChampionAnalyticsService,
       mastery as unknown as ChampionMasteryService,
-      onThisDay as unknown as OnThisDayService
+      onThisDay as unknown as OnThisDayService,
+      history as unknown as AccountHistoryService
     ),
     lol,
     analytics,
     championAnalytics,
     mastery,
     onThisDay,
+    history,
     baseline,
     narrative,
   };
@@ -104,6 +108,12 @@ describe("LolController endpoint delegations", () => {
     const { controller, analytics } = makeController();
     await controller.getChronotype(params, 500);
     expect(analytics.getChronotype).toHaveBeenCalledWith("euw1", "Vyoh", "EUW", 500);
+  });
+
+  it("getAccountHistory delegates to the history service with the account params", async () => {
+    const { controller, history } = makeController();
+    await controller.getAccountHistory(params);
+    expect(history.getAccountHistory).toHaveBeenCalledWith("euw1", "Vyoh", "EUW");
   });
 
   it("getOnThisDay delegates to the on-this-day service with the account params", async () => {
@@ -273,6 +283,12 @@ describe("LolController endpoint delegations", () => {
       "ahri",
       100
     );
+  });
+
+  it("getMasteryList delegates to the mastery service with the account params", async () => {
+    const { controller, mastery } = makeController();
+    await controller.getMasteryList(params);
+    expect(mastery.getMasteryList).toHaveBeenCalledWith("euw1", "Vyoh", "EUW");
   });
 
   it("getChampionMastery delegates to the mastery service with the route's champion key", async () => {

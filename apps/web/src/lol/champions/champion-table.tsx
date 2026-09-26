@@ -25,10 +25,15 @@ import {
   championCardStyle,
 } from "@/lol/champions/champion-card";
 import { championExtrasQueryOptions } from "@/lol/champions/use-champion-extras";
+import { useChampionMasteryList } from "@/lol/profile/use-champion-mastery-list";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { formatPercent, formatPlaytimeFromSeconds } from "@vyoh/shared";
+import {
+  type ChampionMasteryEntry,
+  formatPercent,
+  formatPlaytimeFromSeconds,
+} from "@vyoh/shared";
 import { type Variants, m, useReducedMotion } from "motion/react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ChampionSortOption } from "./champion-sort-selector";
@@ -141,9 +146,21 @@ function RoleBreakdown({ roles }: { roles: ChampionRoleSplit[] }) {
   );
 }
 
-function sortStats(stats: ChampionStats[], sort: ChampionSortOption): ChampionStats[] {
+// Riot's lifetime mastery, keyed by lowercased alias. A champion with none sorts
+// last under the mastery order rather than being dropped from the list.
+type MasteryByAlias = ReadonlyMap<string, ChampionMasteryEntry>;
+
+function sortStats(
+  stats: ChampionStats[],
+  sort: ChampionSortOption,
+  mastery: MasteryByAlias
+): ChampionStats[] {
+  const points = (s: ChampionStats) =>
+    mastery.get(s.champion.toLowerCase())?.points ?? -1;
   const compare = (a: ChampionStats, b: ChampionStats): number => {
     switch (sort) {
+      case "mastery":
+        return points(b) - points(a) || b.games - a.games;
       case "winRate":
         return b.winRate - a.winRate || b.games - a.games;
       case "avgKda":
@@ -168,7 +185,12 @@ export function ChampionTable({
 }) {
   const championName = useChampionName();
   const champions = useChampions();
-  const sorted = useMemo(() => sortStats(stats, sort), [stats, sort]);
+  const masteryList = useChampionMasteryList(accountSlug).data;
+  const mastery = useMemo<MasteryByAlias>(
+    () => new Map(masteryList?.champions.map((c) => [c.alias.toLowerCase(), c])),
+    [masteryList]
+  );
+  const sorted = useMemo(() => sortStats(stats, sort, mastery), [stats, sort, mastery]);
   // Back-nav from the detail page: read the saved list scroll, restore it
   // synchronously, then pin briefly while the hero→row morph plays out.
   // restoredScrollY === 0 ⇒ fresh visit (Trends → Champions, first load),
@@ -239,6 +261,7 @@ export function ChampionTable({
             accountSlug={accountSlug}
             displayName={championName(s.champion)}
             heldDuringSettle={heldDuringSettle}
+            masteryLevel={mastery.get(s.champion.toLowerCase())?.level}
           />
         );
       })}
@@ -253,6 +276,7 @@ function ChampionTableRow({
   accountSlug,
   displayName,
   heldDuringSettle,
+  masteryLevel,
 }: {
   s: ChampionStats;
   parentClasses: string[];
@@ -260,6 +284,7 @@ function ChampionTableRow({
   accountSlug: string;
   displayName: string;
   heldDuringSettle: boolean;
+  masteryLevel: number | undefined;
 }) {
   const {
     setActiveChampion,
@@ -516,6 +541,7 @@ function ChampionTableRow({
               <div className="text-xs text-muted-foreground">
                 {s.games} {s.games === 1 ? "game" : "games"} ·{" "}
                 {formatPlaytimeFromSeconds(s.totalDurationSec)}
+                {masteryLevel !== undefined && ` · Mastery ${masteryLevel}`}
               </div>
               <WinRateBar winRate={s.winRate} />
             </div>
