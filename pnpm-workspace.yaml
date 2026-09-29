@@ -38,8 +38,11 @@ overrides:
   # @tanstack/router-plugin drags in. ajv declares `^3.0.1`, so this stays
   # inside the range it asked for — fast-uri 4.x exists and would not.
   # Widened from `<3.1.5` on 2026-09-02: four SSRF / host-confusion advisories
-  # landed past the previous floor, all patched in 3.1.6.
-  fast-uri@<3.1.6: ^3.1.6
+  # landed past the previous floor, all patched in 3.1.6. Widened again to
+  # `<3.1.7` on 2026-09-29: GHSA-qw65-cvwx-89v3 (authority injection through an
+  # unvalidated port) and GHSA-58mr-gqgx-xq4g (host confusion on an unclosed
+  # bracket, 3.1.6 alone) both landed on that floor, and 3.1.7 fixes both.
+  fast-uri@<3.1.7: ^3.1.7
   # Under express (body-parser) via @nestjs/platform-express — a request path.
   # Two moderates (array-limit bypass, isBuffer DoS) patched together in 6.16.0;
   # below CI's `--audit-level=high` gate, but Dependabot fails on them anyway.
