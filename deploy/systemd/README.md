@@ -83,6 +83,23 @@ Retention is the bucket's, not the script's: a 30-day compliance-mode Object
 Lock, and a lifecycle rule that hides a copy 30 days after upload and deletes it
 a day later.
 
+The drill for the off-box copy runs from the laptop, because the age private
+key must never be on the box. [`scripts/offsite-drill.sh`](../../scripts/offsite-drill.sh)
+fetches the newest copy with a second, laptop-held key (`listFiles`,
+`readFiles`, `readFileRetentions`, same bucket and prefix), checks its SHA-1,
+reports how many copies there are and the lock the newest carries, decrypts it,
+and hands it to `restore.sh`'s drill on the box:
+
+```sh
+VYOH_DEPLOY_HOST=vyoh VYOH_AGE_IDENTITY=<(…the private key…) scripts/offsite-drill.sh
+```
+
+with `VYOH_DRILL_KEY_ID` and `VYOH_DRILL_APPLICATION_KEY` exported. The
+decrypted archive crosses the laptop's uplink to reach the box, which is the
+slow part. The newest copy can be up to a day old, and `restore.sh` compares it
+against live, so a table a migration added since then reads `GONE`. After a
+deploy that migrates, start `vyoh-backup.service` by hand before drilling.
+
 ## Checking it is still working
 
 A backup timer fails silently by nature: nothing looks different until the
@@ -92,7 +109,7 @@ anyway:
 ```sh
 systemctl list-timers vyoh-backup --all          # last run, next run
 systemctl status vyoh-backup.service --no-pager  # how it ended; "Sent … off the box"
-ls -lh /var/backups/vyoh                         # newest file recent, size plausible
+ls -lhA /var/backups/vyoh                        # newest file recent, size plausible, no stray dotfiles
 ```
 
 The second is the only one that sees the off-box copy. A failed upload leaves
