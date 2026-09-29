@@ -109,7 +109,7 @@ cyan "→ sync ops files → ${host}:${remote}"
 # we do own end to end, so it gets its own pass with --delete and a retired
 # nginx conf cannot linger there.
 ssh "$host" "mkdir -p ${remote}"
-rsync -azR compose.prod.yaml scripts/backup.sh scripts/restore.sh "${host}:${remote}/"
+rsync -azR compose.prod.yaml scripts/backup.sh scripts/offsite.sh scripts/restore.sh "${host}:${remote}/"
 rsync -az --delete deploy/ "${host}:${remote}/deploy/"
 
 cyan "→ pull ${tag} and restart on ${host}"
