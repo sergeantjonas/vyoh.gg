@@ -183,6 +183,7 @@ describe("SSR fallthrough", () => {
     expect(Sentry.captureException).toHaveBeenCalledOnce();
     expect(vi.mocked(Sentry.captureException).mock.calls[0]?.[1]).toMatchObject({
       tags: { route: "GET /boom" },
+      extra: { elapsedMs: expect.any(Number) },
     });
   });
 });

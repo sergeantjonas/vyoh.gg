@@ -144,6 +144,7 @@ export function createNodeServer({
   }
 
   return createServer((req, res) => {
+    const started = performance.now();
     handle(req, res).catch((error: unknown) => {
       console.error(`[web] ${req.method} ${req.url} failed:`, error);
       // The only place an SSR render failure surfaces — there is no mounted
@@ -157,6 +158,9 @@ export function createNodeServer({
         tags: {
           route: `${req.method ?? "?"} ${new URL(req.url ?? "/", "http://x").pathname}`,
         },
+        // What tells a visitor hanging up from nginx timing the render out:
+        // both close the socket the same way, and only one is a failure.
+        extra: { elapsedMs: Math.round(performance.now() - started) },
       });
       if (res.headersSent) {
         // Half a response is already on the wire; the only honest signal left
