@@ -1,7 +1,11 @@
 # Runs scripts/backup.sh once. Scheduling lives in the paired .timer.
 #
-# Root, because the unit talks to the docker socket and writes under
-# /var/backups. Nothing here needs the repo's Node toolchain — the dump happens
+# As deploy, not root, because nothing here needs more. The docker group is all
+# `docker compose exec` asks for, deploy owns /srv/vyoh, and the script writes
+# only inside /var/backups/vyoh — which is deploy's too, mode 700, so the dumps
+# are readable by the account that does everything else on the box.
+# /var/backups itself is root's, so the unit cannot create that directory; the
+# install does. Nothing here needs the repo's Node toolchain — the dump happens
 # inside the postgres container.
 
 [Unit]
@@ -11,6 +15,8 @@ After=docker.service
 
 [Service]
 Type=oneshot
+User=deploy
+Group=deploy
 ExecStart=/srv/vyoh/scripts/backup.sh
 
 Environment=VYOH_COMPOSE_FILE=compose.prod.yaml
