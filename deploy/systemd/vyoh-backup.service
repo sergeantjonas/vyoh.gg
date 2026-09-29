@@ -1,4 +1,5 @@
-# Runs scripts/backup.sh once. Scheduling lives in the paired .timer.
+# Runs scripts/backup.sh once, then scripts/offsite.sh on the archive it wrote.
+# Scheduling lives in the paired .timer.
 #
 # As deploy, not root, because nothing here needs more. The docker group is all
 # `docker compose exec` asks for, deploy owns /srv/vyoh, and the script writes
@@ -9,7 +10,7 @@
 # inside the postgres container.
 
 [Unit]
-Description=vyoh.gg database backup
+Description=vyoh.gg database backup and its off-box copy
 Requires=docker.service
 After=docker.service
 
@@ -18,6 +19,17 @@ Type=oneshot
 User=deploy
 Group=deploy
 ExecStart=/srv/vyoh/scripts/backup.sh
+# The copy that leaves the box. A oneshot runs its ExecStart lines in order and
+# stops at the first that fails, so this sends the archive the line above just
+# wrote, or nothing.
+ExecStart=/srv/vyoh/scripts/offsite.sh
+
+# The upload key and the age recipient, root-only and outside the tree a deploy
+# writes to. That does not keep the key from deploy, which drives the Docker
+# daemon; what the key can do is what bounds it. Optional so that a missing file
+# costs the off-box copy and not the local dump: offsite.sh fails on the unset
+# values, and the unit with it.
+EnvironmentFile=-/etc/vyoh/offsite.env
 
 Environment=VYOH_COMPOSE_FILE=compose.prod.yaml
 Environment=VYOH_BACKUP_DIR=/var/backups/vyoh
@@ -28,6 +40,7 @@ Environment=VYOH_BACKUP_KEEP=14
 Nice=10
 IOSchedulingClass=idle
 
-# A pg_dump that hangs should fail the unit rather than hold the timer open
-# until the next one is due.
-TimeoutStartSec=30min
+# A pg_dump or an upload that hangs should fail the unit rather than hold the
+# timer open until the next one is due. The limit covers both ExecStart lines
+# together, and the upload alone may retry three times at up to ten minutes each.
+TimeoutStartSec=1h

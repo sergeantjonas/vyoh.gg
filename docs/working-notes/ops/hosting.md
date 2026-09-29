@@ -1,6 +1,6 @@
 # Hosting plan and pre-deploy checklist
 
-**Status:** Active — **Option C (VPS + Docker Compose) chosen 2026-07-26, on a netcup VPS 1000 G12 ordered 2026-09-16**, and **the machinery is written and verified as of 2026-07-27** ([Start migration](../cross-cutting/tanstack-start-migration.md) chunk 6). Nginx routes `vyoh.gg` and `api.vyoh.gg` as separate vhosts on the one VM; "same-origin" in the earlier drafts meant one machine, not one origin. **The runbook was executed end to end on 2026-09-17 and vyoh.gg serves real traffic.** Every checklist item is closed: 1–3 were already code, the box was provisioned and bootstrapped ([§ 9](#9-box-bootstrap--added-2026-09-17)), DNS and TLS are live for all three names on one ECDSA certificate, the first deploy pulled `sha-9f02168` from GHCR, prod was seeded from the dev dump, and the backup timer is installed with its drill passed — 30 tables, 0 missing or empty, 0 drifted, against real data rather than an empty schema. **One gate stays open by decision: there is no off-box copy of the archives** (§ 6) — the target was set on 2026-09-29 as Backblaze B2 with `age`-encrypted uploads, and the backup unit moved from root to `deploy` that day so the copy can read the dumps — so today's posture covers a bad migration, a dropped table or a botched restore, and not a dead disk. Item 7 (seeding prod from the dev database) is why launch was never the same thing as an empty database — the box served correctly for an hour before it held any data, and that ordering is deliberate. The full gate list, now twelve of thirteen closed, lives in [pre-launch-sweep.md](pre-launch-sweep.md); the one still open there is error tracking's E3 ([observability-floor.md](observability-floor.md) → [error-tracking.md](error-tracking.md)), which leaves browser stack traces minified.
+**Status:** Active — **Option C (VPS + Docker Compose) chosen 2026-07-26, on a netcup VPS 1000 G12 ordered 2026-09-16**, and **the machinery is written and verified as of 2026-07-27** ([Start migration](../cross-cutting/tanstack-start-migration.md) chunk 6). Nginx routes `vyoh.gg` and `api.vyoh.gg` as separate vhosts on the one VM; "same-origin" in the earlier drafts meant one machine, not one origin. **The runbook was executed end to end on 2026-09-17 and vyoh.gg serves real traffic.** Every checklist item is closed: 1–3 were already code, the box was provisioned and bootstrapped ([§ 9](#9-box-bootstrap--added-2026-09-17)), DNS and TLS are live for all three names on one ECDSA certificate, the first deploy pulled `sha-9f02168` from GHCR, prod was seeded from the dev dump, and the backup timer is installed with its drill passed — 30 tables, 0 missing or empty, 0 drifted, against real data rather than an empty schema. **One item stays open outside the gate list: the off-box copy of the archives is built and not yet installed** (§ 6). It sends each nightly dump to Backblaze B2, `age`-encrypted, under an upload-only key and a 30-day lock. Until it runs, today's posture covers a bad migration, a dropped table or a botched restore, and not a dead disk. Item 7 (seeding prod from the dev database) is why launch was never the same thing as an empty database — the box served correctly for an hour before it held any data, and that ordering is deliberate. The full gate list lives in [pre-launch-sweep.md](pre-launch-sweep.md), where all thirteen gates are closed.
 
 **Read the [launch runbook](#launch-runbook--added-2026-08-20) first on the night.** The numbered items below it are reference detail on individual topics, not an order of operations, and three of them carry ordering constraints that only make sense once seen together — DNS before the first build because `VITE_API_URL` is baked in, `.env` on the box before the first deploy because compose refuses to start without it, and the backup drill after seeding rather than before so it tests a dump of real data. A 2026-08-20 audit of exactly this question found that every piece of the deploy was documented and the sequence was not, plus one hole that would have failed the first deploy outright (`compose.prod.yaml` never passed the owner-auth env vars).
 
@@ -277,6 +277,22 @@ Minimum shape before the site is public:
   dump `age`-encrypted before it leaves the box, retention by B2's lifecycle
   rules rather than a script. B2 is not owner-controlled, which is the case the
   unencrypted-archives decision below reserved for revisiting.
+  **Built 2026-09-29, not yet installed:** `scripts/offsite.sh`, a second
+  `ExecStart` in `vyoh-backup.service`, so it runs only after a dump succeeded
+  and sends that one. It seals the archive with `age`, then makes the three
+  B2 calls an upload needs through curl. It refuses a key holding anything
+  but `writeFiles`, or one that reaches past the one bucket and the `vyoh/`
+  prefix, and it checks that on every run. The bucket, `vyoh-gg-backup`,
+  carries a 30-day compliance-mode Object Lock. That lock is what makes
+  "upload-only" hold: `b2_hide_file` needs only `writeFiles`, and a lifecycle
+  rule deletes hidden files, so without a lock the upload key could empty the
+  bucket. Three things are specific to a 172 MB archive. The sealed copy goes
+  beside the archives because `/tmp` on the box is tmpfs. The upload streams,
+  where `--data-binary @file` would hold the whole archive in memory; measured
+  at 15 MB peak for a 58 MB file. And the unit's timeout rose to an hour,
+  since it now covers the dump and three upload attempts. The install steps
+  are in [deploy/systemd/README.md](../../../deploy/systemd/README.md) § The
+  off-box copy.
 - ~~One restore drill against a scratch database before launch, so the first
   restore is not performed during an incident.~~ **`scripts/restore.sh`,
   2026-08-15** — rehearsed against the dev database, 29 tables at exact

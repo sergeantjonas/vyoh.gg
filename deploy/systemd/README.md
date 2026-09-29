@@ -1,7 +1,8 @@
 # Systemd units
 
 One nightly timer that runs [`scripts/backup.sh`](../../scripts/backup.sh)
-against the production stack. Rationale for backing up at all, and what the
+against the production stack, then [`scripts/offsite.sh`](../../scripts/offsite.sh)
+on the archive it wrote. Rationale for backing up at all, and what the
 dump actually protects, lives in
 [hosting.md § 6](../../docs/working-notes/ops/hosting.md).
 
@@ -50,30 +51,70 @@ restore is not. Row counts that drift *upward* are expected on a live box: the
 dump is a snapshot and the pollers keep writing. Anything reported `GONE` or
 `EMPTY` is not.
 
+## The off-box copy
+
+The unit's second `ExecStart`, [`scripts/offsite.sh`](../../scripts/offsite.sh),
+seals the archive `backup.sh` just wrote with `age` and uploads it to the
+`vyoh-gg-backup` bucket on Backblaze B2. It needs three things on the box
+before the unit is installed:
+
+```sh
+sudo apt install -y age jq
+sudo install -d -m 700 /etc/vyoh
+sudoedit /etc/vyoh/offsite.env && sudo chmod 600 /etc/vyoh/offsite.env
+```
+
+holding, unquoted:
+
+```
+VYOH_B2_KEY_ID=…
+VYOH_B2_APPLICATION_KEY=…
+VYOH_AGE_RECIPIENT=age1…
+```
+
+The key holds `writeFiles` alone, on that one bucket, under `vyoh/`, made
+through `b2_create_key` with that exact list rather than one of the console's
+presets. The script checks it on every run and refuses anything more, so a
+master key pasted in by mistake sends nothing rather than working quietly.
+A missing file costs the off-box copy and not the local dump: the unit still
+dumps, then fails on the unset values.
+
+Retention is the bucket's, not the script's: a 30-day compliance-mode Object
+Lock, and a lifecycle rule that hides a copy 30 days after upload and deletes it
+a day later.
+
 ## Checking it is still working
 
 A backup timer fails silently by nature: nothing looks different until the
-morning you need it. Two commands, worth running whenever you are on the box
+morning you need it. Three commands, worth running whenever you are on the box
 anyway:
 
 ```sh
-systemctl list-timers vyoh-backup --all   # last run, next run
-ls -lh /var/backups/vyoh                  # newest file recent, size plausible
+systemctl list-timers vyoh-backup --all          # last run, next run
+systemctl status vyoh-backup.service --no-pager  # how it ended; "Sent … off the box"
+ls -lh /var/backups/vyoh                         # newest file recent, size plausible
 ```
+
+The second is the only one that sees the off-box copy. A failed upload leaves
+the timer's last run and the newest local archive looking exactly as they do on
+a good night, because the dump before it succeeded.
 
 A dump that suddenly halves in size is more alarming than one that fails
 outright, because the failure is loud and the shrink is not.
 
 ## Known gaps
 
-**There is no off-box copy yet.** The archives sit on the same disk as the
-volume they protect, so this survives a bad migration, a dropped table, or a
-botched restore — and not a dead disk or a lost server. Closing that is the
-open half of the launch gate; see hosting.md § 6.
+**The off-box copy is locked for 30 days, not forever.** Someone who owns the
+box can stop the uploads and hide every copy with the upload key, and the
+lifecycle rule then deletes each one as its lock runs out. Noticing a stopped
+backup within the month is what the lock buys, and nothing yet does the
+noticing but running `systemctl status` above.
 
-**The archives are unencrypted**, deliberately. They hold this project's own
-data, the owner's GitHub id, and `Session` rows whose tokens are already
-hashed — no third-party PII. On storage the owner controls, a passphrase is
-mostly one more thing that can be lost, and losing it turns a recoverable
-incident into an unrecoverable one. That trade changes the moment this database
-holds anyone else's data.
+**The archives on the box are unencrypted**, deliberately. They hold this
+project's own data, the owner's GitHub id, and `Session` rows whose tokens are
+already hashed — no third-party PII. On storage the owner controls, a
+passphrase is mostly one more thing that can be lost, and losing it turns a
+recoverable incident into an unrecoverable one. That trade changes the moment
+this database holds anyone else's data. B2 is not storage the owner controls,
+which is why the copy sent there is sealed, and why the age private key stays
+with the owner, off every machine this repo deploys to.
