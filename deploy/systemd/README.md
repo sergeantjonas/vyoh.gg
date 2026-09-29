@@ -17,7 +17,7 @@ with it.
 ## Install
 
 ```sh
-sudo install -d -m 700 /var/backups/vyoh
+sudo install -d -m 700 -o deploy -g deploy /var/backups/vyoh
 sudo cp deploy/systemd/vyoh-backup.{service,timer} /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now vyoh-backup.timer
@@ -28,13 +28,14 @@ Run it once by hand before trusting the schedule, then drill the result:
 ```sh
 sudo systemctl start vyoh-backup.service
 sudo journalctl -u vyoh-backup.service -n 30 --no-pager
-sudo bash -c 'cd /srv/vyoh && scripts/restore.sh "$(ls -1d /var/backups/vyoh/*.dump | tail -1)"'
+cd /srv/vyoh && scripts/restore.sh "$(ls -1d /var/backups/vyoh/*.dump | tail -1)"
 ```
 
-The last one runs the whole thing under root on purpose. The backup directory
-is mode 700, so a `$(ls …)` written outside the `bash -c` would be expanded by
-the calling shell, fail to read the directory, and hand `restore.sh` an empty
-path.
+The unit runs as `deploy` and the directory is deploy's, so the drill needs no
+`sudo`. If `ls` says permission denied, the directory is root's, and the unit
+cannot write to it either: `sudo chown -R deploy:deploy /var/backups/vyoh`, and
+do it before installing a unit that runs as deploy, or the next night's dump
+fails with nothing to say so.
 
 That command is the **drill** — it changes nothing. Restoring over a real
 production database is a different operation with its own procedure and its own

@@ -1,6 +1,6 @@
 # Hosting plan and pre-deploy checklist
 
-**Status:** Active — **Option C (VPS + Docker Compose) chosen 2026-07-26, on a netcup VPS 1000 G12 ordered 2026-09-16**, and **the machinery is written and verified as of 2026-07-27** ([Start migration](../cross-cutting/tanstack-start-migration.md) chunk 6). Nginx routes `vyoh.gg` and `api.vyoh.gg` as separate vhosts on the one VM; "same-origin" in the earlier drafts meant one machine, not one origin. **The runbook was executed end to end on 2026-09-17 and vyoh.gg serves real traffic.** Every checklist item is closed: 1–3 were already code, the box was provisioned and bootstrapped ([§ 9](#9-box-bootstrap--added-2026-09-17)), DNS and TLS are live for all three names on one ECDSA certificate, the first deploy pulled `sha-9f02168` from GHCR, prod was seeded from the dev dump, and the backup timer is installed with its drill passed — 30 tables, 0 missing or empty, 0 drifted, against real data rather than an empty schema. **One gate stays open by decision: there is no off-box copy of the archives** (§ 6), so today's posture covers a bad migration, a dropped table or a botched restore, and not a dead disk. Item 7 (seeding prod from the dev database) is why launch was never the same thing as an empty database — the box served correctly for an hour before it held any data, and that ordering is deliberate. The full gate list, now twelve of thirteen closed, lives in [pre-launch-sweep.md](pre-launch-sweep.md); the one still open there is error tracking's E3 ([observability-floor.md](observability-floor.md) → [error-tracking.md](error-tracking.md)), which leaves browser stack traces minified.
+**Status:** Active — **Option C (VPS + Docker Compose) chosen 2026-07-26, on a netcup VPS 1000 G12 ordered 2026-09-16**, and **the machinery is written and verified as of 2026-07-27** ([Start migration](../cross-cutting/tanstack-start-migration.md) chunk 6). Nginx routes `vyoh.gg` and `api.vyoh.gg` as separate vhosts on the one VM; "same-origin" in the earlier drafts meant one machine, not one origin. **The runbook was executed end to end on 2026-09-17 and vyoh.gg serves real traffic.** Every checklist item is closed: 1–3 were already code, the box was provisioned and bootstrapped ([§ 9](#9-box-bootstrap--added-2026-09-17)), DNS and TLS are live for all three names on one ECDSA certificate, the first deploy pulled `sha-9f02168` from GHCR, prod was seeded from the dev dump, and the backup timer is installed with its drill passed — 30 tables, 0 missing or empty, 0 drifted, against real data rather than an empty schema. **One gate stays open by decision: there is no off-box copy of the archives** (§ 6) — the target was set on 2026-09-29 as Backblaze B2 with `age`-encrypted uploads, and the backup unit moved from root to `deploy` that day so the copy can read the dumps — so today's posture covers a bad migration, a dropped table or a botched restore, and not a dead disk. Item 7 (seeding prod from the dev database) is why launch was never the same thing as an empty database — the box served correctly for an hour before it held any data, and that ordering is deliberate. The full gate list, now twelve of thirteen closed, lives in [pre-launch-sweep.md](pre-launch-sweep.md); the one still open there is error tracking's E3 ([observability-floor.md](observability-floor.md) → [error-tracking.md](error-tracking.md)), which leaves browser stack traces minified.
 
 **Read the [launch runbook](#launch-runbook--added-2026-08-20) first on the night.** The numbered items below it are reference detail on individual topics, not an order of operations, and three of them carry ordering constraints that only make sense once seen together — DNS before the first build because `VITE_API_URL` is baked in, `.env` on the box before the first deploy because compose refuses to start without it, and the backup drill after seeding rather than before so it tests a dump of real data. A 2026-08-20 audit of exactly this question found that every piece of the deploy was documented and the sequence was not, plus one hole that would have failed the first deploy outright (`compose.prod.yaml` never passed the owner-auth env vars).
 
@@ -97,7 +97,7 @@ and noticing that something has quietly stopped working all live in
 
 Same ordering, same reason, one layer out: **set the `VITE_API_URL`, `VITE_SITE_URL` and `VITE_SENTRY_DSN` repository variables in GitHub before the first push to `main` that should produce a deployable image** ([image-pipeline.md](image-pipeline.md)). A push to `main` is now what builds the web image, so the hostname has to be settled before that push rather than before a deploy. The job refuses to build without both, which makes forgetting loud rather than silent. These do **not** replace the `.env` line in step 2: `compose.prod.yaml` keeps its `build:` block, and compose interpolates `build.args` at config load even under `up --no-build`, so `VITE_API_URL` is required on the box too.
 
-**2. Write `/srv/vyoh/.env` on the box, by hand.** `scripts/deploy.sh` excludes `.env` from its rsync — production secrets have no local counterpart — so it has to exist there before the first deploy, not after. `mkdir -p /srv/vyoh` and `scp` a filled-in copy of [`.env.example`](../../../.env.example).
+**2. Write `/srv/vyoh/.env` on the box, by hand.** `scripts/deploy.sh` excludes `.env` from its rsync — production secrets have no local counterpart — so it has to exist there before the first deploy, not after. `mkdir -p /srv/vyoh` and `scp` a filled-in copy of [`.env.example`](../../../.env.example), then `chmod 600 /srv/vyoh/.env` as deploy. Whatever mode it arrives with, it holds every production secret; the live copy sat at 0664, readable by every account on the box, until 2026-09-29.
 
 Compose now refuses to bring anything up when a required var is missing, naming
 it. That is deliberate and it means an incomplete `.env` fails in a legible way
@@ -273,6 +273,10 @@ Minimum shape before the site is public:
   and guessing at one produces a script whose only real test is the incident.
   Until it lands, the backups survive a bad migration, a dropped table, or a
   botched restore, and do not survive losing the disk. **This gate stays open.**
+  **Target set 2026-09-29:** Backblaze B2, one upload-only key per tenant, each
+  dump `age`-encrypted before it leaves the box, retention by B2's lifecycle
+  rules rather than a script. B2 is not owner-controlled, which is the case the
+  unencrypted-archives decision below reserved for revisiting.
 - ~~One restore drill against a scratch database before launch, so the first
   restore is not performed during an incident.~~ **`scripts/restore.sh`,
   2026-08-15** — rehearsed against the dev database, 29 tables at exact
@@ -291,6 +295,18 @@ to restoring into a scratch database and diffing exact per-table row counts
 against the live one; going over a real database needs `--into`, the name typed
 back, and no clients connected.
 
+**The unit runs as `deploy`, not root — decided 2026-09-29.** Run as root, it
+wrote into a root-owned mode-700 directory that deploy could not list, and
+deploy is what the off-box copy will run as. Nothing in either script needs
+more: the docker group covers `compose exec`, deploy owns `/srv/vyoh`,
+`backup.sh` writes only into `/var/backups/vyoh`, and `restore.sh` only reads
+from it (its scratch files go to `mktemp`). `/var/backups` itself stays root's,
+so the install creates that directory owned by deploy. The same pass pinned the timer to `03:30:00 Europe/Brussels`: its
+comment had claimed the box ran UTC, which it never did (§ 9 sets the zone),
+and a named zone keeps the schedule from depending on the host's. Measured the
+same day: the newest dump ~172 MB (custom format, already compressed), 14
+kept, 2.1 GB on disk in all.
+
 #### Restoring prod after an incident
 
 Three different operations get confused with each other. The **drill** proves a
@@ -300,16 +316,16 @@ dump restores, into a scratch database, changing nothing. **Seeding**
 wrong, so that path is written out here.
 
 ```sh
-# 1. Pick the dump. Runs as root throughout: /var/backups/vyoh is mode 700, so a
-#    glob expanded by a non-root shell silently produces nothing.
-sudo ls -1 /var/backups/vyoh | tail -3
+# 1. Pick the dump. Runs as deploy from /srv/vyoh throughout; deploy owns the
+#    checkout and /var/backups/vyoh both.
+cd /srv/vyoh && ls -1 /var/backups/vyoh | tail -3
 
 # 2. Stop the api. restore.sh refuses while anything holds a connection, and it
 #    does not kill sessions — the api would just reconnect and race the restore.
 docker compose -f compose.prod.yaml stop api
 
 # 3. Drop and rebuild. Asks for the database name typed back; -y skips that.
-sudo bash -c 'cd /srv/vyoh && scripts/restore.sh --into vyoh /var/backups/vyoh/<chosen>.dump'
+scripts/restore.sh --into vyoh /var/backups/vyoh/<chosen>.dump
 
 # 4. Start the api. Its entrypoint runs `migrate deploy` against what was restored.
 docker compose -f compose.prod.yaml start api
@@ -642,7 +658,8 @@ Four of those lines are load-bearing for reasons not visible in them:
   on permissions.
 - **`chown deploy:deploy /srv/vyoh`** is what lets the same script rsync into it.
 - **`timedatectl set-timezone`** is for the host, not the containers — those take
-  `TZ` from compose. It covers backup filenames and journal timestamps; the
+  `TZ` from compose. It covers journal timestamps; backup filenames are UTC by
+  construction and the backup timer names its own zone, so neither leans on it. The
   seeding precondition in [§ 7](#7-seed-production-from-the-dev-database--added-2026-08-16)
   is about the container zone, which compose already sets.
 - **`passwd deploy`** is required *because of* `--disabled-password`. sudo

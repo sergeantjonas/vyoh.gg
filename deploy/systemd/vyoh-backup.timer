@@ -4,10 +4,13 @@
 Description=Nightly vyoh.gg database backup
 
 [Timer]
-# The box runs UTC, so this is roughly 04:30–05:30 Brussels depending on DST.
-# Either way it is the quietest part of the day for both the site and Riot's
-# pollers.
-OnCalendar=*-*-* 03:30:00
+# The zone is named rather than inherited from the host, so the schedule means
+# the same thing whatever `timedatectl` says. 03:30 Brussels is the quietest
+# part of the day for both the site and Riot's pollers, picked to sit apart from
+# the other tenants' jobs (`systemctl list-timers` before moving it), and after the
+# 02:00–03:00 hour that both DST changes happen in, so it runs exactly once a
+# night all year.
+OnCalendar=*-*-* 03:30:00 Europe/Brussels
 
 # A VPS that was rebooting or powered down at 03:30 should still take the
 # backup once it is up, rather than skipping a day in silence.
