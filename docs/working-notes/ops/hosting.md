@@ -290,9 +290,15 @@ Minimum shape before the site is public:
   beside the archives because `/tmp` on the box is tmpfs. The upload streams,
   where `--data-binary @file` would hold the whole archive in memory; measured
   at 15 MB peak for a 58 MB file. And the unit's timeout rose to an hour,
-  since it now covers the dump and three upload attempts. The install steps
-  are in [deploy/systemd/README.md](../../../deploy/systemd/README.md) § The
-  off-box copy.
+  since it now covers the dump and three upload attempts. The drill is
+  `scripts/offsite-drill.sh`, run from the laptop because the age private key
+  never goes on the box. It fetches the newest copy with a laptop-held read
+  key, checks the SHA-1 and reads back the lock, decrypts, and hands the
+  archive to `restore.sh`'s drill on the box, so it is judged by the same exact
+  row counts. Both scripts were tested against a fake of B2's calls in a Debian
+  13 container, and neither has run against B2 yet. The install steps are in
+  [deploy/systemd/README.md](../../../deploy/systemd/README.md) § The off-box
+  copy.
 - ~~One restore drill against a scratch database before launch, so the first
   restore is not performed during an incident.~~ **`scripts/restore.sh`,
   2026-08-15** — rehearsed against the dev database, 29 tables at exact
