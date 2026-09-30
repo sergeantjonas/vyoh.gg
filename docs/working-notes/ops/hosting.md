@@ -1,6 +1,6 @@
 # Hosting plan and pre-deploy checklist
 
-**Status:** Active — **Option C (VPS + Docker Compose) chosen 2026-07-26, on a netcup VPS 1000 G12 ordered 2026-09-16**, and **the machinery is written and verified as of 2026-07-27** ([Start migration](../cross-cutting/tanstack-start-migration.md) chunk 6). Nginx routes `vyoh.gg` and `api.vyoh.gg` as separate vhosts on the one VM; "same-origin" in the earlier drafts meant one machine, not one origin. **The runbook was executed end to end on 2026-09-17 and vyoh.gg serves real traffic.** Every checklist item is closed: 1–3 were already code, the box was provisioned and bootstrapped ([§ 9](#9-box-bootstrap--added-2026-09-17)), DNS and TLS are live for all three names on one ECDSA certificate, the first deploy pulled `sha-9f02168` from GHCR, prod was seeded from the dev dump, and the backup timer is installed with its drill passed — 30 tables, 0 missing or empty, 0 drifted, against real data rather than an empty schema. **One item stays open outside the gate list: the off-box copy of the archives is built and not yet installed** (§ 6). It sends each nightly dump to Backblaze B2, `age`-encrypted, under an upload-only key and a 30-day lock. Until it runs, today's posture covers a bad migration, a dropped table or a botched restore, and not a dead disk. Item 7 (seeding prod from the dev database) is why launch was never the same thing as an empty database — the box served correctly for an hour before it held any data, and that ordering is deliberate. The full gate list lives in [pre-launch-sweep.md](pre-launch-sweep.md), where all thirteen gates are closed.
+**Status:** Active — **Option C (VPS + Docker Compose) chosen 2026-07-26, on a netcup VPS 1000 G12 ordered 2026-09-16**, and **the machinery is written and verified as of 2026-07-27** ([Start migration](../cross-cutting/tanstack-start-migration.md) chunk 6). Nginx routes `vyoh.gg` and `api.vyoh.gg` as separate vhosts on the one VM; "same-origin" in the earlier drafts meant one machine, not one origin. **The runbook was executed end to end on 2026-09-17 and vyoh.gg serves real traffic.** Every checklist item is closed: 1–3 were already code, the box was provisioned and bootstrapped ([§ 9](#9-box-bootstrap--added-2026-09-17)), DNS and TLS are live for all three names on one ECDSA certificate, the first deploy pulled `sha-9f02168` from GHCR, prod was seeded from the dev dump, and the backup timer is installed with its drill passed — 30 tables, 0 missing or empty, 0 drifted, against real data rather than an empty schema. **The off-box copy of the archives has run since 2026-09-29** (§ 6), the one item that stayed open outside the gate list. Each nightly dump goes to Backblaze B2, `age`-encrypted, under an upload-only key and a 30-day lock, and a drill from the B2 copy restored all 30 tables. Nothing yet reports a night that fails. Item 7 (seeding prod from the dev database) is why launch was never the same thing as an empty database — the box served correctly for an hour before it held any data, and that ordering is deliberate. The full gate list lives in [pre-launch-sweep.md](pre-launch-sweep.md), where all thirteen gates are closed.
 
 **Read the [launch runbook](#launch-runbook--added-2026-08-20) first on the night.** The numbered items below it are reference detail on individual topics, not an order of operations, and three of them carry ordering constraints that only make sense once seen together — DNS before the first build because `VITE_API_URL` is baked in, `.env` on the box before the first deploy because compose refuses to start without it, and the backup drill after seeding rather than before so it tests a dump of real data. A 2026-08-20 audit of exactly this question found that every piece of the deploy was documented and the sequence was not, plus one hole that would have failed the first deploy outright (`compose.prod.yaml` never passed the owner-auth env vars).
 
@@ -132,8 +132,9 @@ something is wrong.
 Things that are *not* in this list because they need no action: nginx rate
 limiting, the `/og` cache block and the image-proxy cache all ship with step 4;
 CORS and the api's env contract are enforced by the code rather than configured
-at deploy; the off-box backup copy stays open by decision, and step 7 leaves the
-archives on the same disk as the volume they protect until it closes.
+at deploy; the off-box backup copy was left open at launch, and step 7 left the
+archives on the same disk as the volume they protect until it closed on
+2026-09-29 (§ 6).
 
 ## Pre-deploy checklist (applies to all options)
 
@@ -267,17 +268,16 @@ Minimum shape before the site is public:
   `docker compose exec postgres pg_dump`.~~ **`scripts/backup.sh` +
   `deploy/systemd/vyoh-backup.{service,timer}`, 2026-08-15.** Installing the
   timer is a box-side step; the units and their instructions are in-repo.
-- A copy **off the box** (Hetzner Storage Box or object storage) — a backup on
-  the same disk it protects is not one. **Deferred 2026-08-15**, decided rather
-  than forgotten: nothing about the target can be tested before the VPS exists,
-  and guessing at one produces a script whose only real test is the incident.
-  Until it lands, the backups survive a bad migration, a dropped table, or a
-  botched restore, and do not survive losing the disk. **This gate stays open.**
+- ~~A copy **off the box** (Hetzner Storage Box or object storage) — a backup on
+  the same disk it protects is not one.~~ **Installed and drilled 2026-09-29**
+  (below). **Deferred 2026-08-15**, decided rather than forgotten: nothing
+  about the target could be tested before the VPS existed, and guessing at one
+  produces a script whose only real test is the incident.
   **Target set 2026-09-29:** Backblaze B2, one upload-only key per tenant, each
   dump `age`-encrypted before it leaves the box, retention by B2's lifecycle
   rules rather than a script. B2 is not owner-controlled, which is the case the
   unencrypted-archives decision below reserved for revisiting.
-  **Built 2026-09-29, not yet installed:** `scripts/offsite.sh`, a second
+  **Built and installed 2026-09-29:** `scripts/offsite.sh`, a second
   `ExecStart` in `vyoh-backup.service`, so it runs only after a dump succeeded
   and sends that one. It seals the archive with `age`, then makes the three
   B2 calls an upload needs through curl. It refuses a key holding anything
@@ -296,7 +296,14 @@ Minimum shape before the site is public:
   key, checks the SHA-1 and reads back the lock, decrypts, and hands the
   archive to `restore.sh`'s drill on the box, so it is judged by the same exact
   row counts. Both scripts were tested against a fake of B2's calls in a Debian
-  13 container, and neither has run against B2 yet. The install steps are in
+  13 container first. Then, against B2 that evening, the first run dumped and
+  verified 164 MB in 54 s and sealed and uploaded it in 5 s. The drill from
+  that copy read its lock back as compliance until 2026-10-29 and restored all
+  30 tables, 0 missing or empty. Two drifted upward, the Steam pollers writing
+  after the dump. The first unattended night, 2026-09-30, sent its copy at
+  03:31, three seconds after the dump. The owner's age key is the one engram's copy uses; a second
+  key would share the first's password manager and paper, and so its fate. The
+  install steps are in
   [deploy/systemd/README.md](../../../deploy/systemd/README.md) § The off-box
   copy.
 - ~~One restore drill against a scratch database before launch, so the first
@@ -385,14 +392,13 @@ Five things that only matter on this path:
   `--single-transaction` buys that deliberately: an empty database is obviously
   broken, where a convincingly half-restored one is the thing you discover a
   week later.
-- **There is no off-box copy, so this whole procedure assumes the disk
-  survived.** If the box is gone the archives are gone with it, and the recovery
-  path is § 7 — re-seed from the dev database at whatever staleness it happens to
-  have. **Dev is currently the de-facto off-site replica.** That is what makes
-  losing the box survivable rather than fatal, and it is also the argument for
-  closing the off-box gate: it works only for as long as dev keeps syncing, and
-  it silently stops being true the first time the owner stops running the dev
-  stack for a fortnight.
+- **If the box is gone, the archive comes from B2.** The first half of
+  `scripts/offsite-drill.sh` is the recovery path: list, fetch and check the
+  newest copy with the laptop's read key, then decrypt it with the owner's age
+  key. Copy the decrypted archive to the new box and restore it with `--into`
+  as above. Until 2026-09-29 the dev database was the only off-site replica.
+  It worked only while dev kept syncing, and would have silently stopped being
+  true the first fortnight the dev stack went unrun.
 
 Two things the rehearsal settled, both of which produce a check that passes
 without checking anything:
