@@ -103,8 +103,32 @@ deploy that migrates, start `vyoh-backup.service` by hand before drilling.
 ## Checking it is still working
 
 A backup timer fails silently by nature: nothing looks different until the
-morning you need it. Three commands, worth running whenever you are on the box
-anyway:
+morning you need it. So every run checks in with healthchecks.io, through
+[`scripts/heartbeat.sh`](../../scripts/heartbeat.sh) from the unit's
+`ExecStopPost`: a success, or a failure carrying the run's last journal lines.
+The `vyoh-backup` check emails at once on a failure, and also when nothing has
+arrived by 05:30, which is what catches a timer that never fired or a box that
+is down: neither can report itself.
+
+To install it, make the check by hand in vyoh's own healthchecks.io project:
+slug `vyoh-backup`, an OnCalendar schedule of `*-*-* 03:30:00` in
+Europe/Brussels, 2 hours' grace. Left on UTC, it would expect the run an hour
+or two late and never line up. Then give the box the project's ping key and
+reinstall the unit:
+
+```sh
+sudo install -d -m 700 /etc/vyoh
+sudoedit /etc/vyoh/heartbeat.env && sudo chmod 600 /etc/vyoh/heartbeat.env
+sudo cp deploy/systemd/vyoh-backup.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl start vyoh-backup.service   # the first check-in
+```
+
+holding `VYOH_HC_PING_KEY=…`, unquoted. Anyone holding the key can report a
+false success, which is why it reaches curl on stdin. Without the file the unit
+still runs, and the check going quiet is the failure showing.
+
+Three commands, for when you are on the box anyway:
 
 ```sh
 systemctl list-timers vyoh-backup --all          # last run, next run
@@ -124,8 +148,12 @@ outright, because the failure is loud and the shrink is not.
 **The off-box copy is locked for 30 days, not forever.** Someone who owns the
 box can stop the uploads and hide every copy with the upload key, and the
 lifecycle rule then deletes each one as its lock runs out. Noticing a stopped
-backup within the month is what the lock buys, and nothing yet does the
-noticing but running `systemctl status` above.
+backup within the month is what the lock buys, and the healthchecks.io check
+above is what does the noticing — unless they also send its check-ins, which
+the ping key on the box lets them do.
+
+**A success is not checked for being right.** A dump that halves in size still
+reports success. The drills are what judge the content.
 
 **The archives on the box are unencrypted**, deliberately. They hold this
 project's own data, the owner's GitHub id, and `Session` rows whose tokens are

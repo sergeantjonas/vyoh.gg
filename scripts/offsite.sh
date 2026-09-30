@@ -30,6 +30,14 @@ red() { printf '\033[0;31m%s\033[0m\n' "$1"; }
 backup_dir="${VYOH_BACKUP_DIR:-/var/backups/vyoh}"
 : "${VYOH_B2_KEY_ID:?}" "${VYOH_B2_APPLICATION_KEY:?}" "${VYOH_AGE_RECIPIENT:?}"
 
+# Checked before age sees it, and never echoed: the private key pasted here by
+# mistake would otherwise be printed back in age's error, into the journal and
+# from there into the failure report heartbeat.sh sends off the box.
+if [[ ! $VYOH_AGE_RECIPIENT =~ ^age1[0-9a-z]+$ ]]; then
+  red "VYOH_AGE_RECIPIENT is not an age public key (age1…); nothing was sealed."
+  exit 1
+fi
+
 # The key is made with this prefix and refused below without it, so a key
 # pasted in from the wrong entry fails loudly instead of writing somewhere else.
 prefix="vyoh/"
