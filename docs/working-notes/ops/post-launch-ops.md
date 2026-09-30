@@ -45,7 +45,7 @@ systemctl list-timers vyoh-backup --all    # last run, next run
 ls -lh /var/backups/vyoh                   # newest recent, size plausible
 ```
 
-A backup timer fails silently by nature, and a dump that halves in size is more alarming than one that fails outright — the failure is loud and the shrink is not. Sentry covers the application tiers now that both DSNs are set; it does not watch the box, the timer, or the certificate.
+A backup timer fails silently by nature, and a dump that halves in size is more alarming than one that fails outright — the failure is loud and the shrink is not. Sentry covers the application tiers now that both DSNs are set; it does not watch the box, the timer, or the certificate. The backup timer is watched by healthchecks.io since 2026-09-30, which emails when a night fails or never reports ([deploy/systemd/README.md](../../../deploy/systemd/README.md)); the box and the certificate still are not.
 
 ## Before the second tenant
 

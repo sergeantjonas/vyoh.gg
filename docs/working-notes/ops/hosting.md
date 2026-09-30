@@ -1,6 +1,6 @@
 # Hosting plan and pre-deploy checklist
 
-**Status:** Active — **Option C (VPS + Docker Compose) chosen 2026-07-26, on a netcup VPS 1000 G12 ordered 2026-09-16**, and **the machinery is written and verified as of 2026-07-27** ([Start migration](../cross-cutting/tanstack-start-migration.md) chunk 6). Nginx routes `vyoh.gg` and `api.vyoh.gg` as separate vhosts on the one VM; "same-origin" in the earlier drafts meant one machine, not one origin. **The runbook was executed end to end on 2026-09-17 and vyoh.gg serves real traffic.** Every checklist item is closed: 1–3 were already code, the box was provisioned and bootstrapped ([§ 9](#9-box-bootstrap--added-2026-09-17)), DNS and TLS are live for all three names on one ECDSA certificate, the first deploy pulled `sha-9f02168` from GHCR, prod was seeded from the dev dump, and the backup timer is installed with its drill passed — 30 tables, 0 missing or empty, 0 drifted, against real data rather than an empty schema. **The off-box copy of the archives has run since 2026-09-29** (§ 6), the one item that stayed open outside the gate list. Each nightly dump goes to Backblaze B2, `age`-encrypted, under an upload-only key and a 30-day lock, and a drill from the B2 copy restored all 30 tables. Reporting a failed night through healthchecks.io is built as of 2026-09-30 and not yet installed. Item 7 (seeding prod from the dev database) is why launch was never the same thing as an empty database — the box served correctly for an hour before it held any data, and that ordering is deliberate. The full gate list lives in [pre-launch-sweep.md](pre-launch-sweep.md), where all thirteen gates are closed.
+**Status:** Active — **Option C (VPS + Docker Compose) chosen 2026-07-26, on a netcup VPS 1000 G12 ordered 2026-09-16**, and **the machinery is written and verified as of 2026-07-27** ([Start migration](../cross-cutting/tanstack-start-migration.md) chunk 6). Nginx routes `vyoh.gg` and `api.vyoh.gg` as separate vhosts on the one VM; "same-origin" in the earlier drafts meant one machine, not one origin. **The runbook was executed end to end on 2026-09-17 and vyoh.gg serves real traffic.** Every checklist item is closed: 1–3 were already code, the box was provisioned and bootstrapped ([§ 9](#9-box-bootstrap--added-2026-09-17)), DNS and TLS are live for all three names on one ECDSA certificate, the first deploy pulled `sha-9f02168` from GHCR, prod was seeded from the dev dump, and the backup timer is installed with its drill passed — 30 tables, 0 missing or empty, 0 drifted, against real data rather than an empty schema. **The off-box copy of the archives has run since 2026-09-29** (§ 6), the one item that stayed open outside the gate list. Each nightly dump goes to Backblaze B2, `age`-encrypted, under an upload-only key and a 30-day lock, and a drill from the B2 copy restored all 30 tables. A failed night is reported through healthchecks.io since 2026-09-30. Item 7 (seeding prod from the dev database) is why launch was never the same thing as an empty database — the box served correctly for an hour before it held any data, and that ordering is deliberate. The full gate list lives in [pre-launch-sweep.md](pre-launch-sweep.md), where all thirteen gates are closed.
 
 **Read the [launch runbook](#launch-runbook--added-2026-08-20) first on the night.** The numbered items below it are reference detail on individual topics, not an order of operations, and three of them carry ordering constraints that only make sense once seen together — DNS before the first build because `VITE_API_URL` is baked in, `.env` on the box before the first deploy because compose refuses to start without it, and the backup drill after seeding rather than before so it tests a dump of real data. A 2026-08-20 audit of exactly this question found that every piece of the deploy was documented and the sequence was not, plus one hole that would have failed the first deploy outright (`compose.prod.yaml` never passed the owner-auth env vars).
 
@@ -418,8 +418,8 @@ handful of named ops files and deletes nothing at that level, so neither the
 default `/var/backups/vyoh` nor an overridden `VYOH_BACKUP_DIR` inside the
 checkout is reachable by a deploy.
 
-**Backup health is reported to healthchecks.io — built 2026-09-30, not yet
-installed.** A timer that has quietly stopped firing looks identical to one
+**Backup health is reported to healthchecks.io — installed and drilled
+2026-09-30.** A timer that has quietly stopped firing looks identical to one
 that is working, and a failed upload leaves the local archive looking like a
 good night. So the unit's `ExecStopPost` runs `scripts/heartbeat.sh`. That sends
 a success, or a failure carrying the run's last journal lines, which are
@@ -439,6 +439,13 @@ success, a failure and a timeout each carrying their result line and 30
 journal lines, and a missing key and a bad slug each exiting 0. The checks in
 [deploy/systemd/README.md](../../../deploy/systemd/README.md) stay for when
 you are on the box. Dump freshness on `/status` is not needed for this.
+Installed 2026-09-30: the check got its first check-in at 15:28 from a run
+started by hand, once the updated unit was in place. The key file first held
+a stray trailing space, which would have sent every check-in to a key that
+does not exist; `awk -F= '{ print $1, length($2) }'` over the file, which
+reveals only lengths, caught it. The alert was drilled the same hour through
+the real script and key file. A failure sent for `vyoh-backup` brought a DOWN
+email, and the success after it an UP email, both to the owner's inbox.
 
 This also unblocks the parked destructive data arcs: match-cache tiers 1B/2/3
 and the Tier-5 TTL eviction ([match-cache-storage.md](../lol/match-cache-storage.md))
