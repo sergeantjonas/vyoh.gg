@@ -31,6 +31,12 @@ ExecStart=/srv/vyoh/scripts/offsite.sh
 # values, and the unit with it.
 EnvironmentFile=-/etc/vyoh/offsite.env
 
+# Tells healthchecks.io how the run ended, dump and upload together, with this
+# run's journal lines on a failure. The check alerts on silence and the script
+# always exits 0, so the '-' covers only the script itself being missing.
+ExecStopPost=-/srv/vyoh/scripts/heartbeat.sh vyoh-backup
+EnvironmentFile=-/etc/vyoh/heartbeat.env
+
 Environment=VYOH_COMPOSE_FILE=compose.prod.yaml
 Environment=VYOH_BACKUP_DIR=/var/backups/vyoh
 Environment=VYOH_BACKUP_KEEP=14
