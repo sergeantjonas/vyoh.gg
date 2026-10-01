@@ -55,6 +55,10 @@ export interface SteamGameRowShellProps {
   // null — callers must null-check before touching `.style`.
   heroRef?: RefObject<HTMLImageElement | null>;
   logoRef?: RefObject<HTMLImageElement | null>;
+  // The row most likely to be the page's LCP — the first one. Its hero loads
+  // eagerly at high priority; every other row stays lazy at the browser's
+  // default, because a `high` hint on every row is a hint on none.
+  priority?: boolean;
   className?: string;
 }
 
@@ -69,6 +73,7 @@ export function SteamGameRowShell({
   trailing,
   heroRef,
   logoRef,
+  priority = false,
   className,
 }: SteamGameRowShellProps) {
   const [heroLoaded, setHeroLoaded] = useState(false);
@@ -133,9 +138,9 @@ export function SteamGameRowShell({
             src={steamLibraryHeroUrl(appid, assetTimestamp, flipHero)}
             alt=""
             aria-hidden
-            loading="lazy"
+            loading={priority ? "eager" : "lazy"}
             decoding="async"
-            fetchPriority="high"
+            fetchPriority={priority ? "high" : undefined}
             onLoad={heroHandlers.onLoad}
             onError={heroHandlers.onError}
             style={{ objectPosition: `${xPct}% ${yPct}%` }}

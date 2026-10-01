@@ -265,6 +265,10 @@ export function LibraryRow({
     >
       <SteamGameRowShell
         appid={game.appid}
+        // Index 0 rather than the first rendered row: the hint is for the cold
+        // load. A back-nav restore deep in the list never renders row 0, and
+        // the heroes it does render are cached from the forward visit.
+        priority={dataIndex === 0}
         assetTimestamp={game.assetTimestamp}
         name={game.name}
         subjectXPercent={game.subjectXPercent}

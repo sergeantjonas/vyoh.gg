@@ -73,11 +73,12 @@ export function WishlistAllPanel({ focusAppid }: WishlistAllPanelProps) {
 
   return (
     <ul ref={listRef} className="flex flex-col gap-2">
-      {items.map((item) => (
+      {items.map((item, index) => (
         <WishlistRow
           key={item.appid}
           item={item}
           isHighlighted={highlighted === item.appid}
+          priority={index === 0}
         />
       ))}
     </ul>
@@ -87,9 +88,10 @@ export function WishlistAllPanel({ focusAppid }: WishlistAllPanelProps) {
 interface WishlistRowProps {
   item: SteamWishlistItem;
   isHighlighted: boolean;
+  priority: boolean;
 }
 
-function WishlistRow({ item, isHighlighted }: WishlistRowProps) {
+function WishlistRow({ item, isHighlighted, priority }: WishlistRowProps) {
   const release = formatWishlistReleaseLabel(item);
   return (
     // Flex, so the owner's hide toggle can be a *sibling* of the anchor rather
@@ -116,6 +118,7 @@ function WishlistRow({ item, isHighlighted }: WishlistRowProps) {
       >
         <SteamGameRowShell
           appid={item.appid}
+          priority={priority}
           name={item.name ?? `Unknown title (app ${item.appid})`}
           meta={
             <>

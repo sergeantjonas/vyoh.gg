@@ -86,4 +86,15 @@ describe("SteamGameRowShell", () => {
     const imgs = container.querySelectorAll("img");
     expect(ref.current).toBe(imgs[imgs.length - 1]);
   });
+
+  it("loads only a priority row's hero eagerly at high priority", () => {
+    const { container, rerender } = render(<SteamGameRowShell appid={730} name="CS2" />);
+    const hero = () => container.querySelector("img") as HTMLImageElement;
+    expect(hero().getAttribute("loading")).toBe("lazy");
+    expect(hero().hasAttribute("fetchpriority")).toBe(false);
+
+    rerender(<SteamGameRowShell appid={730} name="CS2" priority />);
+    expect(hero().getAttribute("loading")).toBe("eager");
+    expect(hero().getAttribute("fetchpriority")).toBe("high");
+  });
 });

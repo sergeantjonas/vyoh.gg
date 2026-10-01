@@ -1,6 +1,6 @@
 # Frontend-2026 KB gaps
 
-**Status:** Active — 36 gaps across nine rounds of evaluation against `~/.claude/knowledge/frontend-2026/`. Picked up 2026-10-01 in this order: G (Gap 8, closed), H (Gap 9, shipped scoped), F (Gaps 6 and 7 shipped), Gap 5's LCP re-measure, then D (Gap 3, custom RUM endpoint — launch has fired its trigger). Shipped without being recorded at the time, and reconciled the same day: Q and AA (2026-05-25), T (2026-05-26), BC (2026-06-14), AD and P (both with the [Start migration](tanstack-start-migration.md), 2026-07-27). Everything else open is listed per round in the bundling tables.
+**Status:** Active — 36 gaps across nine rounds of evaluation against `~/.claude/knowledge/frontend-2026/`. Picked up 2026-10-01 in this order: G (Gap 8, closed), H (Gap 9, shipped scoped), F (Gaps 6 and 7 shipped), Gap 5 (closed after the re-measure: Steam row hint fixed, LCP image discovery is the open lever), then D (Gap 3, custom RUM endpoint — launch has fired its trigger). Shipped without being recorded at the time, and reconciled the same day: Q and AA (2026-05-25), T (2026-05-26), BC (2026-06-14), AD and P (both with the [Start migration](tanstack-start-migration.md), 2026-07-27). Everything else open is listed per round in the bundling tables.
 
 Companion to [tanstack-start-migration.md](tanstack-start-migration.md). That note covers the structural gap (CSR vs SSR for a public portfolio). This note covers the smaller, mostly-independent items that don't need to wait for the migration.
 
@@ -85,7 +85,26 @@ Route tier folds into [tanstack-start-migration.md](tanstack-start-migration.md)
 
 ---
 
-## Gap 5 — `fetchpriority="high"` on the *actual* LCP element (corrected 2026-05-22)
+## Gap 5 — `fetchpriority="high"` on the *actual* LCP element (corrected 2026-05-22) — CLOSED 2026-10-01; the real lever is discovery
+
+**Re-measured 2026-10-01 against production** with a headless Chromium LCP probe (PerformanceObserver, one cold context per route, 1440 × 900, no throttling, TTFB 0.16–0.20 s):
+
+| Route | LCP element | Hint | LCP (cold) | Image request starts |
+|---|---|---|---|---|
+| `/` | the orb SVG | none, React preloads it | 2.56 s | 0.17 s (done by 0.88 s) |
+| `/lol/vyoh` | identity-hero champion splash | `high`, the only one | 2.26 s | 1.30 s |
+| `/lol/vyoh/matches` | decorative splash backdrop | `low`, deliberately | 2.05 s | 1.44 s |
+| `/steam` | identity-hero game art | `high`, the only one | 1.14 s (warm) | — |
+| `/steam/library` | a library row hero | `high` on **every** row (8) | 1.96 s | 1.21 s |
+| `/steam/wishlist` | the intro paragraph | `high` on **every** row (43) | 0.34 s | — |
+
+Three conclusions:
+
+- **The hint was already right where it mattered.** `/lol/$slug` and `/steam` carry exactly one `high`, on their LCP image. The other four in-code `fetchPriority = "high"` sites are off-DOM `new Image()` prefetches of a panel destination's art (match-row, champion-table, profile-backdrop, splash-backdrop), deliberate and not competing with the page's own LCP.
+- **The one misuse was the Steam row, fixed 2026-10-01.** `SteamGameRowShell` set `fetchPriority="high"` on every row, along with `loading="lazy"`. A `priority` prop now makes the first row eager and `high` and leaves every other row lazy at the default priority. On the branch dev server that took `/steam/library` from 8 to 1 and `/steam/wishlist` from 43 to 2, where the second is React 19's own `<link rel="preload" fetchpriority="high">` for the same image. The server renderer emits it for the wishlist, whose list is in the SSR shell, and has nothing to emit for the library, whose virtualized list only renders on the client. On the library the in-view rows are the same size, so LCP goes to whichever paints first. Eight hints could not pick one; one can. **Re-run the probe on production after this deploys**; dev-server timings are not comparable.
+- **Discovery, not priority, is what costs the image routes about a second.** None of the image LCP elements are in the server HTML. React 19 preloads the images that *are* in the shell (profile icon, rank emblem, orb), but the splash, the backdrop and the row heroes render only after hydration, so their requests start at 1.2–1.4 s against a 0.2 s TTFB. Getting the LCP image into the server render, or into a `head()` preload from loader data, is the lever. It is its own arc because the splash is a shell fixture (`SplashProvider`) with a visual-parity constraint, not a hint change. `/` is a third case again: the orb's bytes arrive by 0.88 s and it paints at 2.56 s, so its LCP is the entrance animation's delay, which no network hint can move.
+
+**Original gap text (kept for the rationale):**
 
 **Correction:** The original framing assumed the splash backdrop is the LCP hero. Reading [splash-backdrop.tsx:142](../../../apps/web/src/lol/_shared/assets/splash-backdrop.tsx#L142) shows it already carries `fetchPriority="low"` and renders at `opacity: 0.2` behind a blurhash placeholder. It is deliberately decorative — not the LCP candidate. Leaving it `low` is correct.
 
@@ -105,7 +124,7 @@ Route tier folds into [tanstack-start-migration.md](tanstack-start-migration.md)
 
 | Bundle | Gaps | Effort | Slot |
 |---|---|---|---|
-| **A — head baseline + LCP fetchpriority** | #1, #5 | ~1h | #1 SHIPPED 2026-05-23 (c6c3720); #5 still pending LCP re-measure |
+| ~~**A — head baseline + LCP fetchpriority**~~ | #1, #5 | ~1h | #1 SHIPPED 2026-05-23 (c6c3720); #5 CLOSED 2026-10-01 — re-measured, Steam row hint fixed, discovery is the open lever (see Gap 5) |
 | **B — React Compiler** | #2 | ~30min + verify | SHIPPED 2026-05-23 (0e8800c) |
 | **C — App-root + widget error boundaries** | #4 (app-root + widget) | ~1h | SHIPPED 2026-06-23 — app-root tier + widget primitives + palette/splash (commit 1, 2cbc25b3); `ChartBoundary` on 11 chart leaves (commit 2). Route tier (E) still folds into Start migration |
 | **D — RUM backend** | #3 | ~2h | Post-launch trigger |
