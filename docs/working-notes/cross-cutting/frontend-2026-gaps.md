@@ -1,6 +1,6 @@
 # Frontend-2026 KB gaps
 
-**Status:** Active — 36 gaps across nine rounds of evaluation against `~/.claude/knowledge/frontend-2026/`. Picked up 2026-10-01 in this order: G (Gap 8, closed), H (Gap 9, scoped imports), F (Gaps 6–7), Gap 5's LCP re-measure, then D (Gap 3, custom RUM endpoint — launch has fired its trigger). Shipped without being recorded at the time, and reconciled the same day: Q and AA (2026-05-25), T (2026-05-26), BC (2026-06-14), AD and P (both with the [Start migration](tanstack-start-migration.md), 2026-07-27). Everything else open is listed per round in the bundling tables.
+**Status:** Active — 36 gaps across nine rounds of evaluation against `~/.claude/knowledge/frontend-2026/`. Picked up 2026-10-01 in this order: G (Gap 8, closed), H (Gap 9, shipped scoped), F (Gaps 6–7), Gap 5's LCP re-measure, then D (Gap 3, custom RUM endpoint — launch has fired its trigger). Shipped without being recorded at the time, and reconciled the same day: Q and AA (2026-05-25), T (2026-05-26), BC (2026-06-14), AD and P (both with the [Start migration](tanstack-start-migration.md), 2026-07-27). Everything else open is listed per round in the bundling tables.
 
 Companion to [tanstack-start-migration.md](tanstack-start-migration.md). That note covers the structural gap (CSR vs SSR for a public portfolio). This note covers the smaller, mostly-independent items that don't need to wait for the migration.
 
@@ -163,6 +163,8 @@ Audit dimensions beyond the original 5 gaps: CSS modernization, library footprin
 
 **Closed 2026-10-01** without new work of its own: Gap 36 (Round 9) wrote the decision rule into [library-shortlist.md § Data visualization](library-shortlist.md) on 2026-06-14, and the shared theming source this gap asked for is V8's [chart-palette.ts](../../../apps/web/src/lib/chart-palette.ts), already required by the Charts row in [repo-conventions-web.md](../../repo-conventions-web.md). The only edit was a sentence in the shortlist pointing at that row. The token named below (`--chart-1`..`--chart-5`) is not the source; the semantic win/loss hex is deliberate, per Round 9's non-gaps.
 
+**Original gap text (kept for the rationale):**
+
 **Current state:** Recharts in 12 files (e.g. `MatchGoldLead`, `TrendKda`, `MatchLanePhase`), `@visx/*` in 11 files (chord, brush, heatmap, sankey, hexbin scales), `d3-hexbin`/`d3-sankey` directly in 2 files. All three carry independent D3 dependency trees.
 
 **KB floor:** No KB rule against multi-library charting — Recharts and visx serve different needs (Recharts: high-level declarative chart components; visx: low-level composable primitives where Recharts can't reach; d3-*: shape-specific layouts).
@@ -175,7 +177,15 @@ Audit dimensions beyond the original 5 gaps: CSS modernization, library footprin
 
 **Effort:** ~30 min docs only, no code. Sub-session.
 
-### Gap 9 — Mixed Radix import style (umbrella + scoped)
+### Gap 9 — Mixed Radix import style (umbrella + scoped) — SHIPPED 2026-10-01
+
+**Shipped 2026-10-01**, scoped as planned: six `ui/` files (`button`, `breadcrumb`, `select`, `separator`, `dropdown-menu`, `navigation-menu`) take namespace imports from their own `@radix-ui/react-*` package, five scoped deps replace `radix-ui`, and the lockfile shed ~40 primitives nothing imported. Three things worth keeping:
+
+- **The scoped direction fights the generator.** `components.json` is on shadcn's `radix-nova` style, which emits umbrella imports, so a component added with `shadcn add` arrives importing `radix-ui` and has to be rewritten to the scoped form, with its package added. The owner chose scoped anyway, since 151 files already imported that way against the umbrella's 6.
+- **Pin `@radix-ui/react-slot` exactly, never with a caret.** Radix pins its internal deps exactly (`react-primitive@2.1.8` and `react-dialog@1.1.21` both want `react-slot` `1.3.1`), and the umbrella's lockstep is what kept a direct import on the same copy. `^1.3.1` resolved to 1.3.3, which `cmdk` had only ever pulled into a lazy chunk, and put a second Slot into the initial JS for +1.5 kB gzipped. Any new direct scoped dep should match the version the other primitives resolve, which `pnpm why` shows.
+- **Initial JS stands at 253.47 / 255 kB gzipped, +0.72 kB on main, with identical modules.** The entry chunk's source list is unchanged and its raw size 25 B *smaller*. Rollup placed the navigation-menu block elsewhere in the chunk, and the new order compresses worse. That is gzip noise rather than code, but the budget has 1.5 kB of headroom left, and the next addition to the entry chunk should expect to pay for it.
+
+**Original gap text (kept for the rationale):**
 
 **Current state:** 103 files import via scoped packages (`@radix-ui/react-tooltip`, `@radix-ui/react-dialog`, etc.); 4 files import via the umbrella metapackage (`import { Slot } from "radix-ui"` in [button.tsx](../../../apps/web/src/components/ui/button.tsx#L2) and [breadcrumb.tsx](../../../apps/web/src/components/ui/breadcrumb.tsx#L1); similar in `separator.tsx`, `select.tsx`). Both `radix-ui` (umbrella) and 5 individual `@radix-ui/react-*` packages are in [package.json](../../../apps/web/package.json) dependencies.
 
@@ -195,7 +205,7 @@ Audit dimensions beyond the original 5 gaps: CSS modernization, library footprin
 |---|---|---|---|
 | **F — `color-scheme` + container-query pilot** | #6, #7 | ~1h | Ship now, can fold into Bundle A commit |
 | ~~**G — Charting decision tree (docs)**~~ | #8 | ~30 min | **CLOSED 2026-10-01** — covered by Gap 36 + V8, see Gap 8 |
-| **H — Radix import consolidation** | #9 | ~20 min | Ship now, separate commit |
+| ~~**H — Radix import consolidation**~~ | #9 | ~20 min | **SHIPPED 2026-10-01** — scoped; pin `react-slot` exactly, see Gap 9 |
 
 ### Round 2 non-gaps (worth knowing, no action)
 
