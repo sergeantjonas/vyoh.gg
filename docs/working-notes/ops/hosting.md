@@ -161,6 +161,8 @@ The `og:image` breakage this section flagged as the most user-visible symptom â€
 `WEB_ORIGIN` is a comma-separated allowlist, resolved by `resolveCorsOrigin()`
 in [`apps/api/src/env.ts`](../../../apps/api/src/env.ts). Apex and `www` are two
 origins to a browser even when Nginx serves them as one site, hence the list.
+Since 2026-10-01 Nginx answers `www` with a 301 to the apex, so no page loads
+from `www` and its entry in the list is inert.
 
 Unset, it falls back to the dev pattern (any `http://localhost:<port>`), which
 is why `bootstrap` **requires** the var under `NODE_ENV=production`. Without

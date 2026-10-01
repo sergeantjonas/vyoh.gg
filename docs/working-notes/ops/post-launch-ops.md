@@ -77,7 +77,7 @@ This is the general shape of the problem chunk 4 warns about, not a one-off: **a
 
 Landed the same evening it was scoped. `deploy.sh` now runs a second smoke from the laptop after the loopback one passes, against `VYOH_PUBLIC_WEB_URL` (default `https://vyoh.gg`), its `/robots.txt`, and `VYOH_PUBLIC_API_URL/health` (default `https://api.vyoh.gg`), and exits non-zero with a message that points at DNS, nginx, TLS or the firewall rather than at the containers.
 
-One deviation from the shape below: **`www` is not checked.** It resolves and answers 200 directly rather than redirecting, so it would work — but the public web URL is a single overridable variable, and deriving `www.` from it would break for a tenant that does not have that name. Two overridable origins beat three with one of them inferred.
+One deviation from the shape below: **`www` is not checked.** It resolved and answered 200 directly at the time rather than redirecting, so it would have worked — but the public web URL is a single overridable variable, and deriving `www.` from it would break for a tenant that does not have that name. Two overridable origins beat three with one of them inferred. Since 2026-10-01 `www` answers 301 to the apex instead, so a 200 check against it would now fail outright.
 
 The original scoping follows.
 
