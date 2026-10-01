@@ -1,6 +1,6 @@
 # Frontend-2026 KB gaps
 
-**Status:** Active — 36 gaps across nine rounds of evaluation against `~/.claude/knowledge/frontend-2026/`. Picked up 2026-10-01 in this order: G (Gap 8, closed), H (Gap 9, shipped scoped), F (Gaps 6 and 7 shipped), Gap 5 (closed after the re-measure: Steam row hint fixed, LCP image discovery is the open lever), then D (Gap 3, custom RUM endpoint): D1 ingest and D2 browser reporter shipped, D3 status card next. Shipped without being recorded at the time, and reconciled the same day: Q and AA (2026-05-25), T (2026-05-26), BC (2026-06-14), AD and P (both with the [Start migration](tanstack-start-migration.md), 2026-07-27). Everything else open is listed per round in the bundling tables.
+**Status:** Active — 36 gaps across nine rounds of evaluation against `~/.claude/knowledge/frontend-2026/`. Picked up 2026-10-01 in this order: G (Gap 8, closed), H (Gap 9, shipped scoped), F (Gaps 6 and 7 shipped), Gap 5 (closed after the re-measure: Steam row hint fixed, LCP image discovery is the open lever), then D (Gap 3, custom RUM endpoint), shipped in three chunks. Needs a deploy with the nginx steps in Gap 3, then the Steam-row LCP re-measure on production. Shipped without being recorded at the time, and reconciled the same day: Q and AA (2026-05-25), T (2026-05-26), BC (2026-06-14), AD and P (both with the [Start migration](tanstack-start-migration.md), 2026-07-27). Everything else open is listed per round in the bundling tables.
 
 Companion to [tanstack-start-migration.md](tanstack-start-migration.md). That note covers the structural gap (CSR vs SSR for a public portfolio). This note covers the smaller, mostly-independent items that don't need to wait for the migration.
 
@@ -48,7 +48,7 @@ Shipped in `build: enable react compiler on the web build` (0e8800c). Note for f
 
 ---
 
-## Gap 3 — Web-vitals → backend RUM — IN PROGRESS (D1 + D2 shipped 2026-10-01)
+## Gap 3 — Web-vitals → backend RUM — SHIPPED 2026-10-01 (D1–D3)
 
 **Promoted 2026-10-01**: launch fired the trigger, and the owner chose a custom endpoint over Sentry tracing. Sentry's browser SDK runs with tracing omitted, so nothing collects field vitals today. Three chunks:
 
@@ -61,7 +61,8 @@ Shipped in `build: enable react compiler on the web build` (0e8800c). Note for f
   - **Attribution:** every sample goes to the landing route's template, read once from `router.state` in the root layout's effect rather than through a `useRouterState` subscription, which would re-render the root on every navigation. LCP, FCP and TTFB only exist for the document load, and INP and CLS accumulate across the soft navigations after it, so the landing page is the only attribution the numbers support. The root's not-found match (`__root__`) is skipped because it names no page.
   - **Off the initial bundle:** the reporter is a dynamic `import()` after hydration, its own chunk, and production-only. That loses nothing, because `subscribeWebVitals` replays each metric's latest value to a late subscriber. Initial JS measured 253.06 / 255 kB with it in place. Skipped under `navigator.webdriver`, so this site's own headless probes stay out of the data.
   - **Verified end to end on a production build**, served by `server/index.ts` against a stub api that recorded `/rum` and proxied everything else to production. Headless Chromium and Firefox, with `webdriver` masked for the probe only, visited `/lol/vyoh/matches` at 1440 and `/steam/library` at 390. Each closed page produced one `text/plain;charset=UTF-8` beacon carrying the route template (the matches index route's id keeps its trailing slash, `/lol/$accountSlug/matches/`), the form factor and `navigate`. Chromium sent all five metrics. Firefox sent four, with no CLS, since it has no Layout Instability API. All four captured bodies pass the api's `RumBeaconDto` unchanged.
-- **D3 — the read side.** p75 per metric per route over seven days, and the sample count, as a shared response type, with a status-page card. It lists only routes the web's route tree knows, since the DTO cannot enforce that `route` is a template.
+- **D3 — the read side. Shipped 2026-10-01.** `GET /rum/summary` answers a shared `WebVitalsSummary`: p75, sample count and good share per landing route, form factor and metric over the last seven days, for groups of at least five samples. It is one `percentile_cont` aggregate in Postgres rather than rows shipped to Node, so the cost of a public read does not grow with the beacon count, and the service holds the result for five minutes behind a matching `Cache-Control`. The cutoff is computed in SQL (`now() AT TIME ZONE 'UTC'`) against the UTC wall clock Prisma writes, because a `Date` parameter would go through node-pg's handling of naive timestamps, which applies the process's offset. Probed against the local Postgres with untyped `PREPARE` parameters, the way Prisma sends them, inside a rolled-back transaction: an 8-day-old row is excluded, a 3-sample group is dropped, and p75 matches the hand calculation (3062.5).
+  - **The status-page card** (`status/field-vitals-card.tsx`) shows LCP, INP and CLS per page and device, each colored by web-vitals' own exported thresholds applied to the p75, with the good share and sample count beneath. FCP and TTFB are stored but not shown, because they explain an LCP rather than stand beside it. It lists only routes present in `router.routesById` (`Object.hasOwn`, not `in`), since the DTO cannot tell a template from any string in the same charset. An index route's trailing slash is dropped from the label.
 
 **Original gap text (kept for the rationale):**
 
@@ -143,7 +144,7 @@ Three conclusions:
 | ~~**A — head baseline + LCP fetchpriority**~~ | #1, #5 | ~1h | #1 SHIPPED 2026-05-23 (c6c3720); #5 CLOSED 2026-10-01 — re-measured, Steam row hint fixed, discovery is the open lever (see Gap 5) |
 | **B — React Compiler** | #2 | ~30min + verify | SHIPPED 2026-05-23 (0e8800c) |
 | **C — App-root + widget error boundaries** | #4 (app-root + widget) | ~1h | SHIPPED 2026-06-23 — app-root tier + widget primitives + palette/splash (commit 1, 2cbc25b3); `ChartBoundary` on 11 chart leaves (commit 2). Route tier (E) still folds into Start migration |
-| **D — RUM backend** | #3 | ~2h | **In progress** — D1 (ingest) and D2 (browser reporter) shipped 2026-10-01; D3 status card next |
+| ~~**D — RUM backend**~~ | #3 | ~2h | **SHIPPED 2026-10-01** — ingest, browser reporter and status-page card, see Gap 3 |
 | **E — Route-tier error boundaries** | #4 (remainder) | folds in | Bundled into [tanstack-start-migration.md](tanstack-start-migration.md) chunks 2–4 |
 
 Bundles A, B, C are independent and benefit the surfaces being built right now. None conflict with the parked Start migration.

@@ -3,7 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../prisma/prisma.service";
 import { RUM_MAX_ROWS, RumService } from "./rum.service";
 
-function makeService(opts: { boundary?: { recordedAt: Date } } = {}) {
+function makeService(
+  opts: { boundary?: { recordedAt: Date }; rows?: Record<string, unknown>[] } = {}
+) {
   const prisma = {
     $transaction: vi.fn(async (ops: unknown[]) => ops),
     webVitalSample: {
@@ -11,6 +13,7 @@ function makeService(opts: { boundary?: { recordedAt: Date } } = {}) {
       deleteMany: vi.fn().mockResolvedValue({ count: 3 }),
       findFirst: vi.fn().mockResolvedValue(opts.boundary ?? null),
     },
+    $queryRaw: vi.fn().mockResolvedValue(opts.rows ?? []),
   };
   return { service: new RumService(prisma as unknown as PrismaService), prisma };
 }
@@ -82,5 +85,42 @@ describe("RumService.prune", () => {
     expect(prisma.webVitalSample.deleteMany).toHaveBeenLastCalledWith({
       where: { recordedAt: { lte: boundary.recordedAt } },
     });
+  });
+});
+
+describe("RumService.summary", () => {
+  const rows = [
+    { route: "/", formFactor: "desktop", name: "LCP", p75: 2560, samples: 8, good: 2 },
+    { route: "/", formFactor: "desktop", name: "CLS", p75: 0.04, samples: 8, good: 8 },
+    { route: "/", formFactor: "mobile", name: "LCP", p75: 3100, samples: 5, good: 1 },
+  ];
+
+  it("folds the per-metric rows into one entry per page and form factor", async () => {
+    const { service } = makeService({ rows });
+    const summary = await service.summary(0);
+    expect(summary.routes).toEqual([
+      {
+        route: "/",
+        formFactor: "desktop",
+        metrics: {
+          LCP: { p75: 2560, samples: 8, goodShare: 0.25 },
+          CLS: { p75: 0.04, samples: 8, goodShare: 1 },
+        },
+      },
+      {
+        route: "/",
+        formFactor: "mobile",
+        metrics: { LCP: { p75: 3100, samples: 5, goodShare: 0.2 } },
+      },
+    ]);
+  });
+
+  it("answers from its copy for five minutes, then queries again", async () => {
+    const { service, prisma } = makeService({ rows });
+    await service.summary(0);
+    await service.summary(4 * 60_000);
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+    await service.summary(5 * 60_000);
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(2);
   });
 });

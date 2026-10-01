@@ -49,6 +49,8 @@ vi.mock("@/admin/curated-games-section", () => ({
 }));
 
 vi.mock("@/auth/use-viewer", () => ({ useIsOwner: vi.fn() }));
+// Its own query and its own test (field-vitals-card.test.tsx).
+vi.mock("./field-vitals-card", () => ({ FieldVitalsCard: () => null }));
 
 // The page renders no router-aware component beyond the sign-in link, so a
 // plain anchor is enough to assert where it points.

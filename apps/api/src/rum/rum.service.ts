@@ -1,6 +1,15 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import { RUM_RETENTION_DAYS, type RumBeacon } from "@vyoh/shared";
+import {
+  RUM_RETENTION_DAYS,
+  RUM_SUMMARY_MIN_SAMPLES,
+  RUM_SUMMARY_WINDOW_DAYS,
+  type RumBeacon,
+  type RumFormFactor,
+  type WebVitalName,
+  type WebVitalsRouteSummary,
+  type WebVitalsSummary,
+} from "@vyoh/shared";
 import { PrismaService } from "../prisma/prisma.service";
 
 const DAY_MS = 86_400_000;
@@ -11,9 +20,24 @@ const DAY_MS = 86_400_000;
 // table never runs more than an hour of capped inflow past it.
 export const RUM_MAX_ROWS = 500_000;
 
+// The summary is public and its query aggregates the whole window, so one
+// computation serves every visitor for this long.
+const SUMMARY_TTL_MS = 5 * 60_000;
+
+type SummaryRow = {
+  route: string;
+  formFactor: RumFormFactor;
+  name: WebVitalName;
+  p75: number;
+  samples: number;
+  good: number;
+};
+
 @Injectable()
 export class RumService {
   private readonly logger = new Logger(RumService.name);
+
+  private summaryCache: { at: number; value: WebVitalsSummary } | null = null;
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -30,6 +54,48 @@ export class RumService {
         })
       )
     );
+  }
+
+  async summary(now = Date.now()): Promise<WebVitalsSummary> {
+    if (this.summaryCache && now - this.summaryCache.at < SUMMARY_TTL_MS) {
+      return this.summaryCache.value;
+    }
+    // The cutoff is computed in SQL against the UTC wall clock Prisma writes,
+    // rather than passed in as a Date that node-pg would serialise with the
+    // process's offset.
+    const rows = await this.prisma.$queryRaw<SummaryRow[]>`
+      SELECT "route", "formFactor", "name",
+        percentile_cont(0.75) WITHIN GROUP (ORDER BY "value") AS p75,
+        count(*)::int AS samples,
+        (count(*) FILTER (WHERE "rating" = 'good'))::int AS good
+      FROM "WebVitalSample"
+      WHERE "recordedAt" > (now() AT TIME ZONE 'UTC') - make_interval(days => ${RUM_SUMMARY_WINDOW_DAYS})
+      GROUP BY "route", "formFactor", "name"
+      HAVING count(*) >= ${RUM_SUMMARY_MIN_SAMPLES}
+      ORDER BY "route", "formFactor"
+    `;
+    const byPage = new Map<string, WebVitalsRouteSummary>();
+    for (const row of rows) {
+      const key = `${row.route} ${row.formFactor}`;
+      const page = byPage.get(key) ?? {
+        route: row.route,
+        formFactor: row.formFactor,
+        metrics: {},
+      };
+      page.metrics[row.name] = {
+        p75: row.p75,
+        samples: row.samples,
+        goodShare: row.good / row.samples,
+      };
+      byPage.set(key, page);
+    }
+    const value: WebVitalsSummary = {
+      windowDays: RUM_SUMMARY_WINDOW_DAYS,
+      minSamples: RUM_SUMMARY_MIN_SAMPLES,
+      routes: [...byPage.values()],
+    };
+    this.summaryCache = { at: now, value };
+    return value;
   }
 
   @Cron(CronExpression.EVERY_HOUR, { name: "rum-prune" })

@@ -57,3 +57,27 @@ export type RumBeacon = {
   navigationType: WebVitalNavigationType;
   samples: WebVitalSample[];
 };
+
+// The read side: p75 per landing route, form factor and metric.
+export const RUM_SUMMARY_WINDOW_DAYS = 7;
+// Below this a percentile is one visitor's afternoon, not a measurement.
+export const RUM_SUMMARY_MIN_SAMPLES = 5;
+
+export type WebVitalP75 = {
+  p75: number;
+  samples: number;
+  /** Share of samples web-vitals itself rated "good", 0–1. */
+  goodShare: number;
+};
+
+export type WebVitalsRouteSummary = {
+  route: string;
+  formFactor: RumFormFactor;
+  metrics: Partial<Record<WebVitalName, WebVitalP75>>;
+};
+
+export type WebVitalsSummary = {
+  windowDays: number;
+  minSamples: number;
+  routes: WebVitalsRouteSummary[];
+};
