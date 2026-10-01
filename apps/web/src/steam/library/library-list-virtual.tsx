@@ -1,6 +1,5 @@
 import { VirtualizerStats } from "@/components/virtualizer-stats";
 import { mainScrollRef } from "@/lib/scroll-container";
-import { useMediaQuery } from "@/lib/use-media-query";
 import { useActiveGame } from "@/steam/library/active-game-context";
 import { LibraryRow } from "@/steam/library/library-row";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -8,21 +7,27 @@ import type { SteamOwnedGame } from "@vyoh/shared";
 import type { CSSProperties } from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-// Row footprint constants. Rows are a fixed-size shell (h-36 / sm:h-40 =
+// Row footprint constants. Rows are a fixed-size shell (h-36 / @xl:h-40 =
 // 144 / 160) inside an `<li>` with 8px padding-bottom, so the LI's
-// offsetHeight is 152 below `sm` and 168 from `sm` up. We pick the right
-// constant via media-query and feed it to the virtualizer as a static
-// estimate, deliberately NOT wiring `measureElement` — when rows are
-// uniform, dynamic measurement causes totalSize to drift after every
-// new row enters the window, the virtualizer rebases scrollTop to keep
+// offsetHeight is 152 below the shell's `@xl` container width and 168 from
+// it up. We pick the right constant from the list's own width and feed it to
+// the virtualizer as a static estimate, deliberately NOT wiring
+// `measureElement` — when rows are uniform, dynamic measurement causes
+// totalSize to drift after every new row enters the window, the virtualizer rebases scrollTop to keep
 // visible items anchored, and on a scroll-restored back-nav the saved
 // scrollTop ends up pointing at a different row than the user clicked
 // (because forward-visit measurements grew totalSize, but back-visit
 // starts at estimate again). Static estimate keeps the y-position of
 // every row deterministic across mounts, so save+restore round-trips
 // to the same visual position.
-const ROW_HEIGHT_BELOW_SM = 152;
-const ROW_HEIGHT_SM_UP = 168;
+const ROW_HEIGHT_NARROW = 152;
+const ROW_HEIGHT_WIDE = 168;
+// The shell's `@xl` breakpoint. Rows span the list edge to edge, so the
+// list's width is the width each row's container query sees. Kept in rem
+// because the container query's rem follows the root font size: a reader who
+// has raised their browser's default moves the CSS step, and this must move
+// with it.
+const ROW_WIDE_MIN_REM = 36;
 
 // Non-active rows fade down to this opacity during the back-nav settle
 // so the hero/logo morph reads cleanly against an emptier strip. The
@@ -60,11 +65,32 @@ export function LibraryListVirtual({
   useEffect(() => {
     isInitialMountRef.current = false;
   }, []);
-  // Match the row-shell's `sm:h-40` breakpoint. The two constants above
-  // give us the LI's offsetHeight at each tier, so the virtualizer's
-  // y-positions match the rows' actual layout without ever measuring.
-  const isSmUp = useMediaQuery("(min-width: 640px)");
-  const rowHeight = isSmUp ? ROW_HEIGHT_SM_UP : ROW_HEIGHT_BELOW_SM;
+  // The viewport stands in until the list has been measured. On this site's
+  // layouts it picks the tier the measurement will, so measuring usually
+  // changes nothing, and it has to be right on its own: the parent's back-nav
+  // restore reads the first commit's list height, before a measured tier
+  // could land in a second one.
+  const [wide, setWide] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(min-width: 40rem)").matches
+  );
+  // Measured before paint, not in an effect, so no frame is ever laid out on
+  // the wrong tier.
+  useLayoutEffect(() => {
+    const list = parentRef.current;
+    if (!list) return;
+    const remPx =
+      Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    const update = (width: number) => setWide(width >= ROW_WIDE_MIN_REM * remPx);
+    update(list.getBoundingClientRect().width);
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) update(entry.contentRect.width);
+    });
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, []);
+  const rowHeight = wide ? ROW_HEIGHT_WIDE : ROW_HEIGHT_NARROW;
 
   // The virtualizer treats `mainScrollRef` as the scroll element, so it
   // needs to know how far the list's top sits below the scroll container's
@@ -89,6 +115,17 @@ export function LibraryListVirtual({
     overscan: 4,
     getScrollElement: () => mainScrollRef.current,
   });
+
+  // The virtualizer reads `estimateSize` only when it rebuilds its
+  // measurements, and a changed estimate is not one of the things that
+  // triggers a rebuild. Without this, a resize or a phone rotation across the
+  // breakpoint leaves every row on the old stride, gapped or overlapping.
+  const measuredRowHeightRef = useRef(rowHeight);
+  useLayoutEffect(() => {
+    if (measuredRowHeightRef.current === rowHeight) return;
+    measuredRowHeightRef.current = rowHeight;
+    virtualizer.measure();
+  }, [virtualizer, rowHeight]);
 
   // Cold-arrival scroll-to-row: on a direct deep-link to
   // /steam/library/$appid (no preceding row click) the panel route writes

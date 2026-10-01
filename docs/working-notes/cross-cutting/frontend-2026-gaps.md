@@ -1,6 +1,6 @@
 # Frontend-2026 KB gaps
 
-**Status:** Active — 36 gaps across nine rounds of evaluation against `~/.claude/knowledge/frontend-2026/`. Picked up 2026-10-01 in this order: G (Gap 8, closed), H (Gap 9, shipped scoped), F (Gap 6 shipped, Gap 7's container-query pilot open), Gap 5's LCP re-measure, then D (Gap 3, custom RUM endpoint — launch has fired its trigger). Shipped without being recorded at the time, and reconciled the same day: Q and AA (2026-05-25), T (2026-05-26), BC (2026-06-14), AD and P (both with the [Start migration](tanstack-start-migration.md), 2026-07-27). Everything else open is listed per round in the bundling tables.
+**Status:** Active — 36 gaps across nine rounds of evaluation against `~/.claude/knowledge/frontend-2026/`. Picked up 2026-10-01 in this order: G (Gap 8, closed), H (Gap 9, shipped scoped), F (Gaps 6 and 7 shipped), Gap 5's LCP re-measure, then D (Gap 3, custom RUM endpoint — launch has fired its trigger). Shipped without being recorded at the time, and reconciled the same day: Q and AA (2026-05-25), T (2026-05-26), BC (2026-06-14), AD and P (both with the [Start migration](tanstack-start-migration.md), 2026-07-27). Everything else open is listed per round in the bundling tables.
 
 Companion to [tanstack-start-migration.md](tanstack-start-migration.md). That note covers the structural gap (CSR vs SSR for a public portfolio). This note covers the smaller, mostly-independent items that don't need to wait for the migration.
 
@@ -149,7 +149,23 @@ Audit dimensions beyond the original 5 gaps: CSS modernization, library footprin
 
 **Effort:** ~5 min. Folds into Bundle A or ships standalone.
 
-### Gap 7 — Container queries unused (0 sites across 509 ts/tsx files)
+### Gap 7 — Container queries unused (0 sites across 509 ts/tsx files) — PILOT SHIPPED 2026-10-01
+
+**Pilot shipped 2026-10-01** on `SteamGameRowShell` ([steam-game-row.tsx](../../../apps/web/src/steam/_shared/steam-game-row.tsx)), the row both `/steam/library` and `/steam/wishlist` render. Its seven `sm:` steps (height, padding, wordmark size, logo bounds, meta and trailing positions) became `@xl:` (36rem) against an `@container` wrapper. The threshold is today's step re-expressed: in the public view both routes render the row at viewport − 68 px (the owner's wishlist row is narrower by its hide button), so `sm` at 640 was a 572 px row and `@xl` steps at 576. Prod-vs-branch screenshots of the first row are identical at 1440 and 390.
+
+**No mis-layout existed to fix, so the pilot is architectural.** Three candidates were checked and failed. The wishlist list is the page's main column, not a narrow panel. The slide panel (`max-w-4xl`) would mis-key `lg:`/`xl:` classes, but no panel content uses any. And the portrait's chip band, which the portrait note describes as CSS columns, is a grid of rows now ([chip-band.tsx](../../../apps/web/src/steam/portrait/chip-band.tsx)). The Steam row won as the one shell rendered by two routes.
+
+What the pilot established, for the next one:
+
+- **The query container is a wrapper, never the element being sized.** An element cannot query itself, and the row's height step lives on the card, so the shell gained one `<div className="@container">`. No consumer passed `className`, so nothing outside moved.
+- **Any JS that hardcodes a CSS breakpoint has to move to the same key.** `library-list-virtual` feeds TanStack Virtual a static row height, picked by `useMediaQuery("(min-width: 640px)")`. Left alone, it would disagree with a container-keyed row. It now reads the `<ul>`'s own width in a layout effect plus a `ResizeObserver`, since rows span the list edge to edge, against `ROW_WIDE_MIN_REM = 36`. The threshold is in rem and resolved against the root font size, because that is what the container query's rem follows. The read has to happen before paint, which is why the existing `useElementWidth` (it measures in an effect and reads 0 first) does not fit. And the first commit still guesses from the viewport (`(min-width: 40rem)`, the old query): the parent's back-nav restore reads that commit's list height before any measurement can land, so a default of 0 would clamp a saved position near the end of the list.
+- **TanStack Virtual does not rebuild on a changed `estimateSize`.** `getMeasurementOptions` memoizes on count, padding, `scrollMargin`, key and lanes, not on the estimate. So this was already broken on production before the pilot: a resize from 700 to 600 px left 152 px rows on the 168 px stride, with 16 px gaps (probe 2026-10-01). The opposite direction, including a phone rotating to landscape, overlapped them. The list now calls `virtualizer.measure()` in a layout effect when the height tier changes. Verified in headless Chromium and Firefox against the production api: row height and stride agree at 390 / 600 / 643 / 645 / 700 / 1440 and across live resizes in both directions.
+
+**Found, not fixed:** the library list's first-paint cascade (`data-mount-stagger` on the first eight rows) never paints on production. A MutationObserver probe on 2026-10-01 counted zero stamped rows at 1440 and 390. `scrollMargin` is set in a layout effect on every mount, React flushes passive effects before that sync re-render, and the effect that clears `isInitialMountRef` runs first, so the second commit renders unstamped before anything paints. The tier state here is seeded from the viewport precisely so the pilot adds no second re-render of its own.
+
+**Not converted, deliberately:** `library-grid-virtual` still picks its lane count from the viewport, and nothing else in the app moved to container queries. Extend the pattern when a component is actually placed in a second width context, not in a sweep.
+
+**Original gap text (kept for the rationale):**
 
 **Current state:** `ugrep -r "@container|container-type|cqi"` returns zero hits. All responsive layout in the app is viewport-keyed via Tailwind breakpoint utilities (`md:`, `lg:`, etc.).
 
@@ -207,7 +223,7 @@ Audit dimensions beyond the original 5 gaps: CSS modernization, library footprin
 
 | Bundle | Gaps | Effort | Slot |
 |---|---|---|---|
-| **F — `color-scheme` + container-query pilot** | #6, #7 | ~1h | #6 **SHIPPED 2026-10-01** (`dark`, not `light dark`); #7 pilot next |
+| **F — `color-scheme` + container-query pilot** | #6, #7 | ~1h | #6 **SHIPPED 2026-10-01** (`dark`, not `light dark`); #7 pilot **SHIPPED 2026-10-01** on the Steam row shell |
 | ~~**G — Charting decision tree (docs)**~~ | #8 | ~30 min | **CLOSED 2026-10-01** — covered by Gap 36 + V8, see Gap 8 |
 | ~~**H — Radix import consolidation**~~ | #9 | ~20 min | **SHIPPED 2026-10-01** — scoped; pin `react-slot` exactly, see Gap 9 |
 

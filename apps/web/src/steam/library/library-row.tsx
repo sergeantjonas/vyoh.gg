@@ -107,7 +107,7 @@ export function LibraryRow({
     const logoEl = logoRef.current;
     const liEl = liRef.current;
     if (!heroEl) return;
-    // Morph the WHOLE row chrome (the `h-36 / sm:h-40` div) rather than
+    // Morph the WHOLE row chrome (the `h-36 / @xl:h-40` div) rather than
     // just the hero img. Earlier iterations transformed the hero only and
     // left the chrome's gradient/sheen/logo/meta siblings in place at the
     // natural row slot — the user saw the hero img sliding past the
