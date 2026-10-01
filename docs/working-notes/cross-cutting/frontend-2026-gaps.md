@@ -1,6 +1,6 @@
 # Frontend-2026 KB gaps
 
-**Status:** Active — five small gaps surfaced by the 2026-05-22 evaluation against `~/.claude/knowledge/frontend-2026/`. Gaps 1, 2 and 4 shipped (4's route tier landed with the [Start migration](tanstack-start-migration.md) on 2026-07-27); Gap 5 is pending a re-measure; Gap 3 (RUM backend) waits for launch — see [pre-launch-sweep.md § Post-launch](../ops/pre-launch-sweep.md).
+**Status:** Active — 36 gaps across nine rounds of evaluation against `~/.claude/knowledge/frontend-2026/`. Picked up 2026-10-01 in this order: G (Gap 8, closed), H (Gap 9, shipped scoped), F (Gaps 6 and 7 shipped), Gap 5 (closed after the re-measure: Steam row hint fixed, LCP image discovery is the open lever), then D (Gap 3, custom RUM endpoint), shipped in three chunks. Needs a deploy with the nginx steps in Gap 3, then the Steam-row LCP re-measure on production. Shipped without being recorded at the time, and reconciled the same day: Q and AA (2026-05-25), T (2026-05-26), BC (2026-06-14), AD and P (both with the [Start migration](tanstack-start-migration.md), 2026-07-27). Everything else open is listed per round in the bundling tables.
 
 Companion to [tanstack-start-migration.md](tanstack-start-migration.md). That note covers the structural gap (CSR vs SSR for a public portfolio). This note covers the smaller, mostly-independent items that don't need to wait for the migration.
 
@@ -48,7 +48,24 @@ Shipped in `build: enable react compiler on the web build` (0e8800c). Note for f
 
 ---
 
-## Gap 3 — Web-vitals → backend RUM
+## Gap 3 — Web-vitals → backend RUM — SHIPPED 2026-10-01 (D1–D3)
+
+**Promoted 2026-10-01**: launch fired the trigger, and the owner chose a custom endpoint over Sentry tracing. Sentry's browser SDK runs with tracing omitted, so nothing collects field vitals today. Three chunks:
+
+- **D1 — ingest. Shipped 2026-10-01.** `POST /rum` in `apps/api/src/rum/` answers 204 and upserts each sample into `WebVitalSample`, keyed by web-vitals' own metric id, so a CLS or INP value re-reported on a later visibility change overwrites rather than counts twice (Prisma issues a native `ON CONFLICT … DO UPDATE`, so two beacons in flight do not race). The contract lives in `packages/shared/src/rum.ts`: the five metric names, ratings and navigation types mirrored from web-vitals 6, a mobile/desktop form factor, and the landing route as the reporter sends it, a route *template* (`/lol/$accountSlug/matches`). The table stores no IP, user agent or session; nginx's access log records the first two for this route as for every other.
+  - **Why `text/plain`:** `navigator.sendBeacon` cannot post `application/json` cross-origin, because that type needs a preflight and a beacon never makes one. So the browser sends the JSON as text, which Nest's global parsers leave unread. `body-parser`'s `text()` plus a `JSON.parse` step run as module middleware for this one route, so no other route starts accepting a text body, and the global `ValidationPipe` then validates an object like any DTO. body-parser's own failures (413, 415, 400) are re-thrown as `HttpException`s: Nest's filter does not recognise http-errors and would have answered, logged and reported them as 500s. A gzip body that inflates past the limit gets through nginx's size cap, so that path is reachable by anyone. `rum.http.spec.ts` is the api's first spec over real HTTP, with the production catch-all filter installed: the middleware is the part that would fail silently, and only a real request reaches it.
+  - **What the DTO does and does not enforce:** the metric id's exact shape (it becomes the primary key), values within 0–600 000, and a route of at most 120 characters from a template's charset. It cannot tell a template from a pathname that happens to fit that charset (`/steam/game/570` passes), so D3 must display only routes the web's route tree knows.
+  - **Bounds on an anonymous write:** a 4 kB body limit at nginx and again in the api, and two nginx zones on a case-insensitive `location ~* ^/rum/?$`. The match is a regex, not `= /rum`, because Express routes `/RUM` and `/rum/` to the same handler and an exact match let both fall through to `location /`'s 10 r/s and 1 MB body (found in review, confirmed in a container). `vyoh_api_rum` allows 2 r/min per address with a burst of 10; `vyoh_api_rum_all` allows 1 r/s for the whole site, because the per-address zone does nothing against a caller rotating IPv6 addresses. Behind both, an hourly `rum-prune` cron deletes samples past 90 days and anything past a 500 000-row ceiling (`RUM_MAX_ROWS`), so the table never runs more than an hour of capped inflow over it. It is the api's first retention job. Verified in `nginx:1.27-alpine` against the real config files with a stub upstream: `nginx -t` passes; `/rum`, `/RUM`, `/rum/`, `/Rum/` and `/rum?x=1` share one zone (11 × 204, then 429 across all of them); a 5 kB body to `/RUM` is a 413 at nginx; `/rumx` and other routes are untouched.
+  - **Deploy — do not `cp` the vhost.** The migration applies at boot like every other. For nginx, follow the trap in [post-launch-ops.md § nginx zone names](../ops/post-launch-ops.md): certbot rewrote the installed `api.vyoh.gg.conf` to add TLS, so copying the repo's version over it drops TLS. Install `vyoh-cache.conf` to `conf.d/` (it declares both new zones), add the `location ~* ^/rum/?$` block to the installed vhost by hand, then `sudo nginx -t && sudo systemctl reload nginx`.
+- **D2 — the browser reporter. Shipped 2026-10-01.** [rum-reporter.ts](../../../apps/web/src/lib/rum-reporter.ts) subscribes to `lib/web-vitals.ts`'s existing pub/sub, keeps the latest value per metric id, and on `visibilitychange` → hidden and on `pagehide` beacons only what changed since the last beacon, one batch per navigation type (a bfcache restore starts new metrics under its own type). A value whose beacon the browser refuses stays pending for the next hide.
+  - **Attribution:** every sample goes to the landing route's template, read once from `router.state` in the root layout's effect rather than through a `useRouterState` subscription, which would re-render the root on every navigation. LCP, FCP and TTFB only exist for the document load, and INP and CLS accumulate across the soft navigations after it, so the landing page is the only attribution the numbers support. The root's not-found match (`__root__`) is skipped because it names no page.
+  - **Off the initial bundle:** the reporter is a dynamic `import()` after hydration, its own chunk, and production-only. That loses nothing, because `subscribeWebVitals` replays each metric's latest value to a late subscriber. Initial JS measured 253.06 / 255 kB with it in place. Skipped under `navigator.webdriver`, so this site's own headless probes stay out of the data.
+  - **Verified end to end on a production build**, served by `server/index.ts` against a stub api that recorded `/rum` and proxied everything else to production. Headless Chromium and Firefox, with `webdriver` masked for the probe only, visited `/lol/vyoh/matches` at 1440 and `/steam/library` at 390. Each closed page produced one `text/plain;charset=UTF-8` beacon carrying the route template (the matches index route's id keeps its trailing slash, `/lol/$accountSlug/matches/`), the form factor and `navigate`. Chromium sent all five metrics. Firefox sent four, with no CLS, since it has no Layout Instability API. All four captured bodies pass the api's `RumBeaconDto` unchanged.
+- **D3 — the read side. Shipped 2026-10-01.** `GET /rum/summary` answers a shared `WebVitalsSummary`: p75, sample count and good share per landing route, form factor and metric over the last seven days, for groups of at least five samples. It is one `percentile_cont` aggregate in Postgres rather than rows shipped to Node, so the cost of a public read does not grow with the beacon count, and the service holds the result for five minutes behind a matching `Cache-Control`. The cutoff is computed in SQL (`now() AT TIME ZONE 'UTC'`) against the UTC wall clock Prisma writes, because a `Date` parameter would go through node-pg's handling of naive timestamps, which applies the process's offset. Probed against the local Postgres with untyped `PREPARE` parameters, the way Prisma sends them, inside a rolled-back transaction: an 8-day-old row is excluded, a 3-sample group is dropped, and p75 matches the hand calculation (3062.5).
+  - **The status-page card** (`status/field-vitals-card.tsx`) shows LCP, INP and CLS per page and device, each colored by web-vitals' own exported thresholds applied to the p75, with the good share and sample count beneath. FCP and TTFB are stored but not shown, because they explain an LCP rather than stand beside it. It lists only routes present in `router.routesById` (`Object.hasOwn`, not `in`), since the DTO cannot tell a template from any string in the same charset. An index route's trailing slash is dropped from the label.
+
+**Original gap text (kept for the rationale):**
+
 
 **Current state:** [apps/web/src/lib/web-vitals.ts](../../../apps/web/src/lib/web-vitals.ts) has pub/sub plumbing wired from [apps/web/src/routes/__root.tsx](../../../apps/web/src/routes/__root.tsx) (was `main.tsx` until the Start migration, 2026-07-26). Only `consoleReporter` subscribes. No POST, no persistence, no alerting.
 
@@ -85,7 +102,26 @@ Route tier folds into [tanstack-start-migration.md](tanstack-start-migration.md)
 
 ---
 
-## Gap 5 — `fetchpriority="high"` on the *actual* LCP element (corrected 2026-05-22)
+## Gap 5 — `fetchpriority="high"` on the *actual* LCP element (corrected 2026-05-22) — CLOSED 2026-10-01; the real lever is discovery
+
+**Re-measured 2026-10-01 against production** with a headless Chromium LCP probe (PerformanceObserver, one cold context per route, 1440 × 900, no throttling, TTFB 0.16–0.20 s):
+
+| Route | LCP element | Hint | LCP (cold) | Image request starts |
+|---|---|---|---|---|
+| `/` | the orb SVG | none, React preloads it | 2.56 s | 0.17 s (done by 0.88 s) |
+| `/lol/vyoh` | identity-hero champion splash | `high`, the only one | 2.26 s | 1.30 s |
+| `/lol/vyoh/matches` | decorative splash backdrop | `low`, deliberately | 2.05 s | 1.44 s |
+| `/steam` | identity-hero game art | `high`, the only one | 1.14 s (warm) | — |
+| `/steam/library` | a library row hero | `high` on **every** row (8) | 1.96 s | 1.21 s |
+| `/steam/wishlist` | the intro paragraph | `high` on **every** row (43) | 0.34 s | — |
+
+Three conclusions:
+
+- **The hint was already right where it mattered.** `/lol/$slug` and `/steam` carry exactly one `high`, on their LCP image. The other four in-code `fetchPriority = "high"` sites are off-DOM `new Image()` prefetches of a panel destination's art (match-row, champion-table, profile-backdrop, splash-backdrop), deliberate and not competing with the page's own LCP.
+- **The one misuse was the Steam row, fixed 2026-10-01.** `SteamGameRowShell` set `fetchPriority="high"` on every row, along with `loading="lazy"`. A `priority` prop now makes the first row eager and `high` and leaves every other row lazy at the default priority. On the branch dev server that took `/steam/library` from 8 to 1 and `/steam/wishlist` from 43 to 2, where the second is React 19's own `<link rel="preload" fetchpriority="high">` for the same image. The server renderer emits it for the wishlist, whose list is in the SSR shell, and has nothing to emit for the library, whose virtualized list only renders on the client. On the library the in-view rows are the same size, so LCP goes to whichever paints first. Eight hints could not pick one; one can. **Re-run the probe on production after this deploys**; dev-server timings are not comparable.
+- **Discovery, not priority, is what costs the image routes about a second.** None of the image LCP elements are in the server HTML. React 19 preloads the images that *are* in the shell (profile icon, rank emblem, orb), but the splash, the backdrop and the row heroes render only after hydration, so their requests start at 1.2–1.4 s against a 0.2 s TTFB. Getting the LCP image into the server render, or into a `head()` preload from loader data, is the lever. It is its own arc because the splash is a shell fixture (`SplashProvider`) with a visual-parity constraint, not a hint change. `/` is a third case again: the orb's bytes arrive by 0.88 s and it paints at 2.56 s, so its LCP is the entrance animation's delay, which no network hint can move.
+
+**Original gap text (kept for the rationale):**
 
 **Correction:** The original framing assumed the splash backdrop is the LCP hero. Reading [splash-backdrop.tsx:142](../../../apps/web/src/lol/_shared/assets/splash-backdrop.tsx#L142) shows it already carries `fetchPriority="low"` and renders at `opacity: 0.2` behind a blurhash placeholder. It is deliberately decorative — not the LCP candidate. Leaving it `low` is correct.
 
@@ -105,10 +141,10 @@ Route tier folds into [tanstack-start-migration.md](tanstack-start-migration.md)
 
 | Bundle | Gaps | Effort | Slot |
 |---|---|---|---|
-| **A — head baseline + LCP fetchpriority** | #1, #5 | ~1h | #1 SHIPPED 2026-05-23 (c6c3720); #5 still pending LCP re-measure |
+| ~~**A — head baseline + LCP fetchpriority**~~ | #1, #5 | ~1h | #1 SHIPPED 2026-05-23 (c6c3720); #5 CLOSED 2026-10-01 — re-measured, Steam row hint fixed, discovery is the open lever (see Gap 5) |
 | **B — React Compiler** | #2 | ~30min + verify | SHIPPED 2026-05-23 (0e8800c) |
 | **C — App-root + widget error boundaries** | #4 (app-root + widget) | ~1h | SHIPPED 2026-06-23 — app-root tier + widget primitives + palette/splash (commit 1, 2cbc25b3); `ChartBoundary` on 11 chart leaves (commit 2). Route tier (E) still folds into Start migration |
-| **D — RUM backend** | #3 | ~2h | Post-launch trigger |
+| ~~**D — RUM backend**~~ | #3 | ~2h | **SHIPPED 2026-10-01** — ingest, browser reporter and status-page card, see Gap 3 |
 | **E — Route-tier error boundaries** | #4 (remainder) | folds in | Bundled into [tanstack-start-migration.md](tanstack-start-migration.md) chunks 2–4 |
 
 Bundles A, B, C are independent and benefit the surfaces being built right now. None conflict with the parked Start migration.
@@ -131,7 +167,11 @@ Bundles A, B, C are independent and benefit the surfaces being built right now. 
 
 Audit dimensions beyond the original 5 gaps: CSS modernization, library footprint, design-token wiring. Same recommendation shape (motivation / tension / effort / slot).
 
-### Gap 6 — `color-scheme` declaration missing
+### Gap 6 — `color-scheme` declaration missing — SHIPPED 2026-10-01
+
+**Shipped 2026-10-01** as `color-scheme: dark` on `.dark` in [index.css](../../../apps/web/src/index.css), plus a `<meta name="color-scheme" content="dark">` in the root `head()` so the canvas is dark before the stylesheet arrives. The value is `dark` rather than the `light dark` this gap prescribed, because `<html>` carries `.dark` unconditionally (the app is dark-only): `light dark` would let a light-mode OS paint native controls light on a dark page, which is the bug. A headless probe of the same controls on the app's background in Chromium and Firefox showed what changes: unchecked native checkboxes (serious-queues settings, Steam preferences, the admin dialog) go from white squares to dark ones, and on the two without an `accent-*` class Chromium's checked tick moves to its dark-mode blue. The audio-volume range keeps its `accent-primary` thumb and fill; only the unfilled track, which `accent-color` does not reach, follows the scheme. Search, number and `<select>` fields barely change, because their backgrounds are already transparent.
+
+**Original gap text (kept for the rationale):**
 
 **Current state:** [apps/web/src/index.css](../../../apps/web/src/index.css) sets `:root` and `.dark` design tokens in OKLCH but never declares `color-scheme`. Class-based dark mode (`@custom-variant dark (&:is(.dark *))`) handles the manual toggle.
 
@@ -145,7 +185,23 @@ Audit dimensions beyond the original 5 gaps: CSS modernization, library footprin
 
 **Effort:** ~5 min. Folds into Bundle A or ships standalone.
 
-### Gap 7 — Container queries unused (0 sites across 509 ts/tsx files)
+### Gap 7 — Container queries unused (0 sites across 509 ts/tsx files) — PILOT SHIPPED 2026-10-01
+
+**Pilot shipped 2026-10-01** on `SteamGameRowShell` ([steam-game-row.tsx](../../../apps/web/src/steam/_shared/steam-game-row.tsx)), the row both `/steam/library` and `/steam/wishlist` render. Its seven `sm:` steps (height, padding, wordmark size, logo bounds, meta and trailing positions) became `@xl:` (36rem) against an `@container` wrapper. The threshold is today's step re-expressed: in the public view both routes render the row at viewport − 68 px (the owner's wishlist row is narrower by its hide button), so `sm` at 640 was a 572 px row and `@xl` steps at 576. Prod-vs-branch screenshots of the first row are identical at 1440 and 390.
+
+**No mis-layout existed to fix, so the pilot is architectural.** Three candidates were checked and failed. The wishlist list is the page's main column, not a narrow panel. The slide panel (`max-w-4xl`) would mis-key `lg:`/`xl:` classes, but no panel content uses any. And the portrait's chip band, which the portrait note describes as CSS columns, is a grid of rows now ([chip-band.tsx](../../../apps/web/src/steam/portrait/chip-band.tsx)). The Steam row won as the one shell rendered by two routes.
+
+What the pilot established, for the next one:
+
+- **The query container is a wrapper, never the element being sized.** An element cannot query itself, and the row's height step lives on the card, so the shell gained one `<div className="@container">`. No consumer passed `className`, so nothing outside moved.
+- **Any JS that hardcodes a CSS breakpoint has to move to the same key.** `library-list-virtual` feeds TanStack Virtual a static row height, picked by `useMediaQuery("(min-width: 640px)")`. Left alone, it would disagree with a container-keyed row. It now reads the `<ul>`'s own width in a layout effect plus a `ResizeObserver`, since rows span the list edge to edge, against `ROW_WIDE_MIN_REM = 36`. The threshold is in rem and resolved against the root font size, because that is what the container query's rem follows. The read has to happen before paint, which is why the existing `useElementWidth` (it measures in an effect and reads 0 first) does not fit. And the first commit still guesses from the viewport (`(min-width: 40rem)`, the old query): the parent's back-nav restore reads that commit's list height before any measurement can land, so a default of 0 would clamp a saved position near the end of the list.
+- **TanStack Virtual does not rebuild on a changed `estimateSize`.** `getMeasurementOptions` memoizes on count, padding, `scrollMargin`, key and lanes, not on the estimate. So this was already broken on production before the pilot: a resize from 700 to 600 px left 152 px rows on the 168 px stride, with 16 px gaps (probe 2026-10-01). The opposite direction, including a phone rotating to landscape, overlapped them. The list now calls `virtualizer.measure()` in a layout effect when the height tier changes. Verified in headless Chromium and Firefox against the production api: row height and stride agree at 390 / 600 / 643 / 645 / 700 / 1440 and across live resizes in both directions.
+
+**Found, not fixed:** the library list's first-paint cascade (`data-mount-stagger` on the first eight rows) never paints on production. A MutationObserver probe on 2026-10-01 counted zero stamped rows at 1440 and 390. `scrollMargin` is set in a layout effect on every mount, React flushes passive effects before that sync re-render, and the effect that clears `isInitialMountRef` runs first, so the second commit renders unstamped before anything paints. The tier state here is seeded from the viewport precisely so the pilot adds no second re-render of its own.
+
+**Not converted, deliberately:** `library-grid-virtual` still picks its lane count from the viewport, and nothing else in the app moved to container queries. Extend the pattern when a component is actually placed in a second width context, not in a sweep.
+
+**Original gap text (kept for the rationale):**
 
 **Current state:** `ugrep -r "@container|container-type|cqi"` returns zero hits. All responsive layout in the app is viewport-keyed via Tailwind breakpoint utilities (`md:`, `lg:`, etc.).
 
@@ -159,7 +215,11 @@ Audit dimensions beyond the original 5 gaps: CSS modernization, library footprin
 
 **Effort:** ~1h for one demonstrable case + a working-note entry establishing the pattern. Sub-session.
 
-### Gap 8 — Three charting stacks, no decision tree
+### Gap 8 — Three charting stacks, no decision tree — CLOSED 2026-10-01
+
+**Closed 2026-10-01** without new work of its own: Gap 36 (Round 9) wrote the decision rule into [library-shortlist.md § Data visualization](library-shortlist.md) on 2026-06-14, and the shared theming source this gap asked for is V8's [chart-palette.ts](../../../apps/web/src/lib/chart-palette.ts), already required by the Charts row in [repo-conventions-web.md](../../repo-conventions-web.md). The only edit was a sentence in the shortlist pointing at that row. The token named below (`--chart-1`..`--chart-5`) is not the source; the semantic win/loss hex is deliberate, per Round 9's non-gaps.
+
+**Original gap text (kept for the rationale):**
 
 **Current state:** Recharts in 12 files (e.g. `MatchGoldLead`, `TrendKda`, `MatchLanePhase`), `@visx/*` in 11 files (chord, brush, heatmap, sankey, hexbin scales), `d3-hexbin`/`d3-sankey` directly in 2 files. All three carry independent D3 dependency trees.
 
@@ -173,7 +233,15 @@ Audit dimensions beyond the original 5 gaps: CSS modernization, library footprin
 
 **Effort:** ~30 min docs only, no code. Sub-session.
 
-### Gap 9 — Mixed Radix import style (umbrella + scoped)
+### Gap 9 — Mixed Radix import style (umbrella + scoped) — SHIPPED 2026-10-01
+
+**Shipped 2026-10-01**, scoped as planned: six `ui/` files (`button`, `breadcrumb`, `select`, `separator`, `dropdown-menu`, `navigation-menu`) take namespace imports from their own `@radix-ui/react-*` package, five scoped deps replace `radix-ui`, and the lockfile shed ~40 primitives nothing imported. Three things worth keeping:
+
+- **The scoped direction fights the generator.** `components.json` is on shadcn's `radix-nova` style, which emits umbrella imports, so a component added with `shadcn add` arrives importing `radix-ui` and has to be rewritten to the scoped form, with its package added. The owner chose scoped anyway, since 151 files already imported that way against the umbrella's 6.
+- **Pin `@radix-ui/react-slot` exactly, never with a caret.** Radix pins its internal deps exactly (`react-primitive@2.1.8` and `react-dialog@1.1.21` both want `react-slot` `1.3.1`), and the umbrella's lockstep is what kept a direct import on the same copy. `^1.3.1` resolved to 1.3.3, which `cmdk` had only ever pulled into a lazy chunk, and put a second Slot into the initial JS for +1.5 kB gzipped. Any new direct scoped dep should match the version the other primitives resolve, which `pnpm why` shows.
+- **Initial JS stands at 253.47 / 255 kB gzipped, +0.72 kB on main, with identical modules.** The entry chunk's source list is unchanged and its raw size 25 B *smaller*. Rollup placed the navigation-menu block elsewhere in the chunk, and the new order compresses worse. That is gzip noise rather than code, but the budget has 1.5 kB of headroom left, and the next addition to the entry chunk should expect to pay for it.
+
+**Original gap text (kept for the rationale):**
 
 **Current state:** 103 files import via scoped packages (`@radix-ui/react-tooltip`, `@radix-ui/react-dialog`, etc.); 4 files import via the umbrella metapackage (`import { Slot } from "radix-ui"` in [button.tsx](../../../apps/web/src/components/ui/button.tsx#L2) and [breadcrumb.tsx](../../../apps/web/src/components/ui/breadcrumb.tsx#L1); similar in `separator.tsx`, `select.tsx`). Both `radix-ui` (umbrella) and 5 individual `@radix-ui/react-*` packages are in [package.json](../../../apps/web/package.json) dependencies.
 
@@ -191,9 +259,9 @@ Audit dimensions beyond the original 5 gaps: CSS modernization, library footprin
 
 | Bundle | Gaps | Effort | Slot |
 |---|---|---|---|
-| **F — `color-scheme` + container-query pilot** | #6, #7 | ~1h | Ship now, can fold into Bundle A commit |
-| **G — Charting decision tree (docs)** | #8 | ~30 min | Ship anytime; docs-only |
-| **H — Radix import consolidation** | #9 | ~20 min | Ship now, separate commit |
+| **F — `color-scheme` + container-query pilot** | #6, #7 | ~1h | #6 **SHIPPED 2026-10-01** (`dark`, not `light dark`); #7 pilot **SHIPPED 2026-10-01** on the Steam row shell |
+| ~~**G — Charting decision tree (docs)**~~ | #8 | ~30 min | **CLOSED 2026-10-01** — covered by Gap 36 + V8, see Gap 8 |
+| ~~**H — Radix import consolidation**~~ | #9 | ~20 min | **SHIPPED 2026-10-01** — scoped; pin `react-slot` exactly, see Gap 9 |
 
 ### Round 2 non-gaps (worth knowing, no action)
 
@@ -328,7 +396,7 @@ For patch-stable data, `staleTime: Infinity` (or a multi-hour value paired with 
 
 Audit focus: `05-frameworks.md` against the project's TanStack Router / Vite SPA shape. The structural framework-choice question (SPA → SSR via TanStack Start) is already owned by [tanstack-start-migration.md](tanstack-start-migration.md) — Round 5 does **not** re-litigate it. Instead it audits the project's adoption of the TanStack Router idioms the KB rubric calls out as best-in-class: typed search params (strong adoption, no gap), route loaders (zero adoption, Gap 15), per-route `head()` for SEO (one site, Gap 16). Both ship-now gaps are migration-safe — they are exactly the surfaces the eventual Start migration will lift, so doing them now de-risks the migration rather than creating throwaway work.
 
-### Gap 15 — Route loaders are unused; every route does render-then-fetch via Query hooks — PILOT SHIPPED 2026-07-26 (non-blocking)
+### Gap 15 — Route loaders are unused; every route does render-then-fetch via Query hooks — SHIPPED (pilot 2026-07-26, fan-out 2026-07-27)
 
 **Pilot landed 2026-07-26**, with one deliberate deviation from the spec below: the loader calls `prefetchQuery` and returns `void`, it does **not** `await ensureQueryData`. Two things in this route make a blocking loader actively harmful today, both verified against the code before shipping:
 
@@ -341,7 +409,7 @@ Non-blocking keeps the progressive render and the in-component retry branch whil
 
 **Two prerequisites that were not in the plan below and are mandatory:** `queryClient` must be constructed *above* `createRouter` in `router.tsx` (was `main.tsx`; the options object is an argument expression, so a `const` below it is in its temporal dead zone and throws at import — `router.test.ts` catches this), and `__root.tsx` must switch from `createRootRoute` to `createRootRouteWithContext<{ queryClient: QueryClient }>()` (curried). Without the second, `context: { queryClient }` type-checks against the default `{}` and is silently dropped, making `context.queryClient` a TS2741 at every loader.
 
-**Fan-out (P) is unchanged and still pending**, but inherits the blocking question: any route whose entrance is driven by a `startViewTransition`-wrapped navigate needs the same non-blocking treatment, or needs `pendingComponent` + `errorComponent` shipped alongside. Revisit blocking wholesale at Start chunk 4, where server-priming genuinely requires it and where cold arrivals do not morph anyway.
+**Fan-out (P) shipped with the Start migration on 2026-07-27** (W5, queryOptions + loader prefetch), not as the per-family commits planned below. Every family the spec named carries a loader: `matches/$matchId`, `champions/$championKey`, `patches/$version` and `steam/library/$appid`, plus eight list and section routes. The blocking question was answered as this paragraph predicted: the router-level `defaultPendingComponent` / `defaultErrorComponent` landed in the same migration, and the match, champion and Steam game panels block on the server only. See [tanstack-start-migration.md § What still does not render server-side](tanstack-start-migration.md).
 
 ---
 
@@ -410,8 +478,8 @@ These are strong-adoption signals confirming the framework pick is correctly use
 | Bundle | Gaps | Effort | Slot |
 |---|---|---|---|
 | ~~**N — Route loader pilot on match-detail**~~ | #15 (pilot) | ~1h | **SHIPPED 2026-07-26** — non-blocking `prefetchQuery`, see Gap 15 |
-| **O — `head()` localhost bug fix** | #16 (part 1) | hosting-gated | Land as part of [hosting.md § Pre-deploy #1](../ops/hosting.md) — 20+ duplicate API_URL sites + hosting-shape dependency means this isn't a standalone quick-win |
-| **P — Loader fan-out + `head()` fan-out** | #15 (rest), #16 (part 2) | ~5h | Multi-commit sub-arc; can order after N alone (independent of O) |
+| ~~**O — `head()` localhost bug fix**~~ | #16 (part 1) | hosting-gated | **SHIPPED 2026-07-26** as Start chunk 2, see Gap 16 |
+| ~~**P — Loader fan-out + `head()` fan-out**~~ | #15 (rest), #16 (part 2) | ~5h | **SHIPPED** — `head()` half 2026-06-07 (og-image C1–C4), loader half 2026-07-27 with Start, see Gap 15 |
 
 ---
 
@@ -505,7 +573,7 @@ These are strong-adoption signals confirming the build stack is correctly modern
 
 | Bundle | Gaps | Effort | Slot |
 |---|---|---|---|
-| **Q — `sideEffects: false` on `@vyoh/shared`** | #19 | ~5 min | Ship now, atomic; pairs with Vite `build.target` quick-win |
+| ~~**Q — `sideEffects: false` on `@vyoh/shared`**~~ | #19 | ~5 min | **SHIPPED 2026-05-25** (299f2f46), with the `build.target` quick-win |
 | **R — pnpm catalogs for vitest + types/node** | #18 | ~30 min | Ship now, single commit |
 | **S — Biome 1.9 → 2.x migration** | #17 | ~45 min | Ship now, single commit; may surface multi-file analysis findings worth a follow-up |
 
@@ -632,7 +700,7 @@ Combined with Gap 21 (visual regression) and Gap 22 (Playwright), Storybook 9 + 
 
 **Decision posture:** Defer pickup until the next UI-arc starts — don't do a standalone retrofit pass.
 
-### Gap 24 — Coverage thresholds gate only `lines`. Branch / function / statement coverage are uncovered
+### Gap 24 — Coverage thresholds gate only `lines`. Branch / function / statement coverage are uncovered — SHIPPED 2026-05-26
 
 **Current state:** All three vitest configs gate coverage on `lines` only:
 
@@ -687,7 +755,7 @@ Pair with: a one-line note in the coverage step of [.github/workflows/ci.yml](..
 
 **Effort:** ~45 min including verify pass. Defer if no concrete browser-mode/Storybook pickup is planned.
 
-### Gap 26 — No `@testing-library/user-event` explicit dep; tests use lower-level `fireEvent`
+### Gap 26 — No `@testing-library/user-event` explicit dep; tests use lower-level `fireEvent` — SHIPPED 2026-05-26
 
 **Current state:** [apps/web/package.json](../../../apps/web/package.json) has `@testing-library/react ^16.3.2` but no `@testing-library/user-event` (`ugrep` for the import string returns zero hits). The 225 component/hook tests use `fireEvent` or invoke handlers directly.
 
@@ -703,7 +771,7 @@ The grammar parser in `parse-palette-verb` is also a typing flow; tests that exe
 
 **Effort:** ~5 min to add the dep. Per-test migration is per-test.
 
-### Gap 27 — `apps/api` vitest only includes `*.spec.ts`; web includes both `.test.` and `.spec.`. Silent-skip risk on an api test accidentally named `.test.ts`
+### Gap 27 — `apps/api` vitest only includes `*.spec.ts`; web includes both `.test.` and `.spec.`. Silent-skip risk on an api test accidentally named `.test.ts` — SHIPPED 2026-05-26
 
 **Current state:**
 
@@ -745,7 +813,7 @@ These are strong-adoption signals confirming the testing stack is correctly mode
 
 | Bundle | Gaps | Effort | Slot |
 |---|---|---|---|
-| **T — Coverage thresholds + include-pattern unification + user-event dep** | #24, #26, #27 | ~30 min | Ship now, atomic |
+| ~~**T — Coverage thresholds + include-pattern unification + user-event dep**~~ | #24, #26, #27 | ~30 min | **SHIPPED 2026-05-26** (9a0f608c) — all three configs gate four metrics, api includes `{test,spec}.ts`, `user-event` is a web devDep |
 | **U — MSW handler set + first 5-10 file migrations** | #20 (infra) | ~2h | Ship now, infra commit; mechanical fan-out follows |
 | **V — MSW fan-out across remaining 15 files** | #20 (rest) | ~2-3h | Multi-commit, incremental; can interleave with feature work |
 | **W — Playwright minimal config + 5-7 axe-clean smoke tests + CI E2E job** | #22 | ~3-4h | Ship after Bundle U (MSW handlers reusable in Playwright via service-worker mode if desired later) |
@@ -761,7 +829,7 @@ Bundle ordering rationale: T is pure hygiene and atomic. U is the load-bearing i
 
 Audited `apps/web` against `~/.claude/knowledge/frontend-2026/13-seo.md`. Surfaced six new gaps (28–33). The structural CSR-vs-SSR gap (KB §8: AI crawlers lag JS rendering by 3–5 years) is already tracked in [tanstack-start-migration.md](tanstack-start-migration.md) and not re-raised here. Gap 1 follow-up (site-wide OG image) and Gap 16 (match-detail localhost `og:image` URL) remain open and are referenced rather than duplicated.
 
-### Gap 28 — `robots.txt` is silent on every AI crawler token
+### Gap 28 — `robots.txt` is silent on every AI crawler token — SHIPPED 2026-05-25
 
 **Current state:** [apps/web/public/robots.txt](../../../apps/web/public/robots.txt) is three lines: `User-agent: *`, `Allow: /`, `Sitemap: …`. No mention of `Google-Extended`, `GPTBot`, `OAI-SearchBot`, `ChatGPT-User`, `ClaudeBot`, `Claude-User`, `PerplexityBot`, `Perplexity-User`, `CCBot`, `Applebot-Extended`, `Meta-ExternalAgent`, `Bytespider`. The `Allow: /` is also redundant (default behavior) and serves only as documentation.
 
@@ -806,7 +874,7 @@ The portfolio's positioning logic flips the usual default. Most production sites
 
 **Effort:** ~30 min for the `Organization` block (including assembling the `sameAs` URL list); ~5 min each for the breadcrumb additions once `head()` exists on those routes.
 
-### Gap 30 — Sitemap ships `changefreq` and `priority` (ignored), no `lastmod` (the only field Google honors)
+### Gap 30 — Sitemap ships `changefreq` and `priority` (ignored), no `lastmod` (the only field Google honors) — SHIPPED (static 2026-05-25, dynamic 2026-07-27)
 
 **Current state:** [apps/web/public/sitemap.xml](../../../apps/web/public/sitemap.xml) has 4 entries, each with `<changefreq>` and `<priority>`. None have `<lastmod>`. The file is hand-maintained.
 
@@ -867,7 +935,7 @@ Flipped to `summary_large_image` in [index.html](../../../apps/web/index.html) i
 
 **Effort:** ~5 min, but coupled to Gap 1 follow-up.
 
-### Gap 33 — No `max-image-preview:large` directive; Google Discover ineligible
+### Gap 33 — No `max-image-preview:large` directive; Google Discover ineligible — SHIPPED 2026-05-25
 
 **Current state:** [apps/web/index.html](../../../apps/web/index.html) has no `<meta name="robots">` tag (defaults to `index, follow`). Per KB §1 the robots directive `max-image-preview:large` is "required for Discover eligibility."
 
@@ -900,10 +968,10 @@ Flipped to `summary_large_image` in [index.html](../../../apps/web/index.html) i
 
 | Bundle | Gaps | Effort | Slot |
 |---|---|---|---|
-| **AA — robots.txt AI crawler tokens + sitemap `lastmod` cleanup + `max-image-preview:large`** | #28, #30 (static part), #33 | ~25 min | Ship now, atomic, one commit |
+| ~~**AA — robots.txt AI crawler tokens + sitemap `lastmod` cleanup + `max-image-preview:large`**~~ | #28, #30 (static part), #33 | ~25 min | **SHIPPED 2026-05-25** (7b3fc365); the robots directive now lives in `__root.tsx` since Start retired `index.html` |
 | **AB — `Organization`/`Person` JSON-LD in index.html + OG image baseline + twitter card flip** | #29 (homepage), Gap 1 follow-up, #32 | ~1h once OG image PNG is captured | Ship after a marquee surface to screenshot exists |
-| **AC — Per-route `head()` rollout across 5 high-value routes + absolute-URL helper** | #31, #29 (breadcrumb part) | ~2h | Ship route-by-route; helper goes in `packages/shared/src/seo/` |
-| **AD — Vite-postbuild dynamic sitemap generator** | #30 (dynamic part) | ~2h | Separate arc; defer until Start migration or post-launch traffic data |
+| **AC — Per-route `head()` rollout across 5 high-value routes + absolute-URL helper** | #31, #29 (breadcrumb part) | ~2h | Items 1–3 2026-06-07; item 4 (`/`) complete by 2026-07-27, when 84861ca5 gave every page its own canonical. **Open:** item 5 (`/status` passes no `noindex` to `routeMeta`) and the #29 breadcrumb part |
+| ~~**AD — Vite-postbuild dynamic sitemap generator**~~ | #30 (dynamic part) | ~2h | **SHIPPED 2026-07-27** (84861ca5) as a server route rather than a postbuild step — [sitemap.ts](../../../apps/web/src/lib/sitemap.ts) dates each patch page by its patch date |
 
 Bundle ordering rationale: AA is pure config and ships today with zero risk — the AI crawler decision is documented in Gap 28 so the file doesn't need to be re-derived. AB is gated on the deferred OG image; until that lands, the JSON-LD + twitter-card work is best paired with the image so a single commit moves the social-preview story end-to-end. AC is the largest mechanical change and benefits from a shared absolute-URL helper to prevent another Gap 16 (localhost in og:image) recurrence. AD is the only piece that wants a working note before pickup.
 
@@ -966,7 +1034,7 @@ Phase 1 of the File 20 (Data Viz) domain sweep ([frontend-2026-kb-expansion.md](
 |---|---|---|---|
 | **BA — shared `ChartDataTable` / `<figure>` table-fallback primitive + first two adoptions (LP history, trend-KDA)** | #35, unblocks #34(a) | ~1–2h | **Shipped 2026-06-14** — primitive `chart-data-table.tsx` (+ axe test); adopted in trend-KDA + LP-history. Closes #35; #34(a) (heatmaps) now unblocked for BB |
 | **BB — visually-hidden table fallback on the two custom heatmaps** | #34(a) | ~1h after BA | **Shipped 2026-06-14** — `ChartDataTable` adopted in trend-time-heatmap (slot × games × WR) + trend-death-matchup-heatmap (opponent × per-bucket deaths). Closes #34(a) (SR half). Death-matchup table uses `useChampionName()` |
-| **BC — descriptive `aria-label` audit pass across the 7 Recharts charts** | part of #34 | ~30 min | Quick-win; `accessibilityLayer` gives interaction, not a meaningful name — see quick-wins.md |
+| ~~**BC — descriptive `aria-label` audit pass across the 7 Recharts charts**~~ | part of #34 | ~30 min | **SHIPPED 2026-06-14** — recorded in quick-wins.md |
 | **BD — charting-tool decision rule** | #36 | doc-only | Done in this Phase 1 (library-shortlist); promote to repo-conventions if it recurs |
 | **BE — full `role="grid"` keyboard model on heatmap cells** | #34(b) | ~2–3h | Defer; only if an a11y review calls the heatmaps out specifically |
 

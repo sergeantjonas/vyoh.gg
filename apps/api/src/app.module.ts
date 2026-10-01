@@ -12,6 +12,7 @@ import { OgModule } from "./og/og.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { RecapModule } from "./recap/recap.module";
 import { RiotModule } from "./riot/riot.module";
+import { RumModule } from "./rum/rum.module";
 import { StatusModule } from "./status/status.module";
 import { SteamModule } from "./steam/steam.module";
 
@@ -29,6 +30,7 @@ import { SteamModule } from "./steam/steam.module";
     SteamModule,
     HomeModule,
     RecapModule,
+    RumModule,
     AdminAccountsModule,
     AdminSteamGamesModule,
   ],

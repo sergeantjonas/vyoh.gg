@@ -497,6 +497,14 @@ Recorded because knowing where *not* to spend remediation effort is half the val
 
 A calibrated rate-limit configuration for F-4 was produced and is carried in the remediation queue rather than inlined here: `limit_req_zone` at 10 r/s (burst 30, `nodelay`) for `location /`, 20 r/s (burst 100) for `/img/` since one page legitimately fans out 30–60 image requests, plus `limit_conn` of 20/40 — which is also what bounds the hour-long connection budget that the SSE-driven `proxy_read_timeout 1h` hands to every route.
 
+### Added after the audit — `POST /rum`, the first intentional anonymous write (2026-10-01)
+
+Field web-vitals beacons ([frontend-2026-gaps.md § Gap 3](../cross-cutting/frontend-2026-gaps.md)). It is the one route where an anonymous caller adds a row, so it carries its own bounds rather than relying on `location /`. A strict DTO pins the primary key's shape. The body limit is 4 kB at nginx and in the api, and body-parser's 413/415 surface as such rather than as reported 500s. Two nginx zones apply: 2 r/min per address, and 1 r/s for the whole site against address rotation. An hourly prune enforces 90 days and a 500 000-row ceiling. Two things worth carrying:
+
+- **An exact `location = /path` is bypassable here.** Express matches routes case-insensitively and with an optional trailing slash, so `/RUM` and `/rum/` reached the handler through `location /` and its general limits. The block is `~* ^/rum/?$`. **SUSPECTED, not probed: the same mechanism may let `/OG/…` and `/IMG/…` miss their cache blocks** and reopen F-3/F-17's cost. Check with a case-variant request before relying on those blocks.
+- **`GET /rum/summary` is the public read beside it**: one parameterised `$queryRaw` aggregate (`percentile_cont`), memoised for five minutes, over a table the prune holds under 500 000 rows, so its cost is bounded whatever an attacker writes. It sits under `location /`'s general zone, not the `/rum` block; the memo, not nginx, is what caps how often the query runs. Its numbers are tagged-template parameters, never interpolated strings.
+- **The global JSON parser answers a bad `charset` with a reported 500 on every route**, for the same reason the rum middleware needed its wrapper: Nest's filter does not recognise body-parser's http-errors. Harmless beyond Sentry noise; fix at the filter if it ever shows up there.
+
 ## What the shape of this says
 
 Three patterns account for nearly every finding, and they are more useful than the individual list:

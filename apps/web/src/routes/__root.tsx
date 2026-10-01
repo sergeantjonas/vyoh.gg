@@ -101,6 +101,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "UTF-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1.0" },
       { name: "theme-color", content: "#0a0a0a" },
+      { name: "color-scheme", content: "dark" },
       { title: "vyoh.gg" },
       { name: "description", content: SITE_DESCRIPTION },
       { name: "apple-mobile-web-app-capable", content: "yes" },
@@ -290,6 +291,25 @@ function RootLayout() {
     }
     const id = window.setTimeout(preload, 200);
     return () => window.clearTimeout(id);
+  }, [router]);
+  // Field vitals, production only and off the initial bundle: `web-vitals.ts`
+  // replays each metric's latest value to a late subscriber, so loading the
+  // reporter after hydration loses nothing. The route is read once, here,
+  // because the landing page is what every sample is attributed to.
+  useEffect(() => {
+    if (!import.meta.env.PROD) return;
+    const route = router.state.matches.at(-1)?.routeId;
+    // A route id that is not a path (the root's not-found match) names no page.
+    if (!route?.startsWith("/")) return;
+    let stop: (() => void) | undefined;
+    let cancelled = false;
+    void import("@/lib/rum-reporter").then(({ startRumReporter }) => {
+      if (!cancelled) stop = startRumReporter(route);
+    });
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
   }, [router]);
   return (
     <TooltipPrimitive.Provider delayDuration={150}>

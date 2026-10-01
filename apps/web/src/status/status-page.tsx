@@ -24,6 +24,7 @@ const TICK_TIME_FMT = new Intl.DateTimeFormat("en-GB", {
   timeZone: OWNER_TIME_ZONE,
 });
 import { Lock, Pause, Play, RefreshCw } from "lucide-react";
+import { FieldVitalsCard } from "./field-vitals-card";
 import {
   Badge,
   Metric,
@@ -139,6 +140,8 @@ export function StatusPage() {
           </div>
         )}
       </StatusCard>
+
+      <FieldVitalsCard />
 
       {data.sync.history.length > 1 && <TickHistory ticks={data.sync.history.slice(1)} />}
     </div>

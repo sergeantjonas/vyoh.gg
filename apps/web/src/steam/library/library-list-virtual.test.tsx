@@ -2,7 +2,7 @@ import { seedViewer } from "@/auth/mock-viewer";
 import { mainScrollRef } from "@/lib/scroll-container";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import type { SteamOwnedGame } from "@vyoh/shared";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -29,6 +29,8 @@ vi.mock("./library-tile-hovercard", () => ({
   LIBRARY_HOVERCARD_CONTENT_CLASS: "",
 }));
 
+const { measure } = vi.hoisted(() => ({ measure: vi.fn() }));
+
 vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: ({
     count,
@@ -46,11 +48,15 @@ vi.mock("@tanstack/react-virtual", () => ({
       })),
     getTotalSize: () => count * estimateSize(),
     measureElement: () => undefined,
+    measure,
   }),
 }));
 
 afterEach(() => {
   mainScrollRef.current = null;
+  measure.mockClear();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 function game(overrides: Partial<SteamOwnedGame> = {}): SteamOwnedGame {
@@ -69,10 +75,19 @@ function game(overrides: Partial<SteamOwnedGame> = {}): SteamOwnedGame {
   } as unknown as SteamOwnedGame;
 }
 
+function stubListWidth(width: number) {
+  vi.spyOn(HTMLUListElement.prototype, "getBoundingClientRect").mockReturnValue({
+    width,
+  } as DOMRect);
+}
+
 function renderList(
   games: SteamOwnedGame[],
-  { settled = true }: { settled?: boolean } = {}
+  { settled = true, width = 848 }: { settled?: boolean; width?: number } = {}
 ) {
+  // happy-dom lays nothing out and answers every min-width query true, so a
+  // desktop width keeps the measured tier agreeing with the viewport guess.
+  stubListWidth(width);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   seedViewer(client);
   return render(
@@ -144,5 +159,54 @@ describe("LibraryListVirtual", () => {
       expect(row.hasAttribute("data-mount-stagger")).toBe(false);
       expect(row.style.getPropertyValue("--i")).toBe("");
     }
+  });
+
+  describe("row stride", () => {
+    function offsets(container: HTMLElement) {
+      return Array.from(container.querySelectorAll("li"), (li) => li.style.transform);
+    }
+
+    it("keys the row height on the list's own width rather than the viewport", () => {
+      const narrow = renderList([game({ appid: 1 }), game({ appid: 2 })], { width: 400 });
+      expect(offsets(narrow.container)).toEqual(["translateY(0px)", "translateY(152px)"]);
+      narrow.unmount();
+
+      const wide = renderList([game({ appid: 1 }), game({ appid: 2 })], { width: 848 });
+      expect(offsets(wide.container)).toEqual(["translateY(0px)", "translateY(168px)"]);
+    });
+
+    it("rebuilds the virtualizer's measurements when a resize crosses the breakpoint", () => {
+      let notify: ResizeObserverCallback = () => {};
+      vi.stubGlobal(
+        "ResizeObserver",
+        class {
+          constructor(cb: ResizeObserverCallback) {
+            notify = cb;
+          }
+          observe() {}
+          disconnect() {}
+        }
+      );
+      const { container } = renderList([game({ appid: 1 }), game({ appid: 2 })], {
+        width: 400,
+      });
+      // The first commit guessed wide from the viewport, so the narrow
+      // measurement has already rebuilt once.
+      expect(measure).toHaveBeenCalledTimes(1);
+      measure.mockClear();
+
+      const resize = (width: number) =>
+        act(() =>
+          notify(
+            [{ contentRect: { width } } as ResizeObserverEntry],
+            {} as ResizeObserver
+          )
+        );
+      resize(500);
+      expect(measure).not.toHaveBeenCalled();
+      resize(700);
+      expect(measure).toHaveBeenCalledTimes(1);
+      expect(offsets(container)).toEqual(["translateY(0px)", "translateY(168px)"]);
+    });
   });
 });
