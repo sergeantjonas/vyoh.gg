@@ -847,3 +847,23 @@ model Session {
 
   @@index([expiresAt])
 }
+
+// Field web-vitals beaconed by visitors' browsers (`POST /rum`). The key is
+// web-vitals' own per-page metric id, so a CLS or INP value re-reported on a
+// later visibility change overwrites the earlier one rather than counting
+// twice. The table holds no IP, user agent or session; `route` is what the web
+// reporter sends, a route template. Pruned hourly past `RUM_RETENTION_DAYS` and
+// past a hard row ceiling (`RUM_MAX_ROWS`).
+model WebVitalSample {
+  id             String   @id
+  name           String
+  value          Float
+  rating         String
+  route          String
+  formFactor     String
+  navigationType String
+  recordedAt     DateTime @default(now())
+
+  @@index([recordedAt])
+  @@index([name, recordedAt])
+}

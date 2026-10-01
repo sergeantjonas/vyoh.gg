@@ -71,6 +71,9 @@ importers:
       '@vyoh/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      body-parser:
+        specifier: ^2.3.0
+        version: 2.3.0
       bottleneck:
         specifier: ^2.19.5
         version: 2.19.5
@@ -126,6 +129,9 @@ importers:
       '@swc/core':
         specifier: ^1.15.46
         version: 1.15.46
+      '@types/body-parser':
+        specifier: ^1.19.6
+        version: 1.19.6
       '@types/express':
         specifier: ^5.0.6
         version: 5.0.6

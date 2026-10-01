@@ -593,6 +593,22 @@ export {
   redactSecretsDeep,
   scrubPayload,
 } from "./redaction.ts";
+export {
+  RUM_FORM_FACTORS,
+  RUM_MAX_SAMPLES,
+  RUM_RETENTION_DAYS,
+  WEB_VITAL_NAMES,
+  WEB_VITAL_NAVIGATION_TYPES,
+  WEB_VITAL_RATINGS,
+} from "./rum.ts";
+export type {
+  RumBeacon,
+  RumFormFactor,
+  WebVitalName,
+  WebVitalNavigationType,
+  WebVitalRating,
+  WebVitalSample,
+} from "./rum.ts";
 export { syncJobHealth } from "./status.ts";
 export type {
   AppWindowSnapshot,

@@ -1,6 +1,6 @@
 # Frontend-2026 KB gaps
 
-**Status:** Active — 36 gaps across nine rounds of evaluation against `~/.claude/knowledge/frontend-2026/`. Picked up 2026-10-01 in this order: G (Gap 8, closed), H (Gap 9, shipped scoped), F (Gaps 6 and 7 shipped), Gap 5 (closed after the re-measure: Steam row hint fixed, LCP image discovery is the open lever), then D (Gap 3, custom RUM endpoint — launch has fired its trigger). Shipped without being recorded at the time, and reconciled the same day: Q and AA (2026-05-25), T (2026-05-26), BC (2026-06-14), AD and P (both with the [Start migration](tanstack-start-migration.md), 2026-07-27). Everything else open is listed per round in the bundling tables.
+**Status:** Active — 36 gaps across nine rounds of evaluation against `~/.claude/knowledge/frontend-2026/`. Picked up 2026-10-01 in this order: G (Gap 8, closed), H (Gap 9, shipped scoped), F (Gaps 6 and 7 shipped), Gap 5 (closed after the re-measure: Steam row hint fixed, LCP image discovery is the open lever), then D (Gap 3, custom RUM endpoint): D1 ingest shipped, D2 reporter and D3 status card next. Shipped without being recorded at the time, and reconciled the same day: Q and AA (2026-05-25), T (2026-05-26), BC (2026-06-14), AD and P (both with the [Start migration](tanstack-start-migration.md), 2026-07-27). Everything else open is listed per round in the bundling tables.
 
 Companion to [tanstack-start-migration.md](tanstack-start-migration.md). That note covers the structural gap (CSR vs SSR for a public portfolio). This note covers the smaller, mostly-independent items that don't need to wait for the migration.
 
@@ -48,7 +48,20 @@ Shipped in `build: enable react compiler on the web build` (0e8800c). Note for f
 
 ---
 
-## Gap 3 — Web-vitals → backend RUM
+## Gap 3 — Web-vitals → backend RUM — IN PROGRESS (D1 shipped 2026-10-01)
+
+**Promoted 2026-10-01**: launch fired the trigger, and the owner chose a custom endpoint over Sentry tracing. Sentry's browser SDK runs with tracing omitted, so nothing collects field vitals today. Three chunks:
+
+- **D1 — ingest. Shipped 2026-10-01.** `POST /rum` in `apps/api/src/rum/` answers 204 and upserts each sample into `WebVitalSample`, keyed by web-vitals' own metric id, so a CLS or INP value re-reported on a later visibility change overwrites rather than counts twice (Prisma issues a native `ON CONFLICT … DO UPDATE`, so two beacons in flight do not race). The contract lives in `packages/shared/src/rum.ts`: the five metric names, ratings and navigation types mirrored from web-vitals 6, a mobile/desktop form factor, and the landing route as the reporter sends it, a route *template* (`/lol/$accountSlug/matches`). The table stores no IP, user agent or session; nginx's access log records the first two for this route as for every other.
+  - **Why `text/plain`:** `navigator.sendBeacon` cannot post `application/json` cross-origin, because that type needs a preflight and a beacon never makes one. So the browser sends the JSON as text, which Nest's global parsers leave unread. `body-parser`'s `text()` plus a `JSON.parse` step run as module middleware for this one route, so no other route starts accepting a text body, and the global `ValidationPipe` then validates an object like any DTO. body-parser's own failures (413, 415, 400) are re-thrown as `HttpException`s: Nest's filter does not recognise http-errors and would have answered, logged and reported them as 500s. A gzip body that inflates past the limit gets through nginx's size cap, so that path is reachable by anyone. `rum.http.spec.ts` is the api's first spec over real HTTP, with the production catch-all filter installed: the middleware is the part that would fail silently, and only a real request reaches it.
+  - **What the DTO does and does not enforce:** the metric id's exact shape (it becomes the primary key), values within 0–600 000, and a route of at most 120 characters from a template's charset. It cannot tell a template from a pathname that happens to fit that charset (`/steam/game/570` passes), so D3 must display only routes the web's route tree knows.
+  - **Bounds on an anonymous write:** a 4 kB body limit at nginx and again in the api, and two nginx zones on a case-insensitive `location ~* ^/rum/?$`. The match is a regex, not `= /rum`, because Express routes `/RUM` and `/rum/` to the same handler and an exact match let both fall through to `location /`'s 10 r/s and 1 MB body (found in review, confirmed in a container). `vyoh_api_rum` allows 2 r/min per address with a burst of 10; `vyoh_api_rum_all` allows 1 r/s for the whole site, because the per-address zone does nothing against a caller rotating IPv6 addresses. Behind both, an hourly `rum-prune` cron deletes samples past 90 days and anything past a 500 000-row ceiling (`RUM_MAX_ROWS`), so the table never runs more than an hour of capped inflow over it. It is the api's first retention job. Verified in `nginx:1.27-alpine` against the real config files with a stub upstream: `nginx -t` passes; `/rum`, `/RUM`, `/rum/`, `/Rum/` and `/rum?x=1` share one zone (11 × 204, then 429 across all of them); a 5 kB body to `/RUM` is a 413 at nginx; `/rumx` and other routes are untouched.
+  - **Deploy — do not `cp` the vhost.** The migration applies at boot like every other. For nginx, follow the trap in [post-launch-ops.md § nginx zone names](../ops/post-launch-ops.md): certbot rewrote the installed `api.vyoh.gg.conf` to add TLS, so copying the repo's version over it drops TLS. Install `vyoh-cache.conf` to `conf.d/` (it declares both new zones), add the `location ~* ^/rum/?$` block to the installed vhost by hand, then `sudo nginx -t && sudo systemctl reload nginx`.
+- **D2 — the browser reporter.** A subscriber on `lib/web-vitals.ts`'s existing pub/sub keeps the latest value per metric id and beacons the batch on `visibilitychange` → hidden and `pagehide`. Production builds only, skipped under `navigator.webdriver` so headless probes don't pollute the data. It must fit the initial-JS budget's 1.5 kB of headroom (see Gap 9).
+- **D3 — the read side.** p75 per metric per route over seven days, and the sample count, as a shared response type, with a status-page card. It lists only routes the web's route tree knows, since the DTO cannot enforce that `route` is a template.
+
+**Original gap text (kept for the rationale):**
+
 
 **Current state:** [apps/web/src/lib/web-vitals.ts](../../../apps/web/src/lib/web-vitals.ts) has pub/sub plumbing wired from [apps/web/src/routes/__root.tsx](../../../apps/web/src/routes/__root.tsx) (was `main.tsx` until the Start migration, 2026-07-26). Only `consoleReporter` subscribes. No POST, no persistence, no alerting.
 
@@ -127,7 +140,7 @@ Three conclusions:
 | ~~**A — head baseline + LCP fetchpriority**~~ | #1, #5 | ~1h | #1 SHIPPED 2026-05-23 (c6c3720); #5 CLOSED 2026-10-01 — re-measured, Steam row hint fixed, discovery is the open lever (see Gap 5) |
 | **B — React Compiler** | #2 | ~30min + verify | SHIPPED 2026-05-23 (0e8800c) |
 | **C — App-root + widget error boundaries** | #4 (app-root + widget) | ~1h | SHIPPED 2026-06-23 — app-root tier + widget primitives + palette/splash (commit 1, 2cbc25b3); `ChartBoundary` on 11 chart leaves (commit 2). Route tier (E) still folds into Start migration |
-| **D — RUM backend** | #3 | ~2h | Post-launch trigger |
+| **D — RUM backend** | #3 | ~2h | **In progress** — D1 (ingest) shipped 2026-10-01; D2 reporter, D3 status card next |
 | **E — Route-tier error boundaries** | #4 (remainder) | folds in | Bundled into [tanstack-start-migration.md](tanstack-start-migration.md) chunks 2–4 |
 
 Bundles A, B, C are independent and benefit the surfaces being built right now. None conflict with the parked Start migration.
