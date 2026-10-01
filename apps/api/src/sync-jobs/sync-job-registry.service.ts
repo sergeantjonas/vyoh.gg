@@ -6,6 +6,8 @@ import {
   type SyncJobTriggerResult,
   redactSecrets,
 } from "@vyoh/shared";
+import { SteamRateLimiterTimeoutError } from "../steam/client/rate-limiter.service";
+import { SteamClientError } from "../steam/client/steam-client.service";
 import { SYNC_JOBS, type SyncJobName } from "./sync-jobs.catalog";
 
 // `GET /status` is public, and these messages come from upstream clients that
@@ -16,9 +18,26 @@ function messageFor(err: unknown): string {
   return redactSecrets(err instanceof Error ? err.message : String(err));
 }
 
+// An upstream that is briefly unwell rather than one refusing what we asked:
+// a rate limit, a gateway error, a timeout. The next run usually succeeds, and
+// nothing about the failure is ours to fix unless it keeps happening.
+function isTransientUpstream(err: unknown): boolean {
+  if (err instanceof SteamRateLimiterTimeoutError) return true;
+  return err instanceof SteamClientError && (err.status === 429 || err.status >= 500);
+}
+
+// Measured in time, not in runs, because cadences span two minutes to a month:
+// three strikes would bury a daily job's failure for three days. A streak's
+// first failure waits unless the run itself outlasts the grace, and a job on a
+// 15-minute or slower cadence reports on its second; the margin below 15
+// absorbs cron start jitter.
+const TRANSIENT_GRACE_MS = 10 * 60_000;
+
 interface JobState {
   running: boolean;
   lastRun: SyncJobRun | null;
+  /** When the current streak of consecutive failures began; null until a failure, and after a success. */
+  failingSince: number | null;
 }
 
 // What `execute()` hands back: the work's own result, or the refusal when a
@@ -47,7 +66,7 @@ export class SyncJobRegistry {
     // Seeded from the catalog, not on first run, so a job that has never fired
     // still appears on the board as "pending" rather than being absent.
     for (const name of Object.keys(SYNC_JOBS) as SyncJobName[]) {
-      this.jobs.set(name, { running: false, lastRun: null });
+      this.jobs.set(name, { running: false, lastRun: null, failingSince: null });
     }
   }
 
@@ -73,7 +92,18 @@ export class SyncJobRegistry {
       // This catch is the background path, where nothing else is watching — a
       // cron that has been failing for a week is the case this exists for,
       // since `/status` shows only the latest run.
-      Sentry.captureException(err, { tags: { syncJob: name } });
+      //
+      // A transient upstream failure waits out the grace first: a two-minute
+      // poller meets the odd Steam timeout every few days, and the tick after it
+      // succeeds.
+      // Not `state()`: it throws for an uncatalogued name, and this catch must
+      // never reject.
+      const failingSince = this.jobs.get(name)?.failingSince ?? null;
+      const withinGrace =
+        failingSince !== null && Date.now() - failingSince < TRANSIENT_GRACE_MS;
+      if (!(isTransientUpstream(err) && withinGrace)) {
+        Sentry.captureException(err, { tags: { syncJob: name } });
+      }
     }
     return true;
   }
@@ -98,9 +128,11 @@ export class SyncJobRegistry {
     try {
       const result = await work();
       job.lastRun = this.finish(startedAt, "ok");
+      job.failingSince = null;
       return { ran: true, result };
     } catch (err) {
       job.lastRun = { ...this.finish(startedAt, "error"), error: messageFor(err) };
+      job.failingSince ??= startedAt.getTime();
       throw err;
     } finally {
       job.running = false;
