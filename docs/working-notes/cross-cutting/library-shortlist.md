@@ -1170,6 +1170,8 @@ Status: **in use, kept.** Sub-`200×48` polylines and CSS-grid marks where *any*
 
 > Standard cartesian + tooltip → **Recharts**. Bespoke layout / non-cartesian / brush / hexbin → **visx + d3 utilities**. Sparkline-scale or a trivial mark with no axes → **hand-rolled SVG/CSS**.
 
+Whichever tier a chart lands in, its colours come from the role slots in [chart-palette.ts](../../../apps/web/src/lib/chart-palette.ts) and its hover tooltip from `ChartTooltipShell`. That rule is enforced from the Charts row of [repo-conventions-web.md](../../repo-conventions-web.md), not here, so all three tiers share one visual language.
+
 Evaluated-and-not-added for this round: **Observable Plot** (grammar-of-graphics; rejected — adds a second mental model on top of Recharts for no current chart Recharts can't do), **ECharts** (canvas renderer; deferred — only earns its weight past the >1k-point SVG cliff, which no vyoh chart approaches — see Round 9 non-gaps), **nivo / Chart.js** (no advantage over the current Recharts+visx split). `react-calendar-heatmap` stays for the activity calendar (purpose-built, not worth re-deriving). Triggers that would reopen this: a chart needing >1k rendered points (→ evaluate ECharts canvas), or a sustained need for many small-multiple statistical charts (→ evaluate Observable Plot's grammar).
 
 ---

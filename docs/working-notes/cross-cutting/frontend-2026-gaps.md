@@ -1,6 +1,6 @@
 # Frontend-2026 KB gaps
 
-**Status:** Active — five small gaps surfaced by the 2026-05-22 evaluation against `~/.claude/knowledge/frontend-2026/`. Gaps 1, 2 and 4 shipped (4's route tier landed with the [Start migration](tanstack-start-migration.md) on 2026-07-27); Gap 5 is pending a re-measure; Gap 3 (RUM backend) waits for launch — see [pre-launch-sweep.md § Post-launch](../ops/pre-launch-sweep.md).
+**Status:** Active — 36 gaps across nine rounds of evaluation against `~/.claude/knowledge/frontend-2026/`. Picked up 2026-10-01 in this order: G (Gap 8, closed), H (Gap 9, scoped imports), F (Gaps 6–7), Gap 5's LCP re-measure, then D (Gap 3, custom RUM endpoint — launch has fired its trigger). Shipped without being recorded at the time, and reconciled the same day: Q and AA (2026-05-25), T (2026-05-26), BC (2026-06-14), AD and P (both with the [Start migration](tanstack-start-migration.md), 2026-07-27). Everything else open is listed per round in the bundling tables.
 
 Companion to [tanstack-start-migration.md](tanstack-start-migration.md). That note covers the structural gap (CSR vs SSR for a public portfolio). This note covers the smaller, mostly-independent items that don't need to wait for the migration.
 
@@ -159,7 +159,9 @@ Audit dimensions beyond the original 5 gaps: CSS modernization, library footprin
 
 **Effort:** ~1h for one demonstrable case + a working-note entry establishing the pattern. Sub-session.
 
-### Gap 8 — Three charting stacks, no decision tree
+### Gap 8 — Three charting stacks, no decision tree — CLOSED 2026-10-01
+
+**Closed 2026-10-01** without new work of its own: Gap 36 (Round 9) wrote the decision rule into [library-shortlist.md § Data visualization](library-shortlist.md) on 2026-06-14, and the shared theming source this gap asked for is V8's [chart-palette.ts](../../../apps/web/src/lib/chart-palette.ts), already required by the Charts row in [repo-conventions-web.md](../../repo-conventions-web.md). The only edit was a sentence in the shortlist pointing at that row. The token named below (`--chart-1`..`--chart-5`) is not the source; the semantic win/loss hex is deliberate, per Round 9's non-gaps.
 
 **Current state:** Recharts in 12 files (e.g. `MatchGoldLead`, `TrendKda`, `MatchLanePhase`), `@visx/*` in 11 files (chord, brush, heatmap, sankey, hexbin scales), `d3-hexbin`/`d3-sankey` directly in 2 files. All three carry independent D3 dependency trees.
 
@@ -192,7 +194,7 @@ Audit dimensions beyond the original 5 gaps: CSS modernization, library footprin
 | Bundle | Gaps | Effort | Slot |
 |---|---|---|---|
 | **F — `color-scheme` + container-query pilot** | #6, #7 | ~1h | Ship now, can fold into Bundle A commit |
-| **G — Charting decision tree (docs)** | #8 | ~30 min | Ship anytime; docs-only |
+| ~~**G — Charting decision tree (docs)**~~ | #8 | ~30 min | **CLOSED 2026-10-01** — covered by Gap 36 + V8, see Gap 8 |
 | **H — Radix import consolidation** | #9 | ~20 min | Ship now, separate commit |
 
 ### Round 2 non-gaps (worth knowing, no action)
@@ -328,7 +330,7 @@ For patch-stable data, `staleTime: Infinity` (or a multi-hour value paired with 
 
 Audit focus: `05-frameworks.md` against the project's TanStack Router / Vite SPA shape. The structural framework-choice question (SPA → SSR via TanStack Start) is already owned by [tanstack-start-migration.md](tanstack-start-migration.md) — Round 5 does **not** re-litigate it. Instead it audits the project's adoption of the TanStack Router idioms the KB rubric calls out as best-in-class: typed search params (strong adoption, no gap), route loaders (zero adoption, Gap 15), per-route `head()` for SEO (one site, Gap 16). Both ship-now gaps are migration-safe — they are exactly the surfaces the eventual Start migration will lift, so doing them now de-risks the migration rather than creating throwaway work.
 
-### Gap 15 — Route loaders are unused; every route does render-then-fetch via Query hooks — PILOT SHIPPED 2026-07-26 (non-blocking)
+### Gap 15 — Route loaders are unused; every route does render-then-fetch via Query hooks — SHIPPED (pilot 2026-07-26, fan-out 2026-07-27)
 
 **Pilot landed 2026-07-26**, with one deliberate deviation from the spec below: the loader calls `prefetchQuery` and returns `void`, it does **not** `await ensureQueryData`. Two things in this route make a blocking loader actively harmful today, both verified against the code before shipping:
 
@@ -341,7 +343,7 @@ Non-blocking keeps the progressive render and the in-component retry branch whil
 
 **Two prerequisites that were not in the plan below and are mandatory:** `queryClient` must be constructed *above* `createRouter` in `router.tsx` (was `main.tsx`; the options object is an argument expression, so a `const` below it is in its temporal dead zone and throws at import — `router.test.ts` catches this), and `__root.tsx` must switch from `createRootRoute` to `createRootRouteWithContext<{ queryClient: QueryClient }>()` (curried). Without the second, `context: { queryClient }` type-checks against the default `{}` and is silently dropped, making `context.queryClient` a TS2741 at every loader.
 
-**Fan-out (P) is unchanged and still pending**, but inherits the blocking question: any route whose entrance is driven by a `startViewTransition`-wrapped navigate needs the same non-blocking treatment, or needs `pendingComponent` + `errorComponent` shipped alongside. Revisit blocking wholesale at Start chunk 4, where server-priming genuinely requires it and where cold arrivals do not morph anyway.
+**Fan-out (P) shipped with the Start migration on 2026-07-27** (W5, queryOptions + loader prefetch), not as the per-family commits planned below. Every family the spec named carries a loader: `matches/$matchId`, `champions/$championKey`, `patches/$version` and `steam/library/$appid`, plus eight list and section routes. The blocking question was answered as this paragraph predicted: the router-level `defaultPendingComponent` / `defaultErrorComponent` landed in the same migration, and the match, champion and Steam game panels block on the server only. See [tanstack-start-migration.md § What still does not render server-side](tanstack-start-migration.md).
 
 ---
 
@@ -410,8 +412,8 @@ These are strong-adoption signals confirming the framework pick is correctly use
 | Bundle | Gaps | Effort | Slot |
 |---|---|---|---|
 | ~~**N — Route loader pilot on match-detail**~~ | #15 (pilot) | ~1h | **SHIPPED 2026-07-26** — non-blocking `prefetchQuery`, see Gap 15 |
-| **O — `head()` localhost bug fix** | #16 (part 1) | hosting-gated | Land as part of [hosting.md § Pre-deploy #1](../ops/hosting.md) — 20+ duplicate API_URL sites + hosting-shape dependency means this isn't a standalone quick-win |
-| **P — Loader fan-out + `head()` fan-out** | #15 (rest), #16 (part 2) | ~5h | Multi-commit sub-arc; can order after N alone (independent of O) |
+| ~~**O — `head()` localhost bug fix**~~ | #16 (part 1) | hosting-gated | **SHIPPED 2026-07-26** as Start chunk 2, see Gap 16 |
+| ~~**P — Loader fan-out + `head()` fan-out**~~ | #15 (rest), #16 (part 2) | ~5h | **SHIPPED** — `head()` half 2026-06-07 (og-image C1–C4), loader half 2026-07-27 with Start, see Gap 15 |
 
 ---
 
@@ -505,7 +507,7 @@ These are strong-adoption signals confirming the build stack is correctly modern
 
 | Bundle | Gaps | Effort | Slot |
 |---|---|---|---|
-| **Q — `sideEffects: false` on `@vyoh/shared`** | #19 | ~5 min | Ship now, atomic; pairs with Vite `build.target` quick-win |
+| ~~**Q — `sideEffects: false` on `@vyoh/shared`**~~ | #19 | ~5 min | **SHIPPED 2026-05-25** (299f2f46), with the `build.target` quick-win |
 | **R — pnpm catalogs for vitest + types/node** | #18 | ~30 min | Ship now, single commit |
 | **S — Biome 1.9 → 2.x migration** | #17 | ~45 min | Ship now, single commit; may surface multi-file analysis findings worth a follow-up |
 
@@ -632,7 +634,7 @@ Combined with Gap 21 (visual regression) and Gap 22 (Playwright), Storybook 9 + 
 
 **Decision posture:** Defer pickup until the next UI-arc starts — don't do a standalone retrofit pass.
 
-### Gap 24 — Coverage thresholds gate only `lines`. Branch / function / statement coverage are uncovered
+### Gap 24 — Coverage thresholds gate only `lines`. Branch / function / statement coverage are uncovered — SHIPPED 2026-05-26
 
 **Current state:** All three vitest configs gate coverage on `lines` only:
 
@@ -687,7 +689,7 @@ Pair with: a one-line note in the coverage step of [.github/workflows/ci.yml](..
 
 **Effort:** ~45 min including verify pass. Defer if no concrete browser-mode/Storybook pickup is planned.
 
-### Gap 26 — No `@testing-library/user-event` explicit dep; tests use lower-level `fireEvent`
+### Gap 26 — No `@testing-library/user-event` explicit dep; tests use lower-level `fireEvent` — SHIPPED 2026-05-26
 
 **Current state:** [apps/web/package.json](../../../apps/web/package.json) has `@testing-library/react ^16.3.2` but no `@testing-library/user-event` (`ugrep` for the import string returns zero hits). The 225 component/hook tests use `fireEvent` or invoke handlers directly.
 
@@ -703,7 +705,7 @@ The grammar parser in `parse-palette-verb` is also a typing flow; tests that exe
 
 **Effort:** ~5 min to add the dep. Per-test migration is per-test.
 
-### Gap 27 — `apps/api` vitest only includes `*.spec.ts`; web includes both `.test.` and `.spec.`. Silent-skip risk on an api test accidentally named `.test.ts`
+### Gap 27 — `apps/api` vitest only includes `*.spec.ts`; web includes both `.test.` and `.spec.`. Silent-skip risk on an api test accidentally named `.test.ts` — SHIPPED 2026-05-26
 
 **Current state:**
 
@@ -745,7 +747,7 @@ These are strong-adoption signals confirming the testing stack is correctly mode
 
 | Bundle | Gaps | Effort | Slot |
 |---|---|---|---|
-| **T — Coverage thresholds + include-pattern unification + user-event dep** | #24, #26, #27 | ~30 min | Ship now, atomic |
+| ~~**T — Coverage thresholds + include-pattern unification + user-event dep**~~ | #24, #26, #27 | ~30 min | **SHIPPED 2026-05-26** (9a0f608c) — all three configs gate four metrics, api includes `{test,spec}.ts`, `user-event` is a web devDep |
 | **U — MSW handler set + first 5-10 file migrations** | #20 (infra) | ~2h | Ship now, infra commit; mechanical fan-out follows |
 | **V — MSW fan-out across remaining 15 files** | #20 (rest) | ~2-3h | Multi-commit, incremental; can interleave with feature work |
 | **W — Playwright minimal config + 5-7 axe-clean smoke tests + CI E2E job** | #22 | ~3-4h | Ship after Bundle U (MSW handlers reusable in Playwright via service-worker mode if desired later) |
@@ -761,7 +763,7 @@ Bundle ordering rationale: T is pure hygiene and atomic. U is the load-bearing i
 
 Audited `apps/web` against `~/.claude/knowledge/frontend-2026/13-seo.md`. Surfaced six new gaps (28–33). The structural CSR-vs-SSR gap (KB §8: AI crawlers lag JS rendering by 3–5 years) is already tracked in [tanstack-start-migration.md](tanstack-start-migration.md) and not re-raised here. Gap 1 follow-up (site-wide OG image) and Gap 16 (match-detail localhost `og:image` URL) remain open and are referenced rather than duplicated.
 
-### Gap 28 — `robots.txt` is silent on every AI crawler token
+### Gap 28 — `robots.txt` is silent on every AI crawler token — SHIPPED 2026-05-25
 
 **Current state:** [apps/web/public/robots.txt](../../../apps/web/public/robots.txt) is three lines: `User-agent: *`, `Allow: /`, `Sitemap: …`. No mention of `Google-Extended`, `GPTBot`, `OAI-SearchBot`, `ChatGPT-User`, `ClaudeBot`, `Claude-User`, `PerplexityBot`, `Perplexity-User`, `CCBot`, `Applebot-Extended`, `Meta-ExternalAgent`, `Bytespider`. The `Allow: /` is also redundant (default behavior) and serves only as documentation.
 
@@ -806,7 +808,7 @@ The portfolio's positioning logic flips the usual default. Most production sites
 
 **Effort:** ~30 min for the `Organization` block (including assembling the `sameAs` URL list); ~5 min each for the breadcrumb additions once `head()` exists on those routes.
 
-### Gap 30 — Sitemap ships `changefreq` and `priority` (ignored), no `lastmod` (the only field Google honors)
+### Gap 30 — Sitemap ships `changefreq` and `priority` (ignored), no `lastmod` (the only field Google honors) — SHIPPED (static 2026-05-25, dynamic 2026-07-27)
 
 **Current state:** [apps/web/public/sitemap.xml](../../../apps/web/public/sitemap.xml) has 4 entries, each with `<changefreq>` and `<priority>`. None have `<lastmod>`. The file is hand-maintained.
 
@@ -867,7 +869,7 @@ Flipped to `summary_large_image` in [index.html](../../../apps/web/index.html) i
 
 **Effort:** ~5 min, but coupled to Gap 1 follow-up.
 
-### Gap 33 — No `max-image-preview:large` directive; Google Discover ineligible
+### Gap 33 — No `max-image-preview:large` directive; Google Discover ineligible — SHIPPED 2026-05-25
 
 **Current state:** [apps/web/index.html](../../../apps/web/index.html) has no `<meta name="robots">` tag (defaults to `index, follow`). Per KB §1 the robots directive `max-image-preview:large` is "required for Discover eligibility."
 
@@ -900,10 +902,10 @@ Flipped to `summary_large_image` in [index.html](../../../apps/web/index.html) i
 
 | Bundle | Gaps | Effort | Slot |
 |---|---|---|---|
-| **AA — robots.txt AI crawler tokens + sitemap `lastmod` cleanup + `max-image-preview:large`** | #28, #30 (static part), #33 | ~25 min | Ship now, atomic, one commit |
+| ~~**AA — robots.txt AI crawler tokens + sitemap `lastmod` cleanup + `max-image-preview:large`**~~ | #28, #30 (static part), #33 | ~25 min | **SHIPPED 2026-05-25** (7b3fc365); the robots directive now lives in `__root.tsx` since Start retired `index.html` |
 | **AB — `Organization`/`Person` JSON-LD in index.html + OG image baseline + twitter card flip** | #29 (homepage), Gap 1 follow-up, #32 | ~1h once OG image PNG is captured | Ship after a marquee surface to screenshot exists |
-| **AC — Per-route `head()` rollout across 5 high-value routes + absolute-URL helper** | #31, #29 (breadcrumb part) | ~2h | Ship route-by-route; helper goes in `packages/shared/src/seo/` |
-| **AD — Vite-postbuild dynamic sitemap generator** | #30 (dynamic part) | ~2h | Separate arc; defer until Start migration or post-launch traffic data |
+| **AC — Per-route `head()` rollout across 5 high-value routes + absolute-URL helper** | #31, #29 (breadcrumb part) | ~2h | Items 1–3 2026-06-07; item 4 (`/`) complete by 2026-07-27, when 84861ca5 gave every page its own canonical. **Open:** item 5 (`/status` passes no `noindex` to `routeMeta`) and the #29 breadcrumb part |
+| ~~**AD — Vite-postbuild dynamic sitemap generator**~~ | #30 (dynamic part) | ~2h | **SHIPPED 2026-07-27** (84861ca5) as a server route rather than a postbuild step — [sitemap.ts](../../../apps/web/src/lib/sitemap.ts) dates each patch page by its patch date |
 
 Bundle ordering rationale: AA is pure config and ships today with zero risk — the AI crawler decision is documented in Gap 28 so the file doesn't need to be re-derived. AB is gated on the deferred OG image; until that lands, the JSON-LD + twitter-card work is best paired with the image so a single commit moves the social-preview story end-to-end. AC is the largest mechanical change and benefits from a shared absolute-URL helper to prevent another Gap 16 (localhost in og:image) recurrence. AD is the only piece that wants a working note before pickup.
 
@@ -966,7 +968,7 @@ Phase 1 of the File 20 (Data Viz) domain sweep ([frontend-2026-kb-expansion.md](
 |---|---|---|---|
 | **BA — shared `ChartDataTable` / `<figure>` table-fallback primitive + first two adoptions (LP history, trend-KDA)** | #35, unblocks #34(a) | ~1–2h | **Shipped 2026-06-14** — primitive `chart-data-table.tsx` (+ axe test); adopted in trend-KDA + LP-history. Closes #35; #34(a) (heatmaps) now unblocked for BB |
 | **BB — visually-hidden table fallback on the two custom heatmaps** | #34(a) | ~1h after BA | **Shipped 2026-06-14** — `ChartDataTable` adopted in trend-time-heatmap (slot × games × WR) + trend-death-matchup-heatmap (opponent × per-bucket deaths). Closes #34(a) (SR half). Death-matchup table uses `useChampionName()` |
-| **BC — descriptive `aria-label` audit pass across the 7 Recharts charts** | part of #34 | ~30 min | Quick-win; `accessibilityLayer` gives interaction, not a meaningful name — see quick-wins.md |
+| ~~**BC — descriptive `aria-label` audit pass across the 7 Recharts charts**~~ | part of #34 | ~30 min | **SHIPPED 2026-06-14** — recorded in quick-wins.md |
 | **BD — charting-tool decision rule** | #36 | doc-only | Done in this Phase 1 (library-shortlist); promote to repo-conventions if it recurs |
 | **BE — full `role="grid"` keyboard model on heatmap cells** | #34(b) | ~2–3h | Defer; only if an a11y review calls the heatmaps out specifically |
 
