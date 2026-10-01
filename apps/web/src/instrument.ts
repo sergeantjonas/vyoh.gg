@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/react";
 import { scrubPayload } from "@vyoh/shared";
+import { API_URL } from "./lib/api-url";
 import {
   BENIGN_ERROR_PATTERNS,
   type EarlyError,
@@ -26,8 +27,36 @@ import type { ErrorTier } from "./lib/report-error";
  * `lib/early-errors.ts` for the window it closes.
  */
 
+// Crawlers and screenshot services drive a real browser but often block or
+// never complete the page's api requests, so every first-load query fails and
+// files one issue per query hook. Nothing they hit is ours to fix. The user
+// agent is checked as well as the flag because a crawler can clear `webdriver`
+// while still announcing itself.
+const isAutomatedBrowser = (nav: Navigator | undefined = globalThis.navigator) =>
+  nav?.webdriver === true || /HeadlessChrome/.test(nav?.userAgent ?? "");
+
+// The messages a browser gives a fetch that got no answer at all, which the SDK
+// then suffixes with the host it was bound for. A down api reaches the browser
+// the same way, since nginx's own 502 carries no CORS header, so these are kept
+// rather than dropped: as one issue, because an outage fails every query hook
+// at once and default grouping files a separate issue for each. The browser
+// fetches other hosts too, DDragon among them, and their failures say nothing
+// about the api. A missing suffix means the fetch left before the SDK loaded,
+// which in practice is the api's own first-load requests.
+const NETWORK_FAILURE =
+  /^(?:Failed to fetch|Load failed|NetworkError when attempting to fetch resource\.)(?: \((.+)\))?$/;
+
+const API_HOST = new URL(API_URL).host;
+
+function isApiUnreachable(error: unknown): boolean {
+  if (!(error instanceof TypeError)) return false;
+  const match = NETWORK_FAILURE.exec(error.message);
+  return match !== null && (match[1] === undefined || match[1] === API_HOST);
+}
+
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
+  enabled: !isAutomatedBrowser(),
   environment: import.meta.env.MODE,
   // `vite.config.ts` falls back to "dev" when no BUILD_COMMIT is set and there
   // is no git to ask. That is a useful string on the status page and a bad
@@ -97,6 +126,10 @@ export function captureAppError(error: unknown, tier: ErrorTier): void {
   // cannot travel together in a single call.
   Sentry.withScope((scope) => {
     scope.setTag("tier", tier);
+    if (isApiUnreachable(error)) {
+      scope.setFingerprint(["api-unreachable"]);
+      scope.setLevel("warning");
+    }
     Sentry.captureException(error, {
       mechanism: { type: "generic", handled: true },
     });
