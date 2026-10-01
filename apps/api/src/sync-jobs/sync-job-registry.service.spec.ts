@@ -1,5 +1,7 @@
 import * as Sentry from "@sentry/nestjs";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { SteamRateLimiterTimeoutError } from "../steam/client/rate-limiter.service";
+import { SteamClientError } from "../steam/client/steam-client.service";
 import { SyncJobRegistry } from "./sync-job-registry.service";
 
 vi.mock("@sentry/nestjs", () => ({ captureException: vi.fn() }));
@@ -247,5 +249,70 @@ describe("SyncJobRegistry error reporting", () => {
     // `execute` rethrows to a controller, where the exception filter reports it.
     // Capturing here as well would double-count every manual trigger.
     expect(captureException).not.toHaveBeenCalled();
+  });
+
+  describe("a transient upstream failure", () => {
+    const timeout = () =>
+      Promise.reject(new SteamClientError("Steam Web API fetch timeout", 504, "/x"));
+    const at = (minutes: number) => vi.setSystemTime(minutes * 60_000);
+
+    beforeEach(() => {
+      captureException.mockClear();
+      vi.useFakeTimers({ toFake: ["Date"] });
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("is held back until the failing streak outlasts the grace", async () => {
+      const registry = new SyncJobRegistry();
+
+      at(0);
+      await registry.run(JOB, timeout);
+      at(8);
+      await registry.run(JOB, timeout);
+      expect(captureException).not.toHaveBeenCalled();
+
+      at(10);
+      await registry.run(JOB, timeout);
+      expect(captureException).toHaveBeenCalledOnce();
+    });
+
+    it.each([
+      ["a Steam rate limit", new SteamClientError("Steam Web API 429", 429, "/x")],
+      ["the Steam limiter's own timeout", new SteamRateLimiterTimeoutError("x", 15_000)],
+    ])("covers %s", async (_, error) => {
+      const registry = new SyncJobRegistry();
+
+      at(0);
+      await registry.run(JOB, () => Promise.reject(error));
+
+      expect(captureException).not.toHaveBeenCalled();
+    });
+
+    it("starts its grace over after a success", async () => {
+      const registry = new SyncJobRegistry();
+
+      at(0);
+      await registry.run(JOB, timeout);
+      at(6);
+      await registry.run(JOB, () => Promise.resolve());
+      at(12);
+      await registry.run(JOB, timeout);
+
+      expect(captureException).not.toHaveBeenCalled();
+    });
+
+    it("does not cover an upstream refusing the request itself", async () => {
+      const registry = new SyncJobRegistry();
+
+      at(0);
+      await registry.run(JOB, () =>
+        Promise.reject(new SteamClientError("Steam Web API 403 Forbidden", 403, "/x"))
+      );
+
+      expect(captureException).toHaveBeenCalledOnce();
+    });
   });
 });
