@@ -111,6 +111,8 @@ describe("head()", () => {
     const { meta = [], links = [] } = headOf();
 
     expect(meta).toContainEqual({ title: "vyoh.gg" });
+    // Matches the unconditional `className="dark"` on <html>.
+    expect(meta).toContainEqual({ name: "color-scheme", content: "dark" });
     const description = meta.find((m) => m.name === "description");
     expect(description?.content).toBeTruthy();
     // The og:image default must be absolute — a relative URL is silently

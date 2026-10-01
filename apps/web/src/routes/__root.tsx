@@ -101,6 +101,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "UTF-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1.0" },
       { name: "theme-color", content: "#0a0a0a" },
+      { name: "color-scheme", content: "dark" },
       { title: "vyoh.gg" },
       { name: "description", content: SITE_DESCRIPTION },
       { name: "apple-mobile-web-app-capable", content: "yes" },

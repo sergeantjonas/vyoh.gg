@@ -1,6 +1,6 @@
 # Frontend-2026 KB gaps
 
-**Status:** Active — 36 gaps across nine rounds of evaluation against `~/.claude/knowledge/frontend-2026/`. Picked up 2026-10-01 in this order: G (Gap 8, closed), H (Gap 9, shipped scoped), F (Gaps 6–7), Gap 5's LCP re-measure, then D (Gap 3, custom RUM endpoint — launch has fired its trigger). Shipped without being recorded at the time, and reconciled the same day: Q and AA (2026-05-25), T (2026-05-26), BC (2026-06-14), AD and P (both with the [Start migration](tanstack-start-migration.md), 2026-07-27). Everything else open is listed per round in the bundling tables.
+**Status:** Active — 36 gaps across nine rounds of evaluation against `~/.claude/knowledge/frontend-2026/`. Picked up 2026-10-01 in this order: G (Gap 8, closed), H (Gap 9, shipped scoped), F (Gap 6 shipped, Gap 7's container-query pilot open), Gap 5's LCP re-measure, then D (Gap 3, custom RUM endpoint — launch has fired its trigger). Shipped without being recorded at the time, and reconciled the same day: Q and AA (2026-05-25), T (2026-05-26), BC (2026-06-14), AD and P (both with the [Start migration](tanstack-start-migration.md), 2026-07-27). Everything else open is listed per round in the bundling tables.
 
 Companion to [tanstack-start-migration.md](tanstack-start-migration.md). That note covers the structural gap (CSR vs SSR for a public portfolio). This note covers the smaller, mostly-independent items that don't need to wait for the migration.
 
@@ -131,7 +131,11 @@ Bundles A, B, C are independent and benefit the surfaces being built right now. 
 
 Audit dimensions beyond the original 5 gaps: CSS modernization, library footprint, design-token wiring. Same recommendation shape (motivation / tension / effort / slot).
 
-### Gap 6 — `color-scheme` declaration missing
+### Gap 6 — `color-scheme` declaration missing — SHIPPED 2026-10-01
+
+**Shipped 2026-10-01** as `color-scheme: dark` on `.dark` in [index.css](../../../apps/web/src/index.css), plus a `<meta name="color-scheme" content="dark">` in the root `head()` so the canvas is dark before the stylesheet arrives. The value is `dark` rather than the `light dark` this gap prescribed, because `<html>` carries `.dark` unconditionally (the app is dark-only): `light dark` would let a light-mode OS paint native controls light on a dark page, which is the bug. A headless probe of the same controls on the app's background in Chromium and Firefox showed what changes: unchecked native checkboxes (serious-queues settings, Steam preferences, the admin dialog) go from white squares to dark ones, and on the two without an `accent-*` class Chromium's checked tick moves to its dark-mode blue. The audio-volume range keeps its `accent-primary` thumb and fill; only the unfilled track, which `accent-color` does not reach, follows the scheme. Search, number and `<select>` fields barely change, because their backgrounds are already transparent.
+
+**Original gap text (kept for the rationale):**
 
 **Current state:** [apps/web/src/index.css](../../../apps/web/src/index.css) sets `:root` and `.dark` design tokens in OKLCH but never declares `color-scheme`. Class-based dark mode (`@custom-variant dark (&:is(.dark *))`) handles the manual toggle.
 
@@ -203,7 +207,7 @@ Audit dimensions beyond the original 5 gaps: CSS modernization, library footprin
 
 | Bundle | Gaps | Effort | Slot |
 |---|---|---|---|
-| **F — `color-scheme` + container-query pilot** | #6, #7 | ~1h | Ship now, can fold into Bundle A commit |
+| **F — `color-scheme` + container-query pilot** | #6, #7 | ~1h | #6 **SHIPPED 2026-10-01** (`dark`, not `light dark`); #7 pilot next |
 | ~~**G — Charting decision tree (docs)**~~ | #8 | ~30 min | **CLOSED 2026-10-01** — covered by Gap 36 + V8, see Gap 8 |
 | ~~**H — Radix import consolidation**~~ | #9 | ~20 min | **SHIPPED 2026-10-01** — scoped; pin `react-slot` exactly, see Gap 9 |
 

@@ -442,6 +442,11 @@ p {
 }
 
 .dark {
+  /* `dark`, not `light dark`: `<html>` carries `.dark` unconditionally, so
+     letting the OS preference in would paint native controls and the default
+     canvas light on a light-mode machine. The `color-scheme` meta in
+     `__root.tsx` says the same before this stylesheet arrives. */
+  color-scheme: dark;
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
