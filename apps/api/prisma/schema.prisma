@@ -218,9 +218,14 @@ model SteamGameEnrichment {
   // editorial labels Steam resolves to content-hashed `extras/<hash>.{webm,
   // poster.avif}` URLs server-side. Populated lazily on the first
   // `/steam/game/:appid/description` call so the 500-game library doesn't
-  // serialise 500 rate-limited fetches at sync time. Null until first view
-  // (or for DLC/bundle entries with no rendered about-block).
+  // serialise 500 rate-limited fetches at sync time. Null until first view;
+  // `""` when Steam had no about-block to give.
   aboutTheGameHtml      String?
+  // When `aboutTheGameHtml` was last answered by Steam. Drives the view-time
+  // refresh in `getGameDescription`, so a launch-day blank or a publisher's
+  // later edit heals on the next view instead of waiting on an unrelated
+  // cron. Null alongside a cached answer reads as stale.
+  aboutTheGameHtmlFetchedAt DateTime?
   // Storefront screenshots, two server-side buckets from `screenshots.*` on
   // IStoreBrowseService. `screenshotsAllAges` is the storefront default;
   // `screenshotsMature` is the bucket Steam itself gates behind a maturity
