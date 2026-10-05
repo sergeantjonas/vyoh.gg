@@ -168,6 +168,31 @@ describe("GameAboutBlock", () => {
     expect(container.textContent).toContain("Intro");
   });
 
+  it("drops the leading colon of a caption whose clip the cap removed", () => {
+    const clip = (h: string) =>
+      `<p><span class="bb_img_ctn"><video autoplay poster="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1/extras/${h}.poster.avif"><source src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1/extras/${h}.webm" type="video/webm"></video></span></p>`;
+    const hash = "b2d503549e33e6603c86b6bd7babdb38";
+    const kept = Array.from({ length: 5 }, () => clip(hash)).join("");
+    const payload: SteamGameDescription = {
+      appid: 1,
+      bbcode: null,
+      html: `<p><strong>Kept</strong></p>${kept}<p>: shown with its clip</p><p><strong>Rich Storyline</strong></p>${clip(hash)}<p>: With numerous story branches</p><p><strong>Irresistible Heroines</strong></p>${clip(hash)}<p>: From the sweet girl-next-door</p>${clip(hash)}<p>:: Credits ::</p>`,
+    };
+    vi.mocked(useGameDescription).mockReturnValue({
+      data: payload,
+      isPending: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useGameDescription>);
+
+    const { container } = renderWithClient(<GameAboutBlock appid={1} />);
+    const paragraphs = Array.from(container.querySelectorAll("p"), (p) => p.textContent);
+    expect(paragraphs).toContain(": shown with its clip");
+    expect(paragraphs).toContain("With numerous story branches");
+    expect(paragraphs).toContain("From the sweet girl-next-door");
+    expect(paragraphs).toContain(":: Credits ::");
+    expect(container.innerHTML).not.toContain("dropped");
+  });
+
   it("adds loading=lazy + decoding=async to inline <img> in the html branch", () => {
     const payload: SteamGameDescription = {
       appid: 1245620,

@@ -26,6 +26,10 @@ const MEDIA_RENDER_CAP = 5;
 // 3. **Render cap**: count combined media elements, drop anything past the
 //    cap. The first N are typically the editorial highlights publishers
 //    care about; the long tail is decorative spacers and screenshot dumps.
+// 4. **Orphaned captions**: some publishers write "Title" / clip / ": what
+//    the clip shows" (Five Hearts Under One Roof's key features). With the
+//    clip dropped, that leading colon dangles under the title, so it goes
+//    with the clip.
 //
 // A string pass rather than DOMParser: the input is `sanitizeRichHtml`'s own
 // output, which has already normalised every tag to lowercase with
@@ -34,6 +38,15 @@ const MEDIA_RENDER_CAP = 5;
 // description is primed by the route loader, so the server does reach it).
 const ABOUT_MEDIA_RE = /<video\b([^>]*)>[\s\S]*?<\/video>|<img\b([^>]*)>/g;
 const ATTR_RE = /([a-zA-Z-]+)="([^"]*)"/g;
+// A comment marks each dropped element, since Steam's markup reaches here
+// with its comments stripped. The colon may sit behind the clip's own
+// `</span></p>` and the next `<p>`; requiring whitespace after it spares a
+// decorative `:: Features ::` or a `:)`.
+const DROPPED_MEDIA = "<!--dropped-->";
+const ORPHAN_COLON_RE = new RegExp(
+  `${DROPPED_MEDIA}((?:\\s*<\\/?(?:p|span)\\b[^>]*>)*\\s*):\\s+`,
+  "g"
+);
 
 function attrsOf(raw: string): Map<string, string> {
   const out = new Map<string, string>();
@@ -52,37 +65,41 @@ function postProcessAboutHtml(
   // Only media that survives counts toward the cap: a poster-less video
   // dropped under reduce-motion should not cost a later clip its slot.
   let seen = 0;
-  return html.replace(ABOUT_MEDIA_RE, (full, videoAttrs?: string, imgAttrs?: string) => {
-    if (seen >= opts.maxMedia) return "";
-    if (imgAttrs !== undefined) {
+  const out = html.replace(
+    ABOUT_MEDIA_RE,
+    (full, videoAttrs?: string, imgAttrs?: string) => {
+      if (seen >= opts.maxMedia) return DROPPED_MEDIA;
+      if (imgAttrs !== undefined) {
+        seen += 1;
+        const attrs = attrsOf(imgAttrs);
+        attrs.set("loading", "lazy");
+        attrs.set("decoding", "async");
+        return `<img${serializeAttrs(attrs)}>`;
+      }
+      const attrs = attrsOf(videoAttrs ?? "");
+      if (opts.reduceMotion) {
+        const poster = attrs.get("poster");
+        if (!poster) return DROPPED_MEDIA;
+        seen += 1;
+        const img = new Map<string, string>([
+          ["src", poster],
+          ["alt", ""],
+        ]);
+        const w = attrs.get("width");
+        const h = attrs.get("height");
+        if (w) img.set("width", w);
+        if (h) img.set("height", h);
+        img.set("loading", "lazy");
+        img.set("decoding", "async");
+        return `<img${serializeAttrs(img)}>`;
+      }
       seen += 1;
-      const attrs = attrsOf(imgAttrs);
-      attrs.set("loading", "lazy");
-      attrs.set("decoding", "async");
-      return `<img${serializeAttrs(attrs)}>`;
+      attrs.set("preload", "metadata");
+      const open = full.indexOf(">") + 1;
+      return `<video${serializeAttrs(attrs)}>${full.slice(open)}`;
     }
-    const attrs = attrsOf(videoAttrs ?? "");
-    if (opts.reduceMotion) {
-      const poster = attrs.get("poster");
-      if (!poster) return "";
-      seen += 1;
-      const img = new Map<string, string>([
-        ["src", poster],
-        ["alt", ""],
-      ]);
-      const w = attrs.get("width");
-      const h = attrs.get("height");
-      if (w) img.set("width", w);
-      if (h) img.set("height", h);
-      img.set("loading", "lazy");
-      img.set("decoding", "async");
-      return `<img${serializeAttrs(img)}>`;
-    }
-    seen += 1;
-    attrs.set("preload", "metadata");
-    const open = full.indexOf(">") + 1;
-    return `<video${serializeAttrs(attrs)}>${full.slice(open)}`;
-  });
+  );
+  return out.replace(ORPHAN_COLON_RE, "$1").replaceAll(DROPPED_MEDIA, "");
 }
 
 // Render order, preferred path: rendered `about_the_game` HTML from Steam's
