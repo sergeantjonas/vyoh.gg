@@ -202,7 +202,7 @@ describe("GameAboutBlock", () => {
     expect(container.querySelector("strong")?.textContent).toBe("bbcode fallback");
   });
 
-  it("falls back to bbcode when html is the terminal empty-string sentinel", () => {
+  it("falls back to bbcode when html is the empty-string sentinel", () => {
     const payload: SteamGameDescription = {
       appid: 42,
       bbcode: "[b]bbcode body[/b]",

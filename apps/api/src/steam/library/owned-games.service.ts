@@ -127,6 +127,18 @@ type SnapshotRow = {
   game: { name: string; rtimeLastPlayed: Date | null };
 };
 
+// A real about-block changes when the publisher edits the store page, so a
+// week is plenty. An empty one is usually a store page caught in the hours
+// around launch and is worth asking about again the next day.
+const ABOUT_HTML_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const ABOUT_HTML_EMPTY_TTL_MS = 24 * 60 * 60 * 1000;
+
+function isAboutHtmlFresh(html: string, fetchedAt: Date | null, now: Date): boolean {
+  if (fetchedAt === null) return false;
+  const ttl = html === "" ? ABOUT_HTML_EMPTY_TTL_MS : ABOUT_HTML_TTL_MS;
+  return now.getTime() - fetchedAt.getTime() < ttl;
+}
+
 @Injectable()
 export class SteamOwnedGamesService {
   private readonly logger = new Logger(SteamOwnedGamesService.name);
@@ -596,26 +608,36 @@ export class SteamOwnedGamesService {
   // - `bbcode` from the monthly enrichment cron (`IStoreBrowseService`)
   // - `html` from the legacy storefront `appdetails` endpoint, fetched lazily
   //   on first view so the 500-game library doesn't serialise 500 rate-
-  //   limited calls at sync time. The hot path (column already populated) is
-  //   a single read; the cold path fans out to one extra HTTP call.
+  //   limited calls at sync time. The hot path (fresh column) is a single
+  //   read; a cold or stale column fans out to one extra HTTP call.
   //
-  // `aboutTheGameHtml` uses three states in one nullable column: `null` =
-  // never successfully fetched (retry next view), `""` = fetched and Steam
-  // reported delisted/empty (don't retry), anything else = the rendered HTML.
-  // Returning `null` from the upstream call is treated as a terminal "don't
-  // retry" state and persisted as `""`. Fetch failures (network, rate limit)
-  // bubble out of the limiter; we catch + log and leave the column null so
-  // the next view retries — the caller still gets the bbcode fallback.
+  // `aboutTheGameHtml` is `null` until Steam first answers, `""` when Steam
+  // had no about-block (delisted, or a store page caught mid-launch), and the
+  // rendered HTML otherwise. Every answer is re-asked once it ages past its
+  // TTL, `""` sooner than real HTML, since a blank caught around launch would
+  // otherwise stick for good. An empty answer never overwrites a description
+  // already held, and
+  // a failed fetch (network, rate limit, Steam 5xx) serves whatever the
+  // column had, leaving it untouched so the next view retries.
   async getGameDescription(
-    appid: number
+    appid: number,
+    now: Date = new Date()
   ): Promise<{ appid: number; bbcode: string | null; html: string | null }> {
     const row = await this.prisma.steamGameEnrichment.findUnique({
       where: { appid },
-      select: { fullDescriptionBbcode: true, aboutTheGameHtml: true },
+      select: {
+        fullDescriptionBbcode: true,
+        aboutTheGameHtml: true,
+        aboutTheGameHtmlFetchedAt: true,
+      },
     });
     const bbcode = row?.fullDescriptionBbcode ?? null;
-    if (row?.aboutTheGameHtml != null) {
-      return { appid, bbcode, html: row.aboutTheGameHtml };
+    const cached = row?.aboutTheGameHtml ?? null;
+    if (
+      cached != null &&
+      isAboutHtmlFresh(cached, row?.aboutTheGameHtmlFetchedAt ?? null, now)
+    ) {
+      return { appid, bbcode, html: cached };
     }
 
     // Only fetch for a game we actually own. Without this the endpoint is an
@@ -633,24 +655,21 @@ export class SteamOwnedGamesService {
       throw new NotFoundException(`Steam app ${appid} is not in the tracked library.`);
     }
 
-    let html: string | null = null;
+    let html = cached;
     try {
+      // `null` from upstream = delisted/private, persisted as `""` so the
+      // short empty TTL paces the retries instead of every view paying one.
       const fetched = await this.client.getAboutTheGameHtml(appid);
-      // `null` from upstream = delisted/private. Persist `""` as the terminal
-      // "don't retry" sentinel rather than leaving the column null.
-      html = fetched ?? "";
+      html = fetched || cached || "";
       await this.prisma.steamGameEnrichment.update({
         where: { appid },
-        data: { aboutTheGameHtml: html },
+        data: { aboutTheGameHtml: html, aboutTheGameHtmlFetchedAt: now },
       });
     } catch (err) {
-      // Missing enrichment row (P2025) means the game was never enriched —
-      // leave html null so a future enrichment pass can populate first.
-      // Other errors (network, rate limit, Steam 5xx) also leave html null
-      // and surface in logs; the next view retries.
+      // A missing enrichment row (P2025) lands here after a good fetch: the
+      // answer is served but not kept, until enrichment creates the row.
       const message = err instanceof Error ? err.message : String(err);
       this.logger.warn(`steam appdetails(${appid}) → ${message}`);
-      html = null;
     }
     return { appid, bbcode, html };
   }

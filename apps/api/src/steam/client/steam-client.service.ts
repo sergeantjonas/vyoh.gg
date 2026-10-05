@@ -202,9 +202,9 @@ export class SteamClientService {
   // (`store.steampowered.com` vs `api.steampowered.com`); no API key
   // accepted, public endpoint. Returns `null` when Steam reports
   // `success: false` (delisted/private game) and `""` when the game has no
-  // about-block (DLC, bundle, demo); both are persisted-and-don't-retry
-  // states. Routes through the shared limiter under a dedicated family so
-  // budget bookkeeping stays unified.
+  // about-block (DLC, bundle, demo); both persist as `""` and are re-asked
+  // after the empty TTL in `getGameDescription`. Routes through the shared
+  // limiter under a dedicated family so budget bookkeeping stays unified.
   async getAboutTheGameHtml(appid: number): Promise<string | null> {
     return this.limiter.schedule("appdetails", async () => {
       const url = `${STEAM_STORE_BASE}/api/appdetails?appids=${appid}&l=en&filters=basic`;

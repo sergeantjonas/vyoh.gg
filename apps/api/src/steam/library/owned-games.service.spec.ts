@@ -543,10 +543,14 @@ describe("SteamOwnedGamesService.getOwnedGames", () => {
 });
 
 describe("SteamOwnedGamesService.getGameDescription", () => {
+  const NOW = new Date("2026-10-05T12:00:00Z");
+  const hoursAgo = (h: number) => new Date(NOW.getTime() - h * 60 * 60 * 1000);
+
   function makeStubs(
     row: {
       fullDescriptionBbcode: string | null;
       aboutTheGameHtml: string | null;
+      aboutTheGameHtmlFetchedAt?: Date | null;
     },
     opts: { owned?: boolean } = {}
   ) {
@@ -571,13 +575,14 @@ describe("SteamOwnedGamesService.getGameDescription", () => {
     return { prisma, findUnique, update };
   }
 
-  it("hot path: returns persisted html without calling the client", async () => {
+  it("hot path: returns fresh persisted html without calling the client", async () => {
     const { prisma } = makeStubs({
       fullDescriptionBbcode: "[b]bb[/b]",
       aboutTheGameHtml: "<p>cached</p>",
+      aboutTheGameHtmlFetchedAt: hoursAgo(6 * 24),
     });
     const client = { getAboutTheGameHtml: vi.fn() };
-    const result = await makeService(prisma, client).getGameDescription(42);
+    const result = await makeService(prisma, client).getGameDescription(42, NOW);
     expect(result).toEqual({ appid: 42, bbcode: "[b]bb[/b]", html: "<p>cached</p>" });
     expect(client.getAboutTheGameHtml).not.toHaveBeenCalled();
   });
@@ -590,27 +595,97 @@ describe("SteamOwnedGamesService.getGameDescription", () => {
     const client = {
       getAboutTheGameHtml: vi.fn().mockResolvedValue("<p>fetched</p>"),
     };
-    const result = await makeService(prisma, client).getGameDescription(42);
+    const result = await makeService(prisma, client).getGameDescription(42, NOW);
     expect(client.getAboutTheGameHtml).toHaveBeenCalledWith(42);
     expect(update).toHaveBeenCalledWith({
       where: { appid: 42 },
-      data: { aboutTheGameHtml: "<p>fetched</p>" },
+      data: { aboutTheGameHtml: "<p>fetched</p>", aboutTheGameHtmlFetchedAt: NOW },
     });
     expect(result.html).toBe("<p>fetched</p>");
   });
 
-  it("delisted: persists empty string as the terminal don't-retry sentinel", async () => {
+  it("delisted: persists an empty string so retries are paced, not per-view", async () => {
     const { prisma, update } = makeStubs({
       fullDescriptionBbcode: null,
       aboutTheGameHtml: null,
     });
     const client = { getAboutTheGameHtml: vi.fn().mockResolvedValue(null) };
-    const result = await makeService(prisma, client).getGameDescription(42);
+    const result = await makeService(prisma, client).getGameDescription(42, NOW);
     expect(update).toHaveBeenCalledWith({
       where: { appid: 42 },
-      data: { aboutTheGameHtml: "" },
+      data: { aboutTheGameHtml: "", aboutTheGameHtmlFetchedAt: NOW },
     });
     expect(result.html).toBe("");
+  });
+
+  it("empty answer: holds for a day, then asks Steam again", async () => {
+    const recent = makeStubs({
+      fullDescriptionBbcode: "[b]bb[/b]",
+      aboutTheGameHtml: "",
+      aboutTheGameHtmlFetchedAt: hoursAgo(12),
+    });
+    const quiet = { getAboutTheGameHtml: vi.fn() };
+    await makeService(recent.prisma, quiet).getGameDescription(42, NOW);
+    expect(quiet.getAboutTheGameHtml).not.toHaveBeenCalled();
+
+    const aged = makeStubs({
+      fullDescriptionBbcode: "[b]bb[/b]",
+      aboutTheGameHtml: "",
+      aboutTheGameHtmlFetchedAt: hoursAgo(25),
+    });
+    const client = { getAboutTheGameHtml: vi.fn().mockResolvedValue("<p>launched</p>") };
+    const result = await makeService(aged.prisma, client).getGameDescription(42, NOW);
+    expect(result.html).toBe("<p>launched</p>");
+  });
+
+  it("legacy row: html cached without a fetch time is treated as stale", async () => {
+    const { prisma } = makeStubs({
+      fullDescriptionBbcode: null,
+      aboutTheGameHtml: "",
+      aboutTheGameHtmlFetchedAt: null,
+    });
+    const client = { getAboutTheGameHtml: vi.fn().mockResolvedValue("<p>fresh</p>") };
+    const result = await makeService(prisma, client).getGameDescription(42, NOW);
+    expect(client.getAboutTheGameHtml).toHaveBeenCalledWith(42);
+    expect(result.html).toBe("<p>fresh</p>");
+  });
+
+  it("stale html: an empty answer keeps the held description", async () => {
+    const { prisma, update } = makeStubs({
+      fullDescriptionBbcode: null,
+      aboutTheGameHtml: "<p>held</p>",
+      aboutTheGameHtmlFetchedAt: hoursAgo(8 * 24),
+    });
+    const client = { getAboutTheGameHtml: vi.fn().mockResolvedValue(null) };
+    const result = await makeService(prisma, client).getGameDescription(42, NOW);
+    expect(update).toHaveBeenCalledWith({
+      where: { appid: 42 },
+      data: { aboutTheGameHtml: "<p>held</p>", aboutTheGameHtmlFetchedAt: NOW },
+    });
+    expect(result.html).toBe("<p>held</p>");
+  });
+
+  it("stale html: a failed refresh serves the stale copy and leaves the row", async () => {
+    const { prisma, update } = makeStubs({
+      fullDescriptionBbcode: "[b]bb[/b]",
+      aboutTheGameHtml: "<p>held</p>",
+      aboutTheGameHtmlFetchedAt: hoursAgo(8 * 24),
+    });
+    const client = { getAboutTheGameHtml: vi.fn().mockRejectedValue(new Error("429")) };
+    const result = await makeService(prisma, client).getGameDescription(42, NOW);
+    expect(update).not.toHaveBeenCalled();
+    expect(result.html).toBe("<p>held</p>");
+  });
+
+  it("write failure: serves the fetched answer it could not keep", async () => {
+    const { prisma, update } = makeStubs({
+      fullDescriptionBbcode: null,
+      aboutTheGameHtml: null,
+    });
+    update.mockRejectedValue(Object.assign(new Error("not found"), { code: "P2025" }));
+    const client = { getAboutTheGameHtml: vi.fn().mockResolvedValue("<p>x</p>") };
+    const result = await makeService(prisma, client).getGameDescription(42, NOW);
+    expect(result.html).toBe("<p>x</p>");
   });
 
   it("upstream failure: leaves the column null and returns html=null", async () => {
