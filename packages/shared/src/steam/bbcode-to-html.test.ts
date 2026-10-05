@@ -60,6 +60,30 @@ describe("bbcodeToHtml", () => {
     expect(html).not.toMatch(/>\s*\{STEAM_APP_IMAGE\}/);
   });
 
+  it("handles the [img src=… ] attribute-list form without leaking the tag", () => {
+    const html = bbcodeToHtml(
+      'Intro.[img src="{STEAM_APP_IMAGE}/extras/abc.poster.avif" poster="{STEAM_APP_IMAGE}/extras/abc.poster.avif" width="1170" height="498" mp4="{STEAM_APP_IMAGE}/extras/abc.mp4" fromclient=1][/img]',
+      3669870
+    );
+    expect(html).toBe(
+      '<p>Intro.<img src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3669870/extras/abc.poster.avif"></p>'
+    );
+  });
+
+  it("does not leak a label inside the [img src=… ] form", () => {
+    const html = bbcodeToHtml(
+      '[img data-src="x" src="{STEAM_APP_IMAGE}/extras/a.gif"]{STEAM_APP_IMAGE}/extras/a.gif[/img] after',
+      1
+    );
+    expect(html).toBe(
+      '<p><img src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1/extras/a.gif"> after</p>'
+    );
+  });
+
+  it("drops an [img …] attribute list with no src", () => {
+    expect(bbcodeToHtml('a[img width="10" fromclient=1][/img]b')).toBe("<p>ab</p>");
+  });
+
   describe("{STEAM_APP_IMAGE} substitution", () => {
     // Canonical resolution per Steam's storefront renderer.
     const base = (appid: number) =>
