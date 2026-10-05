@@ -19,6 +19,7 @@
 //   [*] item          → <li>item</li>   (terminated by next [*] or end of list)
 //   [img]URL[/img]    → <img src="URL"> (URL caller-rewritten via sanitizer)
 //   [img=URL ...]L    → <img src="URL"> (attribute form, see IMG_ATTR_RE below)
+//   [img src="URL" …] → <img src="URL"> (attribute-list form, IMG_SRC_ATTR_RE)
 //   [url=X]Y[/url]    → Y               (strip link, keep text — same policy
 //   [url]Y[/url]      → Y                as the LoL sanitiser drops <a>)
 //   blank line        → paragraph break (split into <p>..</p> blocks)
@@ -66,6 +67,16 @@ const IMG_RE = /\[img\]([\s\S]*?)\[\/img\]/gi;
 // label that would otherwise leak as visible text once UNKNOWN_TAG_RE strips
 // the wrapper.
 const IMG_ATTR_RE = /\[img=([^\]]*)\]([\s\S]*?)\[\/img\]/gi;
+// Steam's storefront editor also writes an HTML-like attribute list:
+// `[img src="…" poster="…" mp4="…" webm="…" width="1170" fromclient=1][/img]`
+// for an inline clip, `src` alone for a GIF (CONTROL Resonant, Five Hearts
+// Under One Roof). The space after `img` keeps it out of UNKNOWN_TAG_RE, so
+// unmatched it renders as literal text. A label up to `[/img]` goes with the
+// tag, as in IMG_ATTR_RE; with no closer only the opener is taken, so a
+// missing `[/img]` cannot swallow the paragraphs after it. `<>` is excluded
+// because after escapeHtml it can only be markup an earlier pass emitted.
+const IMG_SRC_ATTR_RE = /\[img\s+([^\]<>]*)\](?:[^[]*?\[\/img\])?/gi;
+const SRC_ATTR_RE = /(?:^|\s)src="([^"]*)"/i;
 // Steam's template placeholder for app-scoped description assets. Resolves to
 // `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/<appid>`
 // (also reachable via cdn.cloudflare.steamstatic.com and shared.steamstatic.com).
@@ -185,6 +196,13 @@ export function bbcodeToHtml(input: string | null | undefined, appid?: number): 
       innerUrl.startsWith(STEAM_APP_IMAGE_TOKEN) ||
       innerUrl.startsWith(STEAM_CLAN_IMAGE_TOKEN);
     const src = innerLooksTemplated ? innerUrl : attrUrl || innerUrl;
+    if (!src) return "";
+    return `<img src="${escapeAttr(substituteSteamTokens(src, appid))}">`;
+  });
+  // For a clip, `src` is the poster frame; the mp4/webm pair is left to
+  // Steam's rendered HTML, which carries the same clip as a `<video>`.
+  html = html.replace(IMG_SRC_ATTR_RE, (_full, attrs: string) => {
+    const src = SRC_ATTR_RE.exec(attrs)?.[1]?.trim();
     if (!src) return "";
     return `<img src="${escapeAttr(substituteSteamTokens(src, appid))}">`;
   });
