@@ -72,15 +72,15 @@ export function LolIdentityHero({
   // and morphs the avatar+name up into the header band; the hero (still mounted
   // above the fold) drops the id so the two never fight over it. Reduced motion
   // skips the shared layout entirely → instant swap. See identity-layout.ts.
-  const { compact } = useSectionShellState();
+  const { compact, avatarOnly } = useSectionShellState();
   const morph = !compact && !reduced;
   const avatarLayoutId = morph ? IDENTITY_AVATAR_MORPH_ID : undefined;
   const nameLayoutId = morph ? IDENTITY_NAME_MORPH_ID : undefined;
   // Mark the avatar + name as the on-screen identity for the cross-nav VT morph
   // (identity-morph-nav.ts) — but only while the hero is the visible owner, i.e.
   // not compact. When compact the hero is opacity-0 and the strip carries the
-  // markers instead, so exactly one avatar/name pair is tagged in the DOM at any
-  // time and the morph driver can name an unambiguous source/destination.
+  // markers instead, so at most one avatar and one name are tagged in the DOM
+  // at any time and the morph driver can name an unambiguous source/destination.
   const markIdentity = !compact;
 
   // Supporting hero chrome (avatar glow, level badge, rank line, last-played)
@@ -251,6 +251,10 @@ export function LolIdentityHero({
                 // so the display "look" comes from weight + tracking + size
                 // rather than a true optical-size cut.
                 "truncate font-bold text-4xl -tracking-[0.02em] drop-shadow-md sm:text-5xl",
+                // With no strip name to morph into, fade in place rather than
+                // blinking out and back.
+                avatarOnly &&
+                  "transition-opacity duration-300 motion-reduce:transition-none",
                 compact && "opacity-0"
               )}
             >

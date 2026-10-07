@@ -6,6 +6,7 @@ import { type ReactNode, type RefObject, createRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SectionTab } from "./section-nav";
 import { SectionShell } from "./section-shell";
+import { useSectionShellState } from "./section-shell-context";
 
 // Tabs/live render via TanStack <Link>; stub it to a plain anchor (dropping the
 // router-only props) so the strip mounts without a RouterProvider.
@@ -42,6 +43,16 @@ class FakeResizeObserver {
 }
 
 const IconStub = () => <span data-testid="icon" />;
+
+function CompactProbe() {
+  const { compact, avatarOnly } = useSectionShellState();
+  return (
+    <>
+      <span data-testid="compact-probe">{compact ? "compact" : "expanded"}</span>
+      <span data-testid="avatar-only-probe">{avatarOnly ? "avatar-only" : "full"}</span>
+    </>
+  );
+}
 
 // color-contrast needs real computed styles (absent in happy-dom); aria-hidden-focus
 // is a known Radix/happy-dom false positive (mirrors accessibility.test.tsx).
@@ -139,6 +150,73 @@ describe("SectionShell", () => {
     expect(promoted.className).toContain("grow");
     expect(promoted.className).not.toContain("order-last");
     expect(promoted.className).not.toContain("basis-full");
+  });
+
+  it("keeps a hero route's dropdown on row 1 once compact, so the strip never gains a row mid-scroll", () => {
+    const scrollEl = document.createElement("div");
+    Object.defineProperty(scrollEl, "scrollTop", { value: 200, writable: true });
+    mainScrollRef.current = scrollEl;
+
+    renderShell({ heroOwnsIdentity: true, identity: <CompactProbe /> });
+    fireEvent.scroll(scrollEl);
+
+    expect(screen.getByTestId("compact-probe").textContent).toBe("compact");
+    const trigger = screen.getByRole("button", { name: "Sections" });
+    expect(trigger.classList.contains("order-3")).toBe(true);
+    expect(trigger.classList.contains("order-last")).toBe(false);
+    // The avatar's width is held while the slot is empty, so its arrival
+    // can't wrap a crowded row either.
+    const identitySlot = screen.getByTestId("compact-probe").parentElement;
+    expect(identitySlot?.classList.contains("max-[639px]:min-w-10")).toBe(true);
+  });
+
+  it("leaves compact as soon as the scroll returns near the top", () => {
+    const scrollEl = document.createElement("div");
+    Object.defineProperty(scrollEl, "scrollTop", { value: 0, writable: true });
+    mainScrollRef.current = scrollEl;
+    renderShell({ identity: <CompactProbe /> });
+    const probe = () => screen.getByTestId("compact-probe").textContent;
+
+    (scrollEl as unknown as { scrollTop: number }).scrollTop = 200;
+    fireEvent.scroll(scrollEl);
+    expect(probe()).toBe("compact");
+    // Inside the hysteresis band: stays compact.
+    (scrollEl as unknown as { scrollTop: number }).scrollTop = 50;
+    fireEvent.scroll(scrollEl);
+    expect(probe()).toBe("compact");
+    // A quick flick back to the top exits on the very next event.
+    (scrollEl as unknown as { scrollTop: number }).scrollTop = 4;
+    fireEvent.scroll(scrollEl);
+    expect(probe()).toBe("expanded");
+  });
+
+  it("asks the identity for its avatar only on a narrow hero route", () => {
+    const stubWidth = (wide: boolean) =>
+      vi.stubGlobal("matchMedia", (query: string) => ({
+        matches: wide,
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }));
+    const avatarOnly = () => screen.getByTestId("avatar-only-probe").textContent;
+
+    stubWidth(false);
+    const narrowHero = renderShell({
+      heroOwnsIdentity: true,
+      identity: <CompactProbe />,
+    });
+    expect(avatarOnly()).toBe("avatar-only");
+    narrowHero.unmount();
+
+    // A non-hero route gives the identity its own row, name included.
+    const narrowPlain = renderShell({ identity: <CompactProbe /> });
+    expect(avatarOnly()).toBe("full");
+    narrowPlain.unmount();
+
+    // From 640px the row has room for the name beside the dropdown.
+    stubWidth(true);
+    renderShell({ heroOwnsIdentity: true, identity: <CompactProbe /> });
+    expect(avatarOnly()).toBe("full");
   });
 
   it("has no axe violations for the merged strip (tabs + dropdown + live + actions)", async () => {

@@ -6,7 +6,6 @@ import { useSectionShellState } from "@/_shared/section-layout/section-shell-con
 import { NotFound } from "@/components/not-found";
 import { routeMeta } from "@/lib/route-meta";
 import { useScrollResetOnNav } from "@/lib/use-scroll-reset-on-nav";
-import { cn } from "@/lib/utils";
 import { SteamPreferences } from "@/steam/_shared/steam-preferences";
 import { NewPurchasePrompt } from "@/steam/curation/new-purchase-prompt";
 import { ActiveGameProvider, useActiveGame } from "@/steam/library/active-game-context";
@@ -183,7 +182,7 @@ function SteamLayout() {
           }
           actions={<SteamPreferences />}
           onHeaderRect={onHeaderRect}
-          headerDockPx={104}
+          headerDockPx={120}
         >
           {/* Above the outlet rather than on one tab: the owner may land
               anywhere in the section, and a question they only get asked on
@@ -234,7 +233,7 @@ function SteamIdentity({
 }: {
   onProfileClick: (e: MouseEvent<HTMLAnchorElement>) => void;
 }) {
-  const { compact } = useSectionShellState();
+  const { compact, avatarOnly } = useSectionShellState();
   const prefersReducedMotion = useReducedMotion();
   const { data: summary } = useSteamSummary();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -250,8 +249,8 @@ function SteamIdentity({
   // and motion is allowed; otherwise the strip renders as a plain header. The
   // `data-identity-{avatar,name}` markers are unconditional: the strip only
   // renders when it's the visible identity owner, so tagging it always keeps
-  // exactly one avatar/name pair marked in the DOM for any future cross-nav
-  // identity morph.
+  // at most one avatar and one name marked in the DOM for any future cross-nav
+  // identity morph (a narrow hero-route strip carries no name).
   const morph = isProfileIndex && !prefersReducedMotion;
   const avatarLayoutId = morph ? STEAM_IDENTITY_AVATAR_MORPH_ID : undefined;
   const nameLayoutId = morph ? STEAM_IDENTITY_NAME_MORPH_ID : undefined;
@@ -272,20 +271,12 @@ function SteamIdentity({
               : summary.avatarUrl
           }
           alt=""
-          className={cn(
-            "rounded-full object-cover ring-1 ring-border transition-[width,height]",
-            compact ? "size-10" : "size-12"
-          )}
+          className="size-10 rounded-full object-cover ring-1 ring-border"
         />
       ) : (
-        <div
-          className={cn(
-            "animate-pulse rounded-full bg-muted ring-1 ring-border transition-all",
-            compact ? "size-10" : "size-12"
-          )}
-        />
+        <div className="size-10 animate-pulse rounded-full bg-muted ring-1 ring-border" />
       )}
-      {summary ? (
+      {avatarOnly ? null : summary ? (
         <m.span
           {...(nameLayoutId ? { layoutId: nameLayoutId } : {})}
           data-identity-name=""

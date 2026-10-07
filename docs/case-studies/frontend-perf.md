@@ -271,7 +271,7 @@ const stats = useMemo(
 
 Now the sort memo inside `ChampionTable` can keep its sorted output stable across renders where `matches` hasn't changed.
 
-**Considered, not fixed.** `MatchDetailPage.heroSummary` is also built inline as a fresh `MatchSummary` literal when `cachedSummary` is absent. Its consumers don't `React.memo`, so identity churn there is cheap — fixing it would be speculative without a measurement that says the children actually pay for the new identity. `AccountLayout`'s `compact` scroll-toggle can fire one extra commit per transition when leaving a scrolled state, but the cooldown + hysteresis cap it at one and the cost is minimal.
+**Considered, not fixed.** `MatchDetailPage.heroSummary` is also built inline as a fresh `MatchSummary` literal when `cachedSummary` is absent. Its consumers don't `React.memo`, so identity churn there is cheap — fixing it would be speculative without a measurement that says the children actually pay for the new identity. `AccountLayout`'s `compact` scroll-toggle can fire one extra commit per transition when leaving a scrolled state, but the hysteresis caps it at one and the cost is minimal.
 
 **No measured before/after numbers — a static pass doesn't give you those.** The two fixes above are structurally correct (they bring `MatchWindowProvider` in line with the other providers and stop a 2000-element aggregation from running on every commit), and I'll validate or revert from the host Chrome's Profiler. The two fixes don't add a single `React.memo` wrapper. They remove inline construction that was the obvious cause of the wasted work; that distinction is the point of the rule "fix the specific hotspot."
 

@@ -87,11 +87,11 @@ function playerState(overrides: Partial<SteamPlayerState> = {}): SteamPlayerStat
   };
 }
 
-function renderHero({ compact = false } = {}) {
+function renderHero({ compact = false, avatarOnly = false } = {}) {
   // The hero reads `compact` from the section shell to yield its identity to
   // the strip morph; provide it so the hook doesn't throw.
   return render(
-    <SectionShellProvider value={{ compact }}>
+    <SectionShellProvider value={{ compact, avatarOnly }}>
       <MotionConfig reducedMotion="always">
         <SteamIdentityHero />
       </MotionConfig>
@@ -276,6 +276,19 @@ describe("SteamIdentityHero", () => {
     // Avatar wrapper (the element wrapping the persona avatar) also fades.
     const avatar = container.querySelector<HTMLImageElement>("img[data-presence]");
     expect(avatar?.parentElement?.className).toContain("opacity-0");
+  });
+
+  it("fades its name in place when the strip shows the avatar alone", () => {
+    const { unmount } = renderHero({ compact: true, avatarOnly: true });
+    expect(screen.getByRole("heading", { level: 2 }).classList).toContain(
+      "transition-opacity"
+    );
+    unmount();
+    // With a strip name to morph into, the hero copy hides at once instead.
+    renderHero({ compact: true });
+    expect(screen.getByRole("heading", { level: 2 }).classList).not.toContain(
+      "transition-opacity"
+    );
   });
 
   it("marks its avatar + name as the cross-nav identity owner when not compact", () => {

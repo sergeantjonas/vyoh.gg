@@ -1,6 +1,7 @@
 import { mainScrollRef } from "@/lib/scroll-container";
+import { useMediaQuery } from "@/lib/use-media-query";
 import { cn } from "@/lib/utils";
-import { m, useReducedMotion } from "motion/react";
+import { useReducedMotion } from "motion/react";
 import { type ReactNode, type Ref, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -36,22 +37,20 @@ type SectionShellProps = {
   tabIndicatorId?: string;
   // Optional live route, rendered as a route-aware presence chip (not a tab).
   live?: SectionLiveTab | undefined;
-  // Current route pathname. When provided, every change resets the scroll-
-  // driven `compact` state — every nav lands at `scrollTop=0` (via the
-  // section root's `useScrollResetOnNav`), and the `compact` toggle's 400ms
-  // cooldown can otherwise block the exit when the user scrolled into
-  // compact and then clicked a dropdown item before the cooldown elapsed,
-  // leaving the strip stuck in compact-mode on the new page until they
-  // manually scroll.
+  // Current route pathname. When provided, every change re-syncs the scroll-
+  // driven `compact` state to the destination's scroll position, since the
+  // shell outlives tab navs and would otherwise carry the source's state.
   pathname?: string;
   // True when a hero card upstream (LoL `LolIdentityHero` / Steam
   // `SteamIdentityHero`) owns the identity at scroll-top, so the strip's
   // identity slot resolves to `null` while not compact. Drives the narrow-
-  // viewport (<640px) dropdown layout: with no identity in row 1, the dropdown
-  // promotes from its own row 2 up to row 1 so the strip doesn't read as a
-  // bar of empty whitespace + a dropdown below. Once the user scrolls and the
-  // identity morphs into the strip (`compact === true`), the dropdown drops
-  // back to row 2 to make room.
+  // viewport (<640px) layout: the dropdown sits on row 1 rather than its own
+  // row 2, so the strip doesn't read as a bar of empty whitespace above a
+  // dropdown, and it stays there once the identity morphs in — the identity
+  // shrinks to its avatar (`avatarOnly`) to fit beside it instead. Moving the
+  // dropdown to a second row on compact would grow the strip by a row, and
+  // the strip sits above <main>, so that row would shove the content down
+  // mid-scroll.
   heroOwnsIdentity?: boolean;
   children: ReactNode;
   // External ref to the <header>; merged with the shell's internal ref.
@@ -65,9 +64,9 @@ type SectionShellProps = {
   // is only ever written from JS after measurement, so anything docked under
   // the header would sit at the viewport top on the server-rendered frame;
   // this is the CSS-visible stand-in for that frame, replaced as soon as the
-  // ResizeObserver fires. A per-section number because the LoL and Steam
-  // strips end at different heights; it is the wide-viewport measurement, so
-  // a wrapped narrow header is briefly taller than declared.
+  // ResizeObserver fires. A per-section number because each section's strip
+  // content sets its height; it is the wide-viewport measurement, so a
+  // wrapped narrow header is briefly taller than declared.
   headerDockPx?: number | undefined;
 };
 
@@ -146,33 +145,26 @@ export function SectionShell({
     };
   }, [slot]);
 
-  // Two scroll-driven states with different thresholds. `compact` drives the
-  // header padding spring with wide hysteresis (>96 enter, <8 exit) and a
-  // 400ms cooldown — defends against the scroll-anchoring flap loop where
-  // shrinking the header bumps scrollTop back across the threshold.
-  // `bandOpaque` drives the band's opacity off a much smaller threshold (16px)
-  // so the tint catches up to the first scroll. The band doesn't change
-  // layout, so it skips the cooldown.
+  // Below 640px a hero route keeps the dropdown on row 1 in both states (see
+  // `heroOwnsIdentity`), so the identity that morphs in has to fit beside it.
+  const wideStrip = useMediaQuery("(min-width: 640px)");
+  const avatarOnly = heroOwnsIdentity && !wideStrip;
+
+  // Two scroll-driven states with different thresholds. `compact` hands the
+  // identity from the hero to the strip, with wide hysteresis (>96 enter, <8
+  // exit). It must never change the strip's height: the strip sits above
+  // <main>, so every pixel it gained or lost would move the content on top of
+  // the finger's own travel. `bandOpaque` drives the band's opacity off a much
+  // smaller threshold (16px) so the tint catches up to the first scroll.
   const [compact, setCompact] = useState(false);
   const [bandOpaque, setBandOpaque] = useState(false);
-  const lastToggleRef = useRef(0);
   useEffect(() => {
     const scrollEl = mainScrollRef.current;
     if (!scrollEl) return;
     const onScroll = () => {
-      setBandOpaque(scrollEl.scrollTop > 16);
-      if (Date.now() - lastToggleRef.current < 400) return;
-      setCompact((prev) => {
-        if (!prev && scrollEl.scrollTop > 96) {
-          lastToggleRef.current = Date.now();
-          return true;
-        }
-        if (prev && scrollEl.scrollTop < 8) {
-          lastToggleRef.current = Date.now();
-          return false;
-        }
-        return prev;
-      });
+      const top = scrollEl.scrollTop;
+      setBandOpaque(top > 16);
+      setCompact((prev) => (prev ? top >= 8 : top > 96));
     };
     scrollEl.addEventListener("scroll", onScroll, { passive: true });
     return () => scrollEl.removeEventListener("scroll", onScroll);
@@ -180,30 +172,24 @@ export function SectionShell({
 
   // Sync the scroll-driven states to the current scrollTop on every route
   // transition. SectionShell is the section layout — it doesn't remount on
-  // tab nav, so without this the `compact` flag persists across pathname
-  // changes; the in-line scroll listener has a 400ms cooldown that can
-  // block the cross-nav exit (user scrolled into compact and clicked a
-  // tab within the cooldown → strip stuck in compact on the destination
-  // until they scroll again).
+  // tab nav, so the destination would otherwise commit with the source's
+  // `compact` and only correct itself when the reset's scroll event lands.
   //
   // Reading `scrollTop` directly here — rather than unconditionally setting
   // compact=false — keeps panel-open navs honest. List↔detail-panel pairs
   // skip `useScrollResetOnNav`'s top-reset (the list stays mounted under
   // the panel), so `scrollTop` carries over. Unconditionally collapsing
-  // would yank the strip from compact back to its full size the moment a
-  // detail panel opens. Tab navs still scroll-reset to 0 in the section
-  // root's `useScrollResetOnNav`, so this effect runs AFTER that reset and
-  // reads the post-reset position — compact correctly exits there too.
-  // `pathname` is the trigger; lastToggleRef reset clears the cooldown so
-  // subsequent scrolls can re-toggle freely.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: see comment above
+  // would yank the strip out of compact the moment a detail panel opens.
+  // Tab navs still scroll-reset to 0 in the section root's
+  // `useScrollResetOnNav`, so this effect runs AFTER that reset and reads
+  // the post-reset position — compact correctly exits there too.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `pathname` is the trigger, see comment above
   useEffect(() => {
     const scrollEl = mainScrollRef.current;
     const scrollTop = scrollEl?.scrollTop ?? 0;
     if (scrollTop > 96) setCompact(true);
     else if (scrollTop < 8) setCompact(false);
     setBandOpaque(scrollTop > 16);
-    lastToggleRef.current = 0;
   }, [pathname]);
 
   const header = (
@@ -212,9 +198,9 @@ export function SectionShell({
           (including the scrollbar-gutter reserve on either side of <main>)
           instead of being clipped by <main>'s `overflow-x: clip`. Height +
           top sync to the in-flow header via ResizeObserver so the band's
-          bottom matches the gradient hairline during the compact/expanded
-          spring. Opacity fades on first-scroll so the section's backdrop
-          (LoL splash / Steam profile bg) reads cleanly at the top. */}
+          bottom matches the gradient hairline whenever the strip reflows.
+          Opacity fades on first-scroll so the section's backdrop (LoL splash
+          / Steam profile bg) reads cleanly at the top. */}
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-x-0 bg-background/50 backdrop-blur-md transition-opacity duration-200"
@@ -224,18 +210,7 @@ export function SectionShell({
           opacity: bandOpaque ? 1 : 0,
         }}
       />
-      <m.div
-        className="relative mx-auto max-w-4xl px-6"
-        animate={{
-          paddingTop: compact ? 8 : 12,
-          paddingBottom: compact ? 8 : 12,
-        }}
-        transition={
-          prefersReducedMotion
-            ? { duration: 0 }
-            : { type: "spring", stiffness: 380, damping: 32 }
-        }
-      >
+      <div className="relative mx-auto max-w-4xl px-6 py-3">
         {/* Tiered merged strip (sizing pass locked 2026-05-29, see
             nav-condensation-arc.md). One flex-wrap row whose pieces reorder by
             viewport via `order` + `basis`, so identity/live/actions each render
@@ -243,11 +218,24 @@ export function SectionShell({
               ≥880px  identity · [tab row] · ⟶ · live · actions
               640-879 identity · [filling section dropdown] · live · actions
               <640    row1: identity · ⟶ · live · actions  /  row2: dropdown
+                      (hero route: row1 only — avatar · dropdown · actions)
             The full-row break is 880 (not 820): a long Riot ID like
             "Nine Tailed Fox#EUW" + 4 tabs + live chip crowds the 848 box at
-            820, so collapse to the dropdown a bit sooner. */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-3.5">
-          <div className="order-1 flex min-w-0 shrink items-center">{identity}</div>
+            820, so collapse to the dropdown a bit sooner. `min-h-10` is the
+            identity's avatar height, so a hero route's row keeps its height
+            when the identity mounts into it. Below 640px a hero route also
+            reserves the avatar's width while the slot is empty: a crowded
+            row (live chip, 320px phone) would otherwise wrap its actions onto
+            a second line the moment the avatar arrives. */}
+        <div className="flex min-h-10 flex-wrap items-center gap-x-3 gap-y-3.5">
+          <div
+            className={cn(
+              "order-1 flex min-w-0 shrink items-center",
+              heroOwnsIdentity && "min-h-10 max-[639px]:min-w-10"
+            )}
+          >
+            {identity}
+          </div>
           {leading && <div className="order-1 flex shrink-0 items-center">{leading}</div>}
           {tabs.length > 0 && (
             <>
@@ -264,16 +252,10 @@ export function SectionShell({
                 className={cn(
                   // 640px+ is unchanged: dropdown inline on row 1.
                   "min-[640px]:order-3 min-[640px]:basis-0 min-[640px]:grow min-[880px]:hidden",
-                  // <640px: when a hero upstream owns the identity at scroll-
-                  // top (`heroOwnsIdentity && !compact`), the strip's identity
-                  // slot is null and reserving row 1 for it reads as dead
-                  // space; promote the dropdown to row 1 to fill that space.
-                  // Once compact (identity has morphed in) or on any non-hero
-                  // route (match-detail, etc.), keep the default own-row 2
-                  // layout so a non-empty identity has its row.
-                  heroOwnsIdentity && !compact
-                    ? "order-3 basis-0 grow"
-                    : "order-last basis-full"
+                  // <640px: on a hero route the dropdown shares row 1 in both
+                  // `compact` states (see `heroOwnsIdentity`). Any other route
+                  // gives it its own row 2 so the identity has row 1 to itself.
+                  heroOwnsIdentity ? "order-3 basis-0 grow" : "order-last basis-full"
                 )}
               />
             </>
@@ -285,7 +267,7 @@ export function SectionShell({
             {actions}
           </div>
         </div>
-      </m.div>
+      </div>
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-foreground/15 to-transparent"
@@ -294,7 +276,7 @@ export function SectionShell({
   );
 
   return (
-    <SectionShellProvider value={{ compact, headerDockPx }}>
+    <SectionShellProvider value={{ compact, avatarOnly, headerDockPx }}>
       {slot ? createPortal(header, slot) : null}
       <div className="flex flex-col gap-6">{children}</div>
     </SectionShellProvider>
