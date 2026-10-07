@@ -337,9 +337,10 @@ function RootLayout() {
                 header into this slot via createPortal so the header lives
                 OUTSIDE <main> — only <main>'s content (named vt-main) slides
                 during a view transition; the header holds still. The slot has
-                no intrinsic height; it grows to fit the portaled header and
-                its compact-spring padding animation, and <main flex-1> absorbs
-                the delta. */}
+                no intrinsic height; it grows to fit the portaled header, and
+                <main flex-1> absorbs the delta — which is why nothing above
+                <main> may change height on scroll: the delta lands on the
+                content as movement the finger didn't make. */}
             <div id="section-header-slot" className="relative z-40" />
             <ScrollProgress />
             <main

@@ -2,6 +2,9 @@ import { createContext, useContext } from "react";
 
 type SectionShellState = {
   compact: boolean;
+  // A narrow strip on a hero route, where the identity shares row 1 with the
+  // section dropdown and so renders its avatar without the name.
+  avatarOnly?: boolean;
   // Viewport-px the section header is expected to end at, used by anything
   // that docks under it before the measured `--account-header-h` exists.
   headerDockPx?: number | undefined;
@@ -18,8 +21,9 @@ export function useHeaderDockPx(): number | undefined {
 }
 
 // Identity / actions / nav slots inside <SectionShell> read `compact` via this
-// hook so they can shrink avatars, fade out region/level badges, etc. without
-// the shell having to render-prop every slot.
+// hook so they can take over the hero's identity, fade out level badges, etc.
+// without the shell having to render-prop every slot. Nothing read from here
+// may change a slot's height: the strip sits above <main>.
 export function useSectionShellState(): SectionShellState {
   const ctx = useContext(SectionShellContext);
   if (!ctx) {

@@ -84,13 +84,13 @@ export function SteamIdentityHero() {
   // shared layoutId flies the avatar+name up into the header band. Reduced
   // motion skips the shared layout entirely → instant swap on scroll. See
   // identity-layout.ts.
-  const { compact } = useSectionShellState();
+  const { compact, avatarOnly } = useSectionShellState();
   const morph = !compact && !reduced;
   const avatarLayoutId = morph ? STEAM_IDENTITY_AVATAR_MORPH_ID : undefined;
   const nameLayoutId = morph ? STEAM_IDENTITY_NAME_MORPH_ID : undefined;
   // Mark the avatar + name as the on-screen identity. When compact the hero is
-  // opacity-0 and the strip carries the markers instead, so exactly one
-  // avatar/name pair is tagged in the DOM at any time — a future cross-nav VT
+  // opacity-0 and the strip carries the markers instead, so at most one avatar
+  // and one name are tagged in the DOM at any time — a future cross-nav VT
   // driver (the Steam parallel of identity-morph-nav.ts) can then name an
   // unambiguous source/destination.
   const markIdentity = !compact;
@@ -258,6 +258,10 @@ export function SteamIdentityHero() {
                 // look" comes from weight + tracking + size + drop-shadow
                 // rather than a true optical-size cut.
                 "truncate font-bold text-4xl -tracking-[0.02em] drop-shadow-md sm:text-5xl",
+                // With no strip name to morph into, fade in place rather than
+                // blinking out and back.
+                avatarOnly &&
+                  "transition-opacity duration-300 motion-reduce:transition-none",
                 compact && "opacity-0"
               )}
             >

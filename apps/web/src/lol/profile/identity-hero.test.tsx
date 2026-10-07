@@ -47,7 +47,10 @@ function entry(overrides: Partial<RankEntry> = {}): RankEntry {
 
 type Props = Parameters<typeof LolIdentityHero>[0];
 
-function renderHero(overrides: Partial<Props> = {}, { compact = false } = {}) {
+function renderHero(
+  overrides: Partial<Props> = {},
+  { compact = false, avatarOnly = false } = {}
+) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const props: Props = {
     gameName: "Vyoh",
@@ -66,7 +69,7 @@ function renderHero(overrides: Partial<Props> = {}, { compact = false } = {}) {
   // the strip morph; provide it so the hook doesn't throw.
   return render(
     <QueryClientProvider client={client}>
-      <SectionShellProvider value={{ compact }}>
+      <SectionShellProvider value={{ compact, avatarOnly }}>
         <MotionConfig reducedMotion="always">
           <LolIdentityHero {...props} />
         </MotionConfig>
@@ -161,6 +164,19 @@ describe("LolIdentityHero", () => {
     // Avatar container (the element wrapping the proxied profile icon) also fades.
     const avatar = container.querySelector('img[src*="/profile-icon/123/"]');
     expect(avatar?.parentElement?.className).toContain("opacity-0");
+  });
+
+  it("fades its name in place when the strip shows the avatar alone", () => {
+    const { unmount } = renderHero({}, { compact: true, avatarOnly: true });
+    expect(screen.getByRole("heading", { level: 2 }).classList).toContain(
+      "transition-opacity"
+    );
+    unmount();
+    // With a strip name to morph into, the hero copy hides at once instead.
+    renderHero({}, { compact: true });
+    expect(screen.getByRole("heading", { level: 2 }).classList).not.toContain(
+      "transition-opacity"
+    );
   });
 
   it("marks its avatar + name as the cross-nav identity owner when not compact", () => {

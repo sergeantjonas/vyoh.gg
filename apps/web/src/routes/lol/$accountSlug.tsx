@@ -7,7 +7,6 @@ import { useMe } from "@/identity/use-me";
 import { routeMeta } from "@/lib/route-meta";
 import { toastMessage } from "@/lib/toast";
 import { useScrollResetOnNav } from "@/lib/use-scroll-reset-on-nav";
-import { cn } from "@/lib/utils";
 import { RefreshAccountButton } from "@/lol/_shared/account/refresh-account-button";
 import { useAccountFromSlug } from "@/lol/_shared/account/use-account-from-slug";
 import { useSplashChampion } from "@/lol/_shared/assets/splash-backdrop";
@@ -305,7 +304,7 @@ function AccountLayout() {
             <SectionShell
               headerRef={setHeaderEl}
               onHeaderRect={onHeaderRect}
-              headerDockPx={128}
+              headerDockPx={120}
               // Reset the scroll-driven compact state on every nav (see the
               // SectionShell prop comment for the full why).
               pathname={pathname}
@@ -366,7 +365,7 @@ function LolIdentity({
   ddVersion: ReturnType<typeof useDDragonVersion>;
   isProfileIndex: boolean;
 }) {
-  const { compact } = useSectionShellState();
+  const { compact, avatarOnly } = useSectionShellState();
   const reduced = useReducedMotion();
   // On the Profile landing the cinematic hero owns the identity until the page
   // scrolls; the strip stays empty so we don't double-render avatar + name (the
@@ -378,8 +377,9 @@ function LolIdentity({
   // and motion is allowed; otherwise the strip renders as a plain header. The
   // `data-identity-{avatar,name}` markers below are unconditional: the strip
   // only renders when it's the visible identity owner, so tagging it always
-  // keeps exactly one avatar/name pair marked in the DOM for the cross-nav VT
-  // morph (identity-morph-nav.ts) — the hero drops its markers when compact.
+  // keeps at most one avatar and one name marked in the DOM for the cross-nav
+  // VT morph (identity-morph-nav.ts) — the hero drops its markers when compact,
+  // and a narrow hero-route strip carries no name.
   const morph = isProfileIndex && !reduced;
   const avatarLayoutId = morph ? IDENTITY_AVATAR_MORPH_ID : undefined;
   const nameLayoutId = morph ? IDENTITY_NAME_MORPH_ID : undefined;
@@ -402,10 +402,7 @@ function LolIdentity({
             data-identity-avatar=""
             src={profileIconUrl(iconId, ddVersion)}
             alt=""
-            className={cn(
-              "rounded-full object-cover ring-1 ring-border transition-[width,height]",
-              compact ? "size-10" : "size-12"
-            )}
+            className="size-10 rounded-full object-cover ring-1 ring-border"
           />
           {level != null && !compact && (
             <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-sm bg-background px-1 text-[10px] font-semibold tabular-nums leading-none ring-1 ring-border">
@@ -414,14 +411,9 @@ function LolIdentity({
           )}
         </div>
       ) : (
-        <div
-          className={cn(
-            "shrink-0 animate-pulse rounded-full bg-muted ring-1 ring-border transition-[width,height]",
-            compact ? "size-10" : "size-12"
-          )}
-        />
+        <div className="size-10 shrink-0 animate-pulse rounded-full bg-muted ring-1 ring-border" />
       )}
-      {account ? (
+      {avatarOnly ? null : account ? (
         // Account switching lives in the top-nav LoL picker (richer rows with
         // rank emblems); the section identity is a static header. Region is
         // omitted — single-region by design, and it'd only float between the
