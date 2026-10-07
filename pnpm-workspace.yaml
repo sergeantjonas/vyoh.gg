@@ -56,9 +56,29 @@ overrides:
   # The only runtime path of the five: steam-user reaches it through
   # socks-proxy-agent > socks. SSRF via leading-zero octets decoded as decimal,
   # and steam-user is the one place we hand a remote-controlled host to a proxy.
-  # 10.3.1 was already resolved elsewhere in the tree, so this de-duplicates
-  # rather than introducing a version.
-  ip-address@<=10.3.0: ^10.3.1
+  # Widened from `<=10.3.0`/`^10.3.1` on 2026-10-07: four moderates (subnet
+  # comparison across address families, link-local and NAT64 classification,
+  # an input-proportional parse diagnostic) landed past that floor, all patched
+  # by 10.7.1. Below CI's gate, but `isInSubnet()` is exactly what a proxy
+  # allowlist calls.
+  ip-address@<=10.7.0: ^10.7.1
+  # Under express via @nestjs/platform-express — the api's request path. IP
+  # spoofing through an IPv4-mapped IPv6 trust subnet; matters the moment
+  # `trust proxy` names a subnet behind nginx. express asks for `~2.0.7`, so
+  # this stays inside its range.
+  proxy-addr@<2.0.8: ^2.0.8
+  # TanStack router-core serialises loader data across the SSR boundary with
+  # seroval, so `fromJSON()` runs on every hydration. Critical thenable
+  # assimilation plus a TypedArray-length memory exhaustion, both fixed by
+  # 1.6.3. seroval-plugins is not itself flagged but ships in lockstep, and the
+  # router-core in the tree asks for both at `^1.5.4`; newer router-core asks
+  # for `^1.6.7`, so lifting both matches what upstream already runs.
+  seroval@<=1.6.2: ^1.6.3
+  seroval-plugins@<1.6.3: ^1.6.3
+  # Under postcss and css-tree (web build and the anchor-positioning polyfill)
+  # and magicast under the prisma CLI. Event-loop DoS on indexed source-map
+  # section offsets; every consumer declares `^1.x`.
+  source-map-js@>=1.0.0 <1.2.2: ^1.2.2
   # Scoped to the 4.x line on purpose. The advisory covers 3.x as well, but
   # js-yaml 4 dropped `safeLoad`, so a blanket range would break any 3.x
   # consumer instead of patching it. Reached via xmlbuilder2 under
