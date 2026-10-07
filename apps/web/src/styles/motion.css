@@ -16,7 +16,7 @@ body {
    @property required so browsers can interpolate these as typed values.
    Without registration, keyframe interpolation silently degrades to a jump. */
 
-/* Normalised 0→1 progress that nav derivations (blur, padding, scale) read.
+/* Normalised 0→1 progress that nav derivations (blur, scale) read.
    inherits:true so [data-nav-inner] descendants can consume the same value. */
 @property --nav-collapse {
   syntax: "<number>";
@@ -263,15 +263,14 @@ body {
 
 /* ─── Nav compaction ─────────────────────────────────────────────────────── */
 
+/* Compaction touches no layout property. The bar sits above <main> rather
+   than inside it, so any height it loses on scroll moves the content by that
+   much on top of the finger's own travel — a shrinking padding reads as the
+   page accelerating away on touch.                                          */
 [data-vt-nav] {
   /* backdrop-blur-md = blur(12px); intensifies to blur(16px) on scroll.    */
   --nav-blur: calc(12px + var(--nav-collapse) * 4px);
   backdrop-filter: blur(var(--nav-blur));
-}
-
-[data-nav-inner] {
-  /* py-3 = 0.75rem; compacts to 0.5rem over the same 120px range.          */
-  padding-block: calc(0.75rem - var(--nav-collapse) * 0.25rem);
 }
 
 /* Wordmark micro-scales 1 → 0.92 from the left edge.                       */
@@ -1003,6 +1002,11 @@ body {
   [data-vt-nav] {
     animation: none;
     --nav-collapse: 1;
+  }
+
+  /* Static here, so the tighter bar can't shift content mid-scroll.        */
+  [data-nav-inner] {
+    padding-block: 0.5rem;
   }
 
   [data-scroll-progress] {
