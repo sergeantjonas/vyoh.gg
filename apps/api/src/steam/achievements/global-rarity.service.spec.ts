@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../../prisma/prisma.service";
 import type { SteamClientService } from "../client/steam-client.service";
+import type { SteamAchievementSchemaService } from "./achievement-schema.service";
 import { SteamGlobalRarityService } from "./global-rarity.service";
 
 interface PrismaStubs {
@@ -28,12 +29,22 @@ function makePrisma(stored: { apiName: string; percent: number }[] = []): Prisma
   return stubs;
 }
 
+// Every name Steam returns is already in the stored schema unless a test says otherwise.
+const knowsAll = () =>
+  vi.fn(async (_appid: number, names: readonly string[]) => new Set(names));
+
 function makeService(
   prisma: PrismaStubs,
-  getGlobalAchievementPercentages: ReturnType<typeof vi.fn>
+  getGlobalAchievementPercentages: ReturnType<typeof vi.fn>,
+  knownApiNames: ReturnType<typeof vi.fn> = knowsAll()
 ): SteamGlobalRarityService {
   const client = { getGlobalAchievementPercentages } as unknown as SteamClientService;
-  return new SteamGlobalRarityService(prisma as unknown as PrismaService, client);
+  const schemas = { knownApiNames } as unknown as SteamAchievementSchemaService;
+  return new SteamGlobalRarityService(
+    prisma as unknown as PrismaService,
+    client,
+    schemas
+  );
 }
 
 describe("SteamGlobalRarityService.refreshRarity", () => {
@@ -110,6 +121,56 @@ describe("SteamGlobalRarityService.refreshRarity", () => {
       failed: 1,
     });
     expect(prisma.steamAchievementGlobalRarity.upsert).toHaveBeenCalledOnce();
+  });
+
+  it("writes only the achievements the schema knows, after giving it the chance to catch up", async () => {
+    // A live game ships achievements between schema refreshes; writing one
+    // the schema lacks would break the FK and abort the pass for every game
+    // behind it.
+    const prisma = makePrisma();
+    const fetch = vi.fn().mockResolvedValue([
+      { name: "ACH_A", percent: 22.4 },
+      { name: "ACH_NEW", percent: 0.4 },
+    ]);
+    const known = vi.fn().mockResolvedValue(new Set(["ACH_A"]));
+
+    const result = await makeService(prisma, fetch, known).refreshRarity([3564740]);
+
+    expect(known).toHaveBeenCalledWith(3564740, ["ACH_A", "ACH_NEW"]);
+    expect(result).toEqual({
+      checked: 1,
+      rowsWritten: 1,
+      historyRowsAppended: 1,
+      failed: 0,
+    });
+    expect(prisma.steamAchievementGlobalRarity.upsert).toHaveBeenCalledOnce();
+    expect(prisma.steamAchievementRarityHistory.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ apiName: "ACH_A" })],
+    });
+    expect(prisma.steamGameAchievementMeta.update).toHaveBeenCalledOnce();
+  });
+
+  // A write failure used to throw out of the loop, and the unstamped game
+  // headed the next queue to abort that pass as well.
+  it("counts a failed write and still processes the remaining appids", async () => {
+    const prisma = makePrisma();
+    prisma.$transaction
+      .mockRejectedValueOnce(new Error("timeout"))
+      .mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma));
+    const fetch = vi.fn().mockResolvedValue([{ name: "ACH_A", percent: 22.4 }]);
+
+    const result = await makeService(prisma, fetch).refreshRarity([404, 367520]);
+
+    expect(result).toEqual({
+      checked: 1,
+      rowsWritten: 1,
+      historyRowsAppended: 1,
+      failed: 1,
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(prisma.steamGameAchievementMeta.update).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ where: { appid: 367520 } })
+    );
   });
 
   it("gives a never-seen achievement an origin history row", async () => {

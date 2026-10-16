@@ -1,6 +1,6 @@
 # Ingestion cron reliability
 
-**Status:** Shipped — the 2026-08 gates and the 2026-09-05 Steam-private stamping are in; nothing open here (§ Remaining).
+**Status:** Shipped — the 2026-08 gates, the 2026-09-05 Steam-private stamping and the 2026-10-17 schema-drift guard are in; nothing open here (§ Remaining).
 
 Opened 2026-08-05 after a reported symptom: Beast of Reincarnation (appid 2001760) had nine achievements unlocked on Steam over the preceding 24 hours and none of them in our database.
 
@@ -81,6 +81,16 @@ Steam's library "Mark as Private" makes `GetPlayerAchievements` answer **403 `Pr
 Surfaces read the flag rather than the frozen count: the per-game panel says "Private on Steam" and quotes the snapshot only when it held real unlocks; a hall tile captions "stats private on Steam" instead of stating its total as current; Nearest 100% names the games it left out in a footnote, and the `/hunt` palette group counts them in a disabled row.
 
 **Decision: a private game is never a Nearest 100% candidate.** Its locked set is frozen at the last sync Steam allowed, so "what is left" is unknowable and a score would be a guess; `buildCompletionCandidates` takes the private set as a third argument and the api reports the excluded appids as `privateAppids`, filtered through the viewer's curation so a hidden private game stays hidden. When the only started games are private the section still collapses — the ranking has nothing to rank and the per-game panel carries the message.
+
+## Steam names achievements the stored schema lacks (found 2026-10-16)
+
+A live game ships achievements between schema refreshes, and the rarity and unlock endpoints list them before `SteamGameAchievement` has a row for them. Where Winds Meet went from 61 to 67 achievements after its 2026-09-25 schema read. The next rarity pass upserted all 67, the FK rejected the first new name, and because only the fetch sat inside the per-appid `try`, the throw aborted the pass for the 10 games queued behind it. The failing game was never stamped, so it headed the next queue as well: every rarity pass would have died on it until the age-based schema refresh came round. `syncUnlocks` had the same shape — an unlock of one of the new achievements would have broken its `createMany`.
+
+This is the 0 → N case above in its N → N+k form, and it fails the other way: a zero count gated ingestion off silently, where a stale non-zero one lets it through to an insert the FK refuses.
+
+**Shipped 2026-10-17.** `SteamAchievementSchemaService.knownApiNames(appid, names)` answers from the stored schema when every name Steam just returned is known, and otherwise refetches that one game's schema first. Both writers filter through it and log what they still had to skip (the schema endpoint lagging its siblings, or the refetch failing) instead of throwing. Both also guard their writes per appid the way `refreshSchemas` has since 2026-08, so any other write failure costs that one game rather than the pass — the drift was only the trigger; the missing guard is what made it abort everything behind it. Stub rows were rejected: the percentages and unlocks endpoints carry a name and a number, and a schema row without a display name, description or icons would surface as a blank achievement everywhere the schema is read.
+
+Not exercised live: on the dev box the schema poller's boot pass caught the drifted game up before the rarity guard looked at it, so the refetch branch is covered by the spec only.
 
 ## Remaining
 

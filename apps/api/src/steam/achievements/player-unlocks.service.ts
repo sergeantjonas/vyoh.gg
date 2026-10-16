@@ -5,6 +5,7 @@ import {
   type SteamPlayerAchievementsResult,
 } from "../client/steam-client.service";
 import { STEAM_OWNER_ID } from "../client/steam.config";
+import { SteamAchievementSchemaService } from "./achievement-schema.service";
 
 export interface UnlocksSyncResult {
   checked: number;
@@ -21,7 +22,8 @@ export class SteamPlayerUnlocksService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly client: SteamClientService
+    private readonly client: SteamClientService,
+    private readonly schemas: SteamAchievementSchemaService
   ) {}
 
   // Fetches GetPlayerAchievements for each appid (one Steam call per game —
@@ -88,44 +90,65 @@ export class SteamPlayerUnlocksService {
         continue;
       }
 
-      const now = new Date();
+      // Guarded per-appid for the same reason the fetch above is: one write
+      // failure must never abort the rest of the sweep.
+      try {
+        const now = new Date();
 
-      if (result.status === "private") {
+        if (result.status === "private") {
+          await this.prisma.steamGameAchievementMeta.update({
+            where: { appid },
+            data: { lastUnlocksCheckedAt: now },
+          });
+          // Keep the first-seen timestamp across sweeps; only a null row gets stamped.
+          await this.prisma.steamGameAchievementMeta.updateMany({
+            where: { appid, statsPrivateAt: null },
+            data: { statsPrivateAt: now },
+          });
+          privateOnSteam += 1;
+          checked += 1;
+          continue;
+        }
+
+        if (result.status === "ok" && result.achievements.length > 0) {
+          const unlocked = result.achievements
+            .filter((a) => a.achieved === 1 && a.unlocktime > 0)
+            .map((a) => ({
+              appid,
+              apiName: a.apiname,
+              unlockedAt: new Date(a.unlocktime * 1000),
+            }));
+          // Filtered rather than left to the guard around it: an unlock of an
+          // achievement the stored schema has not seen yet breaks the FK, and
+          // the game's other new unlocks would wait on the schema with it.
+          const known = await this.schemas.knownApiNames(
+            appid,
+            unlocked.map((u) => u.apiName)
+          );
+          const tracked = unlocked.filter((u) => known.has(u.apiName));
+          if (tracked.length < unlocked.length) {
+            this.logger.warn(
+              `unlocks appid=${appid}: skipped ${unlocked.length - tracked.length} unlock(s) the stored schema has not seen yet`
+            );
+          }
+          if (tracked.length > 0) {
+            const result = await this.prisma.steamPlayerUnlock.createMany({
+              data: tracked,
+              skipDuplicates: true,
+            });
+            newUnlocks += result.count;
+          }
+        }
+
         await this.prisma.steamGameAchievementMeta.update({
           where: { appid },
-          data: { lastUnlocksCheckedAt: now },
+          data: { lastUnlocksCheckedAt: now, statsPrivateAt: null },
         });
-        // Keep the first-seen timestamp across sweeps; only a null row gets stamped.
-        await this.prisma.steamGameAchievementMeta.updateMany({
-          where: { appid, statsPrivateAt: null },
-          data: { statsPrivateAt: now },
-        });
-        privateOnSteam += 1;
-        checked += 1;
+      } catch (err) {
+        failed += 1;
+        this.logger.warn(`unlock write for appid=${appid} failed: ${err}`);
         continue;
       }
-
-      if (result.status === "ok" && result.achievements.length > 0) {
-        const unlocked = result.achievements
-          .filter((a) => a.achieved === 1 && a.unlocktime > 0)
-          .map((a) => ({
-            appid,
-            apiName: a.apiname,
-            unlockedAt: new Date(a.unlocktime * 1000),
-          }));
-        if (unlocked.length > 0) {
-          const result = await this.prisma.steamPlayerUnlock.createMany({
-            data: unlocked,
-            skipDuplicates: true,
-          });
-          newUnlocks += result.count;
-        }
-      }
-
-      await this.prisma.steamGameAchievementMeta.update({
-        where: { appid },
-        data: { lastUnlocksCheckedAt: now, statsPrivateAt: null },
-      });
       checked += 1;
     }
 
