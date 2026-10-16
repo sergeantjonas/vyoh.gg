@@ -72,6 +72,18 @@ describe("RouteErrorFallback", () => {
     expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy();
   });
 
+  // A loader can throw anything; only an Error's message is shown, but the
+  // raw value still reaches the reporter.
+  it("shows no message for a thrown value that is not an Error, and still reports it", () => {
+    reportError.mockClear();
+    const { container } = render(<RouteErrorFallback {...props({ error: "boom" })} />);
+
+    expect(screen.getByText("This section could not load.")).toBeTruthy();
+    expect(screen.queryByText("boom")).toBeNull();
+    expect(container.querySelectorAll("p")).toHaveLength(1);
+    expect(reportError).toHaveBeenCalledWith("boom", "route");
+  });
+
   // Resetting alone re-renders straight back into the cached rejection — the
   // invalidate is what actually re-runs the loader that failed.
   it("resets the boundary and re-runs the loader on retry", async () => {

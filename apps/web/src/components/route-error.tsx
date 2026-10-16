@@ -25,6 +25,9 @@ export function RouteErrorFallback({
 }: ErrorComponentProps & { tier?: ErrorTier }) {
   const router = useRouter();
   const [retrying, setRetrying] = useState(false);
+  // The router hands the caught value over as `unknown`: a loader can throw
+  // anything, and only an Error carries a message worth showing.
+  const message = error instanceof Error ? error.message : null;
 
   // In an effect rather than at render: this component renders on the server
   // too, and a retry re-renders it, so reporting inline would double-count a
@@ -55,10 +58,8 @@ export function RouteErrorFallback({
     <div className="flex flex-col items-center gap-4 rounded-md border border-destructive/30 bg-destructive/10 px-6 py-10 text-center">
       <OrbGlyph className="size-16" />
       <p className="text-sm font-medium text-destructive">This section could not load.</p>
-      {error.message && (
-        <p className="max-w-md font-mono text-xs text-muted-foreground">
-          {error.message}
-        </p>
+      {message && (
+        <p className="max-w-md font-mono text-xs text-muted-foreground">{message}</p>
       )}
       <Button
         variant="outline"
