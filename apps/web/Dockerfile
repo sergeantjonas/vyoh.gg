@@ -9,7 +9,7 @@
 # runtime counterpart and is set on the container instead — see
 # apps/web/src/lib/api-url.ts.
 
-FROM node:22-bookworm-slim AS build
+FROM node:22-bookworm-slim AS deps
 
 # `ca-certificates` is not in node:*-slim — the image ships an empty
 # /etc/ssl/certs. Node carries its own bundled trust store, so npm and pnpm
@@ -35,6 +35,10 @@ COPY tools/perf-probe/package.json tools/perf-probe/
 
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm-store \
     pnpm install --frozen-lockfile --filter @vyoh/web... --store-dir /pnpm-store
+
+# ---------------------------------------------------------------------------
+
+FROM deps AS build
 
 COPY packages/shared packages/shared
 COPY apps/web apps/web
@@ -72,10 +76,21 @@ RUN --mount=type=secret,id=sentry_auth_token \
     SENTRY_ORG="${SENTRY_ORG}" \
     pnpm --filter @vyoh/web build
 
+# ---------------------------------------------------------------------------
+
+# Branched from `deps` rather than following the build, so the runtime's
+# `node_modules` layer depends only on the install inputs, never on source or
+# on `BUILD_COMMIT`. After the build it would re-run on every push, since every
+# push changes that arg, and give an ~80 MB layer a fresh digest to export, push
+# and pull. The only effect of `apps/web` and `packages/shared` holding just
+# manifests here is an injected `@vyoh/shared` without `src/`, which the
+# runtime stage replaces with a symlink to the raw source.
+FROM deps AS prod-deps
+
 # Prunes devDependencies into a self-contained tree. Worth doing here (and not
 # in the api image) because nothing in the web runtime is generated at install
-# time: the server bundle externalises only react, react-dom and
-# @tanstack/react-router, and those are plain dependencies.
+# time: the server bundle externalises only direct `dependencies`, and none of
+# them is.
 #
 # The store mount is repeated because `--legacy` re-materialises every package
 # from the content-addressable store; without it here, this step re-downloads
@@ -97,8 +112,8 @@ FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 
-COPY --from=build --chown=node:node /out/node_modules ./node_modules
-COPY --from=build --chown=node:node /out/package.json ./package.json
+COPY --from=prod-deps --chown=node:node /out/node_modules ./node_modules
+COPY --from=prod-deps --chown=node:node /out/package.json ./package.json
 # Raw source beside a symlink, mirroring the api image. `pnpm deploy`
 # materialises workspace packages *inside* `node_modules`, and Node refuses to
 # strip types from any file whose realpath sits under `node_modules`
