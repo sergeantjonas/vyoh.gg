@@ -189,8 +189,9 @@ jobs:
       # The upload tolerates a missing file, so a package whose test run
       # crashed before writing lcov would be silently absent from the report —
       # that is how packages/shared alone charted as the whole repo between
-      # 2026-05-31 and 2026-07-25. A package whose tests merely fail still
-      # writes lcov, so this only rejects crashed or truncated runs.
+      # 2026-05-31 and 2026-07-25. A failing test writes no lcov either
+      # (vitest's `reportOnFailure` is off), so a red test run skips the upload
+      # here too; only a missed threshold with passing tests still reports.
       - name: Assert every package produced coverage
         id: coverage-files
         if: always()
