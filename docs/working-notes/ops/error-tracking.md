@@ -118,7 +118,7 @@ Each is independently committable and needs no VPS.
 
   **The token is a BuildKit secret mount, never an ARG.** A build arg is readable through `docker history`, and both packages are anonymously pullable. It reaches the build as `--mount=type=secret` for the one `RUN`, read with `|| true` so an unauthenticated build still succeeds.
 
-  **Both web steps in `ci.yml` carry the secret, and that is not redundancy.** They share `cache-from: type=gha,scope=web`: the build step populates the cache and the push step reuses it, so a token on the push step alone would hit a cached layer built without one and upload nothing while reporting success.
+  **Both bake passes in `ci.yml` carry the secret, and that is not redundancy.** The `secret` line in `docker-bake.hcl` reads it from each pass's step `env:`, and BuildKit leaves secrets out of the cache key: the build pass runs the upload and the push pass reuses its layers, so a token on the push pass alone would hit a cached layer built without one and upload nothing while reporting success. (Until 2026-10-17 these were two `build-push-action` steps sharing `scope=web`; same reasoning.)
 
   **`@sentry/cli`'s install script is declined**, tested rather than assumed — the binary it needs arrives through a platform-specific optional dependency (`@sentry/cli-linux-x64` and friends), so `sentry-cli --version` answers with the hook off. pnpm adds the `allowBuilds` entry as a placeholder demanding a decision; `false` is the decision.
 
