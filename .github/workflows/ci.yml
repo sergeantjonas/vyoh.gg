@@ -138,9 +138,18 @@ jobs:
     permissions:
       contents: read
       packages: write
+    # The build-arg values live here, once, because both bake passes must hand
+    # docker-bake.hcl identical inputs: a push pass that saw different ones
+    # would rebuild and publish a web bundle neither smoke ever ran.
+    # `BUILD_COMMIT` joins them from the commit step.
     env:
       API_IMAGE: ghcr.io/sergeantjonas/vyoh-api
       WEB_IMAGE: ghcr.io/sergeantjonas/vyoh-web
+      VITE_API_URL: ${{ vars.VITE_API_URL }}
+      VITE_SITE_URL: ${{ vars.VITE_SITE_URL }}
+      VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
+      VITE_SENTRY_SAMPLE_RATE: ${{ vars.VITE_SENTRY_SAMPLE_RATE }}
+      SENTRY_ORG: ${{ vars.SENTRY_ORG }}
     steps:
       - uses: actions/checkout@v5
 
@@ -158,10 +167,6 @@ jobs:
       # client at localhost — a failure that first surfaces in a browser.
       - name: Assert the build-arg variables are set
         shell: bash
-        env:
-          VITE_API_URL: ${{ vars.VITE_API_URL }}
-          VITE_SITE_URL: ${{ vars.VITE_SITE_URL }}
-          VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
         run: |
           : "${VITE_API_URL:?set the VITE_API_URL repository variable}"
           : "${VITE_SITE_URL:?set the VITE_SITE_URL repository variable}"
@@ -178,7 +183,9 @@ jobs:
 
       - name: Resolve the short commit sha
         id: commit
-        run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "BUILD_COMMIT=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
 
       # The OCI labels metadata-action emits are what link a GHCR package back
       # to this repo. Note that linking inherits access permissions, not
@@ -190,25 +197,40 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: ${{ env.API_IMAGE }}
+          bake-target: api-meta
           tags: |
             type=sha
             type=raw,value=main
 
-      # linux/amd64 only: the box is x86, and buildx sets the Dockerfile's
-      # TARGETARCH from this. A multi-arch matrix buys nothing until a second
-      # box exists and costs a QEMU build of Prisma and Sharp every push.
-      - name: Build the api image
-        uses: docker/build-push-action@v7
+      - name: Tags and labels for the web image
+        id: web-meta
+        uses: docker/metadata-action@v6
         with:
-          context: .
-          file: apps/api/Dockerfile
-          platforms: linux/amd64
+          images: ${{ env.WEB_IMAGE }}
+          bake-target: web-meta
+          tags: |
+            type=sha
+            type=raw,value=main
+
+      # Platform, build args, cache scopes and the Sentry secret mount live in
+      # docker-bake.hcl, which reads their values from the job's env. `source: .`
+      # builds the checkout, as build-push-action's `context: .` did;
+      # bake-action's default would fetch the commit as a Git context instead.
+      #
+      # The Sentry token sits on this step, not the job, so no other step can
+      # read it. BuildKit leaves secrets out of the cache key, so the pass that
+      # actually runs the sourcemap upload has to be the one holding the token.
+      - name: Build both images
+        uses: docker/bake-action@v7
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        with:
+          source: .
+          files: |
+            ./docker-bake.hcl
+            ${{ steps.api-meta.outputs.bake-file }}
+            ${{ steps.web-meta.outputs.bake-file }}
           load: true
-          push: false
-          tags: ${{ steps.api-meta.outputs.tags }}
-          labels: ${{ steps.api-meta.outputs.labels }}
-          cache-from: type=gha,scope=api
-          cache-to: type=gha,scope=api,mode=max
 
       # The one silent failure this image has is the TARGETARCH-keyed onnx
       # prune: keeping the wrong platform's runtime builds green and crashes on
@@ -220,44 +242,6 @@ jobs:
         env:
           TAG: sha-${{ steps.commit.outputs.short }}
         run: docker run --rm --entrypoint node "$API_IMAGE:$TAG" -e "require('onnxruntime-node')"
-
-      - name: Tags and labels for the web image
-        id: web-meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ${{ env.WEB_IMAGE }}
-          tags: |
-            type=sha
-            type=raw,value=main
-
-      # BUILD_COMMIT is a build arg here and a runtime env for the api: Vite
-      # bakes it into the bundle, so the web tier cannot read it from compose.
-      - name: Build the web image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: apps/web/Dockerfile
-          platforms: linux/amd64
-          load: true
-          push: false
-          tags: ${{ steps.web-meta.outputs.tags }}
-          labels: ${{ steps.web-meta.outputs.labels }}
-          build-args: |
-            VITE_API_URL=${{ vars.VITE_API_URL }}
-            VITE_SITE_URL=${{ vars.VITE_SITE_URL }}
-            BUILD_COMMIT=${{ steps.commit.outputs.short }}
-            VITE_SENTRY_DSN=${{ vars.VITE_SENTRY_DSN }}
-            VITE_SENTRY_SAMPLE_RATE=${{ vars.VITE_SENTRY_SAMPLE_RATE }}
-            SENTRY_ORG=${{ vars.SENTRY_ORG }}
-          # Sourcemap upload. The token is a secret mount rather than a build
-          # arg: an ARG is readable via `docker history` on an anonymously
-          # pullable package. Both web steps carry it because they share
-          # `scope=web` — the build step populates the cache and the push step
-          # reuses it, so a token on the push step alone would upload nothing.
-          secrets: |
-            sentry_auth_token=${{ secrets.SENTRY_AUTH_TOKEN }}
-          cache-from: type=gha,scope=web
-          cache-to: type=gha,scope=web,mode=max
 
       # Asks the image's own HEALTHCHECK question from outside, which proves
       # the type-stripping entrypoint boots away from the build context that
@@ -292,45 +276,26 @@ jobs:
       # with no paired web image, which is the deploy-together invariant these
       # tags exist to make structural.
       #
-      # Each is a second pass over a build graph the steps above already built,
-      # so every layer is in the builder's cache and this only uploads.
-      - name: Push the api image
-        uses: docker/build-push-action@v7
+      # A second pass over the graph the build step already built, from the
+      # same files and job env, so every layer is in the builder's cache and
+      # this only uploads. The token rides here too so that if this pass ever
+      # did rebuild, the bundle it pushes would still get its sourcemaps.
+      # `cache-to` is cleared because the build step already exported it.
+      #
+      # `provenance: false` because a single-platform image without attestations
+      # is a plain manifest rather than an index carrying an `unknown/unknown`
+      # entry, which is what keeps the GHCR package page readable.
+      - name: Push both images
+        uses: docker/bake-action@v7
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         with:
-          context: .
-          file: apps/api/Dockerfile
-          platforms: linux/amd64
+          source: .
+          files: |
+            ./docker-bake.hcl
+            ${{ steps.api-meta.outputs.bake-file }}
+            ${{ steps.web-meta.outputs.bake-file }}
           push: true
-          tags: ${{ steps.api-meta.outputs.tags }}
-          labels: ${{ steps.api-meta.outputs.labels }}
-          cache-from: type=gha,scope=api
-          # A single-platform image without attestations is a plain manifest
-          # rather than an index carrying an `unknown/unknown` entry, which is
-          # what keeps the GHCR package page readable.
           provenance: false
-
-      - name: Push the web image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: apps/web/Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: ${{ steps.web-meta.outputs.tags }}
-          labels: ${{ steps.web-meta.outputs.labels }}
-          build-args: |
-            VITE_API_URL=${{ vars.VITE_API_URL }}
-            VITE_SITE_URL=${{ vars.VITE_SITE_URL }}
-            BUILD_COMMIT=${{ steps.commit.outputs.short }}
-            VITE_SENTRY_DSN=${{ vars.VITE_SENTRY_DSN }}
-            VITE_SENTRY_SAMPLE_RATE=${{ vars.VITE_SENTRY_SAMPLE_RATE }}
-            SENTRY_ORG=${{ vars.SENTRY_ORG }}
-          # Sourcemap upload. The token is a secret mount rather than a build
-          # arg: an ARG is readable via `docker history` on an anonymously
-          # pullable package. Both web steps carry it because they share
-          # `scope=web` — the build step populates the cache and the push step
-          # reuses it, so a token on the push step alone would upload nothing.
-          secrets: |
-            sentry_auth_token=${{ secrets.SENTRY_AUTH_TOKEN }}
-          cache-from: type=gha,scope=web
-          provenance: false
+          set: |
+            *.cache-to=
