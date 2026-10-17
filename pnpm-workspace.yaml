@@ -127,10 +127,12 @@ allowBuilds:
   esbuild: true
   msw: true
   # ONNX runtime for the face-detection anchor (apps/api). Native prebuilts
-  # for x86-64 + aarch64 Linux + macOS ship from the package; this just
-  # tells pnpm it's allowed to run the install hook that drops them in
-  # place. Used by SteamSubjectAnchorService at enrichment time.
-  onnxruntime-node: true
+  # for x86-64 + aarch64 Linux + macOS ship inside the package, so the CPU
+  # runtime SteamSubjectAnchorService uses needs no hook. The hook's only job
+  # is fetching the CUDA and TensorRT providers on linux/x64, a 212 MB NuGet
+  # download for a GPU nothing here has: it shipped in the api image, and its
+  # timeouts failed two `main` runs on 2026-10-17.
+  onnxruntime-node: false
   prisma: true
   protobufjs: true
   sharp: true
