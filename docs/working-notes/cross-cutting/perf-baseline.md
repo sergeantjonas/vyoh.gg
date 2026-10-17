@@ -7,7 +7,7 @@ Investigation started after the main roadmaps (views, match-depth, trends) shipp
 ## Tooling in place
 
 - **Bundle visualizer:** `rollup-plugin-visualizer` added as devDep. Run `ANALYZE=1 pnpm run build` from `apps/web/` to emit `dist/stats.html` (treemap) + `dist/stats.json` (parseable). Gated by `process.env.ANALYZE === "1"` in [apps/web/vite.config.ts](../../../apps/web/vite.config.ts) so normal builds are unaffected.
-- **Bundle budget:** `size-limit` configured in [apps/web/.size-limit.cjs](../../../apps/web/.size-limit.cjs) (not `package.json`). Run `pnpm run size` (full report) or `pnpm run size:cc` (silent, exit-code only — CI-friendly) after a build. Current budgets: **initial JS 250 kB gzip** (~3.3% headroom over 241.65 kB), Recharts lazy chunk 85 kB gzip (~20% over 68.25 kB). The check reads `dist/client/`, so the pattern is `pnpm run build && pnpm run size:cc`. The initial-JS entry derives its file list from `dist/client/.vite/manifest.json` at config load and **throws** if the walk looks partial — see the 2026-07-25 and 2026-07-26 sections below for why.
+- **Bundle budget:** `size-limit` configured in [apps/web/.size-limit.cjs](../../../apps/web/.size-limit.cjs) (not `package.json`). Run `pnpm run size` (full report) or `pnpm run size:cc` (silent, exit-code only — CI-friendly) after a build. Current budgets: **initial JS 272 kB gzip** (~3.1% headroom over 263.71 kB, 2026-10-17), Recharts lazy chunk 85 kB gzip (~20% over 68.26 kB). The check reads `dist/client/`, so the pattern is `pnpm run build && pnpm run size:cc`. The initial-JS entry derives its file list from `dist/client/.vite/manifest.json` at config load and **throws** if the walk looks partial — see the 2026-07-25 and 2026-07-26 sections below for why.
 - **Web Vitals:** wired via [apps/web/src/lib/web-vitals.ts](../../../apps/web/src/lib/web-vitals.ts) + dev-only [PerfOverlay](../../../apps/web/src/components/perf-overlay.tsx) gated by `usePerfFlag()`. Live updates enabled (`reportAllChanges: true` for CLS/INP/LCP). Activation: append `?perf` (or `?perf=1`) once — persists to `localStorage` for the session, survives TanStack Router validateSearch stripping. Clear `vyoh:perf` from localStorage to disable.
 - **Lighthouse:** **not** available inside the devcontainer (no Chrome). Use the PerfOverlay against `vite preview` on a forwarded port for live measurements. Firefox lacks the live CPU-throttling Chrome offers, so deeper throttled measurement requires Chrome/Edge.
 
@@ -242,4 +242,17 @@ The root entry now carries `auth/owner-badge.tsx`, `auth/logout-button.tsx`, `li
 **The champion accent table did not grow.** `6e823975` (2026-08-10) moved `champion-theme` and `champion-assets.gen.ts` into `@vyoh/shared`; rolldown then grouped the table with `champion-icon.ts` instead of the entry chunk, so a per-chunk diff shows +7.2 kB on one line and −6.6 kB on another. Confirmed by grepping both builds' entry chunks for the table's contents. The table has been in the initial payload since `SplashProvider` started reading `championTheme()` at the root (2026-05-26).
 
 Method note: this section's predecessor is the 244.34 kB "after 5" figure above, not the 241.65 kB in the cutover table, which was measured mid-arc.
+
+## Re-baseline — 2026-10-17 (TanStack router-core security floor)
+
+Measured like-for-like: `size-limit` against a worktree build at `6485c27a` (`main`) and against the advisory branch, matching CI's own figures to the hundredth.
+
+| Measure | `main` (`6485c27a`) | Advisory bump | Limit |
+|---|---|---|---|
+| Initial JS | 254.10 kB | **263.71 kB** | 255 → **272 kB** |
+| Recharts lazy chunk | 68.26 kB | 68.26 kB | 85 kB |
+
++9.61 kB in one step, and none of it is ours. GHSA-qx66-fv34-fjm8 (critical, TanStack Start server functions) has no fix below `react-start` 1.168.60, which pins `react-router` 1.170.41 and with it `router-core` 1.171.34 (from 1.171.15); [security.md](../ops/security.md) has the pin chain. A per-chunk diff is useless here — rolldown re-split the root graph, so `Match` shows −13.8 kB and `dist` +10.4 kB, and app chunks like `web-vitals` and `error-boundary` surface as "new" when they only changed chunk. Diffing the initial set by **source module** instead (each initial chunk's source map `sources`): no app module entered or left it. All of the growth is `router-core`, chiefly a new `load-client.js` (~48k source chars, replacing `load-matches.js` and `ssr/ssr-client.js` at ~32k between them), the raw-stream serializer plugins, and `sieve-cache.js` in place of `lru-cache.js`.
+
+A security floor rather than a feature, so the ceiling moves and headroom goes back to ~3 %. It is not a lever this app holds: staying under 255 kB means staying on the vulnerable router. Worth re-measuring when TanStack next moves the router, since a loader rewrite of this size tends to settle over a few releases.
 

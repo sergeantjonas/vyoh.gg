@@ -93,9 +93,16 @@ module.exports = [
     // like growth in a per-chunk diff: it moved from the entry chunk into the
     // champion-icon chunk when champion-theme moved to @vyoh/shared.
     // Headroom is back to ~3 %.
+    //
+    // 255 kB → 272 kB on 2026-10-17: 254.10 kB → 263.71 kB, all of it TanStack
+    // router-core. The patch for a critical Start advisory needs router-core
+    // 1.171.34, whose client loader (`load-client.js`) and raw-stream
+    // serializer plugins sit in the root graph; no app module moved in or out
+    // of the initial set. A security floor, not a feature, so the ceiling moves
+    // and headroom returns to ~3 %.
     name: "initial JS (entry + static imports)",
     path: initialJsPaths(),
-    limit: "255 kB",
+    limit: "272 kB",
     gzip: true,
   },
   {
