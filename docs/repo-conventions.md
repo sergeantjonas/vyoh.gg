@@ -154,9 +154,10 @@ the key. Re-run `gh auth login` after a rebuild.
 
 Enabled 2026-09-17, when the site went live and the 2026-07-26 deferral's
 trigger fired. The ruleset on the default branch requires a pull request at **0
-approvals** — a solo repo cannot approve its own PR — requires the three checks
-that run on `pull_request`, blocks force-pushes and deletions, and carries an
-empty bypass list so the owner is not silently exempt.
+approvals** — a solo repo cannot approve its own PR — requires three checks
+(`Lint, format, typecheck, and test`, `Production dependency audit`, `Bundle
+size budget`), blocks force-pushes and deletions, and carries an empty bypass
+list so the owner is not silently exempt.
 
 This scopes the cross-project "owner handles pushes personally" rule rather than
 contradicting it. A feature branch is reversible and gated by CI; `main` was
@@ -174,6 +175,11 @@ against squashing onto the wrong branch.
 **`Build and push container images` must never become a required check.** It is
 `if: github.event_name == 'push'`, so it never starts on a pull request, and
 requiring it would leave every PR waiting on a check that cannot run.
+
+**Neither must the jobs behind `Lint, format, typecheck, and test`.** That check
+is an aggregator over `static`, the `Test (…)` matrix and `Coverage`, which is
+what lets the matrix be reshaped freely: a required leg whose id later changes
+leaves every PR waiting on a check name that no longer exists.
 
 Worth knowing so the protection is not mistaken for more than it is: **this was
 never what protected the deploy.** The `images` job has `needs: [check]`, so a
