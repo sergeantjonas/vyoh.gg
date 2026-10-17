@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PrismaService } from "../../prisma/prisma.service";
 import type { SteamClientService } from "../client/steam-client.service";
+import type { SteamAchievementSchemaService } from "./achievement-schema.service";
 import { SteamPlayerUnlocksService } from "./player-unlocks.service";
 
 interface PrismaStubs {
@@ -25,12 +26,22 @@ function makePrisma(): PrismaStubs {
   };
 }
 
+// Every name Steam returns is already in the stored schema unless a test says otherwise.
+const knowsAll = () =>
+  vi.fn(async (_appid: number, names: readonly string[]) => new Set(names));
+
 function makeService(
   prisma: PrismaStubs,
-  getPlayerAchievements: ReturnType<typeof vi.fn>
+  getPlayerAchievements: ReturnType<typeof vi.fn>,
+  knownApiNames: ReturnType<typeof vi.fn> = knowsAll()
 ): SteamPlayerUnlocksService {
   const client = { getPlayerAchievements } as unknown as SteamClientService;
-  return new SteamPlayerUnlocksService(prisma as unknown as PrismaService, client);
+  const schemas = { knownApiNames } as unknown as SteamAchievementSchemaService;
+  return new SteamPlayerUnlocksService(
+    prisma as unknown as PrismaService,
+    client,
+    schemas
+  );
 }
 
 describe("SteamPlayerUnlocksService.refreshUnlocksForGame", () => {
@@ -126,6 +137,48 @@ describe("SteamPlayerUnlocksService.syncUnlocks", () => {
       where: { appid: 367520 },
       data: { lastUnlocksCheckedAt: expect.any(Date), statsPrivateAt: null },
     });
+  });
+
+  it("skips an unlock the schema still lacks after catching up, and keeps the rest", async () => {
+    // An unlock of an achievement shipped since the last schema refresh would
+    // break the FK and abort the pass for every game behind it.
+    const prisma = makePrisma();
+    prisma.steamPlayerUnlock.createMany.mockResolvedValue({ count: 1 });
+    const fetch = vi.fn().mockResolvedValue({
+      status: "ok",
+      achievements: [
+        { apiname: "ACH_OLD", achieved: 1, unlocktime: 1_715_000_000 },
+        { apiname: "ACH_NEW", achieved: 1, unlocktime: 1_715_999_999 },
+      ],
+    });
+    const known = vi.fn().mockResolvedValue(new Set(["ACH_OLD"]));
+
+    const result = await makeService(prisma, fetch, known).syncUnlocks([3564740]);
+
+    expect(known).toHaveBeenCalledWith(3564740, ["ACH_OLD", "ACH_NEW"]);
+    expect(result).toEqual({ checked: 1, newUnlocks: 1, privateOnSteam: 0, failed: 0 });
+    expect(prisma.steamPlayerUnlock.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ apiName: "ACH_OLD" })],
+      skipDuplicates: true,
+    });
+  });
+
+  it("counts a failed write and still processes the remaining appids", async () => {
+    const prisma = makePrisma();
+    prisma.steamPlayerUnlock.createMany
+      .mockRejectedValueOnce(new Error("deadlock"))
+      .mockResolvedValueOnce({ count: 1 });
+    const fetch = vi.fn().mockResolvedValue({
+      status: "ok",
+      achievements: [{ apiname: "ACH_DONE_A", achieved: 1, unlocktime: 1_715_000_000 }],
+    });
+
+    const result = await makeService(prisma, fetch).syncUnlocks([404, 367520]);
+
+    expect(result).toEqual({ checked: 1, newUnlocks: 1, privateOnSteam: 0, failed: 1 });
+    expect(prisma.steamGameAchievementMeta.update).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ where: { appid: 367520 } })
+    );
   });
 
   it("still stamps meta when Steam reports no stats (200, success: false)", async () => {

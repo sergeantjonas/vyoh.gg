@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { SteamClientService } from "../client/steam-client.service";
+import { SteamAchievementSchemaService } from "./achievement-schema.service";
 
 export interface RaritySyncResult {
   checked: number;
@@ -25,7 +26,8 @@ export class SteamGlobalRarityService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly client: SteamClientService
+    private readonly client: SteamClientService,
+    private readonly schemas: SteamAchievementSchemaService
   ) {}
 
   // Fetches GetGlobalAchievementPercentagesForApp for each appid (one Steam
@@ -65,67 +67,90 @@ export class SteamGlobalRarityService {
         continue;
       }
 
-      const now = new Date();
-      if (percentages.length > 0) {
-        // Upsert each — `createMany` with `skipDuplicates: true` would
-        // ignore stale rows (we want them updated). A small per-game N
-        // (typically 30–200 achievements) makes the per-row upsert
-        // tolerable; the alternative (delete-then-createMany) would race
-        // against the read side.
-        const appended = await this.prisma.$transaction(async (tx) => {
-          // Read the outgoing values inside the transaction, before the upsert
-          // overwrites them — this is the only moment the previous reading
-          // still exists anywhere.
-          const previous = new Map(
-            (
-              await tx.steamAchievementGlobalRarity.findMany({
-                where: { appid },
-                select: { apiName: true, percent: true },
-              })
-            ).map((r) => [r.apiName, r.percent])
+      // Guarded per-appid for the same reason the fetch above is: one bad id
+      // must never abort the rest of the pass — and an unstamped one heads the
+      // next queue, so it would abort that pass too.
+      try {
+        // Filtered rather than left to the guard around it: an unknown name
+        // breaks the FK, and the whole game would fail every pass until its
+        // schema caught up instead of writing the rows it can.
+        const known = await this.schemas.knownApiNames(
+          appid,
+          percentages.map((p) => p.name)
+        );
+        const tracked = percentages.filter((p) => known.has(p.name));
+        if (tracked.length < percentages.length) {
+          this.logger.warn(
+            `global-rarity appid=${appid}: skipped ${percentages.length - tracked.length} achievement(s) the stored schema has not seen yet`
           );
+        }
 
-          for (const p of percentages) {
-            await tx.steamAchievementGlobalRarity.upsert({
-              where: { appid_apiName: { appid, apiName: p.name } },
-              create: {
-                appid,
-                apiName: p.name,
-                percent: p.percent,
-                polledAt: now,
-              },
-              update: { percent: p.percent, polledAt: now },
-            });
-          }
+        const now = new Date();
+        if (tracked.length > 0) {
+          // Upsert each — `createMany` with `skipDuplicates: true` would
+          // ignore stale rows (we want them updated). A small per-game N
+          // (typically 30–200 achievements) makes the per-row upsert
+          // tolerable; the alternative (delete-then-createMany) would race
+          // against the read side.
+          const appended = await this.prisma.$transaction(async (tx) => {
+            // Read the outgoing values inside the transaction, before the upsert
+            // overwrites them — this is the only moment the previous reading
+            // still exists anywhere.
+            const previous = new Map(
+              (
+                await tx.steamAchievementGlobalRarity.findMany({
+                  where: { appid },
+                  select: { apiName: true, percent: true },
+                })
+              ).map((r) => [r.apiName, r.percent])
+            );
 
-          // Append-only, and only for what moved. Appending every reading
-          // would cost an order of magnitude more rows to say the same thing:
-          // roughly a tenth of the tracked achievements move in a given week.
-          // An achievement with no previous row counts as moved so its series
-          // gets an origin rather than starting at its first change.
-          const moved = percentages.filter((p) =>
-            movedAtSteamPrecision(previous.get(p.name), p.percent)
-          );
-          if (moved.length > 0) {
-            await tx.steamAchievementRarityHistory.createMany({
-              data: moved.map((p) => ({
-                appid,
-                apiName: p.name,
-                percent: p.percent,
-                observedAt: now,
-              })),
-            });
-          }
-          return moved.length;
+            for (const p of tracked) {
+              await tx.steamAchievementGlobalRarity.upsert({
+                where: { appid_apiName: { appid, apiName: p.name } },
+                create: {
+                  appid,
+                  apiName: p.name,
+                  percent: p.percent,
+                  polledAt: now,
+                },
+                update: { percent: p.percent, polledAt: now },
+              });
+            }
+
+            // Append-only, and only for what moved. Appending every reading
+            // would cost an order of magnitude more rows to say the same thing:
+            // roughly a tenth of the tracked achievements move in a given week.
+            // An achievement with no previous row counts as moved so its series
+            // gets an origin rather than starting at its first change.
+            const moved = tracked.filter((p) =>
+              movedAtSteamPrecision(previous.get(p.name), p.percent)
+            );
+            if (moved.length > 0) {
+              await tx.steamAchievementRarityHistory.createMany({
+                data: moved.map((p) => ({
+                  appid,
+                  apiName: p.name,
+                  percent: p.percent,
+                  observedAt: now,
+                })),
+              });
+            }
+            return moved.length;
+          });
+          rowsWritten += tracked.length;
+          historyRowsAppended += appended;
+        }
+
+        await this.prisma.steamGameAchievementMeta.update({
+          where: { appid },
+          data: { lastRarityCheckedAt: now },
         });
-        rowsWritten += percentages.length;
-        historyRowsAppended += appended;
+      } catch (err) {
+        failed += 1;
+        this.logger.warn(`global-rarity write for appid=${appid} failed: ${err}`);
+        continue;
       }
-
-      await this.prisma.steamGameAchievementMeta.update({
-        where: { appid },
-        data: { lastRarityCheckedAt: now },
-      });
       checked += 1;
     }
 

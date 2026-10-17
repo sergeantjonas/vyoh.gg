@@ -108,4 +108,30 @@ export class SteamAchievementSchemaService {
     );
     return { fetched, withAchievements, failed };
   }
+
+  // The stored schema trails Steam between weekly refreshes: a live game
+  // ships achievements, and the unlock and rarity endpoints name them before
+  // this table does. Writing one of those names breaks the FK to
+  // `SteamGameAchievement` and aborts the caller's whole pass, so callers hand
+  // over the names Steam just returned and write only what comes back. Drift
+  // refetches this one game's schema on the spot rather than waiting out the
+  // week; a name still missing afterwards (the schema endpoint lagging its
+  // siblings, or the refetch failing) is the caller's to skip. A name that
+  // never reaches the schema costs one schema call per pass, so a warning
+  // that recurs for the same game is the cue to look.
+  async knownApiNames(appid: number, names: readonly string[]): Promise<Set<string>> {
+    if (names.length === 0) return new Set();
+    const known = await this.storedApiNames(appid);
+    if (names.every((n) => known.has(n))) return known;
+    await this.refreshSchemas([appid]);
+    return this.storedApiNames(appid);
+  }
+
+  private async storedApiNames(appid: number): Promise<Set<string>> {
+    const rows = await this.prisma.steamGameAchievement.findMany({
+      where: { appid },
+      select: { apiName: true },
+    });
+    return new Set(rows.map((r) => r.apiName));
+  }
 }
