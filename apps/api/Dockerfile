@@ -9,7 +9,7 @@
 # than alpine because sharp, onnxruntime-node and @resvg/resvg-js all ship glibc
 # prebuilds and would otherwise compile from source.
 
-FROM node:22-bookworm-slim AS build
+FROM node:22-bookworm-slim AS deps
 
 # bookworm-slim ships no openssl. Prisma probes for it to pick a query-engine
 # binary and, finding none, falls back to the openssl-1.1.x build — which is the
@@ -41,7 +41,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm-store \
 # the loader here can open exactly one of them: Windows DLLs and macOS dylibs
 # are 203 MB of the package's 259, for a 1.3 MB face-detection model.
 #
-# Pruned in the *build* stage, which is the whole trick. The obvious place is
+# Pruned in the *deps* stage, which is the whole trick. The obvious place is
 # next to the runtime stage's `COPY node_modules`, and a `RUN rm -rf` there
 # would delete the files while leaving them in the layer they arrived in — the
 # image measures the same and the work reads as done. Deleting before the COPY
@@ -69,10 +69,23 @@ RUN set -eu; \
     done; \
     test "${found}" = 1
 
+# ---------------------------------------------------------------------------
+
+FROM deps AS build
+
 COPY packages/shared packages/shared
 COPY apps/api apps/api
 
 RUN pnpm --filter @vyoh/api build
+
+# ---------------------------------------------------------------------------
+
+# Branched from `deps` rather than following the build, so the runtime's
+# `node_modules` layer depends only on the install inputs above, never on source.
+# After the source copy it would re-run on every api or shared change and give a
+# ~350 MB layer a fresh digest to export, push and pull. The build stage keeps
+# the toolchain nest and swc need.
+FROM deps AS prod-deps
 
 # Strip the build and test toolchain out of what the runtime stage will copy.
 #
@@ -81,10 +94,7 @@ RUN pnpm --filter @vyoh/api build
 # concurrently, nest, playwright, spack, swc, swcx, tsc, tsserver, tsx and
 # vitest, every one of them invokable inside a container serving public traffic.
 # A language server and a browser launcher are not things a Nest server needs at
-# runtime. Images are built on the VPS and never shipped anywhere, so the
-# megabytes this frees are incidental — `scripts/deploy.sh` rsyncs source.
-#
-# After the build, which needs nest and swc.
+# runtime, and the megabytes this frees are incidental.
 #
 # Two mechanisms, and only one of them depends on the list. The `.bin` sweep is
 # an allowlist: everything except `prisma` goes, so a dependency added later
@@ -140,12 +150,12 @@ WORKDIR /app
 #   - The prisma CLI is a devDependency, and the entrypoint needs it for
 #     `migrate deploy`. Pruning would take it out and put it straight back.
 # The web image does prune, because neither applies there.
-COPY --from=build --chown=node:node /repo/node_modules ./node_modules
-COPY --from=build --chown=node:node /repo/package.json /repo/pnpm-workspace.yaml ./
+COPY --from=prod-deps --chown=node:node /repo/node_modules ./node_modules
+COPY --from=prod-deps --chown=node:node /repo/apps/api/node_modules ./apps/api/node_modules
+COPY --from=prod-deps --chown=node:node /repo/package.json /repo/pnpm-workspace.yaml ./
 # Raw source, not a build output: this is what the api's `require("@vyoh/shared")`
 # resolves to.
 COPY --from=build --chown=node:node /repo/packages/shared ./packages/shared
-COPY --from=build --chown=node:node /repo/apps/api/node_modules ./apps/api/node_modules
 COPY --from=build --chown=node:node /repo/apps/api/dist ./apps/api/dist
 COPY --from=build --chown=node:node /repo/apps/api/package.json ./apps/api/package.json
 COPY --from=build --chown=node:node /repo/apps/api/prisma ./apps/api/prisma

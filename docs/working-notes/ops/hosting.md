@@ -557,7 +557,7 @@ than payload.
 dylibs were 203 MB of the package's 259, for a 1.3 MB face-detection model.
 Two things about the implementation are load-bearing:
 
-- **It prunes in the build stage, not the runtime stage.** The obvious place is
+- **It prunes in the build stage (`deps` since 2026-10-17), not the runtime stage.** The obvious place is
   beside the runtime `COPY node_modules`, and a `rm -rf` there deletes the files
   while leaving them in the layer they arrived in — the image measures the same
   and the work reads as done. Deleting before the COPY is what makes them
